@@ -1,0 +1,2885 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>EduLink — Portail Famille</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest-portail.json">
+<meta name="theme-color" content="#0f6e56">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="EduLink Famille">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+<style>
+/* ══ BASE ══ */
+*{margin:0;box-sizing:border-box}
+:root{
+  --navy:#1e3a5f;
+  --teal:#0f6e56;
+  --teal-light:#e1f5ee;
+  --gold:#c97c1a;
+  --red:#dc2626;
+  --amber:#d97706;
+  --green:#059669;
+  --bg:#f0f7f4;
+  --white:#ffffff;
+  --text:#111827;
+  --muted:#6b7280;
+  --border:#e5e7eb;
+  --card:#ffffff;
+  --radius:16px;
+}
+body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;color:var(--text)}
+
+/* ══ LOGIN ══ */
+#login-screen{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:linear-gradient(160deg,#0f6e56 0%,#1e3a5f 60%,#0f2040 100%);
+  display:flex;align-items:center;justify-content:center;z-index:2000;
+  padding:1rem;
+}
+.login-card{
+  background:#fff;border-radius:24px;padding:2rem 1.8rem;width:100%;max-width:400px;
+  box-shadow:0 30px 80px rgba(0,0,0,.3);
+}
+.login-brand{text-align:center;margin-bottom:2rem}
+.login-brand .brand-ico{
+  width:70px;height:70px;border-radius:20px;
+  background:linear-gradient(135deg,#0f6e56,#1e3a5f);
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;margin:0 auto .75rem;box-shadow:0 8px 20px rgba(15,110,86,.3);
+}
+.login-brand h1{font-family:'Nunito',sans-serif;font-size:24px;font-weight:800;color:#1e3a5f;margin-bottom:2px}
+.login-brand p{font-size:12.5px;color:#6b7280}
+.login-tag{
+  display:inline-flex;align-items:center;gap:5px;
+  background:#e1f5ee;color:#0f6e56;font-size:11px;font-weight:700;
+  padding:4px 10px;border-radius:20px;margin-top:6px;
+}
+.form-group{margin-bottom:1rem}
+.form-group label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px}
+.form-group input{
+  width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:10px;
+  font-size:14px;font-family:'Poppins',sans-serif;outline:none;transition:border-color .15s;
+}
+.form-group input:focus{border-color:#0f6e56;box-shadow:0 0 0 3px rgba(15,110,86,.1)}
+.login-btn{
+  width:100%;padding:13px;background:linear-gradient(135deg,#0f6e56,#1e3a5f);
+  color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;
+  font-family:'Poppins',sans-serif;cursor:pointer;transition:all .2s;margin-top:.5rem;
+  letter-spacing:.02em;
+}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(15,110,86,.35)}
+.login-btn:disabled{opacity:.6;transform:none;cursor:default}
+.login-error{color:#dc2626;font-size:12px;text-align:center;margin-top:.75rem;display:none;background:#fee2e2;padding:8px 12px;border-radius:8px}
+.login-back{text-align:center;margin-top:1.2rem;font-size:12px;color:#6b7280}
+.login-back a{color:#0f6e56;font-weight:600;text-decoration:none}
+
+/* ══ JOUR 9 — OTP SMS ══ */
+.login-tabs{display:flex;background:#f3f4f6;border-radius:10px;padding:4px;margin-bottom:1.5rem;gap:4px}
+.login-tab{flex:1;padding:8px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;color:#6b7280;border:none;background:transparent;font-family:'Poppins',sans-serif;transition:all .15s}
+.login-tab.active{background:#fff;color:#0f6e56;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.otp-input-wrap{display:flex;gap:8px;justify-content:center;margin:1rem 0}
+.otp-digit{width:44px;height:52px;border:2px solid #e5e7eb;border-radius:10px;font-size:22px;font-weight:700;text-align:center;font-family:'Nunito',sans-serif;color:#1e3a5f;outline:none;transition:border-color .15s}
+.otp-digit:focus{border-color:#0f6e56;box-shadow:0 0 0 3px rgba(15,110,86,.1)}
+.otp-digit.filled{border-color:#0f6e56;background:#f0fdf4}
+.otp-timer{text-align:center;font-size:12px;color:#6b7280;margin-bottom:.5rem}
+.otp-timer span{font-weight:700;color:#0f6e56}
+.phone-flag{display:flex;align-items:center;gap:6px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:11px 14px;font-size:14px;font-family:'Poppins',sans-serif;width:100%;outline:none;transition:border-color .15s}
+.phone-flag:focus-within{border-color:#0f6e56;box-shadow:0 0 0 3px rgba(15,110,86,.1)}
+.phone-flag .flag{font-size:18px;flex-shrink:0}
+.phone-flag .prefix{color:#6b7280;font-weight:600;flex-shrink:0}
+.phone-flag input{border:none;outline:none;flex:1;font-size:14px;font-family:'Poppins',sans-serif;background:transparent}
+
+
+/* ══ APP ══ */
+#app-portail{display:none;max-width:500px;margin:0 auto;min-height:100vh;padding-bottom:80px}
+
+/* ══ HEADER ══ */
+.portail-header{
+  background:linear-gradient(135deg,#0f6e56,#1e3a5f);
+  padding:1.2rem 1.2rem .8rem;position:sticky;top:0;z-index:100;
+}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem}
+.header-logo{font-family:'Nunito',sans-serif;font-size:18px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px}
+.header-actions{display:flex;gap:8px;align-items:center}
+.notif-btn{
+  width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);
+  border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+.notif-badge{
+  position:absolute;top:-2px;right:-2px;width:16px;height:16px;
+  background:#dc2626;border-radius:50%;font-size:9px;font-weight:700;
+  color:#fff;display:none;align-items:center;justify-content:center;border:2px solid #0f6e56;
+}
+.header-greeting{color:rgba(255,255,255,.85);font-size:12.5px}
+.header-greeting strong{color:#fff;font-size:14px;display:block;font-weight:700}
+.student-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);
+  border-radius:20px;padding:4px 12px;font-size:11.5px;color:#fff;font-weight:600;margin-top:4px;
+}
+
+/* ══ NAV BAS ══ */
+.bottom-nav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:500px;
+  background:#fff;border-top:1px solid #e5e7eb;
+  display:flex;z-index:100;
+  box-shadow:0 -4px 20px rgba(0,0,0,.08);
+}
+.nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  padding:10px 4px 8px;cursor:pointer;color:#9ca3af;transition:color .15s;
+  border:none;background:transparent;font-family:'Poppins',sans-serif;
+}
+.nav-item.active{color:#0f6e56}
+.nav-item .nav-ico{font-size:20px;margin-bottom:2px;line-height:1}
+.nav-item .nav-lbl{font-size:9.5px;font-weight:600}
+.nav-badge{
+  position:absolute;top:6px;right:50%;transform:translateX(50%);
+  width:16px;height:16px;background:#dc2626;border-radius:50%;
+  font-size:9px;font-weight:700;color:#fff;display:none;align-items:center;justify-content:center;
+}
+.nav-item{position:relative}
+
+/* ══ PAGES ══ */
+.page{display:none;padding:1rem 1rem 0;animation:fadeUp .2s ease}
+.page.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ══ CARDS ══ */
+.card{background:#fff;border-radius:var(--radius);border:1px solid #e5e7eb;margin-bottom:1rem;overflow:hidden}
+.card-header{padding:.9rem 1rem .6rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13px;font-weight:700;color:#374151;display:flex;align-items:center;gap:6px}
+.card-body{padding:1rem}
+.card-link{font-size:11.5px;color:#0f6e56;font-weight:600;text-decoration:none;cursor:pointer}
+
+/* ══ STATS ACCUEIL ══ */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}
+.stat-card{
+  background:#fff;border-radius:14px;border:1px solid #e5e7eb;
+  padding:.9rem;display:flex;align-items:center;gap:.75rem;
+}
+.stat-ico{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.stat-ico.teal{background:#e1f5ee}
+.stat-ico.red{background:#fee2e2}
+.stat-ico.amber{background:#fef9c3}
+.stat-ico.blue{background:#dbeafe}
+.stat-val{font-size:22px;font-weight:800;font-family:'Nunito',sans-serif;line-height:1}
+.stat-lbl{font-size:10.5px;color:#6b7280;font-weight:500}
+
+/* ══ BADGES ══ */
+.badge{font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:700;white-space:nowrap;display:inline-block}
+.badge.green{background:#dcfce7;color:#059669}
+.badge.red{background:#fee2e2;color:#dc2626}
+.badge.amber{background:#fef9c3;color:#d97706}
+.badge.blue{background:#dbeafe;color:#1d4ed8}
+.badge.gray{background:#f3f4f6;color:#6b7280}
+.badge.teal{background:#e1f5ee;color:#0f6e56}
+
+/* ══ LISTES ══ */
+.list-item{
+  padding:.85rem 1rem;border-bottom:1px solid #f3f4f6;
+  display:flex;align-items:flex-start;gap:.75rem;
+}
+.list-item:last-child{border-bottom:none}
+.li-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.li-body{flex:1;min-width:0}
+.li-title{font-size:13px;font-weight:600;color:#111827;margin-bottom:2px}
+.li-sub{font-size:11.5px;color:#6b7280}
+.li-right{text-align:right;flex-shrink:0}
+
+/* ══ NOTES ══ */
+.note-big{font-size:28px;font-weight:800;font-family:'Nunito',sans-serif}
+.note-big.good{color:#059669}
+.note-big.avg{color:#d97706}
+.note-big.bad{color:#dc2626}
+.moy-bar{height:8px;background:#e5e7eb;border-radius:4px;margin:8px 0 4px;overflow:hidden}
+.moy-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#0f6e56,#1d9e75);transition:width .8s ease}
+
+/* ══ BULLETIN ══ */
+.bulletin-card{background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;margin-bottom:1rem}
+.bulletin-top{background:linear-gradient(135deg,#1e3a5f,#0f6e56);padding:1rem 1.2rem;color:#fff}
+.bulletin-top h3{font-size:15px;font-weight:700;margin-bottom:2px}
+.bulletin-top p{font-size:11.5px;opacity:.75}
+.bulletin-moy{font-size:32px;font-weight:800;font-family:'Nunito',sans-serif;margin:.5rem 0}
+.bulletin-table{width:100%;border-collapse:collapse}
+.bulletin-table th{font-size:10px;font-weight:700;color:#6b7280;padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;text-transform:uppercase;background:#f9fafb}
+.bulletin-table td{font-size:12.5px;padding:9px 12px;border-bottom:1px solid #f3f4f6;color:#374151}
+.bulletin-table tr:last-child td{border-bottom:none}
+.periode-sel{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+.periode-btn{
+  padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;
+  border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;
+  font-family:'Poppins',sans-serif;transition:all .15s;
+}
+.periode-btn.active{background:#0f6e56;border-color:#0f6e56;color:#fff}
+.print-btn{
+  width:100%;padding:11px;background:#1e3a5f;color:#fff;border:none;
+  border-radius:10px;font-size:13px;font-weight:600;font-family:'Poppins',sans-serif;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:1rem;
+}
+
+/* ══ MESSAGES ══ */
+.msg-composer{margin-bottom:1rem}
+.msg-composer textarea{
+  width:100%;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;
+  font-size:13px;font-family:'Poppins',sans-serif;outline:none;resize:none;
+  transition:border-color .15s;
+}
+.msg-composer textarea:focus{border-color:#0f6e56}
+.msg-send-btn{
+  margin-top:6px;padding:9px 18px;background:#0f6e56;color:#fff;border:none;
+  border-radius:8px;font-size:12.5px;font-weight:600;font-family:'Poppins',sans-serif;cursor:pointer;
+}
+.msg-bubble{
+  background:#f0f7f4;border-radius:12px 12px 12px 4px;
+  padding:.75rem 1rem;margin-bottom:.75rem;border-left:3px solid #0f6e56;
+}
+.msg-bubble.sent{background:#e1f5ee;border-left-color:#1d9e75;border-radius:12px 12px 4px 12px}
+.msg-bubble .mb-from{font-size:11px;font-weight:700;color:#0f6e56;margin-bottom:3px}
+.msg-bubble .mb-text{font-size:13px;color:#374151;line-height:1.6}
+.msg-bubble .mb-date{font-size:10.5px;color:#9ca3af;margin-top:4px;text-align:right}
+
+/* ══ PAIEMENTS ══ */
+.pay-progress{margin:1rem 0}
+.pay-bar{height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;margin-top:6px}
+.pay-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,#059669,#1d9e75);transition:width .8s}
+.pay-amounts{display:flex;justify-content:space-between;font-size:11px;color:#6b7280;margin-top:4px}
+
+
+
+/* ══ ENSEIGNANTS PORTAIL ★ JOUR 13 ══ */
+.prof-contact-card{
+  background:linear-gradient(135deg,#1e3a5f,#2d5a8e);
+  border-radius:14px;color:#fff;padding:1rem 1.2rem;
+  display:flex;align-items:center;gap:1rem;margin-bottom:.75rem;
+}
+.pcc-avatar{
+  width:44px;height:44px;border-radius:12px;
+  background:rgba(255,255,255,.2);display:flex;
+  align-items:center;justify-content:center;
+  font-size:17px;font-weight:700;flex-shrink:0;
+}
+.pcc-info .pi-nom{font-size:13.5px;font-weight:700;margin-bottom:2px;}
+.pcc-info .pi-spec{font-size:11.5px;opacity:.75;}
+.pcc-info .pi-mat{font-size:11px;opacity:.6;margin-top:2px;}
+
+
+/* ══ ENSEIGNANTS PORTAIL ★ JOUR 13 ══ */
+.prof-card{
+  display:flex;align-items:center;gap:.85rem;
+  padding:.9rem 1rem;border-bottom:1px solid #f3f4f6;
+}
+.prof-card:last-child{border-bottom:none}
+.prof-avatar{
+  width:44px;height:44px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#0f6e56,#1e3a5f);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;color:#fff;
+}
+.prof-body{flex:1;min-width:0}
+.prof-nom{font-size:13px;font-weight:700;color:#111827;margin-bottom:2px}
+.prof-spec{font-size:11.5px;color:#6b7280}
+.prof-mats{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.prof-mat-pill{
+  background:#e1f5ee;color:#0f6e56;border-radius:20px;
+  padding:2px 8px;font-size:10.5px;font-weight:600;
+}
+
+/* ══ EXAMENS PORTAIL ★ JOUR 12 ══ */
+.next-exam-card{
+  background:linear-gradient(135deg,#0f6e56,#1e3a5f);
+  border-radius:16px;padding:1.2rem;color:#fff;margin-bottom:1rem;
+  position:relative;overflow:hidden;
+}
+.next-exam-card::after{content:'📝';position:absolute;right:1rem;top:50%;transform:translateY(-50%);font-size:52px;opacity:.1;}
+.nec-countdown{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.15);border-radius:20px;
+  padding:4px 12px;font-size:12px;font-weight:700;margin-bottom:8px;
+}
+.nec-mat{font-size:17px;font-weight:700;margin-bottom:4px;}
+.nec-meta{font-size:12px;opacity:.75;display:flex;gap:12px;flex-wrap:wrap;}
+.exam-item{
+  padding:.9rem 1rem;border-bottom:1px solid #f3f4f6;
+  display:flex;align-items:flex-start;gap:.75rem;
+}
+.exam-item:last-child{border-bottom:none}
+.exam-date-box{
+  width:46px;flex-shrink:0;text-align:center;
+  background:#f0f7f4;border-radius:10px;padding:6px 4px;
+}
+.exam-date-box .ed-day{font-size:20px;font-weight:800;color:#0f6e56;font-family:'Nunito',sans-serif;line-height:1;}
+.exam-date-box .ed-mon{font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;}
+.exam-body{flex:1;min-width:0;}
+.exam-body .eb-mat{font-size:13px;font-weight:700;color:#111827;margin-bottom:2px;}
+.exam-body .eb-meta{font-size:11.5px;color:#6b7280;display:flex;gap:8px;flex-wrap:wrap;}
+.exam-body .eb-note{font-size:11.5px;margin-top:4px;background:#f0f7f4;border-radius:6px;padding:3px 8px;display:inline-block;color:#0f6e56;font-weight:600;}
+.exam-pill{
+  padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:700;white-space:nowrap;
+  flex-shrink:0;align-self:center;
+}
+.ep-partiel{background:#fee2e2;color:#dc2626;}
+.ep-controle{background:#dbeafe;color:#1d4ed8;}
+.ep-final{background:#fee2e2;color:#dc2626;}
+.ep-rattrapage{background:#fef9c3;color:#d97706;}
+.ep-soutenance{background:#ede9fe;color:#7c3aed;}
+.ep-soon{background:#dc2626;color:#fff;}
+.exam-filter-bar{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap;}
+.exam-filter-btn{
+  padding:5px 12px;border-radius:20px;font-size:11.5px;font-weight:600;
+  border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;
+  cursor:pointer;font-family:'Poppins',sans-serif;transition:all .15s;
+}
+.exam-filter-btn.active{background:#0f6e56;border-color:#0f6e56;color:#fff;}
+
+
+/* ══ CENTRE NOTIFICATIONS PORTAIL ★ JOUR 16 ══ */
+.pn-empty{text-align:center;padding:3rem 1rem;color:#9ca3af}
+.pn-empty .pn-ico{font-size:44px;margin-bottom:.75rem}
+.pn-empty p{font-size:13px}
+
+.pn-item{
+  display:flex;align-items:flex-start;gap:.75rem;
+  padding:.9rem 1rem;border-bottom:1px solid #f3f4f6;
+  cursor:pointer;transition:background .1s;
+  position:relative;
+}
+.pn-item:last-child{border-bottom:none}
+.pn-item:hover{background:#fafafa}
+.pn-item.unread{background:#eff6ff;border-left:3px solid #1e3a5f}
+.pn-item.high{border-left:3px solid #dc2626!important}
+
+.pn-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:#1e3a5f;position:absolute;top:1rem;right:1rem;
+  flex-shrink:0;
+}
+.pn-item.unread .pn-dot{display:block}
+.pn-item:not(.unread) .pn-dot{display:none}
+
+.pn-ico-wrap{
+  width:38px;height:38px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.pn-ico-wrap.blue  {background:#dbeafe}
+.pn-ico-wrap.green {background:#dcfce7}
+.pn-ico-wrap.red   {background:#fee2e2}
+.pn-ico-wrap.amber {background:#fef9c3}
+.pn-ico-wrap.purple{background:#ede9fe}
+.pn-ico-wrap.teal  {background:#e1f5ee}
+
+.pn-body{flex:1;min-width:0}
+.pn-titre{font-size:13px;font-weight:600;color:#111827;margin-bottom:2px}
+.pn-item.unread .pn-titre{color:#1e3a5f}
+.pn-corps{font-size:12px;color:#6b7280;line-height:1.5;margin-bottom:3px}
+.pn-meta{font-size:10.5px;color:#9ca3af;display:flex;gap:8px;align-items:center}
+.pn-type-pill{
+  font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:10px;
+}
+
+.pn-filter-bar{
+  display:flex;gap:6px;padding:.65rem 1rem;
+  border-bottom:1px solid #f3f4f6;overflow-x:auto;
+  scrollbar-width:none;
+}
+.pn-filter-bar::-webkit-scrollbar{display:none}
+.pn-filter-btn{
+  padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;
+  border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;
+  cursor:pointer;font-family:'Poppins',sans-serif;transition:all .15s;
+  white-space:nowrap;
+}
+.pn-filter-btn.active{background:#1e3a5f;border-color:#1e3a5f;color:#fff}
+
+.pn-header-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.75rem 1rem;border-bottom:1px solid #f3f4f6;
+}
+.pn-header-bar .ph-title{font-size:13px;font-weight:700;color:#374151}
+.pn-tout-lire{
+  font-size:11.5px;color:#0f6e56;font-weight:600;
+  border:none;background:none;cursor:pointer;font-family:'Poppins',sans-serif;
+  padding:4px 8px;border-radius:6px;transition:background .1s;
+}
+.pn-tout-lire:hover{background:#e1f5ee}
+
+/* ══ NOTIF PUSH PORTAIL ★ JOUR 15 ══ */
+.push-banner{
+  background:linear-gradient(135deg,#1e3a5f,#2d5a8e);
+  border-radius:14px;padding:1rem 1.2rem;margin:1rem 1rem 0;
+  display:flex;align-items:center;gap:.85rem;
+  animation:fadeUp .3s ease;
+}
+.push-banner .pb-ico{font-size:28px;flex-shrink:0}
+.push-banner .pb-body{flex:1}
+.push-banner .pb-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:3px}
+.push-banner .pb-sub{font-size:11.5px;color:rgba(255,255,255,.75)}
+.push-banner .pb-btn{
+  background:#c97c1a;color:#fff;border:none;padding:7px 14px;
+  border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+  font-family:'Poppins',sans-serif;white-space:nowrap;flex-shrink:0;
+}
+.push-banner .pb-close{
+  background:none;border:none;color:rgba(255,255,255,.6);
+  font-size:18px;cursor:pointer;padding:0 0 0 8px;flex-shrink:0;
+}
+
+/* ══ EMPTY STATES ══ */
+.empty{text-align:center;padding:2.5rem 1rem;color:#9ca3af}
+.empty .e-ico{font-size:40px;margin-bottom:.75rem}
+.empty p{font-size:13px}
+
+/* ══ TOAST ══ */
+.toast{
+  position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+  background:#1e3a5f;color:#fff;padding:11px 20px;border-radius:10px;
+  font-size:13px;z-index:999;display:none;white-space:nowrap;
+  box-shadow:0 8px 24px rgba(0,0,0,.2);
+}
+.toast.show{display:block;animation:fadeUp .3s ease}
+.toast.success{background:#059669}
+.toast.error{background:#dc2626}
+.toast.info{background:#1e3a5f}
+
+/* ══ SECTION TITLE ══ */
+.section-title{font-size:15px;font-weight:700;color:#111827;margin-bottom:.75rem;display:flex;align-items:center;gap:6px}
+.page-pad{padding:1rem}
+
+/* ══════════════════════════════════════════════
+   JOUR 19 — AMÉLIORATIONS PORTAIL FAMILLE
+══════════════════════════════════════════════ */
+
+/* ── Emploi du temps ── */
+.edt-portail-grid {
+  display:grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap:4px;
+  margin-bottom:1rem;
+  overflow-x:auto;
+}
+.edt-portail-header {
+  background:var(--teal,#0f6e56);
+  color:#fff;
+  font-size:10px;
+  font-weight:700;
+  text-align:center;
+  padding:6px 2px;
+  border-radius:6px;
+}
+.edt-portail-slot {
+  min-height:56px;
+  border-radius:8px;
+  padding:5px 6px;
+  font-size:10px;
+  cursor:default;
+  position:relative;
+}
+.edt-portail-slot.vide {
+  background:#f9fafb;
+  border:1px dashed #e5e7eb;
+}
+.edt-portail-slot.cours  { background:#dbeafe; border-left:3px solid #1d4ed8; }
+.edt-portail-slot.td     { background:#dcfce7; border-left:3px solid #059669; }
+.edt-portail-slot.tp     { background:#ede9fe; border-left:3px solid #7c3aed; }
+.edt-portail-slot.exam   { background:#fef9c3; border-left:3px solid #d97706; }
+.edt-portail-slot .es-mat   { font-weight:700; color:#111827; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.edt-portail-slot .es-prof  { font-size:9px; color:#6b7280; }
+.edt-portail-slot .es-type  { font-size:8px; font-weight:700; color:#fff; background:rgba(0,0,0,.2); border-radius:3px; padding:1px 4px; display:inline-block; margin-top:2px; }
+.edt-heure-col { font-size:9px; color:#9ca3af; font-weight:600; text-align:right; padding-right:4px; line-height:1; display:flex; align-items:center; justify-content:flex-end; }
+.edt-portail-row { display:grid; grid-template-columns:30px repeat(6,1fr); gap:4px; margin-bottom:4px; align-items:stretch; }
+.edt-today { box-shadow:0 0 0 2px var(--teal,#0f6e56); }
+
+/* ── Messagerie améliorée ── */
+.msg-thread {
+  display:flex;
+  flex-direction:column;
+  gap:.6rem;
+  padding:.75rem 1rem;
+  max-height:380px;
+  overflow-y:auto;
+}
+.msg-bubble-v2 {
+  max-width:85%;
+  border-radius:14px;
+  padding:.65rem .9rem;
+  position:relative;
+}
+.msg-bubble-v2.recu {
+  background:#f3f4f6;
+  border-radius:4px 14px 14px 14px;
+  align-self:flex-start;
+  border-left:3px solid var(--teal,#0f6e56);
+}
+.msg-bubble-v2.envoye {
+  background:var(--teal,#0f6e56);
+  color:#fff;
+  border-radius:14px 4px 14px 14px;
+  align-self:flex-end;
+}
+.msg-bubble-v2.envoye .mb2-from { color:rgba(255,255,255,.75); }
+.msg-bubble-v2.envoye .mb2-date { color:rgba(255,255,255,.6); }
+.mb2-from  { font-size:10.5px; font-weight:700; color:var(--teal,#0f6e56); margin-bottom:3px; }
+.mb2-objet { font-size:12px; font-weight:700; margin-bottom:2px; }
+.mb2-text  { font-size:13px; line-height:1.5; }
+.mb2-date  { font-size:10px; color:#9ca3af; margin-top:4px; text-align:right; }
+.msg-compose-v2 {
+  border-top:1px solid #f3f4f6;
+  padding:.85rem 1rem;
+  background:#fafafa;
+  border-radius:0 0 14px 14px;
+}
+.msg-compose-v2 textarea {
+  width:100%;
+  border:1.5px solid #e5e7eb;
+  border-radius:10px;
+  padding:9px 12px;
+  font-size:13px;
+  font-family:'Poppins',sans-serif;
+  outline:none;
+  resize:none;
+  margin-bottom:.5rem;
+  transition:border-color .15s;
+}
+.msg-compose-v2 textarea:focus { border-color:var(--teal,#0f6e56); }
+.msg-compose-v2 input {
+  width:100%;
+  border:1.5px solid #e5e7eb;
+  border-radius:8px;
+  padding:8px 12px;
+  font-size:12.5px;
+  font-family:'Poppins',sans-serif;
+  outline:none;
+  margin-bottom:.5rem;
+}
+.msg-send-v2 {
+  width:100%;
+  padding:10px;
+  background:var(--teal,#0f6e56);
+  color:#fff;
+  border:none;
+  border-radius:10px;
+  font-size:13px;
+  font-weight:700;
+  font-family:'Poppins',sans-serif;
+  cursor:pointer;
+  transition:filter .15s;
+}
+.msg-send-v2:hover { filter:brightness(1.1); }
+.msg-unread-badge {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#dc2626;
+  color:#fff;
+  border-radius:20px;
+  font-size:9px;
+  font-weight:700;
+  padding:1px 7px;
+  margin-left:6px;
+}
+
+/* ── Certificats portail ── */
+.cert-portail-card {
+  display:flex;
+  align-items:center;
+  gap:.85rem;
+  padding:.9rem 1rem;
+  border-bottom:1px solid #f3f4f6;
+  transition:background .1s;
+}
+.cert-portail-card:last-child { border-bottom:none; }
+.cert-portail-card:hover { background:#fafafa; }
+.cpc-ico {
+  width:44px;
+  height:44px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  flex-shrink:0;
+}
+.cpc-info { flex:1; min-width:0; }
+.cpc-type { font-size:12.5px; font-weight:700; color:#111827; margin-bottom:2px; }
+.cpc-ref  { font-family:monospace; font-size:10.5px; color:#1e3a5f; background:#eff6ff; padding:2px 7px; border-radius:4px; letter-spacing:.04em; }
+.cpc-date { font-size:10.5px; color:#9ca3af; margin-top:3px; }
+.cpc-dl   {
+  background:var(--teal,#0f6e56);
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  padding:7px 12px;
+  font-size:11.5px;
+  font-weight:700;
+  font-family:'Poppins',sans-serif;
+  cursor:pointer;
+  flex-shrink:0;
+  transition:filter .15s;
+}
+.cpc-dl:hover { filter:brightness(1.1); }
+
+</style>
+</head>
+<body>
+
+<!-- ══ ÉCRAN CONNEXION ══ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-ico">🎓</div>
+      <h1>EduLink</h1>
+      <p>Portail Famille</p>
+      <div class="login-tag">👨‍👩‍👧 Espace parents & étudiants</div>
+    </div>
+
+    <!-- Onglets -->
+    <div class="login-tabs">
+      <button class="login-tab active" id="tab-sms-btn" onclick="switchLoginTab('sms')">📱 SMS OTP</button>
+      <button class="login-tab" id="tab-email-btn" onclick="switchLoginTab('email')">✉️ Email</button>
+    </div>
+
+    <!-- ══ TAB SMS OTP ══ -->
+    <div id="tab-sms">
+      <!-- Étape 1 : saisie numéro -->
+      <div id="otp-step1">
+        <div class="form-group">
+          <label>Numéro de téléphone</label>
+          <div class="phone-flag">
+            <span class="flag">🇧🇯</span>
+            <span class="prefix">+229</span>
+            <input type="tel" id="otp-phone" placeholder="01 97 09 81 17" maxlength="10"
+              oninput="this.value=this.value.replace(/\D/g,'')"
+              onkeypress="if(event.key==='Enter')envoyerOTP()">
+          </div>
+        </div>
+        <button class="login-btn" id="btn-envoyer-otp" onclick="envoyerOTP()">
+          📱 Recevoir le code SMS →
+        </button>
+        <div class="login-error" id="otp-error1"></div>
+      </div>
+
+      <!-- Étape 2 : saisie code OTP -->
+      <div id="otp-step2" style="display:none">
+        <div style="text-align:center;margin-bottom:1rem">
+          <div style="font-size:13px;color:#374151;font-weight:600">Code envoyé au</div>
+          <div style="font-size:15px;font-weight:700;color:#0f6e56" id="otp-phone-display"></div>
+        </div>
+        <div class="otp-input-wrap" id="otp-digits-wrap">
+          <input class="otp-digit" type="text" maxlength="1" id="d0" oninput="otpNext(this,0)">
+          <input class="otp-digit" type="text" maxlength="1" id="d1" oninput="otpNext(this,1)">
+          <input class="otp-digit" type="text" maxlength="1" id="d2" oninput="otpNext(this,2)">
+          <input class="otp-digit" type="text" maxlength="1" id="d3" oninput="otpNext(this,3)">
+          <input class="otp-digit" type="text" maxlength="1" id="d4" oninput="otpNext(this,4)">
+          <input class="otp-digit" type="text" maxlength="1" id="d5" oninput="otpNext(this,5)">
+        </div>
+        <div class="otp-timer">⏱ Code valable <span id="otp-countdown">5:00</span></div>
+        <button class="login-btn" id="btn-verifier-otp" onclick="verifierOTP()">✅ Confirmer le code</button>
+        <div class="login-error" id="otp-error2"></div>
+        <div style="text-align:center;margin-top:.75rem">
+          <span style="font-size:12px;color:#6b7280">Pas reçu ? </span>
+          <span style="font-size:12px;color:#0f6e56;font-weight:600;cursor:pointer" onclick="retourStep1()">Renvoyer</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB EMAIL ══ -->
+    <div id="tab-email" style="display:none">
+      <div class="form-group">
+        <label>Adresse e-mail</label>
+        <input type="email" id="login-email" placeholder="votre@email.com" onkeypress="if(event.key==='Enter')seConnecter()">
+      </div>
+      <div class="form-group">
+        <label>Mot de passe</label>
+        <input type="password" id="login-pwd" placeholder="••••••••" onkeypress="if(event.key==='Enter')seConnecter()">
+      </div>
+      <button class="login-btn" id="login-btn" onclick="seConnecter()">Se connecter →</button>
+      <div class="login-error" id="login-error"></div>
+    </div>
+
+    <p class="login-back">Espace administration ? <a href="index.html">Back-office</a></p>
+
+    <!-- ══ BOUTON ACCÈS DÉMO ══ -->
+    <div style="margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid #f3f4f6;text-align:center">
+      <div style="font-size:11px;color:#9ca3af;margin-bottom:.6rem">Vous explorez EduLink ?</div>
+      <button onclick="entrerEnDemo()" style="width:100%;background:linear-gradient(135deg,#c97c1a,#e8961f);color:#fff;border:none;padding:11px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Poppins',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px">
+        🎯 Voir la démo — Accès visiteur
+      </button>
+      <div style="font-size:10.5px;color:#9ca3af;margin-top:.5rem">Aucun SMS requis · Données fictives</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APPLICATION ══ -->
+<div id="app-portail">
+
+  <!-- Barre hors-ligne ★ JOUR 17 -->
+  <div id="offline-banner" style="display:none;background:#d97706;color:#fff;text-align:center;font-size:12px;font-weight:600;padding:7px;position:sticky;top:0;z-index:200">
+    📡 Mode hors-ligne — Dernières données affichées
+  </div>
+
+  <!-- Header -->
+  <div class="portail-header">
+    <div class="header-top">
+      <div class="header-logo">🎓 EduLink</div>
+      <div class="header-actions">
+        <button class="notif-btn" onclick="showPage('messages')" title="Messages">
+          ✉️<span class="notif-badge" id="msg-badge"></span>
+        </button>
+        <button class="notif-btn" onclick="seDeconnecter()" title="Déconnexion" style="font-size:14px">🚪</button>
+      </div>
+    </div>
+    <div class="header-greeting">
+      <strong id="greeting-nom">Chargement...</strong>
+      <span id="greeting-role">Bienvenue sur votre portail</span>
+    </div>
+    <div id="student-pill-wrap"></div>
+  </div>
+
+  <!-- Pages -->
+  <div id="push-permission-banner"></div>
+  <div class="page active" id="page-accueil"></div>
+  <div class="page" id="page-notes"></div>
+  <div class="page" id="page-absences"></div>
+  <div class="page" id="page-paiements"></div>
+  <div class="page" id="page-messages"></div>
+  <div class="page" id="page-notifs"></div>
+
+  <div class="page" id="page-enseignants"></div>
+  <div class="page" id="page-examens"></div>
+  <div class="page" id="page-emploi"></div>
+  <div class="page" id="page-certificats-portail"></div>
+
+  <div class="page" id="page-enseignants"></div>
+
+  <!-- Navigation bas -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="nav-accueil" onclick="showPage('accueil')">
+      <span class="nav-ico">🏠</span>
+      <span class="nav-lbl">Accueil</span>
+    </button>
+    <button class="nav-item" id="nav-notes" onclick="showPage('notes')">
+      <span class="nav-ico">📊</span>
+      <span class="nav-lbl">Notes</span>
+    </button>
+    <button class="nav-item" id="nav-absences" onclick="showPage('absences')">
+      <span class="nav-ico">✅</span>
+      <span class="nav-lbl">Présences</span>
+    </button>
+    <button class="nav-item" id="nav-paiements" onclick="showPage('paiements')">
+      <span class="nav-ico">💳</span>
+      <span class="nav-lbl">Paiements</span>
+    </button>
+    <button class="nav-item" id="nav-enseignants" onclick="showPage('enseignants')">
+      <span class="nav-ico">👨‍🏫</span>
+      <span class="nav-lbl">Profs</span>
+    </button>
+    <button class="nav-item" id="nav-examens" onclick="showPage('examens')">
+      <span class="nav-ico">📝</span>
+      <span class="nav-lbl">Examens</span>
+      <span class="nav-badge" id="nav-exam-badge"></span>
+    </button>
+    <button class="nav-item" id="nav-messages" onclick="showPage('messages')">
+      <span class="nav-ico">✉️</span>
+      <span class="nav-lbl">Messages</span>
+      <span class="nav-badge" id="nav-msg-badge"></span>
+    </button>
+    <button class="nav-item" id="nav-notifs" onclick="showPage('notifs')">
+      <span class="nav-ico">🔔</span>
+      <span class="nav-lbl">Alertes</span>
+      <span class="nav-badge" id="nav-notifs-badge"></span>
+    </button>
+    <button class="nav-item" id="nav-emploi" onclick="showPage('emploi')">
+      <span class="nav-ico">📅</span>
+      <span class="nav-lbl">Emploi</span>
+    </button>
+    <button class="nav-item" id="nav-certificats-portail" onclick="showPage('certificats-portail')">
+      <span class="nav-ico">📜</span>
+      <span class="nav-lbl">Docs</span>
+    </button>
+  </nav>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ SUPABASE ══
+const SUPABASE_URL = 'https://wpexhfngdbagmgodgzzt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_8e4xKWS3YpfwGFAQlZ7lgQ_9hDx8ljQ';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ══ ÉTAT ══
+let currentUser = null;
+let currentProfile = null;
+let currentEtudiant = null;
+let currentEcoleId = null;
+let toutesNotes = [];
+let toutesAbsences = [];
+let toutesFactures = [];
+let tousMessages = [];
+let tousExamens = [];
+let examFilterActif = 'tous';
+let tousEnseignantsPortail = [];
+// tousEnseignantsPortail déclaré plus haut
+
+// ══ UTILS ══
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 3500);
+}
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '—'; }
+function fmtDateTime(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('fr-FR') + ' ' + dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+}
+function fmtMontant(n) { return new Intl.NumberFormat('fr-FR').format(n||0) + ' FCFA'; }
+function getApp(note) {
+  if (note >= 16) return { label:'Très bien', cls:'green' };
+  if (note >= 14) return { label:'Bien', cls:'green' };
+  if (note >= 12) return { label:'Assez bien', cls:'blue' };
+  if (note >= 10) return { label:'Passable', cls:'amber' };
+  return { label:'Insuffisant', cls:'red' };
+}
+function getNoteClass(note) {
+  if (note >= 14) return 'good';
+  if (note >= 10) return 'avg';
+  return 'bad';
+}
+
+// ══ AUTH ══
+async function seConnecter() {
+  const email = document.getElementById('login-email').value.trim();
+  const pwd   = document.getElementById('login-pwd').value;
+  const btn   = document.getElementById('login-btn');
+  const err   = document.getElementById('login-error');
+  if (!email || !pwd) { err.style.display='block'; err.textContent='Remplissez tous les champs.'; return; }
+  btn.disabled = true; btn.textContent = 'Connexion...'; err.style.display = 'none';
+  const { data, error } = await db.auth.signInWithPassword({ email, password: pwd });
+  if (error) {
+    err.style.display = 'block';
+    err.textContent = error.message.includes('Invalid') ? 'Email ou mot de passe incorrect.' : error.message;
+    btn.disabled = false; btn.textContent = 'Se connecter →'; return;
+  }
+  currentUser = data.user;
+  await chargerProfil();
+}
+
+async function chargerProfil() {
+  const { data: profile } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
+  currentProfile = profile;
+  if (!profile || !['parent','etudiant'].includes(profile.role)) {
+    await db.auth.signOut();
+    const err = document.getElementById('login-error');
+    err.style.display = 'block';
+    err.textContent = 'Accès réservé aux parents et étudiants. Utilisez le back-office.';
+    document.getElementById('login-btn').disabled = false;
+    document.getElementById('login-btn').textContent = 'Se connecter →';
+    return;
+  }
+  await chargerEtudiantLie();
+  lancerApp();
+}
+
+async function chargerEtudiantLie() {
+  // Si étudiant → chercher son profil dans la table étudiants via email
+  // Si parent → chercher via etudiant_id du profil
+  let etudiant = null;
+  if (currentProfile.role === 'etudiant') {
+    const { data } = await db.from('etudiants').select('*').eq('email', currentUser.email).single();
+    etudiant = data;
+  } else if (currentProfile.etudiant_id) {
+    const { data } = await db.from('etudiants').select('*').eq('id', currentProfile.etudiant_id).single();
+    etudiant = data;
+  } else {
+    // Fallback : chercher par email de l'user
+    const { data } = await db.from('etudiants').select('*').eq('email', currentUser.email).maybeSingle();
+    etudiant = data;
+  }
+  currentEtudiant = etudiant;
+  if (etudiant) currentEcoleId = etudiant.ecole_id;
+}
+
+function lancerApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-portail').style.display = 'block';
+  // Header
+  const nom = currentProfile ? currentProfile.prenom + ' ' + currentProfile.nom : currentUser.email;
+  document.getElementById('greeting-nom').textContent = nom;
+  document.getElementById('greeting-role').textContent = currentProfile?.role === 'parent' ? 'Espace parent' : 'Espace étudiant';
+  if (currentEtudiant) {
+    document.getElementById('student-pill-wrap').innerHTML =
+      `<div class="student-pill">👨‍🎓 ${currentEtudiant.nom} ${currentEtudiant.prenom} · ${currentEtudiant.filiere} ${currentEtudiant.niveau}</div>`;
+  }
+  chargerTout();
+  // Initialiser FCM après connexion
+  setTimeout(initFCMPortail, 1500);
+  // Branding dynamique ★ JOUR 17
+  chargerBrandingPortail();
+  // Mode hors-ligne ★ JOUR 17
+  initOfflineModePortail();
+}
+
+async function chargerTout() {
+  await Promise.all([chargerNotes(), chargerAbsences(), chargerFactures(), chargerMessages(), chargerExamensPortail(), chargerEnseignantsPortail(), chargerNotifsPortail(), chargerEmploiPortail(), chargerCertificatsPortailData()]);
+  afficherAccueil();
+}
+
+
+// ══════════════════════════════════════════════
+//  MODE DÉMO — Accès visiteur sans OTP
+// ══════════════════════════════════════════════
+let IS_DEMO_MODE = false;
+
+function entrerEnDemo() {
+  IS_DEMO_MODE = true;
+
+  // Profil fictif
+  currentUser    = { id: 'demo', email: 'demo@edulink.bj' };
+  currentProfile = { id: 'demo', role: 'parent', prenom: 'Parent', nom: 'Démo', email: 'demo@edulink.bj' };
+  currentEtudiant = {
+    id: 'demo-et',
+    nom: 'Démo',
+    prenom: 'Étudiant',
+    matricule: 'EDU-DEMO-001',
+    filiere: 'Terminale',
+    niveau: 'D',
+    ecole_id: 'demo',
+    email: 'etudiant@edulink.bj',
+  };
+  currentEcoleId = 'demo';
+
+  lancerApp();
+}
+
+// Interception des appels Supabase en mode démo
+const _dbFrom = db.from.bind(db);
+db.from = function(table) {
+  if (!IS_DEMO_MODE) return _dbFrom(table);
+  // Retourne un objet qui simule le chaînage Supabase et renvoie des données vides
+  const mockQuery = {
+    select: () => mockQuery,
+    eq: () => mockQuery,
+    neq: () => mockQuery,
+    order: () => mockQuery,
+    limit: () => mockQuery,
+    single: () => Promise.resolve({ data: null, error: null }),
+    maybeSingle: () => Promise.resolve({ data: null, error: null }),
+    then: (cb) => Promise.resolve({ data: [], error: null }).then(cb),
+    insert: () => Promise.resolve({ data: null, error: null }),
+    update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
+    upsert: () => Promise.resolve({ data: null, error: null }),
+  };
+  return mockQuery;
+};
+
+async function seDeconnecter() {
+  await db.auth.signOut();
+  location.reload();
+}
+
+// ══ DATA ══
+async function chargerNotes() {
+  if (!currentEtudiant) { toutesNotes = []; return; }
+  if (IS_DEMO_MODE) {
+    toutesNotes = [
+      { id:1, matiere:'Mathématiques',     note:14, coefficient:4, periode:'1er Semestre', created_at:'2026-01-15' },
+      { id:2, matiere:'Français',          note:12, coefficient:3, periode:'1er Semestre', created_at:'2026-01-16' },
+      { id:3, matiere:'Physique-Chimie',   note:16, coefficient:3, periode:'1er Semestre', created_at:'2026-01-17' },
+      { id:4, matiere:'Histoire-Géo',      note:13, coefficient:2, periode:'1er Semestre', created_at:'2026-01-18' },
+      { id:5, matiere:'Anglais',           note:15, coefficient:2, periode:'1er Semestre', created_at:'2026-01-19' },
+      { id:6, matiere:'SVT',              note:11, coefficient:2, periode:'1er Semestre', created_at:'2026-01-20' },
+      { id:7, matiere:'Philosophie',       note:10, coefficient:2, periode:'1er Semestre', created_at:'2026-01-21' },
+    ];
+    return;
+  }
+  const { data } = await db.from('notes').select('*').eq('etudiant_id', currentEtudiant.id).order('created_at',{ascending:false});
+  toutesNotes = data || [];
+}
+async function chargerAbsences() {
+  if (!currentEtudiant) { toutesAbsences = []; return; }
+  if (IS_DEMO_MODE) {
+    toutesAbsences = [
+      { id:1, date_absence:'2026-03-10', matiere:'Mathématiques', statut:'absent',   justifiee:false, motif:'', heure:'08h00' },
+      { id:2, date_absence:'2026-02-20', matiere:'Anglais',        statut:'absent',   justifiee:true,  motif:'Maladie', heure:'10h00' },
+      { id:3, date_absence:'2026-02-05', matiere:'Philosophie',    statut:'absent',   justifiee:false, motif:'', heure:'14h00' },
+    ];
+    return;
+  }
+  const { data } = await db.from('absences').select('*').eq('etudiant_id', currentEtudiant.id).order('date_absence',{ascending:false});
+  toutesAbsences = data || [];
+}
+async function chargerFactures() {
+  if (!currentEtudiant) { toutesFactures = []; return; }
+  if (IS_DEMO_MODE) {
+    toutesFactures = [
+      { id:1, libelle:'Frais de scolarité — 1er trimestre', montant_total:85000, montant_paye:85000, statut:'payee',  created_at:'2025-09-01', echeance:'2025-10-01' },
+      { id:2, libelle:'Frais de scolarité — 2e trimestre',  montant_total:85000, montant_paye:85000, statut:'payee',  created_at:'2026-01-05', echeance:'2026-02-01' },
+      { id:3, libelle:'Frais de scolarité — 3e trimestre',  montant_total:85000, montant_paye:0,     statut:'impayee',created_at:'2026-03-01', echeance:'2026-04-01' },
+    ];
+    return;
+  }
+  const { data } = await db.from('factures').select('*').eq('etudiant_id', currentEtudiant.id).order('created_at',{ascending:false});
+  toutesFactures = data || [];
+}
+async function chargerMessages() {
+  if (IS_DEMO_MODE) {
+    tousMessages = [
+      { id:1, objet:'Réunion parents - vendredi 18 avril', contenu:'Chers parents, nous vous invitons à une réunion le vendredi 18 avril à 16h00 dans la salle polyvalente.', expediteur_role:'admin', lu:false, created_at:'2026-04-12T09:00:00' },
+      { id:2, objet:'Résultats du 2e semestre disponibles', contenu:'Les bulletins du 2e semestre sont disponibles sur votre espace. Vous pouvez les télécharger en PDF.', expediteur_role:'admin', lu:true, created_at:'2026-03-20T10:30:00' },
+      { id:3, objet:'Convocation examen blanc', contenu:'Votre enfant est convoqué pour l'examen blanc du 25 au 28 mars. Veuillez vous assurer de sa présence.', expediteur_role:'enseignant', lu:true, created_at:'2026-03-15T08:00:00' },
+    ];
+    const b1 = document.getElementById('msg-badge');
+    const b2 = document.getElementById('nav-msg-badge');
+    const nonLus = 1;
+    if (b1) { b1.style.display='flex'; b1.textContent=nonLus; }
+    if (b2) { b2.style.display='flex'; b2.textContent=nonLus; }
+    return;
+  }
+  let q = db.from('messages').select('*').order('created_at',{ascending:false}).limit(20);
+  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  const { data } = await q;
+  tousMessages = data || [];
+  // Compter seulement les messages de l'admin non lus
+  const nonLus = tousMessages.filter(m =>
+    (m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant') && !m.lu
+  ).length;
+  const b1 = document.getElementById('msg-badge');
+  const b2 = document.getElementById('nav-msg-badge');
+  if (b1) { b1.style.display = nonLus > 0 ? 'flex' : 'none'; if(nonLus>0) b1.textContent = nonLus; }
+  if (b2) { b2.style.display = nonLus > 0 ? 'flex' : 'none'; if(nonLus>0) b2.textContent = nonLus; }
+}
+
+// ══ NAVIGATION ══
+function showPage(p) {
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+  document.getElementById('page-' + p)?.classList.add('active');
+  document.getElementById('nav-' + p)?.classList.add('active');
+  const renderers = {
+    accueil: afficherAccueil,
+    notes: afficherNotes,
+    absences: afficherAbsences,
+    paiements: afficherPaiements,
+    messages: afficherMessages,
+    examens: afficherExamensPortail,
+    enseignants: afficherEnseignantsPortail,
+    notifs: afficherNotifsPortail,
+    emploi: afficherEmploiPortail,
+    'certificats-portail': afficherCertificatsPortail,
+  };
+  if (renderers[p]) renderers[p]();
+}
+
+// ══ ACCUEIL ══
+function afficherAccueil() {
+  const page = document.getElementById('page-accueil');
+  // Calcul stats
+  const nbAbsences = toutesAbsences.filter(a => a.statut === 'absent').length;
+  let moy = 0;
+  if (toutesNotes.length) {
+    let pts = 0, coeff = 0;
+    toutesNotes.forEach(n => { pts += n.note*(n.coefficient||1); coeff += (n.coefficient||1); });
+    moy = coeff > 0 ? pts/coeff : 0;
+  }
+  const totalDu = toutesFactures.reduce((s,f) => s+f.montant_total, 0);
+  const totalPaye = toutesFactures.reduce((s,f) => s+(f.montant_paye||0), 0);
+  const restant = totalDu - totalPaye;
+  const nonLusMsgs = tousMessages.filter(m => !m.lu).length;
+
+  page.innerHTML = `
+    <div style="padding:1rem 1rem 0">
+      <!-- Stat cards -->
+      <div class="stat-grid">
+        <div class="stat-card" onclick="showPage('notes')">
+          <div class="stat-ico teal">📊</div>
+          <div>
+            <div class="stat-val" style="color:${moy>=10?'#059669':'#dc2626'}">${toutesNotes.length?moy.toFixed(1)+'/20':'—'}</div>
+            <div class="stat-lbl">Moyenne générale</div>
+          </div>
+        </div>
+        <div class="stat-card" onclick="showPage('absences')">
+          <div class="stat-ico red">🚫</div>
+          <div>
+            <div class="stat-val" style="color:#dc2626">${nbAbsences}</div>
+            <div class="stat-lbl">Absences</div>
+          </div>
+        </div>
+        <div class="stat-card" onclick="showPage('paiements')">
+          <div class="stat-ico amber">💳</div>
+          <div>
+            <div class="stat-val" style="color:${restant>0?'#d97706':'#059669'};font-size:16px">${restant>0?'Impayé':'À jour'}</div>
+            <div class="stat-lbl">${restant>0?fmtMontant(restant):'Paiements'}</div>
+          </div>
+        </div>
+        <div class="stat-card" onclick="showPage('examens')">
+          <div class="stat-ico blue">📝</div>
+          <div>
+            <div class="stat-val" style="color:#7c3aed">${(()=>{const t=new Date().toISOString().split('T')[0];return tousExamens.filter(e=>e.date_examen>=t&&e.statut!=='annule').length;})()||0}</div>
+            <div class="stat-lbl">Examens à venir</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dernières notes -->
+      ${toutesNotes.length ? `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 Dernières notes</div>
+          <span class="card-link" onclick="showPage('notes')">Tout voir</span>
+        </div>
+        ${toutesNotes.slice(0,3).map(n => {
+          const a = getApp(n.note);
+          return `<div class="list-item">
+            <div class="li-ico" style="background:${n.note>=10?'#e1f5ee':'#fee2e2'}">${n.note>=10?'✅':'⚠️'}</div>
+            <div class="li-body">
+              <div class="li-title">${n.matiere}</div>
+              <div class="li-sub">${n.periode} · Coeff. ${n.coefficient||1}${(()=>{const pr=getProfPourMatiere(n.matiere);return pr?' · 👨‍🏫 '+pr.nom:'';})()}</div>
+            </div>
+            <div class="li-right">
+              <div class="note-big ${getNoteClass(n.note)}" style="font-size:20px">${n.note}/20</div>
+              <div><span class="badge ${a.cls}">${a.label}</span></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>` : ''}
+
+      <!-- Absences récentes -->
+      ${toutesAbsences.length ? `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🚫 Absences récentes</div>
+          <span class="card-link" onclick="showPage('absences')">Tout voir</span>
+        </div>
+        ${toutesAbsences.slice(0,3).map(a => `
+          <div class="list-item">
+            <div class="li-ico" style="background:${a.statut==='absent'?'#fee2e2':a.statut==='retard'?'#fef9c3':'#dbeafe'}">
+              ${a.statut==='absent'?'🔴':a.statut==='retard'?'🟡':'🟢'}
+            </div>
+            <div class="li-body">
+              <div class="li-title">${a.matiere}</div>
+              <div class="li-sub">${fmtDate(a.date_absence)}</div>
+            </div>
+            <span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span>
+          </div>`).join('')}
+      </div>` : ''}
+
+      <!-- Factures en attente -->
+      ${toutesFactures.filter(f=>f.statut!=='payée').length ? `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">💳 Paiements en attente</div>
+          <span class="card-link" onclick="showPage('paiements')">Détails</span>
+        </div>
+        ${toutesFactures.filter(f=>f.statut!=='payée').slice(0,2).map(f => `
+          <div class="list-item">
+            <div class="li-ico" style="background:#fef9c3">💰</div>
+            <div class="li-body">
+              <div class="li-title">${f.description||f.type_frais||'Facture'}</div>
+              <div class="li-sub">Échéance : ${fmtDate(f.date_echeance)}</div>
+            </div>
+            <div class="li-right">
+              <div style="font-size:13px;font-weight:700;color:#d97706">${fmtMontant(f.montant_total-(f.montant_paye||0))}</div>
+              <span class="badge amber">À payer</span>
+            </div>
+          </div>`).join('')}
+      </div>` : ''}
+
+      ${(function(){
+        const today = new Date().toISOString().split('T')[0];
+        const prochain = tousExamens.find(function(e){ return e.date_examen >= today && e.statut !== 'annule' && e.statut !== 'termine'; });
+        if (!prochain) return '';
+        const jours = Math.ceil((new Date(prochain.date_examen) - new Date(today)) / 86400000);
+        const typeLabels = { controle:'Contrôle', partiel:'Partiel', final:'Final', rattrapage:'Rattrapage', soutenance:'Soutenance' };
+        return '<div class="card" onclick="showPage(\'examens\')" style="cursor:pointer">' +
+          '<div class="card-header"><div class="card-title">📝 Prochain examen</div><span class="card-link">Voir tout</span></div>' +
+          '<div class="list-item">' +
+          '<div class="li-ico" style="background:#ede9fe">📝</div>' +
+          '<div class="li-body"><div class="li-title">' + prochain.matiere + '</div>' +
+          '<div class="li-sub">' + (prochain.heure_debut||'') + (prochain.salle?' · '+prochain.salle:'') + '</div></div>' +
+          '<div class="li-right">' +
+          '<div style="font-size:14px;font-weight:800;color:#7c3aed">' + (jours===0?'Aujourd\'hui':jours===1?'Demain':'J-'+jours) + '</div>' +
+          '<div style="font-size:10px;color:#9ca3af">' + new Date(prochain.date_examen).toLocaleDateString('fr-FR') + '</div>' +
+          '<span class="badge" style="background:#ede9fe;color:#7c3aed">' + (typeLabels[prochain.type_examen]||prochain.type_examen) + '</span>' +
+          '</div></div></div>';
+      })()}
+
+      ${!currentEtudiant ? `<div class="empty"><div class="e-ico">👤</div><p>Votre compte n'est pas encore lié à un étudiant.<br>Contactez l'administration.</p></div>` : ''}
+    </div>`;
+}
+
+// ══ NOTES ══
+function afficherNotes() {
+  const page = document.getElementById('page-notes');
+  if (!currentEtudiant) { page.innerHTML = '<div class="empty"><div class="e-ico">📊</div><p>Aucun étudiant lié à ce compte.</p></div>'; return; }
+
+  // Toutes les périodes y compris EXAM-xxx
+  const periodes = [...new Set(toutesNotes.map(n => n.periode))].sort();
+  // Trier : S1/S2/T1... en premier, EXAM-xxx à la fin
+  periodes.sort((a,b) => {
+    const aExam = a.startsWith('EXAM-');
+    const bExam = b.startsWith('EXAM-');
+    if (aExam && !bExam) return 1;
+    if (!aExam && bExam) return -1;
+    return a.localeCompare(b);
+  });
+
+  // Libellé lisible pour les périodes
+  function labelPeriode(p) {
+    if (!p) return 'Toutes';
+    if (p === 'S1') return 'Semestre 1';
+    if (p === 'S2') return 'Semestre 2';
+    if (p === 'T1') return 'Trimestre 1';
+    if (p === 'T2') return 'Trimestre 2';
+    if (p === 'T3') return 'Trimestre 3';
+    if (p.startsWith('EXAM-')) return '📝 Examen';
+    return p;
+  }
+
+  // Ajouter "Toutes" si plusieurs périodes
+  const periodesAvecTout = periodes.length > 1 ? ['', ...periodes] : periodes;
+  let periodeActive = periodes[0] || '';
+
+  function renderNotes(periode) {
+    const notes = periode ? toutesNotes.filter(n => n.periode === periode) : toutesNotes;
+    let moy = 0, totalPts = 0, totalCoeff = 0;
+    notes.forEach(n => { totalPts += n.note*(n.coefficient||1); totalCoeff += (n.coefficient||1); });
+    moy = totalCoeff > 0 ? totalPts/totalCoeff : 0;
+    const app = getApp(moy);
+
+    return `
+      ${notes.length ? `
+      <div class="bulletin-card">
+        <div class="bulletin-top">
+          <h3>${currentEtudiant.nom} ${currentEtudiant.prenom}</h3>
+          <p>${currentEtudiant.filiere} · ${currentEtudiant.niveau} · ${labelPeriode(periode)||'Toutes périodes'}</p>
+          <div class="bulletin-moy">${moy.toFixed(2)}/20</div>
+          <span class="badge ${app.cls}">${app.label}</span>
+          <div style="margin-top:8px">
+            <div class="moy-bar"><div class="moy-fill" style="width:${Math.min(100,moy/20*100)}%"></div></div>
+          </div>
+        </div>
+        <table class="bulletin-table">
+          <tr><th>Matière</th><th>Note</th><th>Coeff</th><th>Mention</th></tr>
+          ${notes.map(n => { const a=getApp(n.note); return `
+            <tr>
+              <td>${n.matiere}</td>
+              <td><strong class="${getNoteClass(n.note)==='good'?'':''}"; style="color:${n.note>=10?'#059669':'#dc2626'}">${n.note}/20</strong></td>
+              <td>${n.coefficient||1}</td>
+              <td><span class="badge ${a.cls}">${a.label}</span></td>
+            </tr>`}).join('')}
+          <tr style="background:#f9fafb;font-weight:700">
+            <td>Moyenne générale</td>
+            <td style="color:${moy>=10?'#059669':'#dc2626'};font-weight:800">${moy.toFixed(2)}/20</td>
+            <td>${totalCoeff}</td>
+            <td><span class="badge ${app.cls}">${app.label}</span></td>
+          </tr>
+        </table>
+        <div style="padding:1rem">
+          <div style="display:flex;gap:8px;margin-top:1rem">
+          <button class="print-btn" style="flex:1" onclick="imprimerBulletin('${periode}')">🖨️ Imprimer</button>
+          <button class="print-btn" style="flex:1;background:linear-gradient(135deg,#059669,#047857)" onclick="telechargerBulletinPDFPortail('${periode}')">⬇️ Télécharger PDF</button>
+        </div>
+        </div>
+      </div>` : '<div class="empty"><div class="e-ico">📭</div><p>Aucune note pour cette période.</p></div>'}`;
+  }
+
+  page.innerHTML = `<div class="page-pad">
+    <div class="section-title">📊 Notes & Bulletins</div>
+    ${periodesAvecTout.length > 1 ? `<div class="periode-sel" id="periode-sel">
+      ${periodesAvecTout.map(p => `<button class="periode-btn ${p===periodeActive?'active':''}" onclick="changerPeriode('${p}')">${labelPeriode(p)||'Toutes'}</button>`).join('')}
+    </div>` : ''}
+    <div id="notes-container">${renderNotes(periodeActive)}</div>
+  </div>`;
+
+  window.changerPeriode = function(p) {
+    periodeActive = p;
+    document.querySelectorAll('.periode-btn').forEach(b => b.classList.toggle('active', b.textContent===(labelPeriode(p)||'Toutes')));
+    document.getElementById('notes-container').innerHTML = renderNotes(p);
+  };
+}
+
+function labelPeriodeImpression(p) {
+  if (!p) return 'Toutes périodes';
+  if (p === 'S1') return 'Semestre 1';
+  if (p === 'S2') return 'Semestre 2';
+  if (p === 'T1') return 'Trimestre 1';
+  if (p === 'T2') return 'Trimestre 2';
+  if (p === 'T3') return 'Trimestre 3';
+  if (p.startsWith('EXAM-')) return 'Examen';
+  return p;
+}
+
+function imprimerBulletin(periode) {
+  const notes = periode ? toutesNotes.filter(n => n.periode === periode) : toutesNotes;
+  if (!notes.length) { showToast('Aucune note à imprimer.', 'error'); return; }
+  let totalPts = 0, totalCoeff = 0;
+  notes.forEach(n => { totalPts += n.note*(n.coefficient||1); totalCoeff += (n.coefficient||1); });
+  const moy = totalCoeff > 0 ? totalPts/totalCoeff : 0;
+  const app = moy>=16?'Très bien':moy>=14?'Bien':moy>=12?'Assez bien':moy>=10?'Passable':'Insuffisant';
+  const periodeLabel = labelPeriodeImpression(periode);
+  const w = window.open('','_blank');
+  w.document.write(`<html><head><title>Bulletin — ${currentEtudiant.nom}</title>
+  <style>
+    *{font-family:Arial,sans-serif;margin:0;box-sizing:border-box}
+    body{padding:2rem;background:#f9fafb}
+    .header{background:linear-gradient(135deg,#0f6e56,#1e3a5f);color:#fff;padding:1.5rem;border-radius:10px;margin-bottom:1.5rem}
+    .header h1{font-size:18px;font-weight:800;margin-bottom:4px}
+    .header p{font-size:12px;opacity:.8;margin-bottom:.5rem}
+    .moy{font-size:36px;font-weight:900;margin:.4rem 0}
+    .mention{display:inline-block;background:rgba(255,255,255,.2);padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700}
+    table{width:100%;border-collapse:collapse;margin-top:1rem;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    th{background:#1e3a5f;color:#fff;padding:9px 12px;font-size:11px;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+    td{padding:9px 12px;font-size:12px;border-bottom:1px solid #f3f4f6;color:#374151}
+    tr:last-child td{border-bottom:none;background:#f0fdf4;font-weight:700}
+    .good{color:#059669;font-weight:700}.bad{color:#dc2626;font-weight:700}
+    .footer{margin-top:2.5rem;display:flex;justify-content:space-between}
+    .sig{text-align:center;width:30%}
+    .sig-line{border-top:1px solid #9ca3af;padding-top:6px;font-size:11px;color:#6b7280;margin-top:2rem}
+  </style></head><body>
+  <div class="header">
+    <h1>Bulletin de Notes — ${currentEtudiant.nom} ${currentEtudiant.prenom}</h1>
+    <p>${currentEtudiant.filiere} · Niveau ${currentEtudiant.niveau} · ${periodeLabel}</p>
+    <div class="moy">${moy.toFixed(2)}/20</div>
+    <span class="mention">${app}</span>
+  </div>
+  <table>
+    <tr><th>Matière</th><th>Note /20</th><th>Coefficient</th><th>Points</th></tr>
+    ${notes.map(n=>`<tr><td>${n.matiere}</td><td class="${n.note>=10?'good':'bad'}">${n.note}/20</td><td>${n.coefficient||1}</td><td>${(n.note*(n.coefficient||1)).toFixed(2)}</td></tr>`).join('')}
+    <tr><td>MOYENNE GÉNÉRALE</td><td class="${moy>=10?'good':'bad'}">${moy.toFixed(2)}/20</td><td>${totalCoeff}</td><td>${totalPts.toFixed(2)}</td></tr>
+  </table>
+  <div class="footer">
+    <div class="sig"><div class="sig-line">Directeur(trice)</div></div>
+    <div class="sig"><div class="sig-line">Enseignant(e) référent(e)</div></div>
+    <div class="sig"><div class="sig-line">Parent / Tuteur</div></div>
+  </div>
+  <p style="text-align:center;margin-top:2rem;font-size:10px;color:#9ca3af">Document généré par EduLink — ${new Date().toLocaleDateString('fr-FR')}</p>
+  </body></html>`);
+  w.document.close(); w.print();
+}
+
+// ══ ABSENCES ══
+function afficherAbsences() {
+  const page = document.getElementById('page-absences');
+  if (!currentEtudiant || !toutesAbsences.length) {
+    page.innerHTML = '<div class="empty"><div class="e-ico">✅</div><p>Aucune absence enregistrée. Excellent !</p></div>'; return;
+  }
+  const nbAbs = toutesAbsences.filter(a=>a.statut==='absent').length;
+  const nbRet = toutesAbsences.filter(a=>a.statut==='retard').length;
+  const nbExc = toutesAbsences.filter(a=>a.statut==='excuse').length;
+
+  page.innerHTML = `<div class="page-pad">
+    <div class="section-title">🚫 Présences & Absences</div>
+    <div class="stat-grid" style="margin-bottom:1rem">
+      <div class="stat-card"><div class="stat-ico red">🔴</div><div><div class="stat-val" style="color:#dc2626">${nbAbs}</div><div class="stat-lbl">Absences</div></div></div>
+      <div class="stat-card"><div class="stat-ico amber">🟡</div><div><div class="stat-val" style="color:#d97706">${nbRet}</div><div class="stat-lbl">Retards</div></div></div>
+    </div>
+    <div class="card">
+      ${toutesAbsences.map(a => `
+        <div class="list-item">
+          <div class="li-ico" style="background:${a.statut==='absent'?'#fee2e2':a.statut==='retard'?'#fef9c3':'#dbeafe'}">
+            ${a.statut==='absent'?'🔴':a.statut==='retard'?'🟡':'🟢'}
+          </div>
+          <div class="li-body">
+            <div class="li-title">${a.matiere}</div>
+            <div class="li-sub">${fmtDate(a.date_absence)}${a.justification?' · '+a.justification:''}</div>
+          </div>
+          <div class="li-right">
+            <span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span>
+            <div style="font-size:10px;color:#9ca3af;margin-top:3px">${a.parent_notifie?'✓ Notifié':''}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ══ PAIEMENTS ══
+function afficherPaiements() {
+  const page = document.getElementById('page-paiements');
+  if (!currentEtudiant || !toutesFactures.length) {
+    page.innerHTML = '<div class="empty"><div class="e-ico">💳</div><p>Aucune facture enregistrée.</p></div>'; return;
+  }
+  const totalDu = toutesFactures.reduce((s,f) => s+f.montant_total, 0);
+  const totalPaye = toutesFactures.reduce((s,f) => s+(f.montant_paye||0), 0);
+  const restant = totalDu - totalPaye;
+  const pct = totalDu > 0 ? Math.round(totalPaye/totalDu*100) : 100;
+
+  page.innerHTML = `<div class="page-pad">
+    <div class="section-title">💳 Mes Paiements</div>
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+          <div>
+            <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase">Total facturé</div>
+            <div style="font-size:20px;font-weight:800;font-family:'Nunito',sans-serif;color:#1e3a5f">${fmtMontant(totalDu)}</div>
+          </div>
+          <div style="font-size:26px;font-weight:800;font-family:'Nunito',sans-serif;color:${restant>0?'#dc2626':'#059669'}">${pct}%</div>
+        </div>
+        <div class="pay-bar"><div class="pay-fill" style="width:${pct}%"></div></div>
+        <div class="pay-amounts">
+          <span>Payé : ${fmtMontant(totalPaye)}</span>
+          <span>Restant : <strong style="color:${restant>0?'#dc2626':'#059669'}">${fmtMontant(restant)}</strong></span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      ${toutesFactures.map(f => {
+        const pct2 = f.montant_total > 0 ? Math.round((f.montant_paye||0)/f.montant_total*100) : 0;
+        const sClass = f.statut==='payée'?'green':f.statut==='retard'?'red':'amber';
+        return `<div class="list-item">
+          <div class="li-ico" style="background:${f.statut==='payée'?'#dcfce7':'#fef9c3'}">
+            ${f.statut==='payée'?'✅':'💰'}
+          </div>
+          <div class="li-body">
+            <div class="li-title">${f.description||f.type_frais||'Facture'}</div>
+            <div class="li-sub">Réf: ${f.reference||'—'} · Échéance: ${fmtDate(f.date_echeance)}</div>
+            <div class="pay-bar" style="margin-top:6px;height:6px"><div class="pay-fill" style="width:${pct2}%"></div></div>
+            <div class="pay-amounts"><span>${fmtMontant(f.montant_paye||0)} payé</span><span>${pct2}%</span></div>
+          </div>
+          <div class="li-right" style="margin-left:.5rem">
+            <span class="badge ${sClass}">${f.statut}</span>
+            <div style="font-size:12px;font-weight:700;margin-top:4px;color:#1e3a5f">${fmtMontant(f.montant_total)}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="background:#e1f5ee;border-radius:12px;padding:1rem;font-size:12.5px;color:#0f6e56;margin-bottom:1rem">
+      💡 Pour tout paiement, rapprochez-vous de l'administration de l'établissement.
+    </div>
+  </div>`;
+}
+
+// ══ MESSAGES  ★ JOUR 19 (amélioré) ══
+function afficherMessages() {
+  const page = document.getElementById('page-messages');
+  const nonLus = tousMessages.filter(function(m) {
+    return (m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant') && !m.lu;
+  }).length;
+
+  // Build thread HTML separately to avoid nested template literals
+  var threadHTML = '';
+  if (tousMessages.length) {
+    var msgs = tousMessages.slice().reverse();
+    for (var i = 0; i < msgs.length; i++) {
+      var m = msgs[i];
+      var estAdmin = m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant';
+      var cls = estAdmin ? 'recu' : 'envoye';
+      var roleLabel = m.expediteur_role === 'admin' ? '🏫 Admin' :
+                      m.expediteur_role === 'enseignant' ? '👨‍🏫 Prof' : '👤 Vous';
+      threadHTML += '<div class="msg-bubble-v2 ' + cls + '">';
+      threadHTML += '<div class="mb2-from">' + roleLabel + ' · ' + (m.expediteur_nom||'') + '</div>';
+      if (m.objet) threadHTML += '<div class="mb2-objet">' + m.objet + '</div>';
+      threadHTML += '<div class="mb2-text">' + (m.contenu||'') + '</div>';
+      threadHTML += '<div class="mb2-date">' + fmtDateTime(m.created_at) + '</div>';
+      threadHTML += '</div>';
+    }
+  } else {
+    threadHTML = "<div class=\"empty\" style=\"margin:1.5rem 0\"><div class=\"e-ico\">📭</div><p>Aucun message disponible.</p></div>";
+  }
+
+  var unreadBadge = nonLus > 0 ? '<span class="msg-unread-badge">' + nonLus + ' non lu' + (nonLus>1?'s':'') + '</span>' : '';
+
+  // Build HTML safely without apostrophe issues
+  var composeHTML = '<div class="msg-compose-v2">' +
+    '<input type="text" id="msg-objet" placeholder="Objet (optionnel)">' +
+    '<textarea id="msg-contenu" rows="3" placeholder="Votre message..."></textarea>' +
+    '<button class="msg-send-v2" onclick="envoyerMessageV2()">&#128228; Envoyer</button>' +
+    '</div>';
+
+  page.innerHTML = '<div style="padding:.75rem 1rem 0">' +
+    '<div class="section-title">&#9993;&#65039; Messagerie ' + unreadBadge + '</div>' +
+    '</div>' +
+    '<div class="card" style="margin:0 1rem 1rem;overflow:hidden">' +
+    '<div class="msg-thread" id="msg-thread">' + threadHTML + '</div>' +
+    composeHTML +
+    '</div>';
+
+  // Scroll to bottom of thread
+  var thread = document.getElementById('msg-thread');
+  if (thread) thread.scrollTop = thread.scrollHeight;
+
+  // Marquer les messages admin comme lus
+  marquerMessagesAdminLus();
+}
+
+async function envoyerMessageV2() {
+  const objet   = document.getElementById('msg-objet')?.value.trim();
+  const contenu = document.getElementById('msg-contenu')?.value.trim();
+  if (!contenu) { showToast('Écrivez un message.', 'error'); return; }
+  const nom = currentProfile ? (currentProfile.prenom||'') + ' ' + (currentProfile.nom||'') : currentUser?.email || 'Parent';
+  const { error } = await db.from('messages').insert([{
+    ecole_id: currentEcoleId,
+    expediteur_nom: nom.trim(),
+    expediteur_role: currentProfile?.role || 'parent',
+    destinataire_nom: 'Administration',
+    destinataire_role: 'admin',
+    objet: objet || 'Message depuis le portail famille',
+    contenu, lu: false
+  }]);
+  if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
+  showToast('✅ Message envoyé !', 'success');
+  const o = document.getElementById('msg-objet');
+  const c = document.getElementById('msg-contenu');
+  if (o) o.value = '';
+  if (c) c.value = '';
+  await chargerMessages();
+  afficherMessages();
+}
+
+async function marquerMessagesAdminLus() {
+  const nonLus = tousMessages.filter(m =>
+    (m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant') && !m.lu
+  );
+  if (!nonLus.length) {
+    // Force hide badges anyway
+    const b1 = document.getElementById('msg-badge');
+    const b2 = document.getElementById('nav-msg-badge');
+    if (b1) b1.style.display = 'none';
+    if (b2) b2.style.display = 'none';
+    return;
+  }
+  const ids = nonLus.map(m => m.id);
+  try {
+    await db.from('messages').update({ lu: true }).in('id', ids);
+  } catch(_) {}
+  nonLus.forEach(m => { m.lu = true; });
+  const b1 = document.getElementById('msg-badge');
+  const b2 = document.getElementById('nav-msg-badge');
+  if (b1) b1.style.display = 'none';
+  if (b2) b2.style.display = 'none';
+  // Masquer le badge dans le titre de la page messages
+  const inPageBadge = document.querySelector('.msg-unread-badge');
+  if (inPageBadge) inPageBadge.style.display = 'none';
+}
+
+async function envoyerMessage() {
+  const objet   = document.getElementById('msg-objet')?.value.trim();
+  const contenu = document.getElementById('msg-contenu')?.value.trim();
+  if (!contenu) { showToast('Écrivez un message.', 'error'); return; }
+  const nom = currentProfile ? currentProfile.prenom + ' ' + currentProfile.nom : currentUser.email;
+  const { error } = await db.from('messages').insert([{
+    ecole_id: currentEcoleId,
+    expediteur_nom: nom,
+    expediteur_role: currentProfile?.role || 'parent',
+    destinataire_nom: 'Administration',
+    destinataire_role: 'admin',
+    objet: objet || 'Message depuis le portail famille',
+    contenu, lu: false
+  }]);
+  if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
+  showToast('Message envoyé !', 'success');
+  document.getElementById('msg-objet').value = '';
+  document.getElementById('msg-contenu').value = '';
+  await chargerMessages();
+  afficherMessages();
+}
+
+// ══ JOUR 9 — OTP SMS ══════════════════════════
+const EDGE_URL = 'https://wpexhfngdbagmgodgzzt.supabase.co/functions/v1/bright-handler';
+const SUPABASE_ANON = 'sb_publishable_8e4xKWS3YpfwGFAQlZ7lgQ_9hDx8ljQ';
+let otpTimer = null;
+let otpTelephone = '';
+
+function switchLoginTab(tab) {
+  document.getElementById('tab-sms').style.display   = tab === 'sms'   ? 'block' : 'none';
+  document.getElementById('tab-email').style.display = tab === 'email' ? 'block' : 'none';
+  document.getElementById('tab-sms-btn').classList.toggle('active',   tab === 'sms');
+  document.getElementById('tab-email-btn').classList.toggle('active', tab === 'email');
+}
+
+function showOTPError(step, msg) {
+  const el = document.getElementById('otp-error' + step);
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+async function envoyerOTP() {
+  const phone = document.getElementById('otp-phone').value.trim();
+  if (!phone || phone.length < 8) { showOTPError(1, 'Entrez un numéro valide (8 à 10 chiffres)'); return; }
+  const tel = '+229' + phone;
+  otpTelephone = tel;
+  const btn = document.getElementById('btn-envoyer-otp');
+  btn.disabled = true; btn.textContent = 'Envoi en cours...';
+  try {
+    const resp = await fetch(EDGE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON,
+        'Authorization': 'Bearer ' + SUPABASE_ANON
+      },
+      body: JSON.stringify({ action: 'envoyer', telephone: tel })
+    });
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'Échec envoi');
+    // Passer à l'étape 2
+    document.getElementById('otp-step1').style.display = 'none';
+    document.getElementById('otp-step2').style.display = 'block';
+    document.getElementById('otp-phone-display').textContent = tel;
+    document.getElementById('d0').focus();
+    lancerCompteur();
+  } catch(e) {
+    showOTPError(1, 'Erreur : ' + e.message);
+    btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
+  }
+}
+
+function otpNext(el, idx) {
+  el.value = el.value.replace(/\D/g,'');
+  if (el.value) { el.classList.add('filled'); if (idx < 5) document.getElementById('d'+(idx+1)).focus(); }
+  else el.classList.remove('filled');
+  // Auto-submit si 6 chiffres
+  const code = [0,1,2,3,4,5].map(i => document.getElementById('d'+i).value).join('');
+  if (code.length === 6) verifierOTP();
+}
+
+async function verifierOTP() {
+  const code = [0,1,2,3,4,5].map(i => document.getElementById('d'+i).value).join('');
+  if (code.length < 6) { showOTPError(2, 'Entrez les 6 chiffres du code.'); return; }
+  const btn = document.getElementById('btn-verifier-otp');
+  btn.disabled = true; btn.textContent = 'Vérification...';
+  try {
+    const resp = await fetch(EDGE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON,
+        'Authorization': 'Bearer ' + SUPABASE_ANON
+      },
+      body: JSON.stringify({ action: 'verifier', telephone: otpTelephone, code })
+    });
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'Code invalide');
+    clearInterval(otpTimer);
+    // Chercher l'étudiant lié à ce numéro de téléphone
+    await connecterParTelephone(otpTelephone);
+  } catch(e) {
+    showOTPError(2, e.message);
+    btn.disabled = false; btn.textContent = '✅ Confirmer le code';
+    [0,1,2,3,4,5].forEach(i => { const d = document.getElementById('d'+i); d.value=''; d.classList.remove('filled'); });
+    document.getElementById('d0').focus();
+  }
+}
+
+async function connecterParTelephone(tel) {
+  // Chercher l'étudiant via parent_tel OU parent_email correspondant
+  const { data: etudiants } = await db.from('etudiants').select('*').eq('parent_tel', tel);
+  if (etudiants && etudiants.length > 0) {
+    currentEtudiant = etudiants[0];
+    currentEcoleId  = etudiants[0].ecole_id;
+    currentProfile  = { role: 'parent', prenom: 'Parent', nom: '' };
+    currentUser     = { email: tel };
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-portail').style.display  = 'block';
+    document.getElementById('greeting-nom').textContent   = 'Parent de ' + etudiants[0].prenom;
+    document.getElementById('greeting-role').textContent  = 'Espace parent';
+    document.getElementById('student-pill-wrap').innerHTML =
+      `<div class="student-pill">👨‍🎓 ${etudiants[0].nom} ${etudiants[0].prenom} · ${etudiants[0].filiere} ${etudiants[0].niveau}</div>`;
+    chargerTout();
+  } else {
+    showOTPError(2, 'Aucun enfant lie a ce numero. Contactez l\'administration.');
+    document.getElementById('btn-verifier-otp').disabled = false;
+    document.getElementById('btn-verifier-otp').textContent = '✅ Confirmer le code';
+  }
+}
+
+function lancerCompteur() {
+  let secs = 300;
+  clearInterval(otpTimer);
+  otpTimer = setInterval(() => {
+    secs--;
+    const m = Math.floor(secs/60), s = secs%60;
+    const el = document.getElementById('otp-countdown');
+    if (el) el.textContent = m + ':' + String(s).padStart(2,'0');
+    if (secs <= 0) { clearInterval(otpTimer); if(el) el.textContent = 'Expiré'; }
+  }, 1000);
+}
+
+function retourStep1() {
+  clearInterval(otpTimer);
+  document.getElementById('otp-step2').style.display = 'none';
+  document.getElementById('otp-step1').style.display = 'block';
+  const btn = document.getElementById('btn-envoyer-otp');
+  btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
+  [0,1,2,3,4,5].forEach(i => { const d = document.getElementById('d'+i); if(d){d.value='';d.classList.remove('filled');} });
+}
+
+
+// ══ EXAMENS PORTAIL ★ JOUR 12 ═══════════════════════════════
+
+async function chargerExamensPortail() {
+  if (IS_DEMO_MODE) {
+    const today = new Date();
+    const fmt = d => d.toISOString().split('T')[0];
+    const j = (n) => { const d = new Date(today); d.setDate(d.getDate()+n); return fmt(d); };
+    tousExamens = [
+      { id:1, matiere:'Mathématiques',   date_examen:j(5),  heure_debut:'08:00', duree:120, salle:'Salle A', type:'Examen', statut:'programme' },
+      { id:2, matiere:'Physique-Chimie', date_examen:j(8),  heure_debut:'10:00', duree:90,  salle:'Salle B', type:'Examen', statut:'programme' },
+      { id:3, matiere:'Français',        date_examen:j(12), heure_debut:'08:00', duree:180, salle:'Amphithéâtre', type:'Composition', statut:'programme' },
+      { id:4, matiere:'Anglais',         date_examen:j(-3), heure_debut:'14:00', duree:60,  salle:'Salle C', type:'Contrôle', statut:'termine' },
+    ];
+    const b = document.getElementById('nav-exam-badge');
+    if (b) { b.style.display='flex'; b.textContent='3'; }
+    return;
+  }
+  if (!currentEcoleId) { tousExamens = []; return; }
+  let q = db.from('examens').select('*').eq('ecole_id', currentEcoleId).order('date_examen', {ascending: true});
+  // Filtrer par filière/niveau de l'étudiant
+  if (currentEtudiant?.filiere) q = q.or(`filiere.is.null,filiere.eq.${currentEtudiant.filiere}`);
+  if (currentEtudiant?.niveau)  q = q.or(`niveau.is.null,niveau.eq.${currentEtudiant.niveau}`);
+  const { data } = await q;
+  tousExamens = data || [];
+
+  // Badge nav
+  const today = new Date().toISOString().split('T')[0];
+  const aVenir = tousExamens.filter(e => e.date_examen >= today && e.statut !== 'annule').length;
+  const b = document.getElementById('nav-exam-badge');
+  if (b) { if (aVenir > 0) { b.style.display='flex'; b.textContent=aVenir; } else b.style.display='none'; }
+}
+
+function afficherExamensPortail() {
+  const page = document.getElementById('page-examens');
+  const today = new Date().toISOString().split('T')[0];
+
+  // Prochain examen
+  const prochain = tousExamens.find(e => e.date_examen >= today && e.statut !== 'annule' && e.statut !== 'termine');
+  let bannerHtml = '';
+  if (prochain) {
+    const jours = Math.ceil((new Date(prochain.date_examen) - new Date(today)) / 86400000);
+    const typeLabels = { controle:'Contrôle', partiel:'Partiel', final:'Examen final', rattrapage:'Rattrapage', soutenance:'Soutenance' };
+    bannerHtml = `
+    <div class="next-exam-card">
+      <div class="nec-countdown">
+        ${jours === 0 ? '🔴 Aujourd\'hui !' : jours === 1 ? '⏳ Demain' : `⏳ Dans ${jours} jours`}
+      </div>
+      <div class="nec-mat">${prochain.matiere}</div>
+      <div class="nec-meta">
+        ${prochain.heure_debut ? `<span>🕐 ${prochain.heure_debut}${prochain.heure_fin?'–'+prochain.heure_fin:''}</span>`:'' }
+        ${prochain.salle ? `<span>📍 ${prochain.salle}</span>`:'' }
+        <span class="badge teal">${typeLabels[prochain.type_examen]||prochain.type_examen}</span>
+      </div>
+      ${prochain.instructions ? `<div style="margin-top:8px;font-size:11.5px;opacity:.8;background:rgba(255,255,255,.1);border-radius:8px;padding:6px 10px">📋 ${prochain.instructions}</div>` : ''}
+    </div>`;
+  }
+
+  if (!tousExamens.length) {
+    page.innerHTML = `<div class="page-pad">
+      <div class="section-title">📝 Mes Examens</div>
+      <div class="empty"><div class="e-ico">📅</div><p>Aucun examen planifié pour le moment.</p></div>
+    </div>`;
+    return;
+  }
+
+  // Filtres
+  const filterHtml = `
+    <div class="exam-filter-bar" id="exam-filter-bar">
+      <button class="exam-filter-btn ${examFilterActif==='tous'?'active':''}" onclick="filtrerExamensPortail('tous')">Tous</button>
+      <button class="exam-filter-btn ${examFilterActif==='avenir'?'active':''}" onclick="filtrerExamensPortail('avenir')">À venir</button>
+      <button class="exam-filter-btn ${examFilterActif==='passe'?'active':''}" onclick="filtrerExamensPortail('passe')">Passés</button>
+    </div>`;
+
+  page.innerHTML = `<div class="page-pad">
+    <div class="section-title">📝 Mes Examens</div>
+    ${bannerHtml}
+    ${filterHtml}
+    <div class="card" id="exam-liste-portail"></div>
+  </div>`;
+
+  rendreListeExamensPortail();
+}
+
+function filtrerExamensPortail(filtre) {
+  examFilterActif = filtre;
+  document.querySelectorAll('.exam-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(
+      filtre === 'tous' ? 'tous' : filtre === 'avenir' ? 'à venir' : 'passés'
+    ));
+  });
+  rendreListeExamensPortail();
+}
+
+async function rendreListeExamensPortail() {
+  const container = document.getElementById('exam-liste-portail');
+  if (!container) return;
+  const today = new Date().toISOString().split('T')[0];
+
+  let liste = [...tousExamens];
+  if (examFilterActif === 'avenir') liste = liste.filter(e => e.date_examen >= today && e.statut !== 'annule');
+  else if (examFilterActif === 'passe') liste = liste.filter(e => e.date_examen < today || e.statut === 'termine');
+
+  if (!liste.length) {
+    container.innerHTML = '<div class="empty"><div class="e-ico">📭</div><p>Aucun examen dans cette catégorie.</p></div>';
+    return;
+  }
+
+  const typeLabels = { controle:'Contrôle continu', partiel:'Partiel', final:'Examen final', rattrapage:'Rattrapage', soutenance:'Soutenance' };
+  const typeClass  = { controle:'ep-controle', partiel:'ep-partiel', final:'ep-final', rattrapage:'ep-rattrapage', soutenance:'ep-soutenance' };
+  const moisFr = ['JAN','FÉV','MAR','AVR','MAI','JUN','JUL','AOÛ','SEP','OCT','NOV','DÉC'];
+
+  // Charger les notes de l'étudiant pour les examens terminés
+  let notesMap = {};
+  if (currentEtudiant) {
+    const examinesTermines = liste.filter(e => e.statut === 'termine').map(e => 'EXAM-' + e.id);
+    if (examinesTermines.length) {
+      const { data: notesEx } = await db.from('notes').select('*')
+        .eq('etudiant_id', currentEtudiant.id)
+        .in('periode', examinesTermines);
+      (notesEx || []).forEach(n => {
+        const examId = n.periode.replace('EXAM-', '');
+        notesMap[examId] = n.note;
+      });
+    }
+  }
+
+  container.innerHTML = liste.map(ex => {
+    const d = new Date(ex.date_examen);
+    const day = d.getDate().toString().padStart(2,'0');
+    const mon = moisFr[d.getMonth()];
+    const jours = Math.ceil((new Date(ex.date_examen) - new Date(today)) / 86400000);
+    const isPasse = ex.date_examen < today || ex.statut === 'termine';
+    const note = notesMap[ex.id];
+    let pillHtml = '';
+    if (ex.statut === 'annule') pillHtml = `<span class="exam-pill" style="background:#f3f4f6;color:#6b7280">Annulé</span>`;
+    else if (isPasse && note !== undefined) pillHtml = `<span class="exam-pill" style="background:${note>=10?'#dcfce7':'#fee2e2'};color:${note>=10?'#059669':'#dc2626'}">${note}/20</span>`;
+    else if (!isPasse && jours <= 3) pillHtml = `<span class="exam-pill ep-soon">${jours===0?'Auj.':'J-'+jours}</span>`;
+    else if (!isPasse) pillHtml = `<span class="exam-pill" style="background:#e1f5ee;color:#0f6e56">J-${jours}</span>`;
+
+    return `<div class="exam-item">
+      <div class="exam-date-box">
+        <div class="ed-day">${day}</div>
+        <div class="ed-mon">${mon}</div>
+      </div>
+      <div class="exam-body">
+        <div class="eb-mat">${ex.matiere}</div>
+        <div class="eb-meta">
+          ${ex.heure_debut ? `<span>🕐 ${ex.heure_debut}${ex.heure_fin?'–'+ex.heure_fin:''}</span>`:''}
+          ${ex.salle ? `<span>📍 ${ex.salle}</span>`:''}
+          ${ex.surveillant ? `<span>👤 ${ex.surveillant}</span>`:''}
+        </div>
+        ${ex.instructions ? `<div class="eb-note">📋 ${ex.instructions.slice(0,60)}${ex.instructions.length>60?'…':''}</div>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">
+        <span class="exam-pill ${typeClass[ex.type_examen]||'ep-controle'}">${typeLabels[ex.type_examen]||ex.type_examen}</span>
+        ${pillHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
+// ══ ENSEIGNANTS PORTAIL ★ JOUR 13 ══════════════════════════════
+
+async function chargerEnseignantsPortail() {
+  if (!currentEcoleId) { tousEnseignantsPortail = []; return; }
+  const { data } = await db.from('enseignants').select('*')
+    .eq('ecole_id', currentEcoleId).eq('statut','actif');
+  tousEnseignantsPortail = data || [];
+}
+
+function getProfPourMatiere(matiere) {
+  return tousEnseignantsPortail.find(p => (p.matieres||[]).includes(matiere));
+}
+
+function afficherEnseignantsPortail() {
+  const page = document.getElementById('page-enseignants');
+  if (!page) return;
+  if (!tousEnseignantsPortail.length) {
+    page.innerHTML = '<div class="page-pad"><div class="section-title">👨‍🏫 Mes Enseignants</div><div class="empty"><div class="e-ico">👨‍🏫</div><p>Aucun enseignant enregistré.</p></div></div>';
+    return;
+  }
+  page.innerHTML = `<div class="page-pad">
+    <div class="section-title">👨‍🏫 Mes Enseignants</div>
+    ${tousEnseignantsPortail.map(p => {
+      const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase();
+      return `<div class="prof-contact-card">
+        <div class="pcc-avatar">${initiales||'👤'}</div>
+        <div class="pcc-info">
+          <div class="pi-nom">${p.nom} ${p.prenom}${p.grade?' · <span style="opacity:.7;font-size:11px">'+p.grade+'</span>':''}</div>
+          <div class="pi-spec">${p.specialite||''}</div>
+          <div class="pi-mat">${(p.matieres||[]).slice(0,4).join(' · ')}</div>
+        </div>
+        ${p.email ? `<a href="mailto:${p.email}" style="margin-left:auto;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;padding:6px 12px;border-radius:8px;font-size:11.5px;font-weight:600;text-decoration:none">✉️ Email</a>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+
+// ══ ENSEIGNANTS PORTAIL ★ JOUR 13 ══════════════════════════════════
+
+async function chargerEnseignantsPortail() {
+  if (!currentEcoleId) { tousEnseignantsPortail = []; return; }
+  const { data } = await db.from('enseignants').select('*')
+    .eq('ecole_id', currentEcoleId).eq('statut','actif').order('nom');
+  tousEnseignantsPortail = data || [];
+}
+
+function afficherEnseignantsPortail() {
+  const page = document.getElementById('page-enseignants');
+  if (!tousEnseignantsPortail.length) {
+    page.innerHTML = '<div class="page-pad"><div class="section-title">👨‍🏫 Nos Enseignants</div><div class="empty"><div class="e-ico">👨‍🏫</div><p>Aucun enseignant disponible.</p></div></div>';
+    return;
+  }
+
+  // Filtrer par matières de l'étudiant (filière/niveau)
+  const gradeLabels = { vacataire:'Vacataire', contractuel:'Contractuel', permanent:'Permanent', charge_cours:'Chargé de cours', maitre_conf:'Maître de conf.', professeur:'Professeur' };
+
+  page.innerHTML = `<div class="page-pad">
+    <div class="section-title">👨‍🏫 Nos Enseignants</div>
+    <div style="font-size:12.5px;color:#6b7280;margin-bottom:1rem">
+      ${tousEnseignantsPortail.length} enseignant(s) actif(s)
+    </div>
+    <div class="card">
+      ${tousEnseignantsPortail.map(ens => {
+        const initiales = ((ens.prenom||'')[0]||'').toUpperCase() + ((ens.nom||'')[0]||'').toUpperCase();
+        const matieres = Array.isArray(ens.matieres) ? ens.matieres : (ens.matieres ? ens.matieres.split(',').map(m=>m.trim()) : []);
+        return `<div class="prof-card">
+          <div class="prof-avatar">${initiales}</div>
+          <div class="prof-body">
+            <div class="prof-nom">${ens.nom} ${ens.prenom}</div>
+            <div class="prof-spec">${ens.specialite||'—'} · <span style="color:#0f6e56;font-weight:600">${gradeLabels[ens.grade]||ens.grade||''}</span></div>
+            ${matieres.length ? `<div class="prof-mats">${matieres.slice(0,3).map(m=>`<span class="prof-mat-pill">${m}</span>`).join('')}${matieres.length>3?`<span class="prof-mat-pill">+${matieres.length-3}</span>`:''}</div>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            ${ens.email ? `<a href="mailto:${ens.email}" style="font-size:20px;text-decoration:none">✉️</a>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+// ══ PDF PORTAIL FAMILLE  ★ JOUR 14 ══════════════════════════════════
+
+function getJsPDFPortail() {
+  if (typeof window !== 'undefined' && window.jspdf) return window.jspdf.jsPDF;
+  if (typeof jspdf !== 'undefined') return jspdf.jsPDF;
+  return null;
+}
+
+function pdfSafePortail(str) {
+  if (!str) return '';
+  return str
+    .replace(/é|è|ê|ë/g, 'e')
+    .replace(/à|â|ä/g, 'a')
+    .replace(/î|ï/g, 'i')
+    .replace(/ô|ö/g, 'o')
+    .replace(/ù|û|ü/g, 'u')
+    .replace(/ç/g, 'c')
+    .replace(/É|È|Ê|Ë/g, 'E')
+    .replace(/À|Â|Ä/g, 'A')
+    .replace(/Î|Ï/g, 'I')
+    .replace(/Ô|Ö/g, 'O')
+    .replace(/Ù|Û|Ü/g, 'U')
+    .replace(/Ç/g, 'C')
+    .replace(/[-￿]/g, '');
+}
+
+function labelPeriodePDF(p) {
+  if (!p) return 'Toutes periodes';
+  if (p === 'S1') return 'Semestre 1';
+  if (p === 'S2') return 'Semestre 2';
+  if (p === 'T1') return 'Trimestre 1';
+  if (p === 'T2') return 'Trimestre 2';
+  if (p === 'T3') return 'Trimestre 3';
+  if (p.startsWith('EXAM-')) return 'Examen';
+  return p;
+}
+
+async function telechargerBulletinPDFPortail(periode) {
+  const JsPDF = getJsPDFPortail();
+  if (!JsPDF) { showToast('jsPDF non chargé — réessayez', 'error'); return; }
+  if (!currentEtudiant) { showToast('Aucun étudiant lié', 'error'); return; }
+
+  showToast('Génération du PDF...', 'info');
+
+  const notes = periode ? toutesNotes.filter(n => n.periode === periode) : toutesNotes;
+  if (!notes.length) { showToast('Aucune note pour cette période', 'error'); return; }
+
+  let totalPts = 0, totalCoeff = 0;
+  notes.forEach(n => { totalPts += n.note*(n.coefficient||1); totalCoeff += (n.coefficient||1); });
+  const moy = totalCoeff > 0 ? totalPts/totalCoeff : 0;
+
+  const NAVY  = [15, 110, 86];   // teal portail
+  const NAVY2 = [30, 58, 95];
+  const GREEN = [5, 150, 105];
+  const RED   = [220, 38, 38];
+  const AMBER = [217, 119, 6];
+  const GRAY  = [107, 114, 128];
+
+  function mentionColor(note) { return note>=14?GREEN:note>=10?AMBER:RED; }
+  function mentionLabel(note) {
+    if (note>=16) return 'Tres bien';
+    if (note>=14) return 'Bien';
+    if (note>=12) return 'Assez bien';
+    if (note>=10) return 'Passable';
+    return 'Insuffisant';
+  }
+
+  const doc = new JsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const pw = doc.internal.pageSize.getWidth();
+
+  // Entête teal
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 0, pw, 38, 'F');
+  doc.setFillColor(...NAVY2);
+  doc.rect(0, 38, pw, 3, 'F');
+
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(17); doc.setFont('helvetica','bold');
+  doc.text('EduLink', 14, 15);
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Portail Famille - Bulletin de notes', 14, 23);
+  doc.setTextColor(200,200,200); doc.setFontSize(8);
+  doc.text('Edite le '+new Date().toLocaleDateString('fr-FR'), 14, 30);
+
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(12); doc.setFont('helvetica','bold');
+  doc.text('BULLETIN DE NOTES', pw-14, 15, { align:'right' });
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Periode : '+labelPeriodePDF(periode||''), pw-14, 23, { align:'right' });
+
+  let y = 48;
+
+  // Bloc étudiant
+  doc.setFillColor(225, 245, 238);
+  doc.roundedRect(14, y, pw-28, 28, 3, 3, 'F');
+  doc.setDrawColor(...NAVY); doc.setLineWidth(0.4);
+  doc.roundedRect(14, y, pw-28, 28, 3, 3, 'S');
+
+  doc.setTextColor(...NAVY2); doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.text(pdfSafePortail(currentEtudiant.nom+' '+currentEtudiant.prenom), 22, y+9);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...GRAY);
+  doc.text('Matricule : '+(currentEtudiant.matricule||'-'), 22, y+16);
+  doc.text('Filiere : '+(currentEtudiant.filiere||'-')+'  |  Niveau : '+(currentEtudiant.niveau||'-'), 22, y+22);
+
+  // Moyenne
+  doc.setFillColor(...(moy>=10?GREEN:RED));
+  doc.roundedRect(pw-55, y+4, 41, 20, 3, 3, 'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(17); doc.setFont('helvetica','bold');
+  doc.text(moy.toFixed(2)+'/20', pw-34, y+15, { align:'center' });
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text(mentionLabel(moy), pw-34, y+21, { align:'center' });
+
+  y += 34;
+
+  doc.setTextColor(...NAVY); doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.text('Releve de notes - '+labelPeriodePDF(periode||''), 14, y); y += 5;
+
+  const rows = notes.map(n => [
+    n.matiere,
+    n.note+'/20',
+    n.coefficient||1,
+    (n.note*(n.coefficient||1)).toFixed(2),
+    mentionLabel(n.note)
+  ]);
+  rows.push([
+    'MOYENNE GÉNÉRALE',
+    { content:moy.toFixed(2)+'/20', styles:{ fontStyle:'bold', textColor:mentionColor(moy), fontSize:11 } },
+    totalCoeff,
+    totalPts.toFixed(2),
+    { content:mentionLabel(moy), styles:{ fontStyle:'bold', textColor:mentionColor(moy) } }
+  ]);
+
+  doc.autoTable({
+    startY: y,
+    head: [['Matière','Note /20','Coeff.','Points','Mention']],
+    body: rows,
+    theme: 'grid',
+    headStyles: { fillColor:NAVY, textColor:[255,255,255], fontSize:9, fontStyle:'bold', halign:'center' },
+    columnStyles: { 0:{halign:'left',cellWidth:68}, 1:{halign:'center'}, 2:{halign:'center'}, 3:{halign:'center'} },
+    bodyStyles: { fontSize:9, textColor:[55,65,81] },
+    alternateRowStyles: { fillColor:[225,245,238] },
+    didParseCell: (d) => { if(d.row.index===rows.length-1){ d.cell.styles.fillColor=[225,245,238]; d.cell.styles.fontStyle='bold'; } },
+    margin: { left:14, right:14 }
+  });
+
+  y = doc.lastAutoTable.finalY + 15;
+
+  // Barre progression visuelle
+  const pct = Math.min(100, moy/20*100);
+  doc.setFillColor(229,231,235);
+  doc.roundedRect(14, y, pw-28, 6, 3, 3, 'F');
+  doc.setFillColor(...(moy>=10?GREEN:RED));
+  doc.roundedRect(14, y, (pw-28)*pct/100, 6, 3, 3, 'F');
+  doc.setFontSize(8); doc.setTextColor(...GRAY);
+  doc.text('Progression : '+pct.toFixed(0)+'%', pw/2, y+11, { align:'center' });
+  y += 20;
+
+  // Signatures
+  if (y > 240) { doc.addPage(); y = 20; }
+  ['Direction','Enseignant(e) référent(e)','Parent / Tuteur'].forEach((s,i) => {
+    const sx = 14+(pw-28)/3*i;
+    doc.setDrawColor(200,200,200); doc.line(sx, y+16, sx+53, y+16);
+    doc.setFontSize(8); doc.setTextColor(...GRAY);
+    doc.text(s, sx+26.5, y+22, { align:'center' });
+  });
+
+  // Footer
+  const ph = doc.internal.pageSize.getHeight();
+  doc.setFillColor(243,244,246);
+  doc.rect(0, ph-12, pw, 12, 'F');
+  doc.setFontSize(7.5); doc.setTextColor(...GRAY);
+  doc.text('Bulletin genere via EduLink - Portail Famille', 14, ph-4);
+  doc.text('Page 1', pw-14, ph-4, { align:'right' });
+
+  const filename = `Bulletin_${currentEtudiant.nom}_${currentEtudiant.prenom}_${periode||'all'}.pdf`.replace(/\s+/g,'_');
+  doc.save(filename);
+  showToast('✅ Bulletin PDF téléchargé !', 'success');
+}
+
+// ══ CENTRE DE NOTIFICATIONS PORTAIL ★ JOUR 16 ════════════════════════
+
+let toutesNotifsPortail   = [];
+let notifsFiltreActif     = 'tous';
+
+// ── Charger depuis Supabase ───────────────────────────────────────────
+async function chargerNotifsPortail() {
+  if (!currentEcoleId) return;
+  try {
+    let q = db.from('notifications')
+      .select('*')
+      .eq('ecole_id', currentEcoleId)
+      .order('created_at', {ascending: false})
+      .limit(60);
+    // Filtrer par étudiant si connu
+    if (currentEtudiant?.id) {
+      q = db.from('notifications')
+        .select('*')
+        .eq('ecole_id', currentEcoleId)
+        .or(`etudiant_id.eq.${currentEtudiant.id},etudiant_id.is.null`)
+        .order('created_at', {ascending: false})
+        .limit(60);
+    }
+    const { data } = await q;
+    toutesNotifsPortail = data || [];
+    // Mettre à jour le badge nav
+    const nonLues = toutesNotifsPortail.filter(n => !n.lu).length;
+    const badge = document.getElementById('nav-notifs-badge');
+    if (badge) {
+      if (nonLues > 0) { badge.style.display = 'flex'; badge.textContent = nonLues; }
+      else badge.style.display = 'none';
+    }
+  } catch(e) {
+    console.warn('[Portail Notifs]', e.message);
+  }
+}
+
+// ── Afficher la page Alertes ──────────────────────────────────────────
+function afficherNotifsPortail() {
+  const page = document.getElementById('page-notifs');
+  if (!page) return;
+
+  const nonLues = toutesNotifsPortail.filter(n => !n.lu).length;
+
+  page.innerHTML = `
+    <div class="card" style="margin:1rem 1rem 0">
+      <div class="pn-header-bar">
+        <div class="ph-title">🔔 Mes alertes <span style="font-size:11px;color:#9ca3af;font-weight:400">(${toutesNotifsPortail.length})</span></div>
+        ${nonLues > 0 ? `<button class="pn-tout-lire" onclick="marquerToutesLues()">Tout marquer lu</button>` : ''}
+      </div>
+      <div class="pn-filter-bar" id="pn-filter-bar">
+        <button class="pn-filter-btn active" onclick="filtrerNotifsPortail('tous',this)">Toutes</button>
+        <button class="pn-filter-btn" onclick="filtrerNotifsPortail('absence',this)">🚫 Absences</button>
+        <button class="pn-filter-btn" onclick="filtrerNotifsPortail('note',this)">📊 Notes</button>
+        <button class="pn-filter-btn" onclick="filtrerNotifsPortail('examen',this)">📝 Examens</button>
+        <button class="pn-filter-btn" onclick="filtrerNotifsPortail('paiement',this)">💳 Paiements</button>
+        <button class="pn-filter-btn" onclick="filtrerNotifsPortail('annonce',this)">📢 Annonces</button>
+        <button class="pn-filter-btn" onclick="filtrerNotifsPortail('message',this)">✉️ Messages</button>
+      </div>
+      <div id="pn-liste"></div>
+    </div>`;
+
+  renderNotifsListe();
+}
+
+function renderNotifsListe() {
+  const el = document.getElementById('pn-liste');
+  if (!el) return;
+
+  const liste = notifsFiltreActif === 'tous'
+    ? toutesNotifsPortail
+    : toutesNotifsPortail.filter(n => n.type === notifsFiltreActif);
+
+  if (!liste.length) {
+    el.innerHTML = `<div class="pn-empty"><div class="pn-ico">🔔</div><p>Aucune alerte${notifsFiltreActif !== 'tous' ? ' dans cette catégorie' : ''}.</p></div>`;
+    return;
+  }
+
+  const ICONES   = { annonce:'📢', absence:'🚫', note:'📊', examen:'📝', paiement:'💳', message:'✉️', systeme:'🔔' };
+  const COULEURS = { annonce:'blue', absence:'red', note:'teal', examen:'purple', paiement:'amber', message:'green', systeme:'blue' };
+  const TYPE_LBL = { annonce:'Annonce', absence:'Absence', note:'Note', examen:'Examen', paiement:'Paiement', message:'Message', systeme:'Système' };
+
+  el.innerHTML = liste.map(n => {
+    const ico     = ICONES[n.type]   || '🔔';
+    const couleur = COULEURS[n.type] || 'blue';
+    const lbl     = TYPE_LBL[n.type] || n.type;
+    const urgent  = n.priorite === 'high';
+    return `
+    <div class="pn-item ${!n.lu ? 'unread' : ''} ${urgent ? 'high' : ''}"
+         onclick="marquerLuePortail('${n.id}',this)">
+      <div class="pn-ico-wrap ${couleur}">${ico}</div>
+      <div class="pn-body">
+        <div class="pn-titre">${n.titre || '—'}</div>
+        <div class="pn-corps">${n.corps || ''}</div>
+        <div class="pn-meta">
+          <span class="pn-type-pill badge ${couleur}">${lbl}</span>
+          ${urgent ? '<span class="pn-type-pill badge red">URGENT</span>' : ''}
+          <span>${fmtDateRelative(n.created_at)}</span>
+        </div>
+      </div>
+      ${!n.lu ? '<div class="pn-dot"></div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function filtrerNotifsPortail(type, btn) {
+  notifsFiltreActif = type;
+  document.querySelectorAll('.pn-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderNotifsListe();
+}
+
+// ── Marquer une notification comme lue ───────────────────────────────
+async function marquerLuePortail(id, el) {
+  if (!id) return;
+  const notif = toutesNotifsPortail.find(n => n.id === id);
+  if (!notif || notif.lu) return;
+  notif.lu = true;
+  notif.lu_at = new Date().toISOString();
+  // Mettre à jour visuellement
+  el.classList.remove('unread');
+  el.classList.remove('high');
+  const dot = el.querySelector('.pn-dot');
+  if (dot) dot.remove();
+  // Mettre à jour badge nav
+  const nonLues = toutesNotifsPortail.filter(n => !n.lu).length;
+  const badge = document.getElementById('nav-notifs-badge');
+  if (badge) { badge.style.display = nonLues > 0 ? 'flex' : 'none'; badge.textContent = nonLues; }
+  // Persister en base
+  try {
+    await db.from('notifications').update({ lu: true, lu_at: new Date().toISOString() }).eq('id', id);
+  } catch(_) {}
+  // Naviguer si lien
+  if (notif.lien) showPage(notif.lien.replace('/','').replace('.html',''));
+}
+
+// ── Tout marquer comme lu ─────────────────────────────────────────────
+async function marquerToutesLues() {
+  if (!currentEcoleId) return;
+  toutesNotifsPortail.forEach(n => { n.lu = true; });
+  const badge = document.getElementById('nav-notifs-badge');
+  if (badge) badge.style.display = 'none';
+  afficherNotifsPortail();
+  await db.from('notifications')
+    .update({ lu: true, lu_at: new Date().toISOString() })
+    .eq('ecole_id', currentEcoleId).eq('lu', false).catch(() => {});
+  showToast('✅ Toutes les alertes marquées comme lues', 'success');
+}
+
+// ── Date relative lisible ─────────────────────────────────────────────
+function fmtDateRelative(d) {
+  if (!d) return '—';
+  const now  = Date.now();
+  const diff = now - new Date(d).getTime();
+  const mn   = Math.floor(diff / 60000);
+  const h    = Math.floor(diff / 3600000);
+  const j    = Math.floor(diff / 86400000);
+  if (mn < 2)  return 'À le moment';
+  if (mn < 60) return `Il y a ${mn} min`;
+  if (h < 24)  return `Il y a ${h}h`;
+  if (j === 1) return 'Hier';
+  if (j < 7)   return `Il y a ${j} jours`;
+  return new Date(d).toLocaleDateString('fr-FR', {day:'2-digit',month:'short'});
+}
+
+// ── Créer une notification locale (appelée par les triggers auto) ────
+async function creerNotifLocale(type, titre, corps, couleur='blue', icone='🔔', lien=null) {
+  if (!currentEcoleId) return;
+  try {
+    const { data } = await db.from('notifications').insert([{
+      ecole_id:    currentEcoleId,
+      etudiant_id: currentEtudiant?.id || null,
+      type, titre, corps, icone, couleur,
+      lien,
+      priorite:   'normal',
+      lu:          false
+    }]).select().single();
+    if (data) {
+      toutesNotifsPortail.unshift(data);
+      // Mettre à jour badge
+      const badge = document.getElementById('nav-notifs-badge');
+      const cnt = toutesNotifsPortail.filter(n => !n.lu).length;
+      if (badge && cnt > 0) { badge.style.display = 'flex'; badge.textContent = cnt; }
+    }
+  } catch(e) {
+    console.warn('[Portail Notifs] creerNotifLocale:', e.message);
+  }
+}
+
+// ══ FCM PORTAIL FAMILLE  ★ JOUR 15 — CORRIGÉ ════════════════════════
+//  Fix 1 : enregistrement explicite du SW firebase-messaging-sw.js
+//  Fix 2 : passage de swReg à getToken() (requis par FCM web)
+//  Fix 3 : config Firebase envoyée au SW via postMessage (dynamic config)
+
+let fcmPortailMessaging  = null;
+let fcmPortailToken      = null;
+let fcmPortailSwReg      = null;
+let fcmPortailFirebaseCfg = null;
+
+// ── Init principale ──────────────────────────────────────────────────
+async function initFCMPortail() {
+  if (typeof firebase === 'undefined')     return;
+  if (!('serviceWorker' in navigator))     return;
+  if (!('Notification' in window))         return;
+
+  try {
+    // 1. Charger config Firebase depuis Supabase
+    const { data } = await db.from('parametres')
+      .select('firebase_config')
+      .eq('ecole_id', currentEcoleId)
+      .maybeSingle();
+    if (!data?.firebase_config) {
+      console.warn('[FCM Portail] firebase_config absent dans parametres');
+      return;
+    }
+    fcmPortailFirebaseCfg = data.firebase_config;
+
+    // 2. Initialiser Firebase dans le thread principal
+    if (!firebase.apps.length) {
+      firebase.initializeApp(fcmPortailFirebaseCfg);
+    }
+    fcmPortailMessaging = firebase.messaging();
+
+    // 3. Enregistrer le Service Worker FCM
+    try {
+      fcmPortailSwReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+      await navigator.serviceWorker.ready;
+
+      // Envoyer la config au SW dès qu'il est actif
+      envoyerConfigAuSW(fcmPortailSwReg);
+
+      // Aussi envoyer quand le SW passe à l'état "active" (première installation)
+      if (fcmPortailSwReg.installing) {
+        fcmPortailSwReg.installing.addEventListener('statechange', function() {
+          if (this.state === 'activated') envoyerConfigAuSW(fcmPortailSwReg);
+        });
+      }
+    } catch(swErr) {
+      console.warn('[FCM Portail] Échec enregistrement SW :', swErr.message);
+      // On continue sans SW (foreground seulement)
+    }
+
+    // 4. Écouter les messages reçus en premier plan (app ouverte)
+    fcmPortailMessaging.onMessage(function(payload) {
+      const notif = payload.notification || {};
+      const data  = payload.data         || {};
+      const titre = notif.title || data.title || 'EduLink';
+      const corps = notif.body  || data.body  || '';
+      afficherBanniereNotif(titre, corps);
+      // Persister dans la table notifications pour l'historique portail
+      creerNotifLocale('annonce', titre, corps, 'blue', '🔔', data.url || null);
+    });
+
+    // 5. Flux de permission
+    if (Notification.permission === 'default') {
+      afficherBannierePermission();
+    } else if (Notification.permission === 'granted') {
+      await abonnerFCMPortail();
+    }
+    // Si 'denied' → on ne fait rien (l'utilisateur a refusé)
+
+  } catch(err) {
+    console.warn('[FCM Portail] Erreur init :', err.message);
+  }
+}
+
+// ── Envoyer config Firebase au SW via postMessage ────────────────────
+function envoyerConfigAuSW(swReg) {
+  if (!fcmPortailFirebaseCfg) return;
+  const target = swReg.active || swReg.waiting || swReg.installing;
+  if (target) {
+    target.postMessage({
+      type:          'EDULINK_FIREBASE_CONFIG',
+      firebaseConfig: fcmPortailFirebaseCfg
+    });
+    console.log('[FCM Portail] Config envoyée au SW');
+  }
+}
+
+// ── Demander permission et s'abonner ─────────────────────────────────
+async function demanderPermissionPush() {
+  try {
+    const permission = await Notification.requestPermission();
+    masquerBannierePermission();
+    if (permission === 'granted') {
+      await abonnerFCMPortail();
+      afficherBanniereNotif('🔔 Notifications activées !', 'Vous recevrez les alertes en temps réel.');
+    } else {
+      showToast('Notifications refusées par le navigateur', 'error');
+    }
+  } catch(err) {
+    console.warn('[FCM Portail] Permission error :', err);
+  }
+}
+
+// ── S'abonner et sauvegarder le token ────────────────────────────────
+async function abonnerFCMPortail() {
+  try {
+    // Récupérer VAPID key depuis Supabase
+    const { data } = await db.from('parametres')
+      .select('vapid_key').eq('ecole_id', currentEcoleId).maybeSingle();
+    const vapidKey = data?.vapid_key || localStorage.getItem('edulink_vapid_key');
+    if (!vapidKey) { console.warn('[FCM Portail] VAPID key manquante'); return; }
+    if (!fcmPortailMessaging) return;
+
+    // FIX CRITIQUE : passer serviceWorkerRegistration à getToken()
+    const tokenOptions = { vapidKey };
+    if (fcmPortailSwReg) tokenOptions.serviceWorkerRegistration = fcmPortailSwReg;
+
+    const token = await fcmPortailMessaging.getToken(tokenOptions);
+    if (!token) { console.warn('[FCM Portail] Token vide'); return; }
+    fcmPortailToken = token;
+    localStorage.setItem('edulink_fcm_token', token); // Cache local
+
+    const role = currentProfile?.role || 'parent';
+    await db.from('push_tokens').upsert({
+      ecole_id:    currentEcoleId,
+      token,
+      role,
+      etudiant_id: currentEtudiant?.id || null,
+      user_agent:  navigator.userAgent.slice(0, 200),
+      updated_at:  new Date().toISOString()
+    }, { onConflict: 'token' });
+
+    console.log('[FCM Portail] ✅ Abonné avec token :', token.slice(0, 20) + '...');
+  } catch(err) {
+    console.warn('[FCM Portail] Erreur abonnement :', err.message);
+  }
+}
+
+// ── Bannière permission ───────────────────────────────────────────────
+function afficherBannierePermission() {
+  const el = document.getElementById('push-permission-banner');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="push-banner">
+      <div class="pb-ico">🔔</div>
+      <div class="pb-body">
+        <div class="pb-title">Activez les notifications push</div>
+        <div class="pb-sub">Recevez les alertes d'absence, notes et examens en temps réel</div>
+      </div>
+      <button class="pb-btn" onclick="demanderPermissionPush()">Activer</button>
+      <button class="pb-close" onclick="masquerBannierePermission()">✕</button>
+    </div>`;
+}
+
+function masquerBannierePermission() {
+  const el = document.getElementById('push-permission-banner');
+  if (el) el.innerHTML = '';
+}
+
+// ── Bannière notification reçue (foreground) ─────────────────────────
+function afficherBanniereNotif(titre, message) {
+  showToast('🔔 ' + titre + (message ? ' — ' + message : ''), 'info');
+  injecterNotifPortail(titre, message, 'annonce');
+}
+
+// ── Désinscription ────────────────────────────────────────────────────
+async function desabonnerFCMPortail() {
+  if (!fcmPortailToken || !fcmPortailMessaging) return;
+  try {
+    await fcmPortailMessaging.deleteToken();
+  } catch(_) {}
+  await db.from('push_tokens').delete().eq('token', fcmPortailToken);
+  fcmPortailToken = null;
+  localStorage.removeItem('edulink_fcm_token');
+  showToast('Notifications désactivées', 'info');
+}
+
+
+// ══ EMPLOI DU TEMPS PORTAIL  ★ JOUR 19 ══════════════════════════════════
+
+let edtPortailData = [];
+const JOURS_EDT = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const HEURES_EDT = ['07:00','08:00','09:00','10:00','11:00','12:00',
+                    '13:00','14:00','15:00','16:00','17:00'];
+
+async function chargerEmploiPortail() {
+  if (!currentEcoleId) { edtPortailData = []; return; }
+  try {
+    // Charger tous les créneaux de l'école sans filtre restrictif
+    const { data } = await db.from('emploi_du_temps')
+      .select('*')
+      .eq('ecole_id', currentEcoleId)
+      .order('jour')
+      .order('heure_debut');
+    edtPortailData = data || [];
+  } catch(e) {
+    edtPortailData = [];
+    console.warn('[Emploi]', e.message);
+  }
+}
+
+function afficherEmploiPortail() {
+  const page = document.getElementById('page-emploi');
+  if (!page) return;
+
+  if (!edtPortailData.length) {
+    page.innerHTML = `<div class="page-pad">
+      <div class="section-title">📅 Emploi du temps</div>
+      <div class="empty"><div class="e-ico">📅</div>
+        <p>Aucun emploi du temps disponible pour le moment.</p>
+      </div>
+    </div>`;
+    return;
+  }
+
+  // Construire l'index heure→jour
+  const index = {};
+  edtPortailData.forEach(c => {
+    const k = c.jour + '|' + c.heure_debut;
+    if (!index[k]) index[k] = [];
+    index[k].push(c);
+  });
+
+  const today = new Date().toLocaleDateString('fr-FR',{weekday:'long'});
+  const todayCapital = today.charAt(0).toUpperCase() + today.slice(1);
+
+  const TYPE_COLORS = { cours:'cours', td:'td', tp:'tp', exam:'exam' };
+  const TYPE_LABELS = { cours:'Cours', td:'TD', tp:'TP', exam:'Examen' };
+
+  // Vue liste (plus mobile-friendly)
+  let html = `<div class="page-pad">
+    <div class="section-title">📅 Emploi du temps
+      ${currentEtudiant ? `<span style="font-size:11px;color:#6b7280;font-weight:400">· ${currentEtudiant.filiere} ${currentEtudiant.niveau}</span>` : ''}
+    </div>`;
+
+  JOURS_EDT.forEach(jour => {
+    const creneaux = edtPortailData.filter(c => c.jour === jour);
+    if (!creneaux.length) return;
+
+    const isToday = jour === todayCapital;
+    html += `<div class="card" style="margin-bottom:.75rem;overflow:hidden">
+      <div class="card-header" style="${isToday ? 'background:var(--teal,#0f6e56);color:#fff;' : ''}">
+        <div class="card-title" style="${isToday ? 'color:#fff;' : ''}">
+          ${isToday ? '📍 ' : ''}${jour}${isToday ? " (Aujourd'hui)" : ''}
+        </div>
+        <span style="font-size:11px;${isToday?'color:rgba(255,255,255,.75)':'color:#9ca3af'}">${creneaux.length} cours</span>
+      </div>`;
+
+    creneaux.sort((a,b) => (a.heure_debut||'').localeCompare(b.heure_debut||''));
+    creneaux.forEach(c => {
+      const typeColor = TYPE_COLORS[c.type] || 'cours';
+      html += `<div class="list-item" style="align-items:center">
+        <div class="edt-portail-slot ${typeColor}" style="width:50px;min-height:44px;margin:0;flex-shrink:0">
+          <div style="font-size:9px;font-weight:700;color:#374151">${c.heure_debut||''}</div>
+          <div style="font-size:8px;color:#6b7280">${c.heure_fin||''}</div>
+        </div>
+        <div class="li-body">
+          <div class="li-title">${c.matiere||'—'}</div>
+          <div class="li-sub">
+            ${c.professeur ? '👨‍🏫 ' + c.professeur : ''}
+            ${c.salle ? ' · 📍 ' + c.salle : ''}
+          </div>
+        </div>
+        <span class="badge ${typeColor === 'cours' ? 'blue' : typeColor === 'td' ? 'green' : typeColor === 'tp' ? 'purple' : 'amber'}"
+              style="font-size:9.5px;flex-shrink:0">
+          ${TYPE_LABELS[c.type] || c.type || 'Cours'}
+        </span>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  html += '</div>';
+  page.innerHTML = html;
+}
+
+
+// ══ CERTIFICATS PORTAIL  ★ JOUR 19 ══════════════════════════════════════
+
+let certPortailList = [];
+
+const CERT_TYPES_PORTAIL = {
+  attestation_inscription: { label:"Attestation d'inscription", ico:'📋', cls:'blue' },
+  releve_notes:            { label:'Relevé de notes',           ico:'📊', cls:'amber' },
+  certificat_scolarite:    { label:'Certificat de scolarité',   ico:'🎓', cls:'green' },
+  diplome_provisoire:      { label:'Diplôme provisoire',        ico:'🏆', cls:'purple' },
+};
+
+async function chargerCertificatsPortailData() {
+  if (!currentEtudiant?.id || !currentEcoleId) { certPortailList = []; return; }
+  try {
+    const { data } = await db.from('certificats')
+      .select('*')
+      .eq('etudiant_id', currentEtudiant.id)
+      .eq('ecole_id', currentEcoleId)
+      .neq('statut', 'annule')
+      .order('created_at', { ascending: false });
+    certPortailList = data || [];
+    // Badge accueil
+    if (certPortailList.length > 0) {
+      const navBtn = document.getElementById('nav-certificats-portail');
+      if (navBtn) {
+        const badge = document.createElement('span');
+        badge.className = 'nav-badge';
+        badge.style.cssText = 'display:flex;background:#0f6e56';
+        badge.textContent = certPortailList.length;
+        navBtn.appendChild(badge);
+      }
+    }
+  } catch(e) {
+    certPortailList = [];
+    console.warn('[Certificats Portail]', e.message);
+  }
+}
+
+function afficherCertificatsPortail() {
+  const page = document.getElementById('page-certificats-portail');
+  if (!page) return;
+
+  if (!certPortailList.length) {
+    page.innerHTML = `<div class="page-pad">
+      <div class="section-title">📜 Mes Documents officiels</div>
+      <div style="background:linear-gradient(135deg,var(--teal,#0f6e56),var(--navy,#1e3a5f));border-radius:14px;padding:1.2rem;color:#fff;margin-bottom:1rem;position:relative;overflow:hidden">
+        <div style="position:absolute;right:1rem;top:50%;transform:translateY(-50%);font-size:48px;opacity:.12">📜</div>
+        <div style="font-size:22px;font-weight:800;font-family:'Nunito',sans-serif">0</div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:2px">Mes Documents officiels</div>
+        <div style="font-size:12px;opacity:.75">Attestations, relevés & certificats</div>
+      </div>
+      <div class="empty">
+        <div class="e-ico">📭</div>
+        <p>Aucun document officiel disponible.<br>Contactez votre administration pour en faire la demande.</p>
+      </div>
+    </div>`;
+    return;
+  }
+
+  const typeCounts = {};
+  certPortailList.forEach(c => { typeCounts[c.type] = (typeCounts[c.type]||0)+1; });
+  const summaryBadges = Object.entries(typeCounts).map(([t,n]) => {
+    const tc = CERT_TYPES_PORTAIL[t];
+    return `<span class="badge ${tc?.cls||'blue'}" style="margin-right:4px">${tc?.ico||'📄'} ${n}</span>`;
+  }).join('');
+
+  page.innerHTML = `<div class="page-pad">
+    <div class="section-title">📜 Mes Documents officiels</div>
+    <div style="background:linear-gradient(135deg,var(--teal,#0f6e56),var(--navy,#1e3a5f));border-radius:14px;padding:1.2rem;color:#fff;margin-bottom:1rem;position:relative;overflow:hidden">
+      <div style="position:absolute;right:1rem;top:50%;transform:translateY(-50%);font-size:48px;opacity:.12">📜</div>
+      <div style="font-size:26px;font-weight:800;font-family:'Nunito',sans-serif">${certPortailList.length}</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">Document${certPortailList.length>1?'s':''} officiel${certPortailList.length>1?'s':''}</div>
+      <div style="margin-top:6px">${summaryBadges}</div>
+    </div>
+    <div class="card" style="overflow:hidden">
+      ${certPortailList.map(c => {
+        const t = CERT_TYPES_PORTAIL[c.type] || { label:c.type, ico:'📄', cls:'blue' };
+        return `<div class="cert-portail-card">
+          <div class="cpc-ico" style="background:${c.type==='releve_notes'?'#fef9c3':c.type==='diplome_provisoire'?'#ede9fe':c.type==='certificat_scolarite'?'#dcfce7':'#dbeafe'}">${t.ico}</div>
+          <div class="cpc-info">
+            <div class="cpc-type">${t.label}</div>
+            <div><span class="cpc-ref">${c.reference}</span></div>
+            <div class="cpc-date">Émis le ${fmtDate(c.created_at)}${c.delivre_par?' · '+c.delivre_par:''}</div>
+          </div>
+          <button class="cpc-dl" onclick="telechargerCertPortailV2('${c.id}')">⬇ PDF</button>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="text-align:center;padding:1rem;font-size:12px;color:#9ca3af">
+      🔒 Tous vos documents sont vérifiables sur <strong>edulink.bj/verifier</strong>
+    </div>
+  </div>`;
+}
+
+async function telechargerCertPortailV2(id) {
+  const cert = certPortailList.find(c => c.id === id);
+  if (!cert) { showToast('Document introuvable.', 'error'); return; }
+  showToast('⏳ Génération du PDF...', 'info');
+  try {
+    const JsPDF = window.jspdf?.jsPDF;
+    if (!JsPDF) { showToast('jsPDF non disponible', 'error'); return; }
+
+    let ecole = null;
+    try {
+      const { data: ecoleData } = await db.from('ecoles')
+        .select('nom,type,couleur_primaire,couleur_secondaire,couleur_accent,slogan')
+        .eq('id', currentEcoleId).single();
+      ecole = ecoleData;
+    } catch(_) {}
+
+    const pHex = h => h ? [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)] : null;
+    const prim = pHex(ecole?.couleur_primaire) || [30,58,95];
+    const acc  = pHex(ecole?.couleur_accent)   || [201,124,26];
+    const nomEcole = ecole?.nom || 'Établissement';
+    const safe = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x00-\x7E]/g,'');
+
+    const doc = new JsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+
+    // Header
+    doc.setFillColor(...prim); doc.rect(0,0,pw,36,'F');
+    doc.setFillColor(...acc);  doc.rect(0,31,pw,5,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(14); doc.setFont('helvetica','bold');
+    doc.text(safe(nomEcole), 14, 16);
+    doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text(safe(ecole?.type||'') + '  ·  République du Bénin', 14, 24);
+    doc.setFontSize(7); doc.setFont('helvetica','italic');
+    doc.text(safe(ecole?.slogan||'Excellence · Intégrité · Innovation'), 14, 30);
+    doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica','bold');
+    doc.text('Annee academique ' + (new Date().getMonth()>=8 ? new Date().getFullYear()+'/'+(new Date().getFullYear()+1) : (new Date().getFullYear()-1)+'/'+new Date().getFullYear()), pw/2, 34.5, {align:'center'});
+
+    let y = 46;
+    const tc = CERT_TYPES_PORTAIL[cert.type] || {label:cert.type};
+    doc.setTextColor(...prim); doc.setFontSize(16); doc.setFont('helvetica','bold');
+    doc.text(safe(tc.label.toUpperCase()), pw/2, y, {align:'center'});
+    y += 13;
+
+    doc.setFillColor(239,246,255);
+    doc.roundedRect(14, y, pw-28, 9, 2, 2, 'F');
+    doc.setTextColor(30,58,95); doc.setFontSize(7.5); doc.setFont('courier','bold');
+    doc.text('Ref : ' + cert.reference, 18, y+5.5);
+    doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
+    doc.text('Le ' + new Date().toLocaleDateString('fr-FR'), pw-18, y+5.5, {align:'right'});
+    y += 16;
+
+    // Etudiant
+    doc.setFillColor(249,250,251);
+    doc.roundedRect(14, y, pw-28, 22, 2, 2, 'F');
+    doc.setTextColor(30,58,95); doc.setFontSize(12); doc.setFont('helvetica','bold');
+    doc.text(safe((currentEtudiant?.prenom||'')+' '+(currentEtudiant?.nom||'')), 22, y+9);
+    doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
+    doc.text('Matricule : '+safe(currentEtudiant?.matricule||'—'), 22, y+15);
+    doc.text(safe(currentEtudiant?.filiere||'—')+' — '+safe(currentEtudiant?.niveau||'—'), 22, y+20);
+    y += 29;
+
+    // Corps
+    const corps = "Ce document certifie que " + safe((currentEtudiant?.prenom||"")+" "+(currentEtudiant?.nom||"")) +
+      " est regulierement inscrit(e) a " + safe(nomEcole) +
+      " pour l'annee academique en cours, en " + safe(currentEtudiant?.filiere||"-") +
+      ", niveau " + safe(currentEtudiant?.niveau||"-") + ".\n\n" +
+      "Ce document est delivre a la demande de l'interesse(e) et porte la reference " + cert.reference + ".";
+    doc.setTextColor(55,65,81); doc.setFontSize(10); doc.setFont('helvetica','normal');
+    const lines = doc.splitTextToSize(corps, pw-28);
+    doc.text(lines, 14, y); y += lines.length*5.5 + 14;
+
+    // Signature
+    doc.setDrawColor(229,231,235); doc.setLineWidth(0.3);
+    doc.line(14, y, pw-14, y); y += 8;
+    doc.setTextColor(107,114,128); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+    doc.text('Fait a Cotonou, le ' + new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}), 14, y);
+    y += 10;
+    doc.setDrawColor(209,213,219); doc.setLineWidth(0.3);
+    doc.rect(14, y, 68, 22, 'D');
+    doc.setFillColor(249,250,251); doc.rect(14, y, 68, 7, 'F');
+    doc.setTextColor(30,58,95); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+    doc.text('Le Signataire', 48, y+5, {align:'center'});
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128);
+    doc.text(safe(cert.delivre_par||'La Direction'), 48, y+14, {align:'center'});
+
+    // Footer
+    doc.setFillColor(...prim); doc.rect(0, ph-10, pw, 10, 'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+    doc.text(safe(nomEcole) + '  ·  Document officiel  ·  edulink.bj/verifier/' + cert.reference, pw/2, ph-4, {align:'center'});
+
+    doc.save(safe(tc.label.replace(/\s+/g,'_')) + '_' + cert.reference + '.pdf');
+    showToast('📥 Document téléchargé !', 'success');
+  } catch(err) {
+    showToast('Erreur PDF : ' + err.message, 'error');
+  }
+}
+
+// ══ BRANDING DYNAMIQUE  ★ JOUR 17 ═══════════════════════════════════
+
+async function chargerBrandingPortail() {
+  if (!currentEcoleId) return;
+  try {
+    const { data } = await db.from('ecoles')
+      .select('nom, couleur_primaire, couleur_secondaire, couleur_accent, couleur_bg, logo_url, slogan')
+      .eq('id', currentEcoleId).single();
+    if (!data) return;
+
+    const p  = data.couleur_primaire   || '#0f6e56';
+    const s  = data.couleur_secondaire || '#1e3a5f';
+    const a  = data.couleur_accent     || '#c97c1a';
+    const bg = data.couleur_bg         || '#f0f7f4';
+
+    // Injecter les CSS variables dans :root
+    const root = document.documentElement;
+    root.style.setProperty('--teal',       p);
+    root.style.setProperty('--navy',       s);
+    root.style.setProperty('--gold',       a);
+    root.style.setProperty('--bg',         bg);
+    root.style.setProperty('--teal-light', p + '22');
+
+    // Mettre à jour le thème PWA
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', p);
+
+    // Mettre à jour le titre si slogan
+    if (data.slogan) {
+      document.title = (data.nom || 'EduLink') + ' — Portail Famille';
+    }
+
+    // Mettre à jour le logo dans le header si défini
+    if (data.logo_url) {
+      const logoEl = document.querySelector('.header-logo');
+      if (logoEl) {
+        logoEl.innerHTML = `<img src="${data.logo_url}" style="height:28px;width:auto;object-fit:contain;border-radius:6px" onerror="this.parentNode.innerHTML='🎓 EduLink'"> ${data.nom || 'EduLink'}`;
+      }
+    }
+
+    console.log('[Branding] Thème appliqué :', p, s, a);
+  } catch(e) {
+    console.warn('[Branding Portail]', e.message);
+  }
+}
+
+// ══ MODE HORS-LIGNE PORTAIL  ★ JOUR 17 ══════════════════════════════
+
+function initOfflineModePortail() {
+  const banner = document.getElementById('offline-banner');
+  function updateStatus() {
+    if (banner) banner.style.display = navigator.onLine ? 'none' : 'block';
+  }
+  window.addEventListener('online',  () => { updateStatus(); showToast('🌐 Connexion rétablie', 'success'); });
+  window.addEventListener('offline', () => { updateStatus(); showToast('📡 Mode hors-ligne activé', 'info'); });
+  updateStatus();
+
+  // Enregistrer SW et écouter les messages
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(reg => console.log('[SW Portail] Enregistré'))
+      .catch(e  => console.warn('[SW Portail]', e.message));
+
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'EDULINK_SYNC_DONE') {
+        showToast('🔄 Données synchronisées', 'success');
+        chargerTout(); // Recharger les données
+      }
+    });
+  }
+}
+
+// ══ INIT ══
+(async function() {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    await chargerProfil();
+  }
+})();
+</script>
+</body>
+</html>
