@@ -7614,7 +7614,12 @@ async function chargerEcoles() {
     currentEcoleId = tousLesEcoles[0].id;
     mettreAJourBadgeEcole(tousLesEcoles[0]);
   } else {
-    sel.innerHTML = '<option value="">Aucun établissement</option>';
+    // Mode démo : aucun établissement en base → école fictive par défaut
+    const ecoleDemo = { id: 'demo', nom: 'Mon Établissement', type: 'Établissement' };
+    tousLesEcoles = [ecoleDemo];
+    sel.innerHTML = `<option value="demo">Mon Établissement</option>`;
+    currentEcoleId = 'demo';
+    mettreAJourBadgeEcole(ecoleDemo);
   }
   chargerDashboard();
 }
@@ -10743,13 +10748,23 @@ async function chargerBranding() {
 
 function afficherThemes() {
   const grid = document.getElementById('brand-themes-grid');
-  if (!grid || !tousThemes.length) return;
-  grid.innerHTML = tousThemes.map(t => `
+  if (!grid) return;
+  const themes = tousThemes.length ? tousThemes : [
+    { nom:'EduLink',  couleur_primaire:'#0f6e56', couleur_secondaire:'#1e3a5f', couleur_accent:'#c97c1a' },
+    { nom:'Ocean',    couleur_primaire:'#0369a1', couleur_secondaire:'#0c4a6e', couleur_accent:'#f59e0b' },
+    { nom:'Foret',    couleur_primaire:'#166534', couleur_secondaire:'#14532d', couleur_accent:'#eab308' },
+    { nom:'Royal',    couleur_primaire:'#6d28d9', couleur_secondaire:'#4c1d95', couleur_accent:'#f97316' },
+    { nom:'Soleil',   couleur_primaire:'#b45309', couleur_secondaire:'#92400e', couleur_accent:'#059669' },
+    { nom:'Nuit',     couleur_primaire:'#1e293b', couleur_secondaire:'#0f172a', couleur_accent:'#3b82f6' },
+    { nom:'Corail',   couleur_primaire:'#be123c', couleur_secondaire:'#9f1239', couleur_accent:'#0891b2' },
+    { nom:'Ardoise',  couleur_primaire:'#475569', couleur_secondaire:'#334155', couleur_accent:'#10b981' },
+  ];
+  grid.innerHTML = themes.map(t => `
     <div class="theme-pill" onclick="appliquerTheme(${JSON.stringify(t).replace(/"/g,'&quot;')})"
-         title="${t.description || t.nom}">
+         title="${t.nom}">
       <div class="tp-bar" style="background:linear-gradient(90deg,${t.couleur_primaire},${t.couleur_secondaire})"></div>
       <div style="width:12px;height:12px;border-radius:50%;background:${t.couleur_accent};margin:0 auto 3px"></div>
-      <div class="tp-nom">${t.nom.replace(' ','<br>')}</div>
+      <div class="tp-nom">${t.nom}</div>
     </div>`).join('');
 }
 
@@ -14311,38 +14326,25 @@ function annulerReservation(et) { showToast(`❌ Réservation annulée pour ${et
 let cantOffsetSemaine = 0;
 let cantPointages = {};
 
-const MENUS_DEMO_BASE = [
-  { jour:'Lundi', entree:'Salade de légumes', plat:'Riz au gras + Poulet braisé', dessert:'Ananas', prix:600, allergenes:'Aucun' },
-  { jour:'Mardi', entree:'Soupe légère', plat:'Attiéké + Poisson braisé', dessert:'Banane', prix:550, allergenes:'Poisson' },
-  { jour:'Mercredi', entree:'—', plat:'Igname pilée + Sauce graine', dessert:'Papaye', prix:500, allergenes:'Fruits à coque' },
-  { jour:'Jeudi', entree:'Salade de crudités', plat:'Riz blanc + Haricots + Viande', dessert:'Mangue', prix:600, allergenes:'Aucun' },
-  { jour:'Vendredi', entree:'Jus naturel', plat:'Pâtes + Sauce tomate + Poisson', dessert:'Orange', prix:550, allergenes:'Gluten, Poisson' },
-];
+const MENUS_DEMO_BASE = [];
 
-const ABONNES_DEMO = [
-
-
-  { id:3, nom:'Étudiant C', classe:'Tle C', type:'Trimestriel', solde:-200, color:'#dc2626' },
-  { id:4, nom:'Étudiant D', classe:'2nde B', type:'Mensuel', solde:5000, color:'#7c3aed' },
-  { id:5, nom:'Étudiant E', classe:'Tle D', type:'Mensuel', solde:0, color:'#d97706' },
-  { id:6, nom:'Étudiant F', classe:'1ère B', type:'À la carte', solde:1500, color:'#1d4ed8' },
-];
+const ABONNES_DEMO = [];
 
 function chargerCantine() {
-  // Stats
-  document.getElementById('cant-repas-jour').textContent = '142';
+  // Stats dynamiques basées sur les données réelles
+  document.getElementById('cant-repas-jour').textContent = '0';
   document.getElementById('cant-abonnes').textContent = ABONNES_DEMO.length;
-  document.getElementById('cant-recette-mois').textContent = '284 000 F';
-  document.getElementById('cant-kpi-repas').textContent = '2 840';
+  document.getElementById('cant-recette-mois').textContent = '0 F';
+  document.getElementById('cant-kpi-repas').textContent = '0';
   document.getElementById('cant-kpi-abonnes').textContent = ABONNES_DEMO.length;
   document.getElementById('cant-kpi-impayes').textContent = ABONNES_DEMO.filter(a=>a.solde<0).length;
-  document.getElementById('cant-kpi-menus').textContent = 20;
+  document.getElementById('cant-kpi-menus').textContent = MENUS_DEMO_BASE.length;
 
   // Stats du mois
-  document.getElementById('cant-stat-recette').textContent = '284 000 FCFA';
-  document.getElementById('cant-stat-repas').textContent = '2 840 repas';
-  document.getElementById('cant-stat-prix-moy').textContent = '575 FCFA';
-  document.getElementById('cant-stat-taux').textContent = '78 %';
+  document.getElementById('cant-stat-recette').textContent = '0 FCFA';
+  document.getElementById('cant-stat-repas').textContent = '0 repas';
+  document.getElementById('cant-stat-prix-moy').textContent = '— FCFA';
+  document.getElementById('cant-stat-taux').textContent = '0 %';
 
   const today = new Date();
   document.getElementById('cant-date-today').textContent = today.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
@@ -14412,12 +14414,7 @@ function renderAlertessoldes() {
   </div>`).join('');
 }
 
-let tousLesElevesPointage = [
-
-  {id:3,nom:'Étudiant C',classe:'Tle C'},{id:4,nom:'Étudiant D',classe:'2nde B'},
-  {id:5,nom:'Étudiant E',classe:'Tle D'},{id:6,nom:'Étudiant F',classe:'1ère B'},
-  {id:7,nom:'Ghislain Aguessy',classe:'2nde A'},{id:8,nom:'Étudiant I',classe:'Tle A'},
-];
+let tousLesElevesPointage = [];
 
 function renderPointageDuJour(filtreNom='') {
   const list = document.getElementById('cant-pointage-list');
@@ -14495,32 +14492,13 @@ function exportPointage() { showToast('📥 Export du pointage en cours...','inf
 /* ══════════════════════════════════════════════════════════════════
    SUITE 8 — TRANSPORT SCOLAIRE ★ JOUR 28
 ══════════════════════════════════════════════════════════════════ */
-let tousLesBus = [
-  { id:1, nom:'Bus A — Cotonou Nord', immat:'BJ-2021-001', modele:'Toyota Coaster', capacite:25, eleves_inscrits:22, circuit:'Cotonou Nord → École', heure_dep:'07:00', heure_ret:'18:00', tarif:12000, actif:true, conducteur:'Alain Houessou' },
-  { id:2, nom:'Bus B — Calavi', immat:'BJ-2019-044', modele:'Minibus Iveco', capacite:20, eleves_inscrits:18, circuit:'Abomey-Calavi → École', heure_dep:'06:45', heure_ret:'18:15', tarif:15000, actif:true, conducteur:'Parfait Soglo' },
-  { id:3, nom:'Bus C — Godomey', immat:'BJ-2020-112', modele:'Toyota HiAce', capacite:15, eleves_inscrits:13, circuit:'Godomey → École', heure_dep:'07:15', heure_ret:'18:00', tarif:10000, actif:true, conducteur:'Sylvain Dako' },
-  { id:4, nom:'Bus D — Réserve', immat:'BJ-2018-087', modele:'Renault Master', capacite:18, eleves_inscrits:0, circuit:'—', heure_dep:'—', heure_ret:'—', tarif:0, actif:false, conducteur:'—' },
-];
+let tousLesBus = [];
 
-let elevesBusDemo = [
+let elevesBusDemo = [];
 
+const CONDUCTEURS_DEMO = [];
 
-  { id:3, nom:'Étudiant C', classe:'Tle C', bus_id:1, bus:'Bus A', arret:'Aéroport', sens:'aller-retour', tarif:12000 },
-  { id:4, nom:'Étudiant D', classe:'2nde B', bus_id:3, bus:'Bus C', arret:'Godomey Marché', sens:'aller seulement', tarif:6000 },
-  { id:5, nom:'Étudiant E', classe:'Tle D', bus_id:2, bus:'Bus B', arret:'Calavi Gare', sens:'aller-retour', tarif:15000 },
-];
-
-const CONDUCTEURS_DEMO = [
-  { id:1, nom:'Alain Houessou', bus:'Bus A', tel:'97 00 11 22', permis:'TC', exp:8, statut:'actif', color:'#059669' },
-  { id:2, nom:'Parfait Soglo', bus:'Bus B', tel:'96 33 44 55', permis:'TC', exp:5, statut:'actif', color:'#1e3a5f' },
-  { id:3, nom:'Sylvain Dako', bus:'Bus C', tel:'95 66 77 88', permis:'TB', exp:3, statut:'actif', color:'#7c3aed' },
-];
-
-const CIRCUITS_DEMO = [
-  { id:1, bus_id:1, nom:'Circuit Cotonou Nord', bus:'Bus A', arrets:['Carrefour BEAC — 07:00','Vêdoko Marché — 07:10','Cadjehoun — 07:20','Littoral Hôtel — 07:30','École EduLink — 07:45'] },
-  { id:2, bus_id:2, nom:'Circuit Calavi', bus:'Bus B', arrets:['Calavi Gare — 06:45','Calavi Centre — 06:55','Kpota — 07:05','Godomey Carrefour — 07:20','École EduLink — 07:40'] },
-  { id:3, bus_id:3, nom:'Circuit Godomey', bus:'Bus C', arrets:['Godomey Marché — 07:15','Godomey Akpakpa — 07:22','Fidjrossè — 07:30','École EduLink — 07:45'] },
-];
+const CIRCUITS_DEMO = [];
 
 let transCircuitActif = null;
 
@@ -14542,8 +14520,8 @@ function chargerTransport() {
   const capOccup = tousLesBus.filter(b=>b.actif).reduce((s,b)=>s+b.eleves_inscrits,0);
   document.getElementById('trans-cap-total').textContent = capTotal + ' places';
   document.getElementById('trans-cap-occup').textContent = capOccup + ' élèves';
-  document.getElementById('trans-taux').textContent = Math.round(capOccup/capTotal*100) + ' %';
-  document.getElementById('trans-dist').textContent = '42 km';
+  document.getElementById('trans-taux').textContent = (capTotal > 0 ? Math.round(capOccup/capTotal*100) : 0) + ' %';
+  document.getElementById('trans-dist').textContent = '—';
 
   renderBusGrid();
   renderCircuits();
@@ -14781,29 +14759,14 @@ function initSuite8() {
 ══════════════════════════════════════════════════════════════════ */
 let tousLesPassages = [];
 
-const PASSAGES_DEMO = [
+const PASSAGES_DEMO = [];
 
-
-  { id:3, etudiant:'Étudiant C', classe:'Tle C', date:'2026-03-26', heure:'10:05', motif:'Blessure', gravite:'bénin', traitement:'Désinfection + pansement', statut:'retourne', infirmiere:'Mme Akossi' },
-  { id:4, etudiant:'Étudiant D', classe:'2nde B', date:'2026-03-26', heure:'11:30', motif:'Malaise', gravite:'modere', traitement:'Observation, appel parent', statut:'observation', infirmiere:'Mme Akossi' },
-  { id:5, etudiant:'Étudiant E', classe:'Tle D', date:'2026-03-25', heure:'09:10', motif:'Mal de ventre', gravite:'bénin', traitement:'Sérum physiologique', statut:'retourne', infirmiere:'Mme Akossi' },
-  { id:6, etudiant:'Étudiant F', classe:'1ère B', date:'2026-03-24', heure:'14:00', motif:'Allergie', gravite:'modere', traitement:'Antihistaminique', statut:'retourne', infirmiere:'Mme Akossi' },
-  { id:7, etudiant:'Ghislain Aguessy', classe:'2nde A', date:'2026-03-23', heure:'07:55', motif:'Fièvre', gravite:'grave', traitement:'Référé au CHU de Cotonou', statut:'hospitalise', infirmiere:'Mme Akossi' },
-];
-
-const STOCK_MEDOC_DEMO = [
-  { id:1, nom:'Paracétamol 500mg', stock:45, min:20, unite:'comprimés', peremption:'2027-06-01' },
-  { id:2, nom:'Ibuprofène 400mg', stock:12, min:15, unite:'comprimés', peremption:'2026-12-31' },
-  { id:3, nom:'Bandages stériles', stock:30, min:10, unite:'rouleaux', peremption:'2028-01-01' },
-  { id:4, nom:'Solution antiseptique', stock:3, min:5, unite:'flacons', peremption:'2026-09-30' },
-  { id:5, nom:'Antihistaminique', stock:18, min:10, unite:'comprimés', peremption:'2027-03-15' },
-  { id:6, nom:'Sérum physiologique', stock:0, min:8, unite:'flacons', peremption:'2027-01-01' },
-];
+const STOCK_MEDOC_DEMO = [];
 
 function chargerInfirmerie() {
   tousLesPassages = [...PASSAGES_DEMO];
 
-  const aujourdhui = '2026-03-26';
+  const aujourdhui = new Date().toISOString().split('T')[0];
   const passagesJour = tousLesPassages.filter(p=>p.date===aujourdhui);
   const observations = passagesJour.filter(p=>p.statut==='observation');
   const alertesStock = STOCK_MEDOC_DEMO.filter(m=>m.stock<=m.min).length;
@@ -14988,28 +14951,11 @@ function exportPassages() { showToast('📥 Export des passages en cours...','in
 let toutesLesOffres = [];
 let toutesLesCandidaturesStage = [];
 
-const OFFRES_DEMO = [
-  { id:1, titre:'Développeur Web Junior', entreprise:'', secteur:'Informatique', lieu:'Cotonou', debut:'2026-07-01', fin:'2026-09-30', places:2, postules:5, indemnite:75000, desc:'Développement de sites web et applications mobiles en React/Node.js', logo:'💻', color:'#dbeafe' },
-  { id:2, titre:'Assistant Comptable', entreprise:'Cabinet Fiduciaire AGB', secteur:'Finance', lieu:'Porto-Novo', debut:'2026-06-15', fin:'2026-08-15', places:1, postules:3, indemnite:50000, desc:'Saisie comptable, rapprochements bancaires, déclarations fiscales', logo:'📊', color:'#dcfce7' },
-  { id:3, titre:'Aide-Soignant stagiaire', entreprise:'', secteur:'Santé', lieu:'Cotonou', debut:'2026-07-01', fin:'2026-07-31', places:3, postules:7, indemnite:40000, desc:'Stage d\'observation dans le service de médecine générale', logo:'🏥', color:'#fee2e2' },
-  { id:4, titre:'Assistant Marketing Digital', entreprise:'Agence Béninoise du Web', secteur:'Commerce', lieu:'Cotonou', debut:'2026-08-01', fin:'2026-10-31', places:2, postules:8, indemnite:60000, desc:'Gestion des réseaux sociaux, création de contenu, emailings', logo:'📱', color:'#ede9fe' },
-  { id:5, titre:'Technicien Électricien', entreprise:'SBEE — Société Bénin. Énergie', secteur:'Industrie', lieu:'Abomey-Calavi', debut:'2026-07-15', fin:'2026-09-15', places:4, postules:6, indemnite:55000, desc:'Installation et maintenance des équipements électriques industriels', logo:'⚡', color:'#fef9c3' },
-];
+const OFFRES_DEMO = [];
 
-const CANDIDATURES_STAGE_DEMO = [
+const CANDIDATURES_STAGE_DEMO = [];
 
-  { id:2, etudiant:'Étudiant C', classe:'Tle C', stage:'Assistant Comptable', entreprise:'Cabinet AGB', statut:'en_cours', date:'2026-03-20', color:'#7c3aed' },
-  { id:3, etudiant:'Étudiant D', classe:'2nde B', stage:'Assistant Marketing Digital', entreprise:'Agence Béninoise', statut:'en_cours', date:'2026-03-22', color:'#059669' },
-
-];
-
-const PARTENAIRES_DEMO = [
-  { nom:'', secteur:'Informatique', contact:'Félix Vigan', stages:5, taux_sel:40, statut:'actif' },
-  { nom:'Cabinet Fiduciaire AGB', secteur:'Finance', contact:'Myriam Sagbo', stages:2, taux_sel:33, statut:'actif' },
-  { nom:'SBEE', secteur:'Industrie', contact:'Jean-Baptiste Toko', stages:8, taux_sel:50, statut:'actif' },
-  { nom:'', secteur:'Santé', contact:'Dr. Adjobi', stages:3, taux_sel:25, statut:'actif' },
-  { nom:'Agence Béninoise du Web', secteur:'Commerce', contact:'Cynthia Atindé', stages:4, taux_sel:35, statut:'actif' },
-];
+const PARTENAIRES_DEMO = [];
 
 function chargerOrientation() {
   toutesLesOffres = [...OFFRES_DEMO];
@@ -15223,19 +15169,12 @@ function ajouterEntreprise() { showToast('🏢 Ajout partenaire — Fonctionnali
 /* ══════════════════════════════════════════════════════════════════
    SUITE 9 — RÉSEAU MULTI-ÉTABLISSEMENTS  ★ JOUR 31
 ══════════════════════════════════════════════════════════════════ */
-let tousLesEtablissements = [
-  { id:1, nom:'Lycée Technique de Cotonou', type:'lycee', ville:'Cotonou', directeur:'Dr. Alphonse Kpako', eleves:842, enseignants:64, classes:22, taux_reussite:78, absences_taux:8, recette_mois:4200000, statut:'actif', ico:'🏫', color:'#1e3a5f' },
-  { id:2, nom:'Collège Notre-Dame de Porto-Novo', type:'college', ville:'Porto-Novo', directeur:'Sœur Élisabeth', eleves:612, enseignants:45, classes:18, taux_reussite:85, absences_taux:5, recette_mois:3100000, statut:'actif', ico:'✝️', color:'#059669' },
-  { id:3, nom:'Lycée Mathieu Bouké', type:'lycee', ville:'Abomey-Calavi', directeur:'M. Théodore Vigan', eleves:710, enseignants:52, classes:20, taux_reussite:72, absences_taux:12, recette_mois:2800000, statut:'alerte', ico:'🎓', color:'#d97706' },
-  { id:4, nom:'École Primaire Les Étoiles', type:'primaire', ville:'Parakou', directeur:'Mme Joséphine Ahouandé', eleves:380, enseignants:28, classes:12, taux_reussite:91, absences_taux:4, recette_mois:1500000, statut:'actif', ico:'⭐', color:'#7c3aed' },
-  { id:5, nom:'Collège Charles de Gaulle', type:'college', ville:'Cotonou', directeur:'M. Pierre Adanmasso', eleves:525, enseignants:38, classes:16, taux_reussite:80, absences_taux:7, recette_mois:2600000, statut:'actif', ico:'🏛️', color:'#1d4ed8' },
-  { id:6, nom:'Lycée EduLink Bénin', type:'lycee', ville:'Cotonou', directeur:'Directrice Adjointe', eleves:198, enseignants:22, classes:6, taux_reussite:88, absences_taux:6, recette_mois:1200000, statut:'actif', ico:'🔗', color:'#059669' },
-];
+let tousLesEtablissements = [];
 
 function chargerReseau() {
   const totalEleves = tousLesEtablissements.reduce((s,e)=>s+e.eleves,0);
   const totalEnseignants = tousLesEtablissements.reduce((s,e)=>s+e.enseignants,0);
-  const tauxMoy = Math.round(tousLesEtablissements.reduce((s,e)=>s+e.taux_reussite,0)/tousLesEtablissements.length);
+  const tauxMoy = tousLesEtablissements.length ? Math.round(tousLesEtablissements.reduce((s,e)=>s+e.taux_reussite,0)/tousLesEtablissements.length) : 0;
   const totalRecette = tousLesEtablissements.reduce((s,e)=>s+e.recette_mois,0);
   const alertes = tousLesEtablissements.filter(e=>e.statut==='alerte').length;
 
