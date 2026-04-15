@@ -4047,15 +4047,15 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
   <!-- Hero étudiant -->
   <div class="portail-hero" id="portail-hero-banner">
-    <div class="portail-avatar" id="portail-avatar">K</div>
+    <div class="portail-avatar" id="portail-avatar">?</div>
     <div class="portail-info">
       <h2 id="portail-nom-etudiant">Sélectionner un étudiant</h2>
-      <p id="portail-info-etudiant">Terminale D · Matricule: EDU-2025-001 · Inscrit le 01/09/2025</p>
+      <p id="portail-info-etudiant">Sélectionner un étudiant dans la liste</p>
     </div>
     <div class="portail-kpis">
-      <div class="portail-kpi"><div class="pk-val" id="portail-moy-gen">14.8</div><div class="pk-lbl">Moyenne générale</div></div>
-      <div class="portail-kpi"><div class="pk-val" id="portail-rang">3ème</div><div class="pk-lbl">Rang de classe</div></div>
-      <div class="portail-kpi"><div class="pk-val" id="portail-absences">3</div><div class="pk-lbl">Absences</div></div>
+      <div class="portail-kpi"><div class="pk-val" id="portail-moy-gen">—</div><div class="pk-lbl">Moyenne générale</div></div>
+      <div class="portail-kpi"><div class="pk-val" id="portail-rang">—</div><div class="pk-lbl">Rang de classe</div></div>
+      <div class="portail-kpi"><div class="pk-val" id="portail-absences">0</div><div class="pk-lbl">Absences</div></div>
       <div class="portail-kpi"><div class="pk-val" id="portail-paiements">✅</div><div class="pk-lbl">Paiements</div></div>
     </div>
   </div>
@@ -4143,7 +4143,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div class="portail-block-header"><span>📈 Progression</span></div>
         <div style="padding:1rem">
           <div style="text-align:center;margin-bottom:1rem">
-            <div style="font-size:36px;font-weight:800;color:#1e3a5f" id="portail-moy-side">14.8</div>
+            <div style="font-size:36px;font-weight:800;color:#1e3a5f" id="portail-moy-side">—</div>
             <div style="font-size:12px;color:#6b7280">Moyenne générale / 20</div>
             <div style="margin-top:.5rem;height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden">
               <div id="portail-moy-bar" style="height:100%;width:74%;background:linear-gradient(90deg,#1e3a5f,#059669);border-radius:4px;transition:width 1s ease"></div>
@@ -15184,7 +15184,7 @@ function chargerReseau() {
   document.getElementById('reseau-taux-reussite').textContent = tauxMoy+'%';
   document.getElementById('reseau-kpi-actifs').textContent = tousLesEtablissements.filter(e=>e.statut==='actif').length;
   document.getElementById('reseau-kpi-recette').textContent = (totalRecette/1000000).toFixed(1)+' M F';
-  document.getElementById('reseau-kpi-moy-notes').textContent = '13.8/20';
+  document.getElementById('reseau-kpi-moy-notes').textContent = tousLesEtablissements.length ? (tousLesEtablissements.reduce((s,e)=>s+(e.moy_notes||0),0)/tousLesEtablissements.length).toFixed(1)+'/20' : '—';
   document.getElementById('reseau-kpi-alertes').textContent = alertes;
 
   renderEtablissements(tousLesEtablissements);
@@ -15611,7 +15611,7 @@ const MDB_ACTIVITE = [];
 function chargerDashReseau() {
   const totalEleves = MDB_ECOLES.reduce((s,e)=>s+e.eleves,0);
   const totalEns = MDB_ECOLES.reduce((s,e)=>s+e.enseignants,0);
-  const tauxMoy = Math.round(MDB_ECOLES.reduce((s,e)=>s+e.taux_reussite,0)/MDB_ECOLES.length);
+  const tauxMoy = MDB_ECOLES.length ? Math.round(MDB_ECOLES.reduce((s,e)=>s+e.taux_reussite,0)/MDB_ECOLES.length) : 0;
   const totalRecette = MDB_ECOLES.reduce((s,e)=>s+e.recette,0);
   const alertes = MDB_ECOLES.filter(e=>e.statut==='alerte').length;
 
@@ -15906,7 +15906,7 @@ let smsDestSelectes = [];
 
 function chargerSMSParents() {
   const totalEnvoyes = SMS_HISTORIQUE.reduce((s,h)=>s+h.nb,0);
-  const tauxMoy = Math.round(SMS_HISTORIQUE.reduce((s,h)=>s+h.taux,0)/SMS_HISTORIQUE.length);
+  const tauxMoy = SMS_HISTORIQUE.length ? Math.round(SMS_HISTORIQUE.reduce((s,h)=>s+h.taux,0)/SMS_HISTORIQUE.length) : 0;
   document.getElementById('sms-envoyes').textContent = '0';
   document.getElementById('sms-taux').textContent = '0%';
   document.getElementById('sms-parents').textContent = '0';
@@ -16647,13 +16647,8 @@ function genererEvenementAleatoire() {
 }
 
 function chargerControleAcces() {
-  // Initialiser journal
-  accesJournalData = Array.from({length:8},(_,i)=>{
-    const e = genererEvenementAleatoire();
-    const t = new Date(Date.now()-(8-i)*120000);
-    e.heure = t.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    return e;
-  });
+  // Journal vide en mode démo (pas de noms/zones définis)
+  accesJournalData = [];
 
   // Hero KPIs
   const heroKpis = document.getElementById('acces-hero-kpis');
@@ -16661,7 +16656,7 @@ function chargerControleAcces() {
     {v:'0', l:'Personnes sur site'},
     {v:ACCES_ZONES.filter(z=>z.actif).length, l:'Zones actives'},
     {v:'0', l:'Badges actifs'},
-    {v:'3', l:'Alertes sécurité'},
+    {v:'0', l:'Alertes sécurité'},
   ].map(k=>`<div class="acces-kpi"><div class="ak2-val">${k.v}</div><div class="ak2-lbl">${k.l}</div></div>`).join('');
 
   // KPI bar
