@@ -985,6 +985,7 @@ db.from = function(table) {
 };
 
 async function seDeconnecter() {
+  if (IS_DEMO_MODE) { IS_DEMO_MODE=false; location.reload(); return; }
   await db.auth.signOut();
   location.reload();
 }
@@ -1881,6 +1882,7 @@ async function rendreListeExamensPortail() {
 // ══ ENSEIGNANTS PORTAIL ★ JOUR 13 ══════════════════════════════
 
 async function chargerEnseignantsPortail() {
+  if (IS_DEMO_MODE) { tousEnseignantsPortail = []; return; }
   if (!currentEcoleId) { tousEnseignantsPortail = []; return; }
   const { data } = await db.from('enseignants').select('*')
     .eq('ecole_id', currentEcoleId).eq('statut','actif');
@@ -1919,6 +1921,7 @@ function afficherEnseignantsPortail() {
 // ══ ENSEIGNANTS PORTAIL ★ JOUR 13 ══════════════════════════════════
 
 async function chargerEnseignantsPortail() {
+  if (IS_DEMO_MODE) { tousEnseignantsPortail = []; return; }
   if (!currentEcoleId) { tousEnseignantsPortail = []; return; }
   const { data } = await db.from('enseignants').select('*')
     .eq('ecole_id', currentEcoleId).eq('statut','actif').order('nom');
@@ -2146,6 +2149,7 @@ let notifsFiltreActif     = 'tous';
 
 // ── Charger depuis Supabase ───────────────────────────────────────────
 async function chargerNotifsPortail() {
+  if (IS_DEMO_MODE) return;
   if (!currentEcoleId) return;
   try {
     let q = db.from('notifications')
@@ -2340,6 +2344,7 @@ let fcmPortailFirebaseCfg = null;
 
 // ── Init principale ──────────────────────────────────────────────────
 async function initFCMPortail() {
+  if (IS_DEMO_MODE) return;
   if (typeof firebase === 'undefined')     return;
   if (!('serviceWorker' in navigator))     return;
   if (!('Notification' in window))         return;
@@ -2517,6 +2522,7 @@ const HEURES_EDT = ['07:00','08:00','09:00','10:00','11:00','12:00',
                     '13:00','14:00','15:00','16:00','17:00'];
 
 async function chargerEmploiPortail() {
+  if (IS_DEMO_MODE) { edtPortailData = []; return; }
   if (!currentEcoleId) { edtPortailData = []; return; }
   try {
     // Charger tous les créneaux de l'école sans filtre restrictif
@@ -2620,6 +2626,7 @@ const CERT_TYPES_PORTAIL = {
 };
 
 async function chargerCertificatsPortailData() {
+  if (IS_DEMO_MODE) { certPortailList = []; return; }
   if (!currentEtudiant?.id || !currentEcoleId) { certPortailList = []; return; }
   try {
     const { data } = await db.from('certificats')
@@ -2804,6 +2811,7 @@ async function telechargerCertPortailV2(id) {
 // ══ BRANDING DYNAMIQUE  ★ JOUR 17 ═══════════════════════════════════
 
 async function chargerBrandingPortail() {
+  if (IS_DEMO_MODE) return;
   if (!currentEcoleId) return;
   try {
     const { data } = await db.from('ecoles')
