@@ -3689,7 +3689,11 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <option value="">Tous types</option>
         <option value="lycee">Lycée</option>
         <option value="college">Collège</option>
-        <option value="primaire">Primaire</option>
+        <option value="primaire">École Primaire</option>
+        <option value="universite">Université</option>
+        <option value="annexe_universite">Annexe d'Université</option>
+        <option value="institut">Institut</option>
+        <option value="centre_formation">Centre de Formation</option>
       </select>
     </div>
     <div class="reseau-grid" id="reseau-grid-etablissements">
@@ -3750,7 +3754,13 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div class="form-group"><label>Nom de l'établissement *</label><input id="etab-nom" placeholder="Lycée Technique de Cotonou" /></div>
       <div class="form-group"><label>Type</label>
         <select id="etab-type">
-          <option value="lycee">Lycée</option><option value="college">Collège</option><option value="primaire">École Primaire</option>
+          <option value="lycee">Lycée</option>
+          <option value="college">Collège</option>
+          <option value="primaire">École Primaire</option>
+          <option value="universite">Université</option>
+          <option value="annexe_universite">Annexe d'Université</option>
+          <option value="institut">Institut</option>
+          <option value="centre_formation">Centre de Formation</option>
         </select>
       </div>
       <div class="form-group"><label>Ville *</label><input id="etab-ville" placeholder="Cotonou, Porto-Novo..." /></div>
@@ -5124,9 +5134,13 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div class="form-group"><label>Nom *</label><input type="text" id="param-nom" placeholder="Ex: Collège Saint Joseph"></div>
       <div class="form-group"><label>Type</label>
         <select id="param-type">
-          <option value="collège">Collège</option><option value="lycée">Lycée</option>
-          <option value="université">Université</option><option value="école_primaire">École primaire</option>
-          <option value="institut">Institut</option><option value="centre_formation">Centre de formation</option>
+          <option value="college">Collège</option>
+          <option value="lycee">Lycée</option>
+          <option value="universite">Université</option>
+          <option value="annexe_universite">Annexe d'Université</option>
+          <option value="ecole_primaire">École Primaire</option>
+          <option value="institut">Institut</option>
+          <option value="centre_formation">Centre de Formation</option>
         </select>
       </div>
       <div class="form-grid">
@@ -15201,7 +15215,7 @@ function renderEtablissements(etabs) {
       <div class="reseau-card-ico" style="background:${e.color}15;border:2px solid ${e.color}30">${e.ico}</div>
       <div style="flex:1">
         <div class="reseau-card-nom">${e.nom}</div>
-        <div class="reseau-card-ville">📍 ${e.ville} · ${e.type==='lycee'?'Lycée':e.type==='college'?'Collège':'Primaire'}</div>
+        <div class="reseau-card-ville">📍 ${e.ville} · ${e.type==='lycee'?'Lycée':e.type==='college'?'Collège':e.type==='universite'?'Université':e.type==='annexe_universite'?"Annexe d'Université":e.type==='institut'?'Institut':e.type==='centre_formation'?'Centre de Formation':'Primaire'}</div>
       </div>
       <div style="display:flex;align-items:center;gap:5px">
         <div class="status-dot ${e.statut}"></div>
@@ -15313,7 +15327,7 @@ function ajouterEtablissement() {
   const ville=document.getElementById('etab-ville').value.trim();
   if(!nom||!ville){showToast('Nom et ville requis','error');return;}
   const type=document.getElementById('etab-type').value;
-  const icos={lycee:'🏫',college:'🏛️',primaire:'⭐'};
+  const icos={lycee:'🏫',college:'🏛️',primaire:'⭐',universite:'🎓',annexe_universite:'🎓',institut:'🔬',centre_formation:'📚'};
   const colors={lycee:'#1e3a5f',college:'#059669',primaire:'#d97706'};
   tousLesEtablissements.push({id:Date.now(),nom,type,ville,directeur:document.getElementById('etab-directeur').value||'—',eleves:0,enseignants:0,classes:0,taux_reussite:0,absences_taux:0,recette_mois:0,statut:document.getElementById('etab-statut').value,ico:icos[type]||'🏫',color:colors[type]||'#6b7280'});
   fermerModal('modal-add-etab');
