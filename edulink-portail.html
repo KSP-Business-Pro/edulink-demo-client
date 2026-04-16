@@ -980,10 +980,10 @@ async function entrerEnDemo() {
   ];
   const j = (n) => { const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().split('T')[0]; };
   tousExamens = [
-    { id:1, matiere:'Mathématiques',   date_examen:j(5),  heure_debut:'08:00', duree:120, salle:'Salle A',        type:'Examen',      statut:'programme' },
-    { id:2, matiere:'Physique-Chimie', date_examen:j(8),  heure_debut:'10:00', duree:90,  salle:'Salle B',        type:'Examen',      statut:'programme' },
-    { id:3, matiere:'Français',        date_examen:j(12), heure_debut:'08:00', duree:180, salle:'Amphithéâtre',   type:'Composition', statut:'programme' },
-    { id:4, matiere:'Anglais',         date_examen:j(-3), heure_debut:'14:00', duree:60,  salle:'Salle C',        type:'Contrôle',    statut:'termine' },
+    { id:1, matiere:'Mathématiques',   date_examen:j(5),  heure_debut:'08:00', duree:120, salle:'Salle A',        type_examen:'partiel',    statut:'programme' },
+    { id:2, matiere:'Physique-Chimie', date_examen:j(8),  heure_debut:'10:00', duree:90,  salle:'Salle B',        type_examen:'partiel',    statut:'programme' },
+    { id:3, matiere:'Français',        date_examen:j(12), heure_debut:'08:00', duree:180, salle:'Amphithéâtre',   type_examen:'final',      statut:'programme' },
+    { id:4, matiere:'Anglais',         date_examen:j(-3), heure_debut:'14:00', duree:60,  salle:'Salle C',        type_examen:'controle',   statut:'termine' },
   ];
   tousEnseignantsPortail = [];
   edtPortailData = [];
@@ -1760,10 +1760,10 @@ async function chargerExamensPortail() {
     const fmt = d => d.toISOString().split('T')[0];
     const j = (n) => { const d = new Date(today); d.setDate(d.getDate()+n); return fmt(d); };
     tousExamens = [
-      { id:1, matiere:'Mathématiques',   date_examen:j(5),  heure_debut:'08:00', duree:120, salle:'Salle A', type:'Examen', statut:'programme' },
-      { id:2, matiere:'Physique-Chimie', date_examen:j(8),  heure_debut:'10:00', duree:90,  salle:'Salle B', type:'Examen', statut:'programme' },
-      { id:3, matiere:'Français',        date_examen:j(12), heure_debut:'08:00', duree:180, salle:'Amphithéâtre', type:'Composition', statut:'programme' },
-      { id:4, matiere:'Anglais',         date_examen:j(-3), heure_debut:'14:00', duree:60,  salle:'Salle C', type:'Contrôle', statut:'termine' },
+      { id:1, matiere:'Mathématiques',   date_examen:j(5),  heure_debut:'08:00', duree:120, salle:'Salle A', type_examen:'partiel', statut:'programme' },
+      { id:2, matiere:'Physique-Chimie', date_examen:j(8),  heure_debut:'10:00', duree:90,  salle:'Salle B', type_examen:'partiel', statut:'programme' },
+      { id:3, matiere:'Français',        date_examen:j(12), heure_debut:'08:00', duree:180, salle:'Amphithéâtre', type_examen:'final', statut:'programme' },
+      { id:4, matiere:'Anglais',         date_examen:j(-3), heure_debut:'14:00', duree:60,  salle:'Salle C', type_examen:'controle', statut:'termine' },
     ];
     const b = document.getElementById('nav-exam-badge');
     if (b) { b.style.display='flex'; b.textContent='3'; }
