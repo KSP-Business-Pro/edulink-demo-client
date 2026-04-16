@@ -942,47 +942,82 @@ async function chargerTout() {
 // ══════════════════════════════════════════════
 let IS_DEMO_MODE = false;
 
-function entrerEnDemo() {
+async function entrerEnDemo() {
   IS_DEMO_MODE = true;
 
-  // Profil fictif
-  currentUser    = { id: 'demo', email: 'demo@edulink.bj' };
-  currentProfile = { id: 'demo', role: 'parent', prenom: 'Parent', nom: 'Démo', email: 'demo@edulink.bj' };
-  currentEtudiant = {
-    id: 'demo-et',
-    nom: 'Démo',
-    prenom: 'Étudiant',
-    matricule: 'EDU-DEMO-001',
-    filiere: 'Terminale',
-    niveau: 'D',
-    ecole_id: 'demo',
-    email: 'etudiant@edulink.bj',
-  };
-  currentEcoleId = 'demo';
+  // ── 1. Profil fictif ────────────────────────────────
+  currentUser     = { id: 'demo', email: 'demo@edulink.bj' };
+  currentProfile  = { id: 'demo', role: 'parent', prenom: 'Visiteur', nom: 'Démo' };
+  currentEtudiant = { id: 'demo-et', nom: 'DEMO', prenom: 'Étudiant',
+                      matricule: 'EDU-DEMO-001', filiere: 'Terminale', niveau: 'D',
+                      ecole_id: 'demo', email: 'etudiant@edulink.bj' };
+  currentEcoleId  = 'demo';
 
-  lancerApp();
+  // ── 2. Données fictives directement dans les variables globales ──
+  toutesNotes = [
+    { id:1, matiere:'Mathématiques',   note:14, coefficient:4, periode:'1er Semestre' },
+    { id:2, matiere:'Français',        note:12, coefficient:3, periode:'1er Semestre' },
+    { id:3, matiere:'Physique-Chimie', note:16, coefficient:3, periode:'1er Semestre' },
+    { id:4, matiere:'Histoire-Géo',    note:13, coefficient:2, periode:'1er Semestre' },
+    { id:5, matiere:'Anglais',         note:15, coefficient:2, periode:'1er Semestre' },
+    { id:6, matiere:'SVT',             note:11, coefficient:2, periode:'1er Semestre' },
+    { id:7, matiere:'Philosophie',     note:10, coefficient:2, periode:'1er Semestre' },
+  ];
+  toutesAbsences = [
+    { id:1, date_absence:'2026-03-10', matiere:'Mathématiques', statut:'absent', justifiee:false, motif:'' },
+    { id:2, date_absence:'2026-02-20', matiere:'Anglais',        statut:'absent', justifiee:true,  motif:'Maladie' },
+    { id:3, date_absence:'2026-02-05', matiere:'Philosophie',    statut:'absent', justifiee:false, motif:'' },
+  ];
+  toutesFactures = [
+    { id:1, libelle:'Frais de scolarité — 1er trimestre', montant_total:85000, montant_paye:85000, statut:'payee',   created_at:'2025-09-01', echeance:'2025-10-01' },
+    { id:2, libelle:'Frais de scolarité — 2e trimestre',  montant_total:85000, montant_paye:85000, statut:'payee',   created_at:'2026-01-05', echeance:'2026-02-01' },
+    { id:3, libelle:'Frais de scolarité — 3e trimestre',  montant_total:85000, montant_paye:0,     statut:'impayee', created_at:'2026-03-01', echeance:'2026-04-01' },
+  ];
+  tousMessages = [
+    { id:1, objet:'Réunion parents — vendredi 18 avril', contenu:'Chers parents, réunion le vendredi 18 avril à 16h en salle polyvalente.', expediteur_role:'admin', lu:false, created_at:'2026-04-12T09:00:00' },
+    { id:2, objet:'Bulletins du 2e semestre disponibles', contenu:'Les bulletins sont disponibles. Téléchargez-les en PDF depuis votre espace.', expediteur_role:'admin', lu:true, created_at:'2026-03-20T10:30:00' },
+    { id:3, objet:'Convocation examen blanc', contenu:'Examen blanc du 25 au 28 mars. Présence obligatoire.', expediteur_role:'enseignant', lu:true, created_at:'2026-03-15T08:00:00' },
+  ];
+  const j = (n) => { const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().split('T')[0]; };
+  tousExamens = [
+    { id:1, matiere:'Mathématiques',   date_examen:j(5),  heure_debut:'08:00', duree:120, salle:'Salle A',        type:'Examen',      statut:'programme' },
+    { id:2, matiere:'Physique-Chimie', date_examen:j(8),  heure_debut:'10:00', duree:90,  salle:'Salle B',        type:'Examen',      statut:'programme' },
+    { id:3, matiere:'Français',        date_examen:j(12), heure_debut:'08:00', duree:180, salle:'Amphithéâtre',   type:'Composition', statut:'programme' },
+    { id:4, matiere:'Anglais',         date_examen:j(-3), heure_debut:'14:00', duree:60,  salle:'Salle C',        type:'Contrôle',    statut:'termine' },
+  ];
+  tousEnseignantsPortail = [];
+  edtPortailData = [];
+  certPortailList = [];
+
+  // ── 3. Afficher l'application ────────────────────────
+  const loginScreen = document.getElementById('login-screen');
+  const appPortail  = document.getElementById('app-portail');
+  if (loginScreen) loginScreen.style.display = 'none';
+  if (appPortail)  appPortail.style.display  = 'block';
+
+  // Header
+  const greetNom  = document.getElementById('greeting-nom');
+  const greetRole = document.getElementById('greeting-role');
+  const pillWrap  = document.getElementById('student-pill-wrap');
+  if (greetNom)  greetNom.textContent  = 'Visiteur Démo';
+  if (greetRole) greetRole.textContent = 'Espace parent';
+  if (pillWrap)  pillWrap.innerHTML    = '<div class="student-pill">👨‍🎓 Étudiant DEMO · Terminale D</div>';
+
+  // Badge message non lu
+  const b1 = document.getElementById('msg-badge');
+  const b2 = document.getElementById('nav-msg-badge');
+  if (b1) { b1.style.display='flex'; b1.textContent='1'; }
+  if (b2) { b2.style.display='flex'; b2.textContent='1'; }
+
+  // Badge examens à venir
+  const bExam = document.getElementById('nav-exam-badge');
+  if (bExam) { bExam.style.display='flex'; bExam.textContent='3'; }
+
+  // ── 4. Afficher la page d'accueil ────────────────────
+  afficherAccueil();
 }
 
-// Interception des appels Supabase en mode démo
-const _dbFrom = db.from.bind(db);
-db.from = function(table) {
-  if (!IS_DEMO_MODE) return _dbFrom(table);
-  // Retourne un objet qui simule le chaînage Supabase et renvoie des données vides
-  const mockQuery = {
-    select: () => mockQuery,
-    eq: () => mockQuery,
-    neq: () => mockQuery,
-    order: () => mockQuery,
-    limit: () => mockQuery,
-    single: () => Promise.resolve({ data: null, error: null }),
-    maybeSingle: () => Promise.resolve({ data: null, error: null }),
-    then: (cb) => Promise.resolve({ data: [], error: null }).then(cb),
-    insert: () => Promise.resolve({ data: null, error: null }),
-    update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
-    upsert: () => Promise.resolve({ data: null, error: null }),
-  };
-  return mockQuery;
-};
+// Mode démo — chaque fonction gère IS_DEMO_MODE individuellement
 
 async function seDeconnecter() {
   if (IS_DEMO_MODE) { IS_DEMO_MODE=false; location.reload(); return; }
