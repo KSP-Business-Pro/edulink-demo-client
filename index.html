@@ -17463,7 +17463,7 @@ function ouvrirNotifPanel() {
   const panel = document.getElementById('notif-panel');
   if (panel) {
     panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
-    if (panel.style.display === 'flex') chargerNotifications();
+    if (panel.style.display === 'flex') chargerNotifBadge();
   } else {
     showToast('Panneau notifications non disponible', 'info');
   }
@@ -17482,7 +17482,7 @@ async function toutMarquerLu() {
       .eq('ecole_id', currentEcoleId)
       .eq('lu', false);
     showToast('✅ Toutes les notifications marquées comme lues', 'success');
-    chargerNotifications();
+    chargerNotifBadge();
     // Vider le badge
     const badge = document.getElementById('notif-badge');
     if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
@@ -17491,7 +17491,7 @@ async function toutMarquerLu() {
   }
 }
 
-async function chargerNotifications() {
+async function chargerNotifBadge() {
   if (!currentEcoleId) return;
   try {
     const { data } = await db.from('notifications')
@@ -17530,7 +17530,7 @@ async function chargerNotifications() {
 async function marquerNotifLue(id) {
   try {
     await db.from('notifications').update({ lu: true }).eq('id', id);
-    chargerNotifications();
+    chargerNotifBadge();
   } catch(e) {}
 }
 
@@ -17680,12 +17680,12 @@ async function chargerPresences() {
 window.addEventListener('load', function() {
   setTimeout(() => {
     if (typeof currentEcoleId !== 'undefined' && currentEcoleId) {
-      chargerNotifications();
+      chargerNotifBadge();
     }
     // Recharger les notifs toutes les 60 secondes
     setInterval(() => {
       if (typeof currentEcoleId !== 'undefined' && currentEcoleId) {
-        chargerNotifications();
+        chargerNotifBadge();
       }
     }, 60000);
   }, 3000);
