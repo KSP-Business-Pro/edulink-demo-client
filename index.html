@@ -12349,20 +12349,34 @@ async function chargerClasses() {
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
   const { data } = await q;
   toutesLesClasses = data || [];
-  // Stats
+
+  // Charger étudiants et programmes en parallèle
+  let qE = db.from('etudiants').select('id,classe_id');
+  if (currentEcoleId) qE = qE.eq('ecole_id', currentEcoleId);
+  let qP = db.from('programmes').select('id,classe_id');
+  if (currentEcoleId) qP = qP.eq('ecole_id', currentEcoleId);
+  const [{ data: etus }, { data: progs }] = await Promise.all([qE, qP]);
+
+  // Calculer effectif_actuel et nb_matieres par classe
+  const effectifs = {};
+  const matieres  = {};
+  (etus||[]).forEach(e => { if (e.classe_id) effectifs[e.classe_id] = (effectifs[e.classe_id]||0) + 1; });
+  (progs||[]).forEach(p => { if (p.classe_id) matieres[p.classe_id]  = (matieres[p.classe_id]||0)  + 1; });
+  toutesLesClasses = toutesLesClasses.map(c => ({
+    ...c,
+    effectif_actuel: effectifs[c.id] || 0,
+    nb_matieres:     matieres[c.id]  || 0,
+  }));
+
+  // Stats globales
+  const totalAffectes = Object.values(effectifs).reduce((a,b)=>a+b, 0);
+  const totalMatieres = Object.values(matieres).reduce((a,b)=>a+b, 0);
   const filieres = [...new Set(toutesLesClasses.map(c => c.filiere))];
   document.getElementById('cls-stat-total').textContent    = toutesLesClasses.filter(c=>c.statut!=='archive').length;
   document.getElementById('cls-stat-filieres').textContent = filieres.length;
-  // Nb étudiants affectés
-  let qE = db.from('etudiants').select('id,classe_id');
-  if (currentEcoleId) qE = qE.eq('ecole_id', currentEcoleId);
-  const { data: etus } = await qE;
-  document.getElementById('cls-stat-etudiants').textContent = (etus||[]).filter(e=>e.classe_id).length;
-  // Nb matières
-  let qM = db.from('programmes').select('id',{count:'exact',head:true});
-  if (currentEcoleId) qM = qM.eq('ecole_id', currentEcoleId);
-  const { count: nbM } = await qM;
-  document.getElementById('cls-stat-matieres').textContent = nbM || 0;
+  document.getElementById('cls-stat-etudiants').textContent = totalAffectes;
+  document.getElementById('cls-stat-matieres').textContent  = totalMatieres;
+
   // Filtre filière
   const selF = document.getElementById('filter-cls-filiere');
   const curF = selF.value;
