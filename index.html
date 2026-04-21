@@ -2279,7 +2279,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
      EMPLOI DU TEMPS
 ═══════════════════════════════════════ -->
 <div class="page" id="page-emploi">
-  <div class="top"><h2>Emploi du temps</h2><button onclick="ouvrirModal('modal-emploi')">+ Ajouter créneau</button></div>
+  <div class="top"><h2>Emploi du temps</h2><button onclick="ouvrirEdtAvec('Lundi','08:00')">+ Ajouter créneau</button></div>
   <div class="edt-controls">
     <span class="filter-label">Classe :</span>
     <select id="edt-filter-classe" onchange="chargerEmploiDuTemps()">
@@ -7978,7 +7978,7 @@ async function chargerEmploiDuTemps() {
 function renderGrilleEDT() {
   const table = document.getElementById('edt-table');
   const index = {};
-  tousLesCreneaux.forEach(c => { const k=c.jour+'|'+c.heure_debut; if(!index[k])index[k]=[]; index[k].push(c); });
+  tousLesCreneaux.forEach(c => { const h=(c.heure_debut||'').substring(0,5); const k=c.jour+'|'+h; if(!index[k])index[k]=[]; index[k].push({...c, heure_debut:h}); });
   let rows = '';
   HEURES.forEach(h => {
     let cells = `<td>${h}</td>`;
@@ -7995,6 +7995,14 @@ function renderGrilleEDT() {
   table.insertAdjacentHTML('beforeend', rows);
 }
 function ouvrirEdtAvec(jour, heure) {
+  // Peupler le select classes avec les vraies classes de l'école
+  const sel = document.getElementById('input-edt-classe');
+  if (toutesLesClasses?.length) {
+    sel.innerHTML = toutesLesClasses
+      .filter(c => c.statut !== 'archive')
+      .map(c => `<option value="${c.nom||c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`)
+      .join('');
+  }
   ouvrirModal('modal-emploi');
   document.getElementById('input-edt-jour').value = jour;
   document.getElementById('input-edt-debut').value = heure;
