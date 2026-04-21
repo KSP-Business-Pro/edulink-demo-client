@@ -4336,8 +4336,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
       <!-- Zone de saisie -->
       <div class="ia-input-area">
-        <input class="ia-input" id="ia-input" placeholder="Posez votre question à EduLink AI..." onkeypress="if(event.key==='Enter')envoyerMessage()" />
-        <button class="ia-send-btn" onclick="envoyerMessage()" title="Envoyer">➤</button>
+        <input class="ia-input" id="ia-input" placeholder="Posez votre question à EduLink AI..." onkeypress="if(event.key==='Enter')envoyerMessageIA()" />
+        <button class="ia-send-btn" onclick="envoyerMessageIA()" title="Envoyer">➤</button>
       </div>
     </div>
 
@@ -16411,7 +16411,7 @@ function afficherTyping() {
   return div;
 }
 
-async function envoyerMessage() {
+async function envoyerMessageIA() {
   const input = document.getElementById('ia-input');
   if (!input) return;
   const msg = input.value.trim();
@@ -16438,7 +16438,7 @@ async function envoyerMessage() {
 
 function envoyerSuggestion(btn) {
   const input = document.getElementById('ia-input');
-  if (input) { input.value = btn.textContent; envoyerMessage(); }
+  if (input) { input.value = btn.textContent; envoyerMessageIA(); }
 }
 
 function effacerConversation() {
