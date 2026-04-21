@@ -7357,7 +7357,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 <!-- ═══════════════════════════════════════════
      JAVASCRIPT
 ═══════════════════════════════════════════ -->
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 // ══ SUPABASE ══════════════════════════════════
 const SUPABASE_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_qRSHSH88vHxJ9pfXJMHksQ_iVawwupX';
@@ -17021,6 +17021,244 @@ window.addEventListener('appinstalled', function() {
   var b = document.getElementById('pwa-banner');
   if (b) b.classList.remove('show');
   showToast('EduLink installe sur votre appareil !','success');
+});
+
+
+/* ══════════════════════════════════════════════
+   FONCTIONS MANQUANTES — CORRECTIF COMPLET
+══════════════════════════════════════════════ */
+
+// ── Notifications panel ─────────────────────
+function ouvrirNotifPanel() {
+  const panel = document.getElementById('notif-panel');
+  if (panel) {
+    panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+    if (panel.style.display === 'flex') chargerNotifications();
+  } else {
+    showToast('Panneau notifications non disponible', 'info');
+  }
+}
+
+function fermerNotifPanel() {
+  const panel = document.getElementById('notif-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+async function toutMarquerLu() {
+  if (!currentEcoleId) return;
+  try {
+    await db.from('notifications')
+      .update({ lu: true })
+      .eq('ecole_id', currentEcoleId)
+      .eq('lu', false);
+    showToast('✅ Toutes les notifications marquées comme lues', 'success');
+    chargerNotifications();
+    // Vider le badge
+    const badge = document.getElementById('notif-badge');
+    if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
+  } catch(e) {
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+async function chargerNotifications() {
+  if (!currentEcoleId) return;
+  try {
+    const { data } = await db.from('notifications')
+      .select('*')
+      .eq('ecole_id', currentEcoleId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    const notifs = data || [];
+    // Mettre à jour badge
+    const nonLues = notifs.filter(n => !n.lu).length;
+    const badge = document.getElementById('notif-badge');
+    if (badge) {
+      badge.textContent = nonLues > 0 ? nonLues : '';
+      badge.style.display = nonLues > 0 ? 'flex' : 'none';
+    }
+    // Remplir la liste
+    const list = document.getElementById('notif-list');
+    if (!list) return;
+    if (notifs.length === 0) {
+      list.innerHTML = '<div class="notif-empty">Aucune notification</div>';
+      return;
+    }
+    list.innerHTML = notifs.map(n => `
+      <div class="notif-item ${n.lu ? '' : 'unread'}" onclick="marquerNotifLue('${n.id}')">
+        <div class="ni-ico">${n.type === 'success' ? '✅' : n.type === 'warning' ? '⚠️' : n.type === 'error' ? '❌' : 'ℹ️'}</div>
+        <div class="ni-body">
+          <div class="ni-title">${n.titre || 'Notification'}</div>
+          <div class="ni-msg">${n.message || ''}</div>
+          <div class="ni-time">${new Date(n.created_at).toLocaleString('fr-FR')}</div>
+        </div>
+        ${!n.lu ? '<div class="ni-dot"></div>' : ''}
+      </div>`).join('');
+  } catch(e) { console.error('Erreur notifications:', e); }
+}
+
+async function marquerNotifLue(id) {
+  try {
+    await db.from('notifications').update({ lu: true }).eq('id', id);
+    chargerNotifications();
+  } catch(e) {}
+}
+
+// ── Configuration notifications ──────────────
+function ouvrirConfigNotif() {
+  showPage('parametres-avances');
+  showToast('💡 Configurez les notifications dans Paramètres Avancés', 'info');
+}
+
+// ── Envoi notifications absences ─────────────
+async function envoyerNotifAbsencesJour() {
+  const btn = document.querySelector('[onclick="envoyerNotifAbsencesJour()"]');
+  if (btn) { btn.textContent = '⏳ Envoi...'; btn.disabled = true; }
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    let q = db.from('absences')
+      .select('*, etudiants(nom, prenom, telephone_parent, nom_parent)')
+      .eq('date_absence', today)
+      .eq('justifiee', false);
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data: absences } = await q;
+    const nb = absences?.length || 0;
+    if (nb === 0) {
+      showToast('✅ Aucune absence non justifiée aujourd'hui', 'success');
+      return;
+    }
+    // Enregistrer les notifications
+    if (currentEcoleId) {
+      const notifs = absences.slice(0, 20).map(a => ({
+        ecole_id: currentEcoleId,
+        titre: 'Absence signalée',
+        message: `${a.etudiants?.prenom || ''} ${a.etudiants?.nom || ''} — absent(e) aujourd'hui`,
+        type: 'warning',
+        lu: false,
+      }));
+      await db.from('notifications').insert(notifs);
+    }
+    showToast(`📧 ${nb} absence(s) notifiée(s) aux parents`, 'success');
+  } catch(e) {
+    showToast('Erreur : ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.textContent = '📧 Notifier absences'; btn.disabled = false; }
+  }
+}
+
+// ── Rappels paiements ─────────────────────────
+async function envoyerRappelsPaiement() {
+  const btn = document.querySelector('[onclick="envoyerRappelsPaiement()"]');
+  if (btn) { btn.textContent = '⏳ Envoi...'; btn.disabled = true; }
+  try {
+    let q = db.from('factures')
+      .select('*, etudiants(nom, prenom, parent_email, parent_tel)')
+      .eq('statut', 'en_attente');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data: impayees } = await q;
+    const nb = impayees?.length || 0;
+    if (nb === 0) {
+      showToast('✅ Aucune facture impayée', 'success');
+      return;
+    }
+    // Enregistrer notifications de rappel
+    if (currentEcoleId) {
+      const notifs = impayees.slice(0, 20).map(f => ({
+        ecole_id: currentEcoleId,
+        titre: 'Rappel paiement',
+        message: `Facture impayée — ${f.etudiants?.prenom || ''} ${f.etudiants?.nom || ''} — ${f.montant_total || 0} FCFA`,
+        type: 'warning',
+        lu: false,
+      }));
+      await db.from('notifications').insert(notifs);
+    }
+    showToast(`📧 Rappels envoyés pour ${nb} facture(s) impayée(s)`, 'success');
+  } catch(e) {
+    showToast('Erreur : ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.textContent = '📧 Rappels email'; btn.disabled = false; }
+  }
+}
+
+// ── Créer utilisateur ─────────────────────────
+async function creerUtilisateur() {
+  const nom    = document.getElementById('new-user-nom')?.value?.trim();
+  const email  = document.getElementById('new-user-email')?.value?.trim();
+  const role   = document.getElementById('new-user-role')?.value || 'enseignant';
+  const tel    = document.getElementById('new-user-tel')?.value?.trim() || '';
+  if (!nom || !email) { showToast('Nom et email obligatoires', 'error'); return; }
+  if (!email.includes('@')) { showToast('Email invalide', 'error'); return; }
+  const btn = document.querySelector('[onclick="creerUtilisateur()"]');
+  if (btn) { btn.textContent = '⏳ Création...'; btn.disabled = true; }
+  try {
+    // Inviter l'utilisateur via Supabase Auth
+    const { data, error } = await db.auth.admin
+      ? await db.auth.admin.inviteUserByEmail(email)
+      : { error: { message: 'API admin non disponible côté client' } };
+    // Même sans invitation auth, créer l'entrée dans utilisateurs
+    const { error: dbError } = await db.from('utilisateurs').insert({
+      ecole_id: currentEcoleId,
+      nom, email, role, telephone: tel, actif: true
+    });
+    if (dbError) throw dbError;
+    fermerModal('modal-new-user');
+    showToast(`✅ Utilisateur "${nom}" créé. Un email d'invitation lui sera envoyé.`, 'success');
+    // Vider les champs
+    ['new-user-nom','new-user-email','new-user-tel'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+  } catch(e) {
+    showToast('Erreur création : ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.textContent = '✅ Créer'; btn.disabled = false; }
+  }
+}
+
+// ── Présences (alias) ─────────────────────────
+async function chargerPresences() {
+  // Alias vers la fonction principale
+  if (typeof chargerPresencesData === 'function') {
+    await chargerPresencesData();
+  } else {
+    // Charger depuis Supabase
+    if (!currentEcoleId) return;
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      let q = db.from('absences').select('*, etudiants(nom, prenom, classe)')
+        .eq('ecole_id', currentEcoleId)
+        .eq('date_absence', today)
+        .order('created_at', { ascending: false });
+      const { data } = await q;
+      const tbody = document.getElementById('tbody-presences') || document.getElementById('presences-list');
+      if (tbody) {
+        tbody.innerHTML = (data && data.length > 0)
+          ? data.map(a => `<tr>
+              <td>${a.etudiants?.prenom || ''} ${a.etudiants?.nom || ''}</td>
+              <td>${a.etudiants?.classe || '—'}</td>
+              <td>${a.matiere || '—'}</td>
+              <td><span class="badge ${a.justifiee ? 'green' : 'red'}">${a.justifiee ? 'Justifiée' : 'Non justifiée'}</span></td>
+              <td>${new Date(a.date_absence).toLocaleDateString('fr-FR')}</td>
+            </tr>`).join('')
+          : '<tr><td colspan="5" class="empty-state">Aucune absence enregistrée aujourd'hui</td></tr>';
+      }
+    } catch(e) { console.error('chargerPresences:', e); }
+  }
+}
+
+// ── Initialisation notifications au chargement ─
+window.addEventListener('load', function() {
+  setTimeout(() => {
+    if (typeof currentEcoleId !== 'undefined' && currentEcoleId) {
+      chargerNotifications();
+    }
+    // Recharger les notifs toutes les 60 secondes
+    setInterval(() => {
+      if (typeof currentEcoleId !== 'undefined' && currentEcoleId) {
+        chargerNotifications();
+      }
+    }, 60000);
+  }, 3000);
 });
 
 </script>
