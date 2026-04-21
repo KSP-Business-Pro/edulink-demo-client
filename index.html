@@ -17988,7 +17988,21 @@ async function lancerResetDemo() {
     });
     if (absencesPayload.length) await db.from('absences').insert(absencesPayload);
 
-    // 9. Mettre à jour la nav
+    // 9. Injecter les tokens push (un par étudiant)
+    const PLATEFORMES = ['android','ios','android','web','ios','android','ios','android'];
+    if (etudiantsCreees?.length) {
+      // Vider d'abord les anciens tokens
+      await db.from('push_tokens').delete().neq('token','__keep__');
+      const tokensPayload = etudiantsCreees.map((et, i) => ({
+        utilisateur_id: et.id,
+        token: `fcm-demo-${et.nom.toLowerCase()}-${et.prenom.toLowerCase()}-${Date.now()}-${i}`,
+        plateforme: PLATEFORMES[i % PLATEFORMES.length],
+        actif: true,
+      }));
+      await db.from('push_tokens').insert(tokensPayload);
+    }
+
+    // 10. Mettre à jour la nav
     document.getElementById('nav-user-name').textContent = 'Administrateur';
     await chargerEcoles();
     // Sélectionner la nouvelle école
@@ -17996,7 +18010,8 @@ async function lancerResetDemo() {
     if (sel) { sel.value = ecoleId; changerEcole(ecoleId); }
     await chargerDashboard();
 
-    showToast(`✅ "${nom}" prêt pour la démo ! ${etudiantsCreees?.length||0} étudiants, ${(classesCreees||[]).length} classes, ${notesPayload.length} notes injectées.`, 'success');
+    const nbTokens = etudiantsCreees?.length || 0;
+    showToast(`✅ "${nom}" prêt pour la démo ! ${etudiantsCreees?.length||0} étudiants, ${(classesCreees||[]).length} classes, ${notesPayload.length} notes, ${nbTokens} appareils push injectés.`, 'success');
   } catch(e) {
     console.error('[DEMO RESET]', e);
     showToast('Erreur reset : '+e.message, 'error');
