@@ -7721,16 +7721,16 @@ async function voirEtudiant(id) {
       <div class="info-item"><div class="ii-label">Sexe</div><div class="ii-val">${etudiant.sexe==='M'?'Masculin':'Féminin'}</div></div>
       <div class="info-item"><div class="ii-label">Filière</div><div class="ii-val">${etudiant.filiere||'—'}</div></div>
       <div class="info-item"><div class="ii-label">Niveau</div><div class="ii-val">${etudiant.niveau||'—'}</div></div>
-      <div class="info-item"><div class="ii-label">Email étudiant</div><div class="ii-val">${etudiant.email||'—'}</div></div>
+      <div class="info-item"><div class="ii-label">Email parent</div><div class="ii-val">${etudiant.email_parent||'—'}</div></div>
       <div class="info-item"><div class="ii-label">Statut</div><div class="ii-val"><span class="badge ${etudiant.statut==='actif'?'green':'amber'}">${etudiant.statut}</span></div></div>
     </div>
-    ${etudiant.parent_email ? `
+    ${etudiant.email_parent ? `
     <div style="margin-top:1rem">
       <div class="section-label" style="margin-top:0">👨‍👩‍👧 Liaison Parent — Portail Famille</div>
       <div class="parent-badge">
         <span>📧</span>
-        <span class="pb-email">${etudiant.parent_email}</span>
-        ${etudiant.parent_tel ? `<span style="color:#6b7280;margin-left:8px">📞 ${etudiant.parent_tel}</span>` : ''}
+        <span class="pb-email">${etudiant.email_parent}</span>
+        ${etudiant.telephone_parent ? `<span style="color:#6b7280;margin-left:8px">📞 ${etudiant.telephone_parent}</span>` : ''}
         <span class="badge green" style="margin-left:auto">✓ Lié</span>
       </div>
     </div>` : `
@@ -7744,11 +7744,11 @@ async function voirEtudiant(id) {
 async function ajouterEtudiant() {
   const nom=document.getElementById('input-nom').value.trim(), prenom=document.getElementById('input-prenom').value.trim(), matricule=document.getElementById('input-matricule').value.trim();
   if (!nom||!prenom||!matricule) { showToast('Remplissez les champs obligatoires', 'error'); return; }
-  const payload = { ecole_id:currentEcoleId, nom, prenom, matricule, sexe:document.getElementById('input-sexe').value, filiere:document.getElementById('input-filiere').value, niveau:document.getElementById('input-niveau').value, email:document.getElementById('input-email').value.trim(), statut:'actif' };
+  const payload = { ecole_id:currentEcoleId, nom, prenom, matricule, sexe:document.getElementById("input-sexe").value, filiere:document.getElementById("input-filiere").value, niveau:document.getElementById("input-niveau").value, statut:"actif" };
   const parentEmail = document.getElementById('input-parent-email').value.trim();
   const parentTel   = document.getElementById('input-parent-tel').value.trim();
-  if (parentEmail) payload.parent_email = parentEmail;
-  if (parentTel)   payload.parent_tel   = parentTel;
+  if (parentEmail) payload.email_parent = parentEmail;
+  if (parentTel)   payload.telephone_parent = parentTel;
   const { error } = await db.from('etudiants').insert([payload]);
   if (error) { showToast('Erreur : '+(error.message.includes('unique')?'Matricule déjà utilisé.':error.message),'error'); return; }
   fermerModal('modal-etudiant');
@@ -8473,7 +8473,7 @@ async function exporterCSV(type) {
     if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
     const { data } = await q;
     headers = ['Matricule','Nom','Prénom','Filière','Niveau','Sexe','Email','Statut','Date inscription'];
-    rows = (data||[]).map(e => [e.matricule,e.nom,e.prenom,e.filiere,e.niveau,e.sexe,e.email||'',e.statut,fmtDate(e.created_at)]);
+    rows = (data||[]).map(e => [e.matricule,e.nom,e.prenom,e.filiere,e.niveau,e.sexe,e.email_parent||'',e.statut,fmtDate(e.created_at)]);
     filename = 'edulink_etudiants';
   } else if (type === 'absences') {
     const { data } = await db.from('absences').select('*, etudiants(nom,prenom)').order('date_absence',{ascending:false});
@@ -8775,8 +8775,8 @@ async function confirmerImportCSV() {
     const batch = csvLignesValides.slice(i, i + BATCH).map(e => ({
       ecole_id: currentEcoleId, nom: e.nom, prenom: e.prenom,
       matricule: e.matricule, sexe: e.sexe, filiere: e.filiere,
-      niveau: e.niveau, email: e.email, parent_email: e.parent_email||null,
-      parent_tel: e.parent_tel||null, statut: 'actif'
+      niveau: e.niveau, email_parent: e.parent_email||e.email_parent||null,
+      telephone_parent: e.parent_tel||e.telephone_parent||null, statut: "actif"
     }));
     const { error } = await db.from('etudiants').insert(batch);
     if (error) echecs += batch.length;
@@ -12853,7 +12853,7 @@ async function mettreAJourAperçuLot() {
     <div class="lot-preview-table">
       <table>
         <tr><th>Étudiant</th><th>Filière</th><th>Niveau</th><th>Email parent</th></tr>
-        ${liste.slice(0,15).map(e=>`<tr><td><strong>${e.nom} ${e.prenom}</strong></td><td>${e.filiere}</td><td><span class="badge gray">${e.niveau}</span></td><td style="font-size:11px;color:#6b7280">${e.parent_email||'—'}</td></tr>`).join('')}
+        ${liste.slice(0,15).map(e=>`<tr><td><strong>${e.nom} ${e.prenom}</strong></td><td>${e.filiere}</td><td><span class="badge gray">${e.niveau}</span></td><td style="font-size:11px;color:#6b7280">${e.email_parent||'—'}</td></tr>`).join('')}
         ${liste.length>15?`<tr><td colspan="4" style="text-align:center;font-size:12px;color:#6b7280;padding:.5rem">... et ${liste.length-15} autres</td></tr>`:''}
       </table>
     </div>`;
@@ -17154,7 +17154,7 @@ async function envoyerRappelsPaiement() {
   if (btn) { btn.textContent = '⏳ Envoi...'; btn.disabled = true; }
   try {
     let q = db.from('factures')
-      .select('*, etudiants(nom, prenom, parent_email, parent_tel)')
+      .select('*, etudiants(nom, prenom, email_parent, telephone_parent)')
       .eq('statut', 'en_attente');
     if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
     const { data: impayees } = await q;
