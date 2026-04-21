@@ -10681,7 +10681,7 @@ async function envoyerPushNotification() {
     titre,
     body,
     type:          document.getElementById('nc-notif-type-actif')?.dataset?.type || 'annonce',
-    destinataires: dest,
+    destinataires: dest === 'tous' ? 0 : dest === 'parents' ? 1 : 2,
     nb_envoyes:    succes,
     nb_echecs:     echecs,
     taux_ouverture:0,
@@ -10867,7 +10867,8 @@ async function chargerHistoriqueNotifications() {
     ncHistoriqueData = data || [];
     afficherHistorique();
   } catch(e) {
-    el.innerHTML = '<div class="loading">Erreur de chargement</div>';
+    console.error('[Notif historique]', e);
+    el.innerHTML = `<div class="empty-state"><div class="icon">🔔</div><h3>Aucun envoi</h3><p>Les notifications apparaîtront ici après le premier envoi.</p></div>`;
   }
 }
 
@@ -10938,31 +10939,26 @@ async function chargerAppareilsAbonnes() {
   const cnt = document.getElementById('nc-devices-count');
   if (!el) return;
   try {
-    const { data } = await db.from('push_tokens')
-      .select('role, updated_at')
-      .eq('ecole_id', currentEcoleId)
-      .order('updated_at', {ascending: false}).limit(20);
+    const { data, error: devErr } = await db.from('push_tokens')
+      .select('utilisateur_id, token, plateforme, actif, created_at')
+      .eq('actif', true)
+      .order('created_at', {ascending: false}).limit(20);
+    if (devErr) throw devErr;
     const tokens = data || [];
     if (cnt) cnt.textContent = tokens.length + ' appareil(s)';
     if (!tokens.length) {
-      el.innerHTML = '<div class="empty-state" style="padding:1.5rem"><div class="icon" style="font-size:28px">📱</div><h3>Aucun appareil abonné</h3><p>Les appareils s\'afficheront ici après activation des push sur le portail.</p></div>';
+      el.innerHTML = '<div class="empty-state" style="padding:1.5rem"><div class="icon" style="font-size:28px">📱</div><h3>Aucun appareil abonné</h3><p>Activez les push sur le portail famille pour voir les appareils.</p></div>';
       return;
     }
-    const ROLE_ICO = { parent:'👨‍👩‍👧', etudiant:'🎓', admin:'👨‍💼' };
-    el.innerHTML = tokens.map(t => {
-      const ico = ROLE_ICO[t.role] || '📱';
-      const ua  = t.user_agent || '—';
-      const plateforme = ua.includes('Android') ? '🤖 Android' : ua.includes('iPhone')||ua.includes('iPad') ? '🍎 iOS' : '💻 Desktop';
-      return `
-      <div class="nc-device-row">
-        <div class="nc-device-ico">${ico}</div>
-        <div class="nc-device-info">
-          <div class="nc-device-role">${t.role||'Inconnu'} · ${plateforme}</div>
-          <div class="nc-device-ua">${ua.slice(0,70)}...</div>
+    el.innerHTML = tokens.map(t => `
+      <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1.2rem;border-bottom:1px solid #f9fafb">
+        <span style="font-size:20px">${t.plateforme==='ios'?'🍎':t.plateforme==='android'?'🤖':'💻'}</span>
+        <div style="flex:1">
+          <div style="font-size:12.5px;font-weight:600;color:#374151">${t.plateforme||'Navigateur'}</div>
+          <div style="font-size:11px;color:#9ca3af">Token: ${(t.token||'').substring(0,20)}...</div>
         </div>
-        <div class="nc-device-date">${fmtDateHeure(t.updated_at)}</div>
-      </div>`;
-    }).join('');
+        <span class="badge green" style="font-size:10px">✅ Actif</span>
+      </div>`).join('');
   } catch(e) {
     el.innerHTML = '<div class="loading">Erreur</div>';
   }
