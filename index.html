@@ -7811,7 +7811,7 @@ async function remplirSelect(selectId, withEmpty=false) {
 async function enregistrerAbsence() {
   const matiere = document.getElementById('input-absence-matiere').value.trim();
   if (!matiere) { showToast('Entrez la matière.','error'); return; }
-  const { error } = await db.from('absences').insert([{ etudiant_id:document.getElementById('input-absence-etudiant').value, matiere, date_absence:document.getElementById('input-absence-date').value, statut:document.getElementById('input-absence-statut').value, justification:document.getElementById('input-absence-justification').value.trim() }]);
+  const { error } = await db.from('absences').insert([{ ecole_id:currentEcoleId, etudiant_id:document.getElementById('input-absence-etudiant').value, matiere, date_absence:document.getElementById('input-absence-date').value, statut:document.getElementById('input-absence-statut').value, justification:document.getElementById('input-absence-justification').value.trim() }]);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-absence'); document.getElementById('input-absence-matiere').value='';
   showToast('Absence enregistrée !','success'); chargerAbsences(); chargerDashboard();
