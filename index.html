@@ -5750,7 +5750,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div><h2>🏫 Classes & Programmes</h2><p class="page-subtitle">Gestion des classes, filières et programmes pédagogiques</p></div>
     <div class="top-actions">
       <button class="btn-outline" onclick="showTab('cls','tab-cls-programmes')">📚 Programmes</button>
-      <button onclick="ouvrirModal('modal-classe')">+ Créer une classe</button>
+      <button onclick="resetModalClasse(); ouvrirModal('modal-classe')">+ Créer une classe</button>
     </div>
   </div>
 
@@ -7102,7 +7102,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 <!-- ═══════════════════ MODAL CRÉER CLASSE ★ JOUR 21 ══════════════════ -->
 <div class="modal-overlay" id="modal-classe">
   <div class="modal">
-    <h3>🏫 Créer une classe</h3>
+    <input type="hidden" id="input-cls-id">
+    <h3 id="modal-cls-titre">🏫 Créer une classe</h3>
     <div class="form-grid">
       <div class="form-group"><label>Nom de la classe *</label><input type="text" id="input-cls-nom" placeholder="Ex : L2 Informatique A"></div>
       <div class="form-group"><label>Filière *</label><input type="text" id="input-cls-filiere" placeholder="Ex : Informatique, Gestion..."></div>
@@ -7127,8 +7128,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     </div>
     <div class="form-group"><label>Responsable de classe (nom)</label><input type="text" id="input-cls-responsable" placeholder="Nom de l'enseignant responsable"></div>
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="fermerModal('modal-classe')">Annuler</button>
-      <button onclick="creerClasse()">🏫 Créer la classe</button>
+      <button class="btn-secondary" onclick="resetModalClasse(); fermerModal('modal-classe')">Annuler</button>
+      <button id="btn-cls-submit" onclick="sauvegarderClasse()">🏫 Créer la classe</button>
     </div>
   </div>
 </div>
@@ -12769,9 +12770,10 @@ function afficherListeClasses(liste) {
       ${effMax!=='?'?`<div style="height:5px;background:#f3f4f6;border-radius:3px;overflow:hidden;margin-bottom:.75rem"><div style="height:100%;background:${pct>=90?'#dc2626':pct>=70?'#d97706':'#059669'};width:${pct}%;transition:width .6s ease;border-radius:3px"></div></div>`:''}
       ${c.responsable?`<div style="font-size:11.5px;color:#6b7280;margin-bottom:.75rem">👨‍🏫 ${c.responsable}</div>`:''}
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn-sm btn-blue" onclick="voirProgrammeClasse('${c.id}','${(c.nom||c.filiere+' '+c.niveau).replace(/'/g,'&apos;')}')">📚 Programme</button>
+        <button class="btn-sm btn-blue"      onclick="voirProgrammeClasse('${c.id}','${(c.nom||c.filiere+' '+c.niveau).replace(/'/g,'&apos;')}')">📚 Programme</button>
         <button class="btn-sm btn-secondary" onclick="voirAffectationClasse('${c.id}')">👥 Élèves</button>
-        <button class="btn-sm btn-red" onclick="supprimerClasse('${c.id}')">✕</button>
+        <button class="btn-sm"               onclick="modifierClasse('${c.id}')" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">✏️ Modifier</button>
+        <button class="btn-sm btn-red"       onclick="supprimerClasse('${c.id}')">🗑 Supprimer</button>
       </div>
     </div>`;
   }).join('');
@@ -12779,31 +12781,71 @@ function afficherListeClasses(liste) {
 
 function filtrerClasses() { chargerListeClasses(); }
 
-async function creerClasse() {
-  const nom = document.getElementById('input-cls-nom').value.trim();
+function resetModalClasse() {
+  document.getElementById('input-cls-id').value = '';
+  document.getElementById('modal-cls-titre').textContent = '🏫 Créer une classe';
+  document.getElementById('btn-cls-submit').textContent = '🏫 Créer la classe';
+  ['input-cls-nom','input-cls-filiere','input-cls-annee','input-cls-salle','input-cls-responsable'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('input-cls-effectif').value = '40';
+  document.getElementById('input-cls-niveau').value = 'L1';
+}
+
+function modifierClasse(id) {
+  const c = toutesLesClasses.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('input-cls-id').value         = c.id;
+  document.getElementById('input-cls-nom').value        = c.nom || '';
+  document.getElementById('input-cls-filiere').value    = c.filiere || '';
+  document.getElementById('input-cls-niveau').value     = c.niveau || 'L1';
+  document.getElementById('input-cls-effectif').value   = c.effectif_max || 40;
+  document.getElementById('input-cls-annee').value      = c.annee_scolaire || '';
+  document.getElementById('input-cls-salle').value      = c.salle || '';
+  document.getElementById('input-cls-responsable').value= c.responsable || '';
+  document.getElementById('modal-cls-titre').textContent = '✏️ Modifier la classe';
+  document.getElementById('btn-cls-submit').textContent  = '💾 Enregistrer les modifications';
+  ouvrirModal('modal-classe');
+}
+
+async function sauvegarderClasse() {
+  const nom     = document.getElementById('input-cls-nom').value.trim();
   const filiere = document.getElementById('input-cls-filiere').value.trim();
   if (!nom || !filiere) { showToast('Remplissez nom et filière.','error'); return; }
-  const { error } = await db.from('classes').insert([{
-    ecole_id: currentEcoleId,
+  const editId = document.getElementById('input-cls-id').value;
+  const payload = {
     nom, filiere,
-    niveau:        document.getElementById('input-cls-niveau').value,
-    effectif_max:  parseInt(document.getElementById('input-cls-effectif').value)||40,
-    annee_scolaire:document.getElementById('input-cls-annee').value.trim(),
-    salle:         document.getElementById('input-cls-salle').value.trim(),
-    responsable:   document.getElementById('input-cls-responsable').value.trim(),
-    statut: 'active'
-  }]);
+    niveau:         document.getElementById('input-cls-niveau').value,
+    effectif_max:   parseInt(document.getElementById('input-cls-effectif').value)||40,
+    annee_scolaire: document.getElementById('input-cls-annee').value.trim(),
+    salle:          document.getElementById('input-cls-salle').value.trim(),
+    responsable:    document.getElementById('input-cls-responsable').value.trim(),
+  };
+  let error;
+  if (editId) {
+    ({ error } = await db.from('classes').update(payload).eq('id', editId));
+    if (!error) showToast('✅ Classe modifiée !', 'success');
+  } else {
+    payload.ecole_id = currentEcoleId;
+    payload.statut   = 'active';
+    ({ error } = await db.from('classes').insert([payload]));
+    if (!error) showToast('🏫 Classe créée !', 'success');
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  resetModalClasse();
   fermerModal('modal-classe');
-  ['input-cls-nom','input-cls-filiere','input-cls-annee','input-cls-salle','input-cls-responsable'].forEach(id=>document.getElementById(id).value='');
-  showToast('🏫 Classe créée !','success');
   chargerClasses();
 }
 
 async function supprimerClasse(id) {
-  if (!confirm('Supprimer cette classe ?')) return;
-  await db.from('classes').delete().eq('id',id);
-  showToast('Classe supprimée.','success'); chargerClasses();
+  const c = toutesLesClasses.find(x => x.id === id);
+  const nom = c ? (c.nom || c.filiere+' '+c.niveau) : 'cette classe';
+  if (!confirm(`Supprimer "${nom}" ?\nLes étudiants affectés seront désaffectés mais pas supprimés.`)) return;
+  // Désaffecter les étudiants avant suppression
+  await db.from('etudiants').update({ classe_id: null }).eq('classe_id', id);
+  await db.from('programmes').delete().eq('classe_id', id);
+  const { error } = await db.from('classes').delete().eq('id', id);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast(`✅ "${nom}" supprimée. Les étudiants ont été désaffectés.`, 'success');
+  chargerClasses();
 }
 
 // ── Programme ───────────────────────────────────
