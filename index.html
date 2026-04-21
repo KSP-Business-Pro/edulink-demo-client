@@ -2224,6 +2224,12 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top"><h2>Présences & Absences</h2><button onclick="ouvrirModal('modal-absence')">+ Enregistrer absence</button></div>
   <div class="filters">
     <span class="filter-label">Filtrer :</span>
+    <select id="filter-absence-classe" onchange="chargerAbsences()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
+      <option value="">Toutes les classes</option>
+    </select>
+    <select id="filter-absence-etudiant" onchange="chargerAbsences()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
+      <option value="">Tous les étudiants</option>
+    </select>
     <select id="filter-absence-statut" onchange="chargerAbsences()">
       <option value="">Tous les statuts</option>
       <option value="absent">Absent</option><option value="retard">Retard</option><option value="excuse">Excusé</option>
@@ -2254,6 +2260,12 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div id="tab-saisie">
     <div class="filters">
       <span class="filter-label">Filtrer :</span>
+      <select id="filter-notes-classe" onchange="onChangeFiltreClasseNotes()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
+        <option value="">Toutes les classes</option>
+      </select>
+      <select id="filter-notes-etudiant" onchange="chargerNotes()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
+        <option value="">Tous les étudiants</option>
+      </select>
       <select id="filter-notes-periode" onchange="chargerNotes()">
         <option value="">Toutes périodes</option>
         <option value="S1">Semestre 1</option><option value="S2">Semestre 2</option>
@@ -2268,7 +2280,11 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
   <div id="tab-bulletins" style="display:none">
     <div class="bulletin-select">
-      <span class="filter-label">Étudiant :</span>
+      <span class="filter-label">Classe :</span>
+      <select id="filter-bulletin-classe" onchange="onChangeFiltreClasseBulletin()" style="padding:7px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;min-width:180px;">
+        <option value="">Toutes les classes</option>
+      </select>
+      <span class="filter-label" style="margin-left:.5rem">Étudiant :</span>
       <select id="select-bulletin-etudiant" onchange="mettreAJourPeriodesBulletin(this.value).then(chargerBulletin)" style="padding:7px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;min-width:220px;">
         <option value="">— Sélectionner un étudiant —</option>
       </select>
@@ -2295,9 +2311,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <span class="filter-label">Classe :</span>
     <select id="edt-filter-classe" onchange="chargerEmploiDuTemps()">
       <option value="">Toutes les classes</option>
-      <option>L1 Informatique</option><option>L2 Informatique</option><option>L3 Informatique</option>
-      <option>L1 Gestion</option><option>L2 Gestion</option><option>L3 Gestion</option>
-      <option>M1</option><option>M2</option>
     </select>
     <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
       <span style="font-size:11px;color:#6b7280">Légende :</span>
@@ -2403,7 +2416,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       </select>
       <select id="filter-exam-classe" onchange="filtrerExamens()">
         <option value="">Toutes classes</option>
-        <option>L1</option><option>L2</option><option>L3</option><option>M1</option><option>M2</option>
       </select>
     </div>
     <div id="exam-liste-container"><div class="loading">Chargement...</div></div>
@@ -6510,7 +6522,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <select id="input-edt-jour"><option>Lundi</option><option>Mardi</option><option>Mercredi</option><option>Jeudi</option><option>Vendredi</option><option>Samedi</option></select>
       </div>
       <div class="form-group"><label>Classe *</label>
-        <select id="input-edt-classe"><option>L1 Informatique</option><option>L2 Informatique</option><option>L3 Informatique</option><option>L1 Gestion</option><option>L2 Gestion</option><option>L3 Gestion</option><option>M1</option><option>M2</option></select>
+        <select id="input-edt-classe"><option value="">— Sélectionner une classe —</option></select>
       </div>
       <div class="form-group"><label>Heure début *</label>
         <select id="input-edt-debut"><option value="07:00">07:00</option><option value="08:00">08:00</option><option value="09:00">09:00</option><option value="10:00">10:00</option><option value="11:00">11:00</option><option value="12:00">12:00</option><option value="13:00">13:00</option><option value="14:00">14:00</option><option value="15:00">15:00</option><option value="16:00">16:00</option><option value="17:00">17:00</option></select>
@@ -7576,17 +7588,17 @@ function showPage(p) {
   const loaders = {
     dashboard:    chargerDashboard,
     etudiants:    chargerEtudiants,
-    presences:    chargerAbsences,
-    notes:        () => { chargerNotes(); remplirSelectBulletin(); },
+    presences:    () => { chargerAbsences(); initSelectsPresences(); },
+    notes:        () => { chargerNotes(); initSelectsNotes(); initSelectsBulletins(); },
     messages:     chargerMessages,
-    emploi:       chargerEmploiDuTemps,
+    emploi:       () => { chargerEmploiDuTemps(); initSelectsEDT(); },
     paiements:    chargerPaiements,
     discipline:   chargerIncidents,
     documents:    chargerDocuments,
     rapports:     () => afficherRapport('effectifs'),
     utilisateurs: () => { if (typeof chargerUtilisateurs === 'function') chargerUtilisateurs(); },
     parametres:   () => { chargerParametres(); chargerConfigFCM(); },
-    examens:      chargerExamens,
+    examens:      () => { chargerExamens(); initSelectsExamens(); },
     enseignants:     chargerEnseignants,
     notifications:   chargerNotifications,
     certificats:     chargerCertificats,
@@ -7637,7 +7649,7 @@ function showTab(page, tabId) {
   m.btns.forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('active'); });
   const activeEl = document.getElementById(tabId); if(activeEl) activeEl.style.display = 'block';
   const activeBtn = document.getElementById(tabId + '-btn'); if(activeBtn) activeBtn.classList.add('active');
-  if (tabId === 'tab-bulletins') remplirSelectBulletin();
+  if (tabId === 'tab-bulletins') { initSelectsBulletins(); }
   if (tabId === 'tab-exam-planning') afficherPlanningExamens();
   if (tabId === 'tab-ens-matieres') chargerMatieres();
   if (tabId === 'tab-ens-planning') remplirSelectEnsPlanning();
@@ -8010,14 +8022,21 @@ async function ajouterEtudiant() {
 // ══ ABSENCES ══════════════════════════════════
 async function chargerAbsences() {
   document.getElementById('tbody-presences').innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
-  let q = db.from('absences').select('*, etudiants(nom, prenom)').order('created_at',{ascending:false});
-  const fs = document.getElementById('filter-absence-statut')?.value;
-  const fd = document.getElementById('filter-absence-date')?.value;
-  if (fs) q = q.eq('statut', fs);
-  if (fd) q = q.eq('date_absence', fd);
+  let q = db.from('absences').select('*, etudiants(nom, prenom, classe_id, filiere, niveau)').order('created_at',{ascending:false});
+  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  const fs       = document.getElementById('filter-absence-statut')?.value;
+  const fd       = document.getElementById('filter-absence-date')?.value;
+  const fEtu     = document.getElementById('filter-absence-etudiant')?.value;
+  const fClasse  = document.getElementById('filter-absence-classe')?.value;
+  if (fs)   q = q.eq('statut', fs);
+  if (fd)   q = q.eq('date_absence', fd);
+  if (fEtu) q = q.eq('etudiant_id', fEtu);
   const { data } = await q;
-  document.getElementById('tbody-presences').innerHTML = data?.length
-    ? data.map(a => `<tr><td>${a.etudiants?a.etudiants.nom+' '+a.etudiants.prenom:'N/A'}</td><td>${a.matiere}</td><td>${fmtDate(a.date_absence)}</td><td><span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span></td><td>${a.justification||'—'}</td><td><span class="badge ${a.parent_notifie?'green':'amber'}">${a.parent_notifie?'✓ Notifié':'En attente'}</span></td></tr>`).join('')
+  // Filtrer par classe côté JS si besoin (classe_id est dans etudiants)
+  let liste = data || [];
+  if (fClasse) liste = liste.filter(a => a.etudiants?.classe_id === fClasse);
+  document.getElementById('tbody-presences').innerHTML = liste.length
+    ? liste.map(a => `<tr><td>${a.etudiants?a.etudiants.nom+' '+a.etudiants.prenom:'N/A'}</td><td>${a.matiere}</td><td>${fmtDate(a.date_absence)}</td><td><span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span></td><td>${a.justification||'—'}</td><td><span class="badge ${a.parent_notifie?'green':'amber'}">${a.parent_notifie?'✓ Notifié':'En attente'}</span></td></tr>`).join('')
     : '<tr><td colspan="6" class="loading">Aucune absence.</td></tr>';
 }
 async function remplirSelect(selectId, withEmpty=false) {
@@ -8033,6 +8052,99 @@ async function remplirSelect(selectId, withEmpty=false) {
   if (selectId === 'input-absence-etudiant')
     document.getElementById('input-absence-date').value = new Date().toISOString().split('T')[0];
 }
+// ══════════════════════════════════════════════════════════════
+//  PEUPLEMENT DYNAMIQUE DES SELECTS — basé sur étudiants inscrits
+// ══════════════════════════════════════════════════════════════
+
+// Peupler un select de classes depuis toutesLesClasses
+function remplirSelectClasses(selectId, avecTous = true) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const firstOpt = avecTous ? '<option value="">Toutes les classes</option>' : '<option value="">— Sélectionner une classe —</option>';
+  if (!toutesLesClasses?.length) {
+    sel.innerHTML = firstOpt;
+    return;
+  }
+  sel.innerHTML = firstOpt + toutesLesClasses
+    .filter(c => c.statut !== 'archive')
+    .map(c => `<option value="${c.id}">${c.nom} (${c.filiere} · ${c.niveau})</option>`)
+    .join('');
+}
+
+// Peupler un select d'étudiants, optionnellement filtrés par classe
+function remplirSelectEtudiants(selectId, classeId = '', avecTous = true) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const firstOpt = avecTous ? '<option value="">Tous les étudiants</option>' : '<option value="">— Sélectionner un étudiant —</option>';
+  let liste = tousLesEtudiants || [];
+  if (classeId) liste = liste.filter(e => e.classe_id === classeId);
+  sel.innerHTML = firstOpt + liste
+    .map(e => `<option value="${e.id}">${e.nom} ${e.prenom} — ${e.filiere} ${e.niveau}</option>`)
+    .join('');
+}
+
+// Mise à jour du filtre étudiant quand on change de classe (Présences)
+function onChangeFiltreClasseAbsences() {
+  const classeId = document.getElementById('filter-absence-classe')?.value || '';
+  remplirSelectEtudiants('filter-absence-etudiant', classeId, true);
+  chargerAbsences();
+}
+
+// Initialiser tous les selects dynamiques d'un module au moment de l'affichage
+function initSelectsPresences() {
+  remplirSelectClasses('filter-absence-classe', true);
+  const classeId = document.getElementById('filter-absence-classe')?.value || '';
+  remplirSelectEtudiants('filter-absence-etudiant', classeId, true);
+  // Brancher l'événement onchange sur le filtre classe
+  const selClasse = document.getElementById('filter-absence-classe');
+  if (selClasse) selClasse.onchange = onChangeFiltreClasseAbsences;
+}
+
+
+// ── Filtres dynamiques Notes ──────────────────────────────
+function onChangeFiltreClasseNotes() {
+  const classeId = document.getElementById('filter-notes-classe')?.value || '';
+  remplirSelectEtudiants('filter-notes-etudiant', classeId, true);
+  chargerNotes();
+}
+
+function initSelectsNotes() {
+  remplirSelectClasses('filter-notes-classe', true);
+  remplirSelectEtudiants('filter-notes-etudiant', '', true);
+}
+
+// ── Filtres dynamiques Bulletins ─────────────────────────
+function onChangeFiltreClasseBulletin() {
+  const classeId = document.getElementById('filter-bulletin-classe')?.value || '';
+  // Repeupler le select étudiant selon la classe
+  const sel = document.getElementById('select-bulletin-etudiant');
+  if (!sel) return;
+  let liste = tousLesEtudiants || [];
+  if (classeId) liste = liste.filter(e => e.classe_id === classeId);
+  sel.innerHTML = '<option value="">— Sélectionner un étudiant —</option>' +
+    liste.map(e => `<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+}
+
+function initSelectsBulletins() {
+  remplirSelectClasses('filter-bulletin-classe', true);
+  remplirSelectBulletin();
+}
+
+// ── Filtres dynamiques EDT ────────────────────────────────
+function initSelectsEDT() {
+  remplirSelectClasses('edt-filter-classe', true);
+}
+
+// ── Filtres dynamiques Examens ────────────────────────────
+function initSelectsExamens() {
+  const sel = document.getElementById('filter-exam-classe');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Toutes classes</option>' +
+    (toutesLesClasses||[]).filter(c => c.statut !== 'archive')
+      .map(c => `<option value="${c.niveau}">${c.nom} (${c.niveau})</option>`).join('');
+}
+
+
 async function enregistrerAbsence() {
   const matiere = document.getElementById('input-absence-matiere').value.trim();
   if (!matiere) { showToast('Entrez la matière.','error'); return; }
@@ -8045,14 +8157,19 @@ async function enregistrerAbsence() {
 // ══ NOTES & BULLETINS ════════════════════════
 async function chargerNotes() {
   document.getElementById('tbody-notes').innerHTML = '<tr><td colspan="7" class="loading">Chargement...</td></tr>';
-  let q = db.from('notes').select('*, etudiants(nom, prenom)').order('created_at',{ascending:false});
+  let q = db.from('notes').select('*, etudiants(nom, prenom, classe_id)').order('created_at',{ascending:false});
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const fp = document.getElementById('filter-notes-periode')?.value;
-  const fm = document.getElementById('filter-notes-matiere')?.value;
-  if (fp) q = q.eq('periode', fp);
-  if (fm) q = q.eq('matiere', fm);
+  const fp      = document.getElementById('filter-notes-periode')?.value;
+  const fm      = document.getElementById('filter-notes-matiere')?.value;
+  const fEtu    = document.getElementById('filter-notes-etudiant')?.value;
+  const fClasse = document.getElementById('filter-notes-classe')?.value;
+  if (fp)   q = q.eq('periode', fp);
+  if (fm)   q = q.eq('matiere', fm);
+  if (fEtu) q = q.eq('etudiant_id', fEtu);
   const { data } = await q;
-  toutesLesNotes = data || [];
+  let rawNotes = data || [];
+  if (fClasse) rawNotes = rawNotes.filter(n => n.etudiants?.classe_id === fClasse);
+  toutesLesNotes = rawNotes;
   const matieres = [...new Set(toutesLesNotes.map(n => n.matiere))].sort();
   const filtMat = document.getElementById('filter-notes-matiere');
   const cur = filtMat.value;
