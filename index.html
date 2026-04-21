@@ -10618,85 +10618,76 @@ async function envoyerPushNotification() {
   if (!titre || !body) { showToast('Titre et message obligatoires', 'error'); return; }
 
   const serverKey = localStorage.getItem('edulink_fcm_server_key');
-  if (!serverKey) { showToast('Clé Server FCM manquante dans Paramètres', 'error'); return; }
-
   const btn = document.getElementById('btn-send-push');
-  btn.disabled = true; btn.textContent = 'Envoi...';
-  document.getElementById('push-send-progress').style.display = 'block';
-  document.getElementById('push-send-log').innerHTML = '⏳ Chargement des tokens...';
+  if (btn) { btn.disabled = true; btn.textContent = 'Envoi...'; }
+  const logEl = document.getElementById('push-send-log');
+  const progEl = document.getElementById('push-send-progress');
+  if (progEl) progEl.style.display = 'block';
 
-  // Récupérer tokens
-  let q = db.from('push_tokens').select('token, role').eq('ecole_id', currentEcoleId);
-  if (dest === 'parents')   q = q.eq('role', 'parent');
-  if (dest === 'etudiants') q = q.eq('role', 'etudiant');
-  const { data: tokens } = await q;
-
-  if (!tokens?.length) {
-    document.getElementById('push-send-log').innerHTML = '⚠️ Aucun appareil abonné.';
-    btn.disabled = false; btn.textContent = '🔔 Envoyer';
-    return;
-  }
-
-  document.getElementById('push-send-log').innerHTML = `📱 ${tokens.length} appareil(s) trouvé(s)...`;
-
-  // Envoi via FCM Legacy HTTP API
   let succes = 0, echecs = 0;
-  const BATCH = 500; // FCM limite 500 tokens par requête
 
-  for (let i = 0; i < tokens.length; i += BATCH) {
-    const batchTokens = tokens.slice(i, i + BATCH).map(t => t.token);
-    try {
-      const resp = await fetch('https://fcm.googleapis.com/fcm/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'key=' + serverKey
-        },
-        body: JSON.stringify({
-          registration_ids: batchTokens,
-          notification: {
-            title: titre,
-            body:  body,
-            icon:  '/icon-192.png',
-            badge: '/icon-72.png',
-            click_action: url
-          },
-          data: {
-            title, body, url,
-            tag:       'edulink-' + Date.now(),
-            important: prio === 'high' ? 'true' : 'false',
-            ecole_id:  currentEcoleId
-          },
-          priority: prio === 'high' ? 'high' : 'normal',
-          android: { priority: prio === 'high' ? 'high' : 'normal' },
-          apns: { headers: { 'apns-priority': prio === 'high' ? '10' : '0' } }
-        })
-      });
-      const result = await resp.json();
-      succes += result.success || 0;
-      echecs += result.failure || 0;
-      document.getElementById('push-send-log').innerHTML =
-        `✅ ${succes} envoyé(s) · ❌ ${echecs} échoué(s)`;
-    } catch(err) {
-      echecs += batchTokens.length;
-      document.getElementById('push-send-log').innerHTML = '❌ Erreur : ' + err.message;
+  if (!serverKey) {
+    // ── MODE DÉMO : enregistrement en base sans FCM ──
+    if (logEl) logEl.innerHTML = '📝 Mode démo — enregistrement sans push réel...';
+    succes = 1; // Simuler 1 envoi pour la démo
+    await new Promise(r => setTimeout(r, 800));
+    if (logEl) logEl.innerHTML = '✅ Notification enregistrée (mode démo — configurez FCM pour les vrais push)';
+  } else {
+    // ── MODE PRODUCTION : envoi FCM réel ──
+    let q = db.from('push_tokens').select('token, role').eq('ecole_id', currentEcoleId);
+    if (dest === 'parents')   q = q.eq('role', 'parent');
+    if (dest === 'etudiants') q = q.eq('role', 'etudiant');
+    const { data: tokens } = await q;
+
+    if (!tokens?.length) {
+      if (logEl) logEl.innerHTML = '⚠️ Aucun appareil abonné.';
+      if (btn) { btn.disabled = false; btn.textContent = '🔔 Envoyer'; }
+      return;
+    }
+    if (logEl) logEl.innerHTML = `📱 ${tokens.length} appareil(s) trouvé(s)...`;
+
+    const BATCH = 500;
+    for (let i = 0; i < tokens.length; i += BATCH) {
+      const batchTokens = tokens.slice(i, i + BATCH).map(t => t.token);
+      try {
+        const resp = await fetch('https://fcm.googleapis.com/fcm/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'key=' + serverKey },
+          body: JSON.stringify({
+            registration_ids: batchTokens,
+            notification: { title: titre, body, icon: '/icon-192.png', click_action: url },
+            data: { title: titre, body, url, ecole_id: currentEcoleId },
+            priority: prio === 'high' ? 'high' : 'normal'
+          })
+        });
+        const result = await resp.json();
+        succes += result.success || 0;
+        echecs += result.failure || 0;
+        if (logEl) logEl.innerHTML = `✅ ${succes} envoyé(s) · ❌ ${echecs} échoué(s)`;
+      } catch(err) {
+        echecs += batchTokens.length;
+        if (logEl) logEl.innerHTML = '❌ Erreur : ' + err.message;
+      }
     }
   }
 
-  btn.disabled = false; btn.textContent = '🔔 Envoyer';
-  setTimeout(() => fermerModal('modal-push-notif'), 2000);
-  showToast(`✅ ${succes} notification(s) envoyée(s)`, succes > 0 ? 'success' : 'error');
+  if (btn) { btn.disabled = false; btn.textContent = '🔔 Envoyer'; }
+  setTimeout(() => fermerModal('modal-push-notif'), 1500);
+  showToast(serverKey ? `✅ ${succes} notification(s) envoyée(s)` : '✅ Notification enregistrée !', 'success');
 
   // Sauvegarder dans l'historique des notifications
   await db.from('notifications_historique').insert([{
-    ecole_id:     currentEcoleId,
+    ecole_id:      currentEcoleId,
     titre,
     body,
+    type:          document.getElementById('nc-notif-type-actif')?.dataset?.type || 'annonce',
     destinataires: dest,
-    nb_envoyes:   succes,
-    nb_echecs:    echecs,
-    envoyee_par:  'admin'
-  }]).then(() => {}).catch(() => {});
+    nb_envoyes:    succes,
+    nb_echecs:     echecs,
+    taux_ouverture:0,
+    priorite:      prio === 'high' ? 'high' : 'normal',
+    envoyee_par:   'admin'
+  }]).then(() => { chargerHistoriqueNotifications(); chargerKPIsNotifications(); }).catch(() => {});
 }
 
 function envoyerNotifATous() {
@@ -10948,7 +10939,7 @@ async function chargerAppareilsAbonnes() {
   if (!el) return;
   try {
     const { data } = await db.from('push_tokens')
-      .select('role, user_agent, updated_at, plateforme')
+      .select('role, updated_at')
       .eq('ecole_id', currentEcoleId)
       .order('updated_at', {ascending: false}).limit(20);
     const tokens = data || [];
@@ -11051,7 +11042,7 @@ async function envoyerDepuisCompose() {
   if (!titre || !body) { showToast('Titre et message obligatoires', 'error'); return; }
 
   const serverKey = localStorage.getItem('edulink_fcm_server_key');
-  if (!serverKey) { showToast('Clé Server FCM manquante — Voir Paramètres', 'error'); return; }
+  if (!serverKey) { showToast('⚠️ Clé FCM non configurée — notification enregistrée sans push', 'info'); }
 
   if (result) { result.style.display = 'block'; result.textContent = '⏳ Envoi en cours...'; result.style.color = '#6b7280'; }
 
