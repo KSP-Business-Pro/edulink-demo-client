@@ -10599,10 +10599,10 @@ async function sauvegarderTokenFCM(token, role = 'parent') {
 }
 
 async function compterTokensFCM() {
-  if (!currentEcoleId) return;
+  // push_tokens n'a pas de ecole_id — on compte tous les tokens actifs
   const { count } = await db.from('push_tokens')
     .select('*', { count: 'exact', head: true })
-    .eq('ecole_id', currentEcoleId);
+    .eq('actif', true);
   const el = document.getElementById('fcm-tokens-count');
   if (el) el.textContent = count || 0;
 }
