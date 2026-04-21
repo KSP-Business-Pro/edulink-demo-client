@@ -2196,13 +2196,24 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top"><h2>Étudiants</h2>
     <div class="top-actions">
       <button class="btn-secondary" onclick="ouvrirModal('modal-import-csv')" title="Importer via fichier CSV">📥 Import Excel / CSV</button>
+      <button class="btn-secondary" style="background:#fee2e2;color:#dc2626;border-color:#fca5a5" onclick="viderListeEtudiants()" title="Supprimer tous les étudiants">🗑️ Vider la liste</button>
       <button onclick="ouvrirModal('modal-etudiant')">+ Ajouter étudiant</button>
     </div>
   </div>
-  <div class="search-bar"><input type="text" id="search-etudiants" placeholder="Rechercher par nom, prénom, matricule..." oninput="filtrerEtudiants()"></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:.75rem;flex-wrap:wrap">
+    <div class="search-bar" style="flex:1;min-width:200px;margin:0"><input type="text" id="search-etudiants" placeholder="Rechercher par nom, prénom, matricule..." oninput="filtrerEtudiants()"></div>
+    <div id="bulk-actions" style="display:none;align-items:center;gap:8px">
+      <span id="bulk-count" style="font-size:12px;color:#6b7280;font-weight:600"></span>
+      <button class="btn-sm" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:7px;padding:5px 12px;cursor:pointer;font-family:'Poppins',sans-serif;font-size:12px;font-weight:600" onclick="supprimerSelectionEtudiants()">🗑️ Supprimer la sélection</button>
+      <button class="btn-sm btn-secondary" onclick="deselectionnerTous()" style="font-size:12px">✕ Annuler</button>
+    </div>
+  </div>
   <table>
-    <tr><th>Matricule</th><th>Nom complet</th><th>Filière</th><th>Niveau</th><th>Statut</th><th>Actions</th></tr>
-    <tbody id="tbody-etudiants"><tr><td colspan="6" class="loading">Chargement...</td></tr></tbody>
+    <tr>
+      <th style="width:30px"><input type="checkbox" id="check-all-etu" onchange="toggleSelectAll(this)" style="cursor:pointer"></th>
+      <th>Matricule</th><th>Nom complet</th><th>Filière</th><th>Niveau</th><th>Statut</th><th>Actions</th>
+    </tr>
+    <tbody id="tbody-etudiants"><tr><td colspan="7" class="loading">Chargement...</td></tr></tbody>
   </table>
 </div>
 
@@ -6443,7 +6454,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="fermerModal('modal-etudiant')">Annuler</button>
+      <button class="btn-secondary" onclick="fermerModal('modal-etudiant'); delete document.getElementById('modal-etudiant').dataset.editId; const _t=document.querySelector('#modal-etudiant h3'); if(_t)_t.textContent='👤 Ajouter un étudiant';">Annuler</button>
       <button onclick="ajouterEtudiant()">Enregistrer</button>
     </div>
   </div>
@@ -7765,9 +7776,128 @@ async function chargerEtudiants() {
 }
 function afficherEtudiants(liste) {
   const t = document.getElementById('tbody-etudiants');
-  t.innerHTML = liste?.length
-    ? liste.map(e => `<tr><td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${e.matricule}</code></td><td><strong>${e.nom} ${e.prenom}</strong></td><td>${e.filiere}</td><td><span class="badge gray">${e.niveau}</span></td><td><span class="badge ${e.statut==='actif'?'green':'amber'}">${e.statut}</span></td><td><button class="btn-sm btn-blue" onclick="voirEtudiant('${e.id}')">Voir</button></td></tr>`).join('')
-    : '<tr><td colspan="6" class="loading">Aucun étudiant.</td></tr>';
+  if (!liste?.length) {
+    t.innerHTML = '<tr><td colspan="7" class="loading">Aucun étudiant.</td></tr>';
+    return;
+  }
+  t.innerHTML = liste.map(e => `
+    <tr id="row-etu-${e.id}">
+      <td style="text-align:center"><input type="checkbox" class="etu-check" value="${e.id}" onchange="majBulkActions()" style="cursor:pointer"></td>
+      <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${e.matricule}</code></td>
+      <td><strong>${e.nom} ${e.prenom}</strong></td>
+      <td>${e.filiere||'—'}</td>
+      <td><span class="badge gray">${e.niveau||'—'}</span></td>
+      <td><span class="badge ${e.statut==='actif'?'green':'amber'}">${e.statut||'actif'}</span></td>
+      <td style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn-sm btn-blue"       onclick="voirEtudiant('${e.id}')">👁 Voir</button>
+        <button class="btn-sm btn-secondary"  onclick="modifierEtudiant('${e.id}')">✏️ Modifier</button>
+        <button class="btn-sm btn-red"        onclick="supprimerEtudiant('${e.id}','${e.nom} ${e.prenom}')">🗑</button>
+      </td>
+    </tr>`).join('');
+}
+
+// ── Sélection multiple ─────────────────────────────────────
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.etu-check').forEach(c => c.checked = cb.checked);
+  majBulkActions();
+}
+function majBulkActions() {
+  const checked = document.querySelectorAll('.etu-check:checked');
+  const bar = document.getElementById('bulk-actions');
+  const allCb = document.getElementById('check-all-etu');
+  const all = document.querySelectorAll('.etu-check');
+  bar.style.display = checked.length ? 'flex' : 'none';
+  document.getElementById('bulk-count').textContent = `${checked.length} sélectionné(s)`;
+  allCb.indeterminate = checked.length > 0 && checked.length < all.length;
+  allCb.checked = checked.length === all.length && all.length > 0;
+}
+function deselectionnerTous() {
+  document.querySelectorAll('.etu-check').forEach(c => c.checked = false);
+  document.getElementById('check-all-etu').checked = false;
+  majBulkActions();
+}
+
+// ── Supprimer un étudiant ──────────────────────────────────
+async function supprimerEtudiant(id, nom) {
+  if (!confirm(`Supprimer définitivement ${nom} ?\nSes notes, absences et factures seront également supprimées.`)) return;
+  // Supprimer dans l'ordre FK
+  await Promise.all([
+    db.from('notes').delete().eq('etudiant_id', id),
+    db.from('absences').delete().eq('etudiant_id', id),
+    db.from('incidents').delete().eq('etudiant_id', id),
+    db.from('emprunts').delete().eq('etudiant_id', id),
+  ]);
+  await db.from('factures').delete().eq('etudiant_id', id);
+  await db.from('paiements').delete().eq('etudiant_id', id);
+  const { error } = await db.from('etudiants').delete().eq('id', id);
+  if (error) { showToast('Erreur : '+error.message, 'error'); return; }
+  showToast(`✅ ${nom} supprimé(e).`, 'success');
+  chargerEtudiants(); chargerDashboard(); chargerClasses();
+}
+
+// ── Supprimer la sélection ────────────────────────────────
+async function supprimerSelectionEtudiants() {
+  const ids = [...document.querySelectorAll('.etu-check:checked')].map(c => c.value);
+  if (!ids.length) return;
+  if (!confirm(`Supprimer définitivement ${ids.length} étudiant(s) ?\nLeurs données associées seront également supprimées.`)) return;
+  showToast('Suppression en cours...','info');
+  for (const id of ids) {
+    await Promise.all([
+      db.from('notes').delete().eq('etudiant_id', id),
+      db.from('absences').delete().eq('etudiant_id', id),
+      db.from('incidents').delete().eq('etudiant_id', id),
+      db.from('emprunts').delete().eq('etudiant_id', id),
+    ]);
+    await db.from('factures').delete().eq('etudiant_id', id);
+    await db.from('paiements').delete().eq('etudiant_id', id);
+    await db.from('etudiants').delete().eq('id', id);
+  }
+  showToast(`✅ ${ids.length} étudiant(s) supprimé(s).`, 'success');
+  deselectionnerTous();
+  chargerEtudiants(); chargerDashboard(); chargerClasses();
+}
+
+// ── Vider toute la liste ───────────────────────────────────
+async function viderListeEtudiants() {
+  const nb = tousLesEtudiants.length;
+  if (!nb) { showToast('Aucun étudiant à supprimer.', 'info'); return; }
+  if (!confirm(`⚠️ Supprimer TOUS les ${nb} étudiants de cet établissement ?\nCette action est irréversible.`)) return;
+  if (!confirm('Dernière confirmation : toutes les notes, absences, factures liées seront aussi supprimées. Continuer ?')) return;
+  showToast('Suppression en cours...', 'info');
+  if (currentEcoleId) {
+    await Promise.all([
+      db.from('notes').delete().eq('ecole_id', currentEcoleId),
+      db.from('absences').delete().eq('ecole_id', currentEcoleId),
+      db.from('incidents').delete().eq('ecole_id', currentEcoleId),
+      db.from('emprunts').delete().eq('ecole_id', currentEcoleId),
+    ]);
+    await db.from('factures').delete().eq('ecole_id', currentEcoleId);
+    await db.from('paiements').delete().eq('ecole_id', currentEcoleId);
+    await db.from('etudiants').delete().eq('ecole_id', currentEcoleId);
+  }
+  showToast(`✅ ${nb} étudiant(s) supprimé(s).`, 'success');
+  chargerEtudiants(); chargerDashboard(); chargerClasses();
+}
+
+// ── Modifier un étudiant ──────────────────────────────────
+async function modifierEtudiant(id) {
+  const e = tousLesEtudiants.find(x => x.id === id);
+  if (!e) return;
+  // Pré-remplir le modal d'ajout en mode édition
+  document.getElementById('input-nom').value           = e.nom || '';
+  document.getElementById('input-prenom').value        = e.prenom || '';
+  document.getElementById('input-matricule').value     = e.matricule || '';
+  document.getElementById('input-sexe').value          = e.sexe || 'M';
+  document.getElementById('input-filiere').value       = e.filiere || '';
+  document.getElementById('input-niveau').value        = e.niveau || '';
+  document.getElementById('input-parent-email').value  = e.email_parent || '';
+  document.getElementById('input-parent-tel').value    = e.telephone_parent || '';
+  // Stocker l'ID pour la sauvegarde
+  document.getElementById('modal-etudiant').dataset.editId = id;
+  // Changer le titre du modal
+  const titre = document.querySelector('#modal-etudiant h3');
+  if (titre) titre.textContent = '✏️ Modifier l\'étudiant(e)';
+  ouvrirModal('modal-etudiant');
 }
 function filtrerEtudiants() {
   const q = document.getElementById('search-etudiants').value.toLowerCase();
@@ -7844,18 +7974,37 @@ async function ajouterEtudiant() {
   if (!nom||!prenom||!matricule) { showToast('Remplissez les champs obligatoires', 'error'); return; }
   const filiere = document.getElementById('input-filiere').value;
   const niveau  = document.getElementById('input-niveau').value;
-  const classe_id = await trouverClasseAuto(filiere, niveau);
-  const payload = { ecole_id:currentEcoleId, nom, prenom, matricule, sexe:document.getElementById('input-sexe').value, filiere, niveau, statut:'actif', classe_id };
   const parentEmail = document.getElementById('input-parent-email').value.trim();
   const parentTel   = document.getElementById('input-parent-tel').value.trim();
-  if (parentEmail) payload.email_parent = parentEmail;
-  if (parentTel)   payload.telephone_parent = parentTel;
-  const { error } = await db.from('etudiants').insert([payload]);
-  if (error) { showToast('Erreur : '+(error.message.includes('unique')?'Matricule déjà utilisé.':error.message),'error'); return; }
-  fermerModal('modal-etudiant');
-  ['input-nom','input-prenom','input-matricule','input-email','input-parent-email','input-parent-tel'].forEach(id=>document.getElementById(id).value='');
-  showToast(classe_id ? '✅ Étudiant ajouté et affecté automatiquement !' : '✅ Étudiant ajouté (aucune classe correspondante)', 'success');
-  chargerEtudiants(); chargerDashboard();
+  const editId = document.getElementById('modal-etudiant').dataset.editId;
+
+  if (editId) {
+    // ── MODE ÉDITION ──
+    const payload = { nom, prenom, matricule, sexe:document.getElementById('input-sexe').value, filiere, niveau };
+    if (parentEmail) payload.email_parent = parentEmail;
+    if (parentTel)   payload.telephone_parent = parentTel;
+    const { error } = await db.from('etudiants').update(payload).eq('id', editId);
+    if (error) { showToast('Erreur : '+error.message, 'error'); return; }
+    delete document.getElementById('modal-etudiant').dataset.editId;
+    const titre = document.querySelector('#modal-etudiant h3');
+    if (titre) titre.textContent = '👤 Ajouter un étudiant';
+    fermerModal('modal-etudiant');
+    ['input-nom','input-prenom','input-matricule','input-parent-email','input-parent-tel'].forEach(id=>document.getElementById(id).value='');
+    showToast('✅ Étudiant modifié !', 'success');
+    chargerEtudiants(); chargerDashboard();
+  } else {
+    // ── MODE CRÉATION ──
+    const classe_id = await trouverClasseAuto(filiere, niveau);
+    const payload = { ecole_id:currentEcoleId, nom, prenom, matricule, sexe:document.getElementById('input-sexe').value, filiere, niveau, statut:'actif', classe_id };
+    if (parentEmail) payload.email_parent = parentEmail;
+    if (parentTel)   payload.telephone_parent = parentTel;
+    const { error } = await db.from('etudiants').insert([payload]);
+    if (error) { showToast('Erreur : '+(error.message.includes('unique')?'Matricule déjà utilisé.':error.message),'error'); return; }
+    fermerModal('modal-etudiant');
+    ['input-nom','input-prenom','input-matricule','input-parent-email','input-parent-tel'].forEach(id=>document.getElementById(id).value='');
+    showToast(classe_id ? '✅ Étudiant ajouté et affecté automatiquement !' : '✅ Étudiant ajouté (aucune classe correspondante)', 'success');
+    chargerEtudiants(); chargerDashboard();
+  }
 }
 
 // ══ ABSENCES ══════════════════════════════════
