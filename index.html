@@ -5328,12 +5328,14 @@ button:hover { background:#a86615; transform:translateY(-1px); }
           <div>
             <label style="font-size:11px;opacity:.8;display:block;margin-bottom:4px">Type d'établissement</label>
             <select id="demo-type-ecole" style="width:100%;padding:8px;border-radius:7px;border:none;font-size:12.5px;font-family:'Poppins',sans-serif;outline:none">
-              <option value="lycée">Lycée</option>
-              <option value="collège">Collège</option>
-              <option value="université">Université</option>
-              <option value="école_primaire">École primaire</option>
-              <option value="institut">Institut</option>
-              <option value="centre_formation">Centre de formation</option>
+              <option value="maternelle">🧒 École Maternelle</option>
+              <option value="école_primaire">📚 École Primaire</option>
+              <option value="collège">🏫 Collège</option>
+              <option value="lycée">🎓 Lycée</option>
+              <option value="université_privée">🏛️ Université Privée</option>
+              <option value="université_publique">🎓 Université Publique</option>
+              <option value="institut">🔬 Institut Spécialisé</option>
+              <option value="centre_formation">💼 Centre de Formation</option>
             </select>
           </div>
           <div>
@@ -5343,9 +5345,12 @@ button:hover { background:#a86615; transform:translateY(-1px); }
           <div>
             <label style="font-size:11px;opacity:.8;display:block;margin-bottom:4px">Jeu de données</label>
             <select id="demo-dataset" style="width:100%;padding:8px;border-radius:7px;border:none;font-size:12.5px;font-family:'Poppins',sans-serif;outline:none">
-              <option value="lycee">Lycée (Terminale, Première)</option>
-              <option value="college">Collège (3ème, 4ème, 5ème)</option>
-              <option value="universite">Université (L1, L2, L3)</option>
+              <option value="maternelle">🧒 Maternelle (PS, MS, GS)</option>
+              <option value="primaire">📚 Primaire (CI → CM2)</option>
+              <option value="college">🏫 Collège (6ème → 3ème)</option>
+              <option value="lycee">🎓 Lycée (Seconde → Terminale A/C/D)</option>
+              <option value="universite_privee">🏛️ Université privée (L1→M2, LMD)</option>
+              <option value="universite_publique">🎓 Université publique (UAC, LMD + Facultés)</option>
             </select>
           </div>
         </div>
@@ -17404,85 +17409,196 @@ function initDemoZone() {
 
 // Datasets de données démo par type d'établissement
 const DEMO_DATASETS = {
-  lycee: {
+
+  // ── 1. ÉCOLE MATERNELLE ──────────────────────────────────
+  maternelle: {
     classes: [
-      { nom: 'Terminale A', filiere: 'Littéraire', niveau: 'Tle', effectif_max: 45, salle: 'A1' },
-      { nom: 'Terminale D', filiere: 'Scientifique', niveau: 'Tle', effectif_max: 40, salle: 'A2' },
-      { nom: 'Première C',  filiere: 'Scientifique', niveau: '1ère', effectif_max: 42, salle: 'B1' },
+      { nom:'Petite Section',  filiere:'Maternelle', niveau:'PS', effectif_max:25, salle:'Salle 1' },
+      { nom:'Moyenne Section', filiere:'Maternelle', niveau:'MS', effectif_max:25, salle:'Salle 2' },
+      { nom:'Grande Section',  filiere:'Maternelle', niveau:'GS', effectif_max:25, salle:'Salle 3' },
     ],
     etudiants: [
-      { nom:'ADANLE',    prenom:'Kofi',     matricule:'2026-L01', sexe:'M', filiere:'Scientifique', niveau:'Tle'  },
-      { nom:'AGBOVI',    prenom:'Akosua',   matricule:'2026-L02', sexe:'F', filiere:'Littéraire',   niveau:'Tle'  },
-      { nom:'DOSSOU',    prenom:'Mireille', matricule:'2026-L03', sexe:'F', filiere:'Scientifique', niveau:'Tle'  },
-      { nom:'GBEDJI',    prenom:'Romuald',  matricule:'2026-L04', sexe:'M', filiere:'Scientifique', niveau:'1ère' },
-      { nom:'HOUNSINOU', prenom:'Fatima',   matricule:'2026-L05', sexe:'F', filiere:'Littéraire',   niveau:'Tle'  },
-      { nom:'KPOSSOU',   prenom:'Éric',     matricule:'2026-L06', sexe:'M', filiere:'Scientifique', niveau:'Tle'  },
-      { nom:'LOKO',      prenom:'Nadège',   matricule:'2026-L07', sexe:'F', filiere:'Scientifique', niveau:'1ère' },
-      { nom:'MISSINHOUN',prenom:'Pascal',   matricule:'2026-L08', sexe:'M', filiere:'Littéraire',   niveau:'Tle'  },
-      { nom:'SALIFOU',   prenom:'Aïcha',    matricule:'2026-L09', sexe:'F', filiere:'Scientifique', niveau:'Tle'  },
-      { nom:'TOVIHO',    prenom:'Blaise',   matricule:'2026-L10', sexe:'M', filiere:'Scientifique', niveau:'1ère' },
+      { nom:'AHOHO',    prenom:'Léa',      matricule:'2026-M01', sexe:'F', filiere:'Maternelle', niveau:'PS' },
+      { nom:'BOCO',     prenom:'Théo',     matricule:'2026-M02', sexe:'M', filiere:'Maternelle', niveau:'PS' },
+      { nom:'CHEDE',    prenom:'Emma',     matricule:'2026-M03', sexe:'F', filiere:'Maternelle', niveau:'MS' },
+      { nom:'DAKO',     prenom:'Noah',     matricule:'2026-M04', sexe:'M', filiere:'Maternelle', niveau:'MS' },
+      { nom:'EGAN',     prenom:'Sofia',    matricule:'2026-M05', sexe:'F', filiere:'Maternelle', niveau:'GS' },
+      { nom:'FATON',    prenom:'Lucas',    matricule:'2026-M06', sexe:'M', filiere:'Maternelle', niveau:'GS' },
+      { nom:'GABA',     prenom:'Amina',    matricule:'2026-M07', sexe:'F', filiere:'Maternelle', niveau:'GS' },
+      { nom:'HONVO',    prenom:'Mathis',   matricule:'2026-M08', sexe:'M', filiere:'Maternelle', niveau:'MS' },
     ],
     enseignants: [
-      { nom:'AKAKPO',  prenom:'Séverin',  email:'akakpo@lycee.bj',  specialite:'Mathématiques', grade:'Certifié', heures_semaine:18 },
-      { nom:'BIAOU',   prenom:'Estelle',  email:'biaou@lycee.bj',   specialite:'Français',      grade:'Certifié', heures_semaine:16 },
-      { nom:'DAGAN',   prenom:'Thierry',  email:'dagan@lycee.bj',   specialite:'SVT',           grade:'Agrégé',   heures_semaine:14 },
-      { nom:'FANDI',   prenom:'Rosine',   email:'fandi@lycee.bj',   specialite:'Anglais',       grade:'Certifié', heures_semaine:15 },
+      { nom:'AZONHO',  prenom:'Céleste',  email:'azonho@maternelle.bj',  specialite:'Éveil',            grade:'Instituteur', heures_semaine:25 },
+      { nom:'BADOU',   prenom:'Joëlle',   email:'badou@maternelle.bj',   specialite:'Psychomotricité',  grade:'Instituteur', heures_semaine:24 },
+      { nom:'CODJA',   prenom:'Martine',  email:'codja@maternelle.bj',   specialite:'Préparation CP',   grade:'Instituteur', heures_semaine:24 },
     ],
-    matieres_notes: ['Mathématiques','Physique-Chimie','SVT','Français','Anglais','Histoire-Géo','Philosophie'],
+    matieres_notes: ['Éveil','Langage','Graphisme','Numération','Musique','EPS'],
   },
-  college: {
+
+  // ── 2. ÉCOLE PRIMAIRE ────────────────────────────────────
+  primaire: {
     classes: [
-      { nom: '3ème A', filiere: 'Général', niveau: '3ème', effectif_max: 50, salle: 'C1' },
-      { nom: '4ème B', filiere: 'Général', niveau: '4ème', effectif_max: 48, salle: 'C2' },
-      { nom: '5ème A', filiere: 'Général', niveau: '5ème', effectif_max: 50, salle: 'C3' },
+      { nom:'CI A',  filiere:'Primaire', niveau:'CI',  effectif_max:40, salle:'P1' },
+      { nom:'CP A',  filiere:'Primaire', niveau:'CP',  effectif_max:40, salle:'P2' },
+      { nom:'CE1 A', filiere:'Primaire', niveau:'CE1', effectif_max:42, salle:'P3' },
+      { nom:'CE2 A', filiere:'Primaire', niveau:'CE2', effectif_max:42, salle:'P4' },
+      { nom:'CM1 A', filiere:'Primaire', niveau:'CM1', effectif_max:45, salle:'P5' },
+      { nom:'CM2 A', filiere:'Primaire', niveau:'CM2', effectif_max:45, salle:'P6' },
     ],
     etudiants: [
-      { nom:'ADOMOU',   prenom:'Clarisse', matricule:'2026-C01', sexe:'F', filiere:'Général', niveau:'3ème' },
-      { nom:'BOSSOU',   prenom:'Landry',   matricule:'2026-C02', sexe:'M', filiere:'Général', niveau:'3ème' },
-      { nom:'CHABI',    prenom:'Mariam',   matricule:'2026-C03', sexe:'F', filiere:'Général', niveau:'4ème' },
+      { nom:'ADANDE',   prenom:'Joël',     matricule:'2026-P01', sexe:'M', filiere:'Primaire', niveau:'CI'  },
+      { nom:'BELLO',    prenom:'Grace',    matricule:'2026-P02', sexe:'F', filiere:'Primaire', niveau:'CP'  },
+      { nom:'CAPO',     prenom:'Patrick',  matricule:'2026-P03', sexe:'M', filiere:'Primaire', niveau:'CE1' },
+      { nom:'DOSSOU',   prenom:'Inès',     matricule:'2026-P04', sexe:'F', filiere:'Primaire', niveau:'CE2' },
+      { nom:'EDAH',     prenom:'Franck',   matricule:'2026-P05', sexe:'M', filiere:'Primaire', niveau:'CM1' },
+      { nom:'FANDOU',   prenom:'Estelle',  matricule:'2026-P06', sexe:'F', filiere:'Primaire', niveau:'CM2' },
+      { nom:'GBADO',    prenom:'Armel',    matricule:'2026-P07', sexe:'M', filiere:'Primaire', niveau:'CE1' },
+      { nom:'HOUNSA',   prenom:'Nadège',   matricule:'2026-P08', sexe:'F', filiere:'Primaire', niveau:'CM1' },
+      { nom:'INOSSA',   prenom:'Cédric',   matricule:'2026-P09', sexe:'M', filiere:'Primaire', niveau:'CM2' },
+      { nom:'JOHNSON',  prenom:'Mariette', matricule:'2026-P10', sexe:'F', filiere:'Primaire', niveau:'CP'  },
+    ],
+    enseignants: [
+      { nom:'AGOSSA',   prenom:'Bernard',  email:'agossa@primaire.bj',   specialite:'CI/CP',      grade:'Instituteur',     heures_semaine:27 },
+      { nom:'BIAOU',    prenom:'Henriette',email:'biaou@primaire.bj',    specialite:'CE1/CE2',    grade:'Instituteur',     heures_semaine:27 },
+      { nom:'CODJIA',   prenom:'Rodrigue', email:'codjia@primaire.bj',   specialite:'CM1/CM2',    grade:'Inst. Principal', heures_semaine:27 },
+      { nom:'DEGAN',    prenom:'Sylvie',   email:'degan@primaire.bj',    specialite:'Anglais',    grade:'Instituteur',     heures_semaine:15 },
+    ],
+    matieres_notes: ['Français','Mathématiques','Éducation Civique','Sciences','Anglais','Histoire-Géo','EPS'],
+  },
+
+  // ── 3. COLLÈGE ───────────────────────────────────────────
+  college: {
+    classes: [
+      { nom:'6ème A', filiere:'Général', niveau:'6ème', effectif_max:50, salle:'C1' },
+      { nom:'5ème A', filiere:'Général', niveau:'5ème', effectif_max:48, salle:'C2' },
+      { nom:'4ème A', filiere:'Général', niveau:'4ème', effectif_max:48, salle:'C3' },
+      { nom:'3ème A', filiere:'Général', niveau:'3ème', effectif_max:45, salle:'C4' },
+    ],
+    etudiants: [
+      { nom:'ADOMOU',   prenom:'Clarisse', matricule:'2026-C01', sexe:'F', filiere:'Général', niveau:'6ème' },
+      { nom:'BOSSOU',   prenom:'Landry',   matricule:'2026-C02', sexe:'M', filiere:'Général', niveau:'6ème' },
+      { nom:'CHABI',    prenom:'Mariam',   matricule:'2026-C03', sexe:'F', filiere:'Général', niveau:'5ème' },
       { nom:'DANSI',    prenom:'Joël',     matricule:'2026-C04', sexe:'M', filiere:'Général', niveau:'4ème' },
       { nom:'EDOU',     prenom:'Tatiana',  matricule:'2026-C05', sexe:'F', filiere:'Général', niveau:'5ème' },
       { nom:'FADONOU',  prenom:'Gildas',   matricule:'2026-C06', sexe:'M', filiere:'Général', niveau:'3ème' },
-      { nom:'GBETO',    prenom:'Inès',     matricule:'2026-C07', sexe:'F', filiere:'Général', niveau:'5ème' },
-      { nom:'HOUNKPE',  prenom:'Axel',     matricule:'2026-C08', sexe:'M', filiere:'Général', niveau:'4ème' },
+      { nom:'GBETO',    prenom:'Inès',     matricule:'2026-C07', sexe:'F', filiere:'Général', niveau:'4ème' },
+      { nom:'HOUNKPE',  prenom:'Axel',     matricule:'2026-C08', sexe:'M', filiere:'Général', niveau:'3ème' },
+      { nom:'IFEOLUWA', prenom:'Rachida',  matricule:'2026-C09', sexe:'F', filiere:'Général', niveau:'6ème' },
+      { nom:'JOHNSON',  prenom:'Blaise',   matricule:'2026-C10', sexe:'M', filiere:'Général', niveau:'4ème' },
     ],
     enseignants: [
-      { nom:'AZONHO',  prenom:'Gilbert',  email:'azonho@college.bj',  specialite:'Mathématiques', grade:'Certifié', heures_semaine:20 },
-      { nom:'DEGLA',   prenom:'Sabine',   email:'degla@college.bj',   specialite:'Français',      grade:'Certifié', heures_semaine:18 },
+      { nom:'AZONHO',  prenom:'Gilbert',  email:'azonho@college.bj',  specialite:'Mathématiques', grade:'Certifié',  heures_semaine:20 },
+      { nom:'DEGLA',   prenom:'Sabine',   email:'degla@college.bj',   specialite:'Français',      grade:'Certifié',  heures_semaine:18 },
       { nom:'HOUNNOU', prenom:'Médard',   email:'hounnou@college.bj', specialite:'Sciences',      grade:'Assistant', heures_semaine:16 },
+      { nom:'IBAOU',   prenom:'Rosine',   email:'ibaou@college.bj',   specialite:'Anglais',       grade:'Certifié',  heures_semaine:15 },
+      { nom:'KODE',    prenom:'Désiré',   email:'kode@college.bj',    specialite:'Histoire-Géo',  grade:'Certifié',  heures_semaine:14 },
     ],
-    matieres_notes: ['Mathématiques','Français','Sciences','Anglais','Histoire-Géo','EPS'],
+    matieres_notes: ['Mathématiques','Français','Sciences','Anglais','Histoire-Géo','EPS','Éducation Civique'],
   },
-  universite: {
+
+  // ── 4. LYCÉE ─────────────────────────────────────────────
+  lycee: {
     classes: [
-      { nom: 'Informatique L1', filiere: 'Informatique', niveau: 'L1', effectif_max: 60, salle: 'Amphi A' },
-      { nom: 'Informatique L2', filiere: 'Informatique', niveau: 'L2', effectif_max: 45, salle: 'Salle 10' },
-      { nom: 'Gestion L1',      filiere: 'Gestion',      niveau: 'L1', effectif_max: 55, salle: 'Amphi B' },
-      { nom: 'Gestion L3',      filiere: 'Gestion',      niveau: 'L3', effectif_max: 35, salle: 'Salle 5'  },
+      { nom:'Seconde A',    filiere:'Littéraire',   niveau:'Seconde', effectif_max:45, salle:'A1' },
+      { nom:'Seconde C',    filiere:'Scientifique', niveau:'Seconde', effectif_max:42, salle:'A2' },
+      { nom:'Première A',   filiere:'Littéraire',   niveau:'1ère',    effectif_max:40, salle:'B1' },
+      { nom:'Première C',   filiere:'Scientifique', niveau:'1ère',    effectif_max:40, salle:'B2' },
+      { nom:'Terminale A',  filiere:'Littéraire',   niveau:'Tle',     effectif_max:45, salle:'C1' },
+      { nom:'Terminale D',  filiere:'Scientifique', niveau:'Tle',     effectif_max:40, salle:'C2' },
     ],
     etudiants: [
-      { nom:'AHOUANDJINOU',prenom:'Cyrille',  matricule:'2026-U01', sexe:'M', filiere:'Informatique', niveau:'L1' },
-      { nom:'BELLO',        prenom:'Rachida',  matricule:'2026-U02', sexe:'F', filiere:'Informatique', niveau:'L2' },
-      { nom:'CODJO',        prenom:'Stéphane', matricule:'2026-U03', sexe:'M', filiere:'Gestion',      niveau:'L1' },
-      { nom:'DEGUENON',     prenom:'Laure',    matricule:'2026-U04', sexe:'F', filiere:'Gestion',      niveau:'L3' },
-      { nom:'ELEGBE',       prenom:'Franck',   matricule:'2026-U05', sexe:'M', filiere:'Informatique', niveau:'L1' },
-      { nom:'GANDAHO',      prenom:'Nadia',    matricule:'2026-U06', sexe:'F', filiere:'Informatique', niveau:'L2' },
-      { nom:'HINSON',       prenom:'Boris',    matricule:'2026-U07', sexe:'M', filiere:'Gestion',      niveau:'L1' },
-      { nom:'IMOROU',       prenom:'Yasmine',  matricule:'2026-U08', sexe:'F', filiere:'Gestion',      niveau:'L3' },
-      { nom:'KAKPO',        prenom:'Armel',    matricule:'2026-U09', sexe:'M', filiere:'Informatique', niveau:'L1' },
-      { nom:'LAGNIDE',      prenom:'Sandra',   matricule:'2026-U10', sexe:'F', filiere:'Gestion',      niveau:'L1' },
-      { nom:'MEDEHOU',      prenom:'Didier',   matricule:'2026-U11', sexe:'M', filiere:'Informatique', niveau:'L2' },
-      { nom:'NOUNAGNON',    prenom:'Claire',   matricule:'2026-U12', sexe:'F', filiere:'Gestion',      niveau:'L3' },
+      { nom:'ADANLE',    prenom:'Kofi',     matricule:'2026-L01', sexe:'M', filiere:'Scientifique', niveau:'Seconde' },
+      { nom:'AGBOVI',    prenom:'Akosua',   matricule:'2026-L02', sexe:'F', filiere:'Littéraire',   niveau:'Seconde' },
+      { nom:'DOSSOU',    prenom:'Mireille', matricule:'2026-L03', sexe:'F', filiere:'Scientifique', niveau:'1ère'   },
+      { nom:'GBEDJI',    prenom:'Romuald',  matricule:'2026-L04', sexe:'M', filiere:'Littéraire',   niveau:'1ère'   },
+      { nom:'HOUNSINOU', prenom:'Fatima',   matricule:'2026-L05', sexe:'F', filiere:'Scientifique', niveau:'Tle'    },
+      { nom:'KPOSSOU',   prenom:'Éric',     matricule:'2026-L06', sexe:'M', filiere:'Scientifique', niveau:'Tle'    },
+      { nom:'LOKO',      prenom:'Nadège',   matricule:'2026-L07', sexe:'F', filiere:'Littéraire',   niveau:'Tle'    },
+      { nom:'MISSINHOUN',prenom:'Pascal',   matricule:'2026-L08', sexe:'M', filiere:'Scientifique', niveau:'Seconde'},
+      { nom:'SALIFOU',   prenom:'Aïcha',    matricule:'2026-L09', sexe:'F', filiere:'Littéraire',   niveau:'1ère'   },
+      { nom:'TOVIHO',    prenom:'Blaise',   matricule:'2026-L10', sexe:'M', filiere:'Scientifique', niveau:'Tle'    },
     ],
     enseignants: [
-      { nom:'AMOUSSOU', prenom:'Rodrigue', email:'amoussou@univ.bj', specialite:'Algorithmique',    grade:'Maître assistant', heures_semaine:12 },
-      { nom:'BEHANZIN',  prenom:'Mélanie',  email:'behanzin@univ.bj',  specialite:'Comptabilité',    grade:'Chargé de cours',  heures_semaine:10 },
-      { nom:'COMLAN',    prenom:'Félix',    email:'comlan@univ.bj',    specialite:'Bases de données', grade:'Professeur',       heures_semaine:8  },
-      { nom:'DOSSOU',    prenom:'Hortense', email:'dossou@univ.bj',    specialite:'Marketing',        grade:'Maître assistant', heures_semaine:10 },
-      { nom:'FIJABI',    prenom:'Nathan',   email:'fijabi@univ.bj',    specialite:'Réseaux',          grade:'Assistant',        heures_semaine:14 },
+      { nom:'AKAKPO',  prenom:'Séverin',  email:'akakpo@lycee.bj',  specialite:'Mathématiques',  grade:'Certifié', heures_semaine:18 },
+      { nom:'BIAOU',   prenom:'Estelle',  email:'biaou@lycee.bj',   specialite:'Français',       grade:'Certifié', heures_semaine:16 },
+      { nom:'DAGAN',   prenom:'Thierry',  email:'dagan@lycee.bj',   specialite:'SVT',             grade:'Agrégé',   heures_semaine:14 },
+      { nom:'FANDI',   prenom:'Rosine',   email:'fandi@lycee.bj',   specialite:'Philosophie',    grade:'Certifié', heures_semaine:15 },
+      { nom:'HOUETA',  prenom:'Achille',  email:'houeta@lycee.bj',  specialite:'Physique-Chimie', grade:'Agrégé',   heures_semaine:16 },
     ],
-    matieres_notes: ['Algorithmique','Base de données','Réseaux','Mathématiques','Anglais','Comptabilité','Marketing','Droit'],
-  }
+    matieres_notes: ['Mathématiques','Physique-Chimie','SVT','Français','Anglais','Histoire-Géo','Philosophie','EPS'],
+  },
+
+  // ── 5. UNIVERSITÉ PRIVÉE ─────────────────────────────────
+  universite_privee: {
+    classes: [
+      { nom:'Info L1',       filiere:'Informatique',  niveau:'L1', effectif_max:60, salle:'Amphi A' },
+      { nom:'Info L2',       filiere:'Informatique',  niveau:'L2', effectif_max:45, salle:'Salle 10' },
+      { nom:'Info L3',       filiere:'Informatique',  niveau:'L3', effectif_max:35, salle:'Salle 11' },
+      { nom:'Gestion L1',    filiere:'Gestion',       niveau:'L1', effectif_max:55, salle:'Amphi B' },
+      { nom:'Gestion L2',    filiere:'Gestion',       niveau:'L2', effectif_max:45, salle:'Salle 5' },
+      { nom:'Droit L1',      filiere:'Droit',         niveau:'L1', effectif_max:50, salle:'Amphi C' },
+      { nom:'Master Info M1',filiere:'Informatique',  niveau:'M1', effectif_max:25, salle:'Salle 15' },
+      { nom:'Master Gestion M2',filiere:'Gestion',    niveau:'M2', effectif_max:20, salle:'Salle 16' },
+    ],
+    etudiants: [
+      { nom:'AHOUANDJINOU',prenom:'Cyrille',   matricule:'2026-UP01', sexe:'M', filiere:'Informatique', niveau:'L1' },
+      { nom:'BELLO',       prenom:'Rachida',   matricule:'2026-UP02', sexe:'F', filiere:'Informatique', niveau:'L2' },
+      { nom:'CODJO',       prenom:'Stéphane',  matricule:'2026-UP03', sexe:'M', filiere:'Gestion',      niveau:'L1' },
+      { nom:'DEGUENON',    prenom:'Laure',     matricule:'2026-UP04', sexe:'F', filiere:'Gestion',      niveau:'L2' },
+      { nom:'ELEGBE',      prenom:'Franck',    matricule:'2026-UP05', sexe:'M', filiere:'Informatique', niveau:'L3' },
+      { nom:'GANDAHO',     prenom:'Nadia',     matricule:'2026-UP06', sexe:'F', filiere:'Droit',        niveau:'L1' },
+      { nom:'HINSON',      prenom:'Boris',     matricule:'2026-UP07', sexe:'M', filiere:'Informatique', niveau:'M1' },
+      { nom:'IMOROU',      prenom:'Yasmine',   matricule:'2026-UP08', sexe:'F', filiere:'Gestion',      niveau:'M2' },
+      { nom:'KAKPO',       prenom:'Armel',     matricule:'2026-UP09', sexe:'M', filiere:'Informatique', niveau:'L1' },
+      { nom:'LAGNIDE',     prenom:'Sandra',    matricule:'2026-UP10', sexe:'F', filiere:'Droit',        niveau:'L1' },
+      { nom:'MEDEHOU',     prenom:'Didier',    matricule:'2026-UP11', sexe:'M', filiere:'Gestion',      niveau:'L1' },
+      { nom:'NOUNAGNON',   prenom:'Claire',    matricule:'2026-UP12', sexe:'F', filiere:'Informatique', niveau:'L2' },
+    ],
+    enseignants: [
+      { nom:'AMOUSSOU', prenom:'Rodrigue', email:'amoussou@univ-priv.bj', specialite:'Algorithmique',    grade:'Maître assistant', heures_semaine:12 },
+      { nom:'BEHANZIN', prenom:'Mélanie',  email:'behanzin@univ-priv.bj', specialite:'Comptabilité',     grade:'Chargé de cours',  heures_semaine:10 },
+      { nom:'COMLAN',   prenom:'Félix',    email:'comlan@univ-priv.bj',   specialite:'Bases de données', grade:'Professeur',       heures_semaine:8  },
+      { nom:'DOSSOU',   prenom:'Hortense', email:'dossou@univ-priv.bj',   specialite:'Droit civil',      grade:'Maître de conf.',  heures_semaine:10 },
+      { nom:'FIJABI',   prenom:'Nathan',   email:'fijabi@univ-priv.bj',   specialite:'Réseaux',          grade:'Assistant',        heures_semaine:14 },
+      { nom:'GODONOU',  prenom:'Ariane',   email:'godonou@univ-priv.bj',  specialite:'Marketing',        grade:'Maître assistant', heures_semaine:10 },
+    ],
+    matieres_notes: ['Algorithmique','Base de données','Réseaux','Mathématiques','Anglais','Comptabilité','Marketing','Droit civil','Économie'],
+  },
+
+  // ── 6. UNIVERSITÉ PUBLIQUE ───────────────────────────────
+  universite_publique: {
+    classes: [
+      { nom:'FSEG L1 Économie',  filiere:'Sciences Économiques', niveau:'L1', effectif_max:80, salle:'Grand Amphi' },
+      { nom:'FSEG L2 Gestion',   filiere:'Gestion',              niveau:'L2', effectif_max:60, salle:'Amphi 200'   },
+      { nom:'FSEG L3 Finance',   filiere:'Finance',              niveau:'L3', effectif_max:45, salle:'Salle TD1'   },
+      { nom:'FLASH L1 Lettres',  filiere:'Lettres Modernes',     niveau:'L1', effectif_max:70, salle:'Amphi B'     },
+      { nom:'École Ingénieurs L2',filiere:'Génie Informatique',  niveau:'L2', effectif_max:35, salle:'Labo Info'   },
+      { nom:'Santé L1 Médecine', filiere:'Sciences de la Santé', niveau:'L1', effectif_max:50, salle:'Amphi Santé' },
+      { nom:'Master FSEG M1',    filiere:'Sciences Économiques', niveau:'M1', effectif_max:30, salle:'Salle M1'    },
+      { nom:'Doctorat PhD',      filiere:'Recherche',            niveau:'PhD',effectif_max:10, salle:'Centre Rech.'},
+    ],
+    etudiants: [
+      { nom:'ABIDJI',     prenom:'Kossi',    matricule:'2026-PUB01', sexe:'M', filiere:'Sciences Économiques', niveau:'L1'  },
+      { nom:'BIAOU',      prenom:'Fatouma',  matricule:'2026-PUB02', sexe:'F', filiere:'Lettres Modernes',     niveau:'L1'  },
+      { nom:'CODJO',      prenom:'Éric',     matricule:'2026-PUB03', sexe:'M', filiere:'Génie Informatique',   niveau:'L2'  },
+      { nom:'DOSSOU',     prenom:'Carine',   matricule:'2026-PUB04', sexe:'F', filiere:'Gestion',              niveau:'L2'  },
+      { nom:'ELEGBE',     prenom:'Paul',     matricule:'2026-PUB05', sexe:'M', filiere:'Sciences de la Santé', niveau:'L1'  },
+      { nom:'FANOU',      prenom:'Élise',    matricule:'2026-PUB06', sexe:'F', filiere:'Finance',              niveau:'L3'  },
+      { nom:'GBADO',      prenom:'Maxime',   matricule:'2026-PUB07', sexe:'M', filiere:'Sciences Économiques', niveau:'M1'  },
+      { nom:'HOUEHA',     prenom:'Aurore',   matricule:'2026-PUB08', sexe:'F', filiere:'Recherche',            niveau:'PhD' },
+      { nom:'IDOSSOU',    prenom:'Lambert',  matricule:'2026-PUB09', sexe:'M', filiere:'Génie Informatique',   niveau:'L2'  },
+      { nom:'JOHNSON',    prenom:'Miriam',   matricule:'2026-PUB10', sexe:'F', filiere:'Lettres Modernes',     niveau:'L1'  },
+    ],
+    enseignants: [
+      { nom:'AZONHO',   prenom:'Prof. Théodore',email:'azonho@uac.bj',    specialite:'Économétrie',       grade:'Professeur Titulaire', heures_semaine:6  },
+      { nom:'BEHANZIN', prenom:'Dr. Sylvie',    email:'behanzin@uac.bj',  specialite:'Littérature',       grade:'Maître de conférence', heures_semaine:8  },
+      { nom:'CHABI',    prenom:'Dr. Arnaud',    email:'chabi@uac.bj',     specialite:'Génie logiciel',    grade:'Maître assistant',     heures_semaine:10 },
+      { nom:'DEGAN',    prenom:'Prof. Irène',   email:'degan@uac.bj',     specialite:'Finances publiques',grade:'Professeur Titulaire', heures_semaine:6  },
+      { nom:'FADO',     prenom:'Dr. Clément',   email:'fado@uac.bj',      specialite:'Médecine interne',  grade:'Maître de conférence', heures_semaine:8  },
+    ],
+    matieres_notes: ['Économétrie','Comptabilité générale','Droit des affaires','Statistiques','Anglais académique','Informatique','Recherche opérationnelle'],
+  },
+
 };
 
 async function lancerResetDemo() {
