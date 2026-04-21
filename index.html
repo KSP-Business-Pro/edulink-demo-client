@@ -7741,10 +7741,35 @@ async function voirEtudiant(id) {
     </div>`}`;
   document.getElementById('modal-fiche-etudiant').classList.add('open');
 }
+// ── Affectation automatique : trouve la classe selon filière + niveau ──
+async function trouverClasseAuto(filiere, niveau) {
+  if (!currentEcoleId || !filiere || !niveau) return null;
+  try {
+    const { data } = await db.from('classes')
+      .select('id, nom, filiere, niveau')
+      .eq('ecole_id', currentEcoleId)
+      .eq('statut', 'active');
+    if (!data?.length) return null;
+    // 1. Match parfait filière + niveau
+    let match = data.find(c =>
+      c.filiere?.toLowerCase().includes(filiere.toLowerCase()) &&
+      c.niveau?.toLowerCase() === niveau.toLowerCase()
+    );
+    // 2. Match filière seule si pas de match parfait
+    if (!match) match = data.find(c =>
+      c.filiere?.toLowerCase().includes(filiere.toLowerCase())
+    );
+    return match?.id || null;
+  } catch(_) { return null; }
+}
+
 async function ajouterEtudiant() {
   const nom=document.getElementById('input-nom').value.trim(), prenom=document.getElementById('input-prenom').value.trim(), matricule=document.getElementById('input-matricule').value.trim();
   if (!nom||!prenom||!matricule) { showToast('Remplissez les champs obligatoires', 'error'); return; }
-  const payload = { ecole_id:currentEcoleId, nom, prenom, matricule, sexe:document.getElementById("input-sexe").value, filiere:document.getElementById("input-filiere").value, niveau:document.getElementById("input-niveau").value, statut:"actif" };
+  const filiere = document.getElementById('input-filiere').value;
+  const niveau  = document.getElementById('input-niveau').value;
+  const classe_id = await trouverClasseAuto(filiere, niveau);
+  const payload = { ecole_id:currentEcoleId, nom, prenom, matricule, sexe:document.getElementById('input-sexe').value, filiere, niveau, statut:'actif', classe_id };
   const parentEmail = document.getElementById('input-parent-email').value.trim();
   const parentTel   = document.getElementById('input-parent-tel').value.trim();
   if (parentEmail) payload.email_parent = parentEmail;
@@ -7753,7 +7778,8 @@ async function ajouterEtudiant() {
   if (error) { showToast('Erreur : '+(error.message.includes('unique')?'Matricule déjà utilisé.':error.message),'error'); return; }
   fermerModal('modal-etudiant');
   ['input-nom','input-prenom','input-matricule','input-email','input-parent-email','input-parent-tel'].forEach(id=>document.getElementById(id).value='');
-  showToast('Étudiant ajouté !','success'); chargerEtudiants(); chargerDashboard();
+  showToast(classe_id ? '✅ Étudiant ajouté et affecté automatiquement !' : '✅ Étudiant ajouté (aucune classe correspondante)', 'success');
+  chargerEtudiants(); chargerDashboard();
 }
 
 // ══ ABSENCES ══════════════════════════════════
@@ -8769,25 +8795,34 @@ async function confirmerImportCSV() {
   btn.disabled = true; btn.textContent = 'Import en cours...';
   document.getElementById('csv-progress-bar').style.display = 'block';
   document.getElementById('csv-progress-label').style.display = 'block';
-  let succes = 0, echecs = 0;
+  let succes = 0, echecs = 0, affectes = 0;
   const BATCH = 10;
   for (let i = 0; i < csvLignesValides.length; i += BATCH) {
-    const batch = csvLignesValides.slice(i, i + BATCH).map(e => ({
-      ecole_id: currentEcoleId, nom: e.nom, prenom: e.prenom,
-      matricule: e.matricule, sexe: e.sexe, filiere: e.filiere,
-      niveau: e.niveau, email_parent: e.parent_email||e.email_parent||null,
-      telephone_parent: e.parent_tel||e.telephone_parent||null, statut: "actif"
-    }));
-    const { error } = await db.from('etudiants').insert(batch);
-    if (error) echecs += batch.length;
-    else succes += batch.length;
+    // Résoudre classe_id pour chaque ligne du batch
+    const batchResolved = await Promise.all(
+      csvLignesValides.slice(i, i + BATCH).map(async e => {
+        const classe_id = await trouverClasseAuto(e.filiere, e.niveau);
+        if (classe_id) affectes++;
+        return {
+          ecole_id: currentEcoleId, nom: e.nom, prenom: e.prenom,
+          matricule: e.matricule, sexe: e.sexe, filiere: e.filiere,
+          niveau: e.niveau, email_parent: e.parent_email||e.email_parent||null,
+          telephone_parent: e.parent_tel||e.telephone_parent||null,
+          statut: 'actif', classe_id
+        };
+      })
+    );
+    const { error } = await db.from('etudiants').insert(batchResolved);
+    if (error) echecs += batchResolved.length;
+    else succes += batchResolved.length;
     const pct = Math.round(((i + BATCH) / csvLignesValides.length) * 100);
     document.getElementById('csv-progress-fill').style.width = Math.min(pct,100) + '%';
     document.getElementById('csv-progress-label').textContent = `${Math.min(i+BATCH, csvLignesValides.length)} / ${csvLignesValides.length} importés...`;
   }
   fermerModal('modal-import-csv');
   reinitialiserCSV();
-  showToast(`✅ ${succes} étudiant(s) importé(s)${echecs?` · ${echecs} erreur(s)`:''}`, succes > 0 ? 'success' : 'error');
+  const msg = `✅ ${succes} importé(s)` + (affectes ? ` · ${affectes} affecté(s) automatiquement` : '') + (echecs ? ` · ${echecs} erreur(s)` : '');
+  showToast(msg, succes > 0 ? 'success' : 'error');
   chargerEtudiants();
   chargerDashboard();
 }
