@@ -7198,6 +7198,7 @@ async function chargerMessages() {
               : `<span class="msg-lu-badge nonlu">Non lu</span>`
             }
             <span class="msg-date" style="float:none">${fmtDate(m.created_at)}</span>
+            <button class="btn-sm btn-red" title="Supprimer" onclick="event.stopPropagation();supprimerMessage('${m.id}')" style="padding:2px 6px;font-size:11px;border-radius:5px;line-height:1">🗑️</button>
           </div>
         </div>
         <div class="msg-subject">${m.objet}</div>
@@ -7209,6 +7210,20 @@ async function chargerMessages() {
   const b = document.getElementById('badge-msg');
   if (nonLus>0){b.textContent=nonLus;b.style.display='inline';}else b.style.display='none';
 }
+async function supprimerMessage(id) {
+  if (!confirm('Supprimer ce message définitivement ?')) return;
+  const { error } = await db.from('messages').delete().eq('id', id);
+  if (error) return showToast('Erreur : ' + error.message, 'error');
+  // Si c'était le message sélectionné, vider le panneau droite
+  if (selectedMsgId === id) {
+    selectedMsgId = null;
+    const detail = document.getElementById('msg-detail');
+    if (detail) detail.innerHTML = '<div class="msg-empty-state"><div class="msg-empty-ico">📭</div><div class="msg-empty-txt">Sélectionnez un message</div></div>';
+  }
+  showToast('✅ Message supprimé', 'success');
+  chargerMessages();
+}
+
 async function lireMessage(id) {
   selectedMsgId = id;
   const msg = tousLesMessages.find(m=>m.id===id);
