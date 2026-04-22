@@ -14196,6 +14196,7 @@ function envoyerPushTest() {
     if (typeof window.showPage === 'function') {
       const _b = window.showPage;
       window.showPage = function(id) {
+        _b(id);
         if (id==='assistant-ia') setTimeout(chargerAssistantIA, 50);
         if (id==='pwa-avancee')  setTimeout(chargerPWAAvancee, 50);
       };
