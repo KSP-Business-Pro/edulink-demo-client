@@ -938,6 +938,7 @@ function lancerApp() {
 
 async function chargerTout() {
   await Promise.all([chargerNotes(), chargerAbsences(), chargerFactures(), chargerMessages(), chargerExamensPortail(), chargerEnseignantsPortail(), chargerNotifsPortail(), chargerEmploiPortail(), chargerCertificatsPortailData()]);
+  initRealtime(); // Abonner aux mises à jour en temps réel
   afficherAccueil();
 }
 
@@ -2989,6 +2990,70 @@ function initOfflineModePortail() {
     await chargerProfil();
   }
 })();
+// ══ REALTIME — Mises à jour en temps réel ═══════════════════
+let realtimeChannel = null;
+
+function initRealtime() {
+  if (realtimeChannel) return; // Déjà abonné
+  if (!currentEcoleId) return;
+
+  realtimeChannel = db.channel('portail-realtime-' + currentEcoleId)
+
+    // Nouveau message du back-office
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages',
+      filter: 'ecole_id=eq.' + currentEcoleId
+    }, payload => {
+      console.log('[Realtime] Nouveau message:', payload.new);
+      chargerMessages();
+      // Afficher une alerte discrète
+      const nom = payload.new?.expediteur_nom || 'Administration';
+      showToastPortail('✉️ Nouveau message de ' + nom, 'info');
+    })
+
+    // Nouvelle note ajoutée
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'notes',
+      filter: 'etudiant_id=eq.' + (currentEtudiant?.id || 'none')
+    }, payload => {
+      console.log('[Realtime] Nouvelle note:', payload.new);
+      chargerNotes();
+      showToastPortail('📊 Nouvelle note enregistrée : ' + payload.new?.matiere, 'success');
+    })
+
+    // Nouvelle absence
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'absences',
+      filter: 'etudiant_id=eq.' + (currentEtudiant?.id || 'none')
+    }, payload => {
+      console.log('[Realtime] Nouvelle absence:', payload.new);
+      chargerAbsences();
+      showToastPortail('🚫 Absence enregistrée : ' + payload.new?.matiere, 'warning');
+    })
+
+    .subscribe(status => {
+      console.log('[Realtime] Statut:', status);
+    });
+}
+
+function showToastPortail(msg, type='info') {
+  const colors = { info:'#1e3a5f', success:'#059669', warning:'#d97706', error:'#dc2626' };
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+    background:${colors[type]||colors.info};color:#fff;padding:10px 18px;border-radius:12px;
+    font-size:13px;font-family:'Poppins',sans-serif;font-weight:600;z-index:9999;
+    box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:320px;text-align:center;`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
 </script>
 </body>
 </html>
