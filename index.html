@@ -30,7 +30,7 @@
    BASE
 ══════════════════════════════════════════════ */
 * { margin:0; box-sizing:border-box; font-family:'Poppins',sans-serif; }
-body { background:#f3f4f6; display:flex; height:100vh; overflow:hidden; margin:0; }
+body { background:#f3f4f6; display:flex; height:100vh; overflow:hidden; margin:0; min-height:100vh; }
 
 /* ── Navigation ── */
 nav { width:230px; background:#1e3a5f; height:100vh; padding:1rem; flex-shrink:0; display:flex; flex-direction:column; overflow-y:auto; position:sticky; top:0; }
@@ -48,7 +48,7 @@ nav .nav-bottom a { font-size:11px; color:rgba(255,255,255,.5); }
 .ecole-badge .eb-nom { font-size:12px; font-weight:600; color:#fff; }
 .ecole-badge .eb-type { font-size:10px; color:rgba(255,255,255,.6); }
 
-main { flex:1; padding:1.5rem; overflow-y:auto; overflow-x:hidden; height:100vh; box-sizing:border-box; }
+main { flex:1; padding:1.5rem; overflow-y:auto; overflow-x:hidden; height:100%; max-height:100vh; box-sizing:border-box; }
 .page { display:none; }
 .page.active { display:block; animation:fadeIn .2s ease; }
 @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
