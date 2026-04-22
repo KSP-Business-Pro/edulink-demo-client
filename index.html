@@ -14583,6 +14583,7 @@ function publierActualite() {
    SUITE 12 — CONTRÔLE D'ACCÈS ★ JOUR 40
 ══════════════════════════════════════════════════════════════════ */
 function initOfflineMode() {
+  const bar = document.getElementById('offline-bar');
   function updateStatus() {
     if (!navigator.onLine) {
       if (bar) { bar.textContent = '📡 Mode hors-ligne — Données en cache'; bar.classList.add('show'); }
