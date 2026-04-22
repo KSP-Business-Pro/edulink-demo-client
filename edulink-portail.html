@@ -1790,7 +1790,7 @@ async function connecterParTelephone(tel) {
       `<div class="student-pill">👨‍🎓 ${trouve.nom} ${trouve.prenom} · ${trouve.filiere} ${trouve.niveau}</div>`;
     chargerTout();
   } else {
-    showOTPError(2, 'Aucun enfant lié à ce numéro. Vérifiez ou contactez l'administration.');
+    showOTPError(2, "Aucun enfant lié à ce numéro. Vérifiez ou contactez l'administration.");
     const btn = document.getElementById('btn-verifier-otp');
     if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmer le code'; }
   }
