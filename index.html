@@ -1699,50 +1699,13 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 /* ══════════════════════════════════════════════
    SMS & COMMUNICATION PARENTS  ★ JOUR 36
 ══════════════════════════════════════════════ */
-.sms-hero { background:linear-gradient(135deg,#059669 0%,#1e3a5f 100%); border-radius:18px; padding:1.5rem 2rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
-.sms-hero h2 { font-size:18px; font-weight:800; color:#fff; margin-bottom:4px; }
-.sms-hero p  { font-size:12.5px; color:rgba(255,255,255,.65); }
-.sms-hero-kpis { display:flex; gap:2rem; flex-wrap:wrap; }
-.sms-kpi .sk-val { font-size:24px; font-weight:800; color:#fff; line-height:1; }
-.sms-kpi .sk-lbl { font-size:10px; color:rgba(255,255,255,.6); text-transform:uppercase; font-weight:600; letter-spacing:.05em; margin-top:2px; }
 
-.sms-layout { display:grid; grid-template-columns:1fr 320px; gap:1rem; }
-.sms-main { display:flex; flex-direction:column; gap:1rem; }
-.sms-side { display:flex; flex-direction:column; gap:1rem; }
-.sms-block { background:#fff; border-radius:14px; border:1px solid #e5e7eb; overflow:hidden; }
-.sms-block-header { padding:.9rem 1.2rem; border-bottom:1px solid #f3f4f6; font-size:13px; font-weight:700; color:#374151; display:flex; align-items:center; justify-content:space-between; }
 
 /* Composer SMS */
-.sms-composer { padding:1.2rem; }
-.sms-destinataires { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:.75rem; }
-.sms-dest-tag { display:inline-flex; align-items:center; gap:5px; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; border-radius:20px; padding:4px 10px; font-size:12px; font-weight:600; }
-.sms-dest-tag .remove { cursor:pointer; font-size:14px; line-height:1; }
-.sms-dest-tag .remove:hover { color:#dc2626; }
-.sms-counter { display:flex; justify-content:space-between; font-size:11px; color:#9ca3af; margin-top:.4rem; }
-.sms-counter .chars { font-weight:600; }
-.sms-counter .chars.warning { color:#d97706; }
-.sms-counter .chars.danger  { color:#dc2626; }
 
 /* Templates SMS */
-.sms-template-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; padding:1rem; }
-.sms-template-card { background:#f9fafb; border:1.5px solid #e5e7eb; border-radius:10px; padding:.85rem; cursor:pointer; transition:all .15s; }
-.sms-template-card:hover { border-color:#059669; background:#f0fdf4; }
-.sms-template-card .st-ico { font-size:20px; margin-bottom:.4rem; }
-.sms-template-card .st-nom { font-size:12.5px; font-weight:700; color:#111827; margin-bottom:3px; }
-.sms-template-card .st-preview { font-size:11px; color:#9ca3af; line-height:1.4; }
 
 /* Historique envois SMS */
-.sms-envoi-item { display:flex; gap:.85rem; align-items:flex-start; padding:.85rem 1.2rem; border-bottom:1px solid #f3f4f6; transition:background .1s; }
-.sms-envoi-item:last-child { border-bottom:none; }
-.sms-envoi-item:hover { background:#fafafa; }
-.sms-envoi-ico { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
-.sms-envoi-body { flex:1; min-width:0; }
-.sms-envoi-titre { font-size:12.5px; font-weight:700; color:#111827; }
-.sms-envoi-preview { font-size:11.5px; color:#6b7280; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sms-envoi-right { text-align:right; flex-shrink:0; }
-.sms-envoi-date { font-size:11px; color:#9ca3af; }
-.sms-taux-bar { height:4px; background:#f3f4f6; border-radius:2px; margin-top:5px; overflow:hidden; }
-.sms-taux-fill { height:100%; border-radius:2px; background:#059669; }
 
 /* Contact parent card */
 .parent-contact-item { display:flex; align-items:center; gap:.85rem; padding:.75rem 1.2rem; border-bottom:1px solid #f3f4f6; }
@@ -1753,7 +1716,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 .pc-enfant-nom { font-size:11px; color:#6b7280; margin-top:1px; }
 .pc-tel { font-size:12px; font-weight:600; color:#059669; flex-shrink:0; }
 
-@media(max-width:900px){ .sms-layout { grid-template-columns:1fr; } .sms-template-grid { grid-template-columns:1fr; } }
 
 /* ══════════════════════════════════════════════
    PWA AVANCÉE  ★ JOUR 37
@@ -2114,7 +2076,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <a onclick="showPage('dashboard-reseau')" id="nav-dashboard-reseau"><span class="ico">📊</span> Dashboard Réseau</a>
   <a onclick="showPage('parametres-avances')" id="nav-parametres-avances"><span class="ico">🔧</span> Paramètres Avancés</a>
   <a onclick="showPage('assistant-ia')" id="nav-assistant-ia"><span class="ico">🤖</span> Assistant IA</a>
-  <a onclick="showPage('sms-parents')" id="nav-sms-parents"><span class="ico">📞</span> SMS Parents</a>
   <a onclick="showPage('pwa-avancee')" id="nav-pwa-avancee"><span class="ico">📱</span> PWA Avancée</a>
   <a onclick="showPage('exec-dashboard')" id="nav-exec-dashboard"><span class="ico">📊</span> Dashboard Directeur</a>
   <a onclick="showPage('portail-public')" id="nav-portail-public"><span class="ico">🌎</span> Portail Public</a>
@@ -4423,158 +4384,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
 <!-- ═══════════════════════════════════════
      SMS & COMMUNICATION PARENTS  ★ JOUR 36
-═══════════════════════════════════════ -->
-<div class="page" id="page-sms-parents">
-  <div class="top">
-    <div><h2>📞 SMS & Communication Parents</h2><p class="page-subtitle">Envois groupés, alertes automatiques et suivi des accusés</p></div>
-    <div class="top-actions">
-      <button onclick="ouvrirComposerSMS()">+ Nouveau SMS</button>
-      <button class="btn-blue" onclick="envoyerAlertesAuto()">⚡ Alertes auto</button>
-    </div>
-  </div>
-
-  <!-- Hero SMS -->
-  <div class="sms-hero">
-    <div>
-      <h2>📞 Centre de Communication</h2>
-      <p>Contactez tous les parents en quelques secondes</p>
-    </div>
-    <div class="sms-hero-kpis">
-      <div class="sms-kpi"><div class="sk-val" id="sms-envoyes">0</div><div class="sk-lbl">SMS envoyés</div></div>
-      <div class="sms-kpi"><div class="sk-val" id="sms-taux">0%</div><div class="sk-lbl">Taux réception</div></div>
-      <div class="sms-kpi"><div class="sk-val" id="sms-parents">0</div><div class="sk-lbl">Parents inscrits</div></div>
-    </div>
-  </div>
-
-  <!-- KPI bar SMS -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem" id="sms-kpi-bar"></div>
-
-  <!-- Onglets SMS -->
-  <div class="tabs" style="margin-bottom:1.2rem">
-    <button class="tab active" onclick="smsSwitchTab('composer',this)">✍️ Composer</button>
-    <button class="tab" onclick="smsSwitchTab('historique',this)">📋 Historique</button>
-    <button class="tab" onclick="smsSwitchTab('contacts',this)">👥 Contacts parents</button>
-    <button class="tab" onclick="smsSwitchTab('automatique',this)">⚙️ SMS Automatiques</button>
-  </div>
-
-  <!-- Layout SMS -->
-  <div class="sms-layout">
-    <div class="sms-main">
-
-      <!-- TAB Composer -->
-      <div id="sms-tab-composer">
-        <div class="sms-block">
-          <div class="sms-block-header"><span>✍️ Composer un SMS</span></div>
-          <div class="sms-composer">
-            <!-- Destinataires -->
-            <div class="form-group">
-              <label>Destinataires</label>
-              <div style="display:flex;gap:8px;margin-bottom:.5rem;flex-wrap:wrap" id="sms-dest-tags"></div>
-              <div style="display:flex;gap:8px">
-                <select id="sms-dest-selector" style="flex:1;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none">
-                  <option value="">Ajouter des destinataires...</option>
-                  <option value="tous">👨‍👩‍👧 Tous les parents</option>
-                  <option value="absences">🚫 Parents des absents du jour</option>
-                  <option value="impayes">💳 Parents avec factures impayées</option>
-                </select>
-                <button class="btn-sm btn-blue" onclick="ajouterDestinataire()">+ Ajouter</button>
-              </div>
-            </div>
-
-            <!-- Templates -->
-            <div class="section-label">Templates rapides</div>
-            <div class="sms-template-grid" id="sms-templates-grid"></div>
-
-            <!-- Message -->
-            <div class="form-group" style="margin-top:1rem">
-              <label>Message SMS</label>
-              <textarea id="sms-message" rows="4" placeholder="Rédigez votre message..." style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;resize:vertical" oninput="compterCaracteres()"></textarea>
-              <div class="sms-counter">
-                <span>💡 Utilisez {nom_parent}, {nom_eleve}, {classe} pour personnaliser</span>
-                <span class="chars" id="sms-chars">0 / 160</span>
-              </div>
-            </div>
-
-            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
-              <button class="btn-secondary" onclick="previsualiserSMS()">👁️ Prévisualiser</button>
-              <button onclick="envoyerSMS()">📤 Envoyer maintenant</button>
-              <button class="btn-blue" onclick="programmerSMS()">⏰ Programmer</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB Historique -->
-      <div id="sms-tab-historique" style="display:none">
-        <div class="sms-block">
-          <div class="sms-block-header">
-            <span>📋 Historique des envois</span>
-            <button class="btn-sm btn-secondary" onclick="showToast('📥 Export CSV en cours...','info')">📥 Export</button>
-          </div>
-          <div id="sms-historique-list"></div>
-        </div>
-      </div>
-
-      <!-- TAB Contacts -->
-      <div id="sms-tab-contacts" style="display:none">
-        <div class="search-bar" style="margin-bottom:1rem">
-          <input id="sms-search-parent" placeholder="🔍 Rechercher un parent..." oninput="filtrerContacts()" />
-        </div>
-        <div class="sms-block">
-          <div class="sms-block-header"><span>👥 Annuaire des parents</span><span id="sms-contacts-count" class="badge green">0 contacts</span></div>
-          <div id="sms-contacts-list"></div>
-        </div>
-      </div>
-
-      <!-- TAB Automatique -->
-      <div id="sms-tab-automatique" style="display:none">
-        <div class="sms-block">
-          <div class="sms-block-header"><span>⚙️ SMS Automatiques configurés</span></div>
-          <div style="padding:1rem" id="sms-auto-list"></div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Sidebar SMS -->
-    <div class="sms-side">
-      <div class="sms-block">
-        <div class="sms-block-header"><span>📊 Stats du mois</span></div>
-        <div style="padding:1rem">
-          <div class="kpi-row"><span class="kpi-label">SMS envoyés</span><span class="kpi-value" id="sms-stat-envoyes">—</span></div>
-          <div class="kpi-row"><span class="kpi-label">Taux de réception</span><span class="kpi-value" id="sms-stat-taux">—</span></div>
-          <div class="kpi-row"><span class="kpi-label">Coût total</span><span class="kpi-value" id="sms-stat-cout">—</span></div>
-          <div class="kpi-row"><span class="kpi-label">Alertes auto envoyées</span><span class="kpi-value" id="sms-stat-auto">—</span></div>
-        </div>
-      </div>
-
-      <div class="sms-block">
-        <div class="sms-block-header"><span>⚡ Envois rapides</span></div>
-        <div style="padding:1rem;display:flex;flex-direction:column;gap:.6rem">
-          <button class="btn-green" onclick="envoyerAlertesAbsences()">🚫 Alertes absences du jour</button>
-          <button class="btn-blue" onclick="envoyerRappelPaiements()">💳 Rappel paiements</button>
-          <button onclick="envoyerConvocationParents()">📅 Convocation réunion</button>
-          <button class="btn-secondary" onclick="envoyerResultatsBulletins()">📊 Bulletins disponibles</button>
-        </div>
-      </div>
-
-      <div class="sms-block">
-        <div class="sms-block-header"><span>📡 Crédit SMS restant</span></div>
-        <div style="padding:1rem;text-align:center">
-          <div style="font-size:36px;font-weight:800;color:#059669" id="sms-credit">450</div>
-          <div style="font-size:12px;color:#6b7280;margin-bottom:.75rem">SMS disponibles</div>
-          <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin-bottom:.75rem">
-            <div style="height:100%;width:45%;background:linear-gradient(90deg,#059669,#1d9e75);border-radius:4px"></div>
-          </div>
-          <button class="btn-green" style="width:100%" onclick="showToast('💳 Rechargement SMS — Contactez votre opérateur','info')">+ Recharger</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════
-     PWA AVANCÉE  ★ JOUR 37
 ═══════════════════════════════════════ -->
 <div class="page" id="page-pwa-avancee">
   <div class="top">
@@ -7616,7 +7425,6 @@ function showPage(p) {
     'dashboard-reseau':  chargerDashReseau,
     'parametres-avances': chargerParamAvances,
     'assistant-ia':      chargerAssistantIA,
-    'sms-parents':       chargerSMSParents,
     'pwa-avancee':       chargerPWAAvancee,
     'exec-dashboard':    chargerExecDashboard,
     'portail-public':    chargerPortailPublic,
@@ -16435,296 +16243,6 @@ function effacerConversation() {
 /* ══════════════════════════════════════════════════════════════════
    SUITE 11 — SMS & COMMUNICATION PARENTS ★ JOUR 36
 ══════════════════════════════════════════════════════════════════ */
-const SMS_TEMPLATES = [
-  {
-    ico: '🚫',
-    nom: 'Absence signalée',
-    preview: 'Votre enfant {nom_eleve} a été absent(e)...',
-    msg: `Bonjour {nom_parent}, votre enfant {nom_eleve} ({classe}) a été absent(e) ce jour. Merci de contacter l'administration pour régulariser. — EduLink`
-  },
-  {
-    ico: '⏰',
-    nom: 'Retard signalé',
-    preview: 'Votre enfant {nom_eleve} est arrivé(e) en retard...',
-    msg: `Bonjour {nom_parent}, votre enfant {nom_eleve} ({classe}) est arrivé(e) en retard aujourd'hui. Merci de veiller à la ponctualité. — EduLink`
-  },
-  {
-    ico: '💳',
-    nom: 'Rappel paiement',
-    preview: 'Un paiement est en attente pour {nom_eleve}...',
-    msg: `Bonjour {nom_parent}, un paiement de scolarité est en attente pour {nom_eleve} ({classe}). Merci de régulariser au plus tôt à la caisse. — EduLink`
-  },
-  {
-    ico: '📊',
-    nom: 'Bulletin disponible',
-    preview: 'Le bulletin de {nom_eleve} est disponible...',
-    msg: `Bonjour {nom_parent}, le bulletin de notes de {nom_eleve} ({classe}) est disponible. Consultez-le sur le portail famille : edulink-demo-client.vercel.app/edulink-portail.html — EduLink`
-  },
-  {
-    ico: '📝',
-    nom: 'Examen à venir',
-    preview: 'Rappel : examen prévu pour {nom_eleve}...',
-    msg: `Bonjour {nom_parent}, rappel : un examen est prévu cette semaine pour {nom_eleve} ({classe}). Assurez-vous de la préparation de votre enfant. — EduLink`
-  },
-  {
-    ico: '👥',
-    nom: 'Réunion parents',
-    preview: 'Réunion parents-professeurs prévue...',
-    msg: `Bonjour {nom_parent}, une réunion parents-professeurs est organisée. Votre présence est souhaitée. Consultez le portail famille pour les détails. — EduLink`
-  },
-  {
-    ico: '🎉',
-    nom: 'Félicitations',
-    preview: 'Excellents résultats pour {nom_eleve}...',
-    msg: `Bonjour {nom_parent}, félicitations ! {nom_eleve} ({classe}) a obtenu d'excellents résultats ce semestre. Bravo et continuez ainsi ! — EduLink`
-  },
-  {
-    ico: '📅',
-    nom: 'Fin de trimestre',
-    preview: 'Fin du trimestre — informations importantes...',
-    msg: `Bonjour {nom_parent}, le trimestre se termine bientôt. Les bulletins seront disponibles sous 48h sur le portail famille. Merci de votre confiance. — EduLink`
-  },
-  {
-    ico: '🏫',
-    nom: 'Fermeture exceptionnelle',
-    preview: `L'établissement sera fermé le...`,
-    msg: `Bonjour {nom_parent}, l'établissement sera exceptionnellement fermé. Les cours reprendront normalement selon le calendrier prévu. — EduLink`
-  },
-  {
-    ico: '💉',
-    nom: 'Visite médicale',
-    preview: 'Visite médicale programmée pour {nom_eleve}...',
-    msg: `Bonjour {nom_parent}, une visite médicale scolaire est programmée pour {nom_eleve} ({classe}). Merci de vous assurer que votre enfant est présent(e). — EduLink`
-  },
-];
-
-const SMS_HISTORIQUE = [];
-
-const SMS_CONTACTS = [];
-
-const SMS_AUTO_CONFIG = [];
-
-let smsDestSelectes = [];
-
-async function chargerSMSParents() {
-  // Charger les vrais contacts parents depuis Supabase
-  if (currentEcoleId && SMS_CONTACTS.length === 0) {
-    try {
-      const { data: etus } = await db.from('etudiants')
-        .select('id, nom, prenom, filiere, niveau, classe_id, telephone_parent, email_parent')
-        .eq('ecole_id', currentEcoleId)
-        .not('telephone_parent', 'is', null);
-      SMS_CONTACTS.length = 0;
-      (etus||[]).forEach(e => {
-        if (e.telephone_parent) SMS_CONTACTS.push({
-          id: e.id, nom: (e.nom||'') + ' ' + (e.prenom||''),
-          enfant: (e.nom||'') + ' ' + (e.prenom||''),
-          tel: e.telephone_parent, email: e.email_parent||'',
-          classe: e.filiere + ' ' + e.niveau, classe_id: e.classe_id,
-        });
-      });
-      // Peupler le select avec les vraies classes
-      const sel = document.getElementById('sms-dest-selector');
-      if (sel && toutesLesClasses?.length) {
-        // Supprimer les options de classes existantes (après les 3 premières fixes)
-        while (sel.options.length > 3) sel.remove(3);
-        // Ajouter les vraies classes
-        toutesLesClasses.filter(c=>c.statut!=='archive').forEach(c => {
-          const opt = document.createElement('option');
-          opt.value = 'classe_' + c.id;
-          opt.textContent = `🏫 ${c.nom} — Parents`;
-          sel.appendChild(opt);
-        });
-      }
-    } catch(e) { console.warn('[SMS] Chargement contacts:', e.message); }
-  }
-
-  const totalEnvoyes = SMS_HISTORIQUE.reduce((s,h)=>s+h.nb,0);
-  const tauxMoy = SMS_HISTORIQUE.length ? Math.round(SMS_HISTORIQUE.reduce((s,h)=>s+h.taux,0)/SMS_HISTORIQUE.length) : 0;
-  document.getElementById('sms-envoyes').textContent = '0';
-  document.getElementById('sms-taux').textContent = '0%';
-  document.getElementById('sms-parents').textContent = SMS_CONTACTS.length;
-
-  // KPI bar
-  const kpiBar = document.getElementById('sms-kpi-bar');
-  if (kpiBar) kpiBar.innerHTML = [
-    {ico:'📤',val:totalEnvoyes,lbl:'SMS ce mois',color:'#dbeafe',textColor:'#1d4ed8'},
-    {ico:'✅',val:tauxMoy+'%',lbl:'Taux réception',color:'#dcfce7',textColor:'#059669'},
-    {ico:'👥',val:SMS_CONTACTS.length||tousLesEtudiants?.length||0,lbl:'Parents inscrits',color:'#ede9fe',textColor:'#7c3aed'},
-    {ico:'💰',val:'0 F',lbl:'Coût du mois',color:'#fef9c3',textColor:'#d97706'},
-  ].map(k=>`<div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.1rem 1.2rem;display:flex;align-items:center;gap:.85rem">
-    <div style="width:44px;height:44px;border-radius:12px;background:${k.color};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${k.ico}</div>
-    <div><div style="font-size:22px;font-weight:700;color:${k.textColor}">${k.val}</div><div style="font-size:11px;color:#6b7280">${k.lbl}</div></div>
-  </div>`).join('');
-
-  renderSMSTemplates();
-  renderSMSHistorique();
-  renderSMSContacts();
-  renderSMSAuto();
-
-  // Stats sidebar
-  document.getElementById('sms-stat-envoyes').textContent = totalEnvoyes+' SMS';
-  document.getElementById('sms-stat-taux').textContent = tauxMoy+'%';
-  document.getElementById('sms-stat-cout').textContent = '0 FCFA';
-  document.getElementById('sms-stat-auto').textContent = '0 SMS';
-}
-
-function renderSMSTemplates() {
-  const grid = document.getElementById('sms-templates-grid');
-  if (!grid) return;
-  grid.innerHTML = SMS_TEMPLATES.map(t=>`<div class="sms-template-card" onclick="utiliserTemplate('${t.msg.replace(/'/g,"\\'")}')">
-    <div class="st-ico">${t.ico}</div>
-    <div class="st-nom">${t.nom}</div>
-    <div class="st-preview">${t.preview}</div>
-  </div>`).join('');
-}
-
-function utiliserTemplate(msg) {
-  const ta = document.getElementById('sms-message');
-  if (ta) { ta.value = msg; compterCaracteres(); showToast('✅ Template appliqué','success'); }
-}
-
-function renderSMSHistorique() {
-  const list = document.getElementById('sms-historique-list');
-  if (!list) return;
-  list.innerHTML = SMS_HISTORIQUE.map(h=>`<div class="sms-envoi-item">
-    <div class="sms-envoi-ico" style="background:#dcfce7">${h.ico}</div>
-    <div class="sms-envoi-body">
-      <div class="sms-envoi-titre">${h.titre}</div>
-      <div class="sms-envoi-preview">${h.preview}</div>
-    </div>
-    <div class="sms-envoi-right">
-      <div class="sms-envoi-date">${h.date}</div>
-      <span class="badge green">${h.nb} envois</span>
-      <div class="sms-taux-bar"><div class="sms-taux-fill" style="width:${h.taux}%"></div></div>
-      <div style="font-size:10px;color:#6b7280;margin-top:2px">${h.taux}% réception</div>
-    </div>
-  </div>`).join('');
-}
-
-function renderSMSContacts(filtre='') {
-  const list = document.getElementById('sms-contacts-list');
-  const count = document.getElementById('sms-contacts-count');
-  if (!list) return;
-  const contacts = filtre ? SMS_CONTACTS.filter(c=>c.nom.toLowerCase().includes(filtre.toLowerCase())||c.enfant.toLowerCase().includes(filtre.toLowerCase())) : SMS_CONTACTS;
-  if (count) count.textContent = contacts.length+' contacts';
-  list.innerHTML = contacts.map(c=>`<div class="parent-contact-item">
-    <div class="pc-ava2" style="background:${c.color}">${c.nom[0]}</div>
-    <div class="pc-body2">
-      <div class="pc-parent-nom">${c.nom}</div>
-      <div class="pc-enfant-nom">👤 ${c.enfant} · ${c.classe}</div>
-    </div>
-    <div class="pc-tel">${c.tel}</div>
-    <button class="btn-sm btn-green" onclick="showToast('📤 SMS envoyé à ${c.nom}','success')">📤</button>
-  </div>`).join('');
-}
-
-function filtrerContacts() {
-  renderSMSContacts(document.getElementById('sms-search-parent').value);
-}
-
-function renderSMSAuto() {
-  const list = document.getElementById('sms-auto-list');
-  if (!list) return;
-  list.innerHTML = SMS_AUTO_CONFIG.map((s,i)=>`<div class="toggle-row">
-    <div style="display:flex;gap:.85rem;align-items:center;flex:1">
-      <div style="width:40px;height:40px;border-radius:10px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${s.ico}</div>
-      <div class="toggle-info">
-        <div class="tl">${s.nom}</div>
-        <div class="ts">${s.desc} · <span class="badge gray" style="font-size:10px">${s.freq}</span></div>
-      </div>
-    </div>
-    <label class="toggle-sw"><input type="checkbox" ${s.actif?'checked':''} onchange="toggleSMSAuto(${i},this)"><span class="toggle-sl"></span></label>
-  </div>`).join('');
-}
-
-function toggleSMSAuto(i, cb) {
-  SMS_AUTO_CONFIG[i].actif = cb.checked;
-  showToast(cb.checked?`✅ SMS automatique activé`:`⏸️ SMS automatique désactivé`,'info');
-}
-
-function ajouterDestinataire() {
-  const sel = document.getElementById('sms-dest-selector');
-  const val = sel.value; const txt = sel.options[sel.selectedIndex].text;
-  if (!val || smsDestSelectes.includes(val)) return;
-  smsDestSelectes.push(val);
-  const tags = document.getElementById('sms-dest-tags');
-  const tag = document.createElement('span');
-  tag.className = 'sms-dest-tag';
-  tag.innerHTML = `${txt} <span class="remove" onclick="supprimerDestinataire('${val}',this)">✕</span>`;
-  tag.dataset.val = val;
-  tags.appendChild(tag);
-  sel.value = '';
-}
-
-function supprimerDestinataire(val, el) {
-  smsDestSelectes = smsDestSelectes.filter(v=>v!==val);
-  el.parentElement.remove();
-}
-
-function compterCaracteres() {
-  const ta = document.getElementById('sms-message');
-  const counter = document.getElementById('sms-chars');
-  if (!ta||!counter) return;
-  const len = ta.value.length;
-  counter.textContent = len+' / 160';
-  counter.className = 'chars' + (len>160?' danger':len>140?' warning':'');
-}
-
-function smsSwitchTab(tab, btn) {
-  ['composer','historique','contacts','automatique'].forEach(t=>{
-    const el=document.getElementById('sms-tab-'+t); if(el) el.style.display=t===tab?'block':'none';
-  });
-  document.querySelectorAll('#page-sms-parents .tab').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-}
-
-function envoyerSMS() {
-  if (!smsDestSelectes.length) { showToast('⚠️ Ajoutez au moins un destinataire','error'); return; }
-  const msg = document.getElementById('sms-message').value.trim();
-  if (!msg) { showToast('⚠️ Rédigez un message','error'); return; }
-  // Calculer le vrai nb destinataires
-  let nbDest = 0;
-  if (smsDestSelectes.includes('tous')) {
-    nbDest = SMS_CONTACTS.length;
-  } else {
-    smsDestSelectes.forEach(v => {
-      if (v.startsWith('classe_')) {
-        const cid = v.replace('classe_','');
-        nbDest += SMS_CONTACTS.filter(c => c.classe_id === cid).length;
-      } else if (v === 'absences' || v === 'impayes') {
-        nbDest += Math.min(SMS_CONTACTS.length, 3); // estimation démo
-      } else {
-        nbDest += SMS_CONTACTS.length; // fallback
-      }
-    });
-  }
-  if (!nbDest) nbDest = SMS_CONTACTS.length;
-  showToast(`📤 ${nbDest} SMS envoyés avec succès !`,'success');
-  document.getElementById('sms-message').value = '';
-  smsDestSelectes = [];
-  document.getElementById('sms-dest-tags').innerHTML = '';
-  const creditEl = document.getElementById('sms-credit');
-  if (creditEl) creditEl.textContent = Math.max(0, parseInt(creditEl.textContent) - nbDest);
-}
-
-function ouvrirComposerSMS() { smsSwitchTab('composer', document.querySelectorAll('#page-sms-parents .tab')[0]); }
-function previsualiserSMS() { const msg = document.getElementById('sms-message').value; showToast('👁️ Aperçu: "' + msg.substring(0,80) + '..."','info'); }
-function programmerSMS() { showToast('⏰ SMS programmé pour demain 08h00','success'); }
-function envoyerAlertesAuto() { showToast('⚡ 14 alertes absences envoyées automatiquement !','success'); }
-function envoyerAlertesAbsences() { showToast('🚫 14 SMS d\'absence envoyés aux parents','success'); }
-function envoyerRappelPaiements() { showToast('💳 26 rappels de paiement envoyés','success'); }
-function envoyerConvocationParents() { showToast('📅 98 convocations envoyées aux parents','success'); }
-function envoyerResultatsBulletins() { showToast('📊 115 notifications bulletins envoyées','success'); }
-
-/* ══════════════════════════════════════════════════════════════════
-   SUITE 11 — PWA AVANCÉE ★ JOUR 37
-══════════════════════════════════════════════════════════════════ */
-const PWA_DEVICES_INSTALLED = [];
-
-const PWA_CACHE_ITEMS = [];
-
-const PWA_SYNC_ITEMS = [];
 
 function chargerPWAAvancee() {
   // Hero KPIs
@@ -16890,7 +16408,6 @@ function envoyerPushTest() {
       window.showPage = function(id) {
         _b(id);
         if (id==='assistant-ia') setTimeout(chargerAssistantIA, 50);
-        if (id==='sms-parents')  setTimeout(chargerSMSParents, 50);
         if (id==='pwa-avancee')  setTimeout(chargerPWAAvancee, 50);
       };
     }
