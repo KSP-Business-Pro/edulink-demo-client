@@ -13469,19 +13469,12 @@ const LIVRES_DEMO = [];
 
 const EMPRUNTS_DEMO = [];
 
-let tousLesEtablissements = [
-  { id:1, nom:'Lycée Technique de Cotonou', type:'lycee', ville:'Cotonou', directeur:'Dr. Alphonse Kpako', eleves:842, enseignants:64, classes:22, taux_reussite:78, absences_taux:8, recette_mois:4200000, statut:'actif', ico:'🏫', color:'#1e3a5f' },
-  { id:2, nom:'Collège Notre-Dame de Porto-Novo', type:'college', ville:'Porto-Novo', directeur:'Sœur Élisabeth', eleves:612, enseignants:45, classes:18, taux_reussite:85, absences_taux:5, recette_mois:3100000, statut:'actif', ico:'✝️', color:'#059669' },
-  { id:3, nom:'Lycée Mathieu Bouké', type:'lycee', ville:'Abomey-Calavi', directeur:'M. Théodore Vigan', eleves:710, enseignants:52, classes:20, taux_reussite:72, absences_taux:12, recette_mois:2800000, statut:'alerte', ico:'🎓', color:'#d97706' },
-  { id:4, nom:'École Primaire Les Étoiles', type:'primaire', ville:'Parakou', directeur:'Mme Joséphine Ahouandé', eleves:380, enseignants:28, classes:12, taux_reussite:91, absences_taux:4, recette_mois:1500000, statut:'actif', ico:'⭐', color:'#7c3aed' },
-  { id:5, nom:'Collège Charles de Gaulle', type:'college', ville:'Cotonou', directeur:'M. Pierre Adanmasso', eleves:525, enseignants:38, classes:16, taux_reussite:80, absences_taux:7, recette_mois:2600000, statut:'actif', ico:'🏛️', color:'#1d4ed8' },
-  { id:6, nom:'Lycée EduLink Bénin', type:'lycee', ville:'Cotonou', directeur:'Directrice Adjointe', eleves:198, enseignants:22, classes:6, taux_reussite:88, absences_taux:6, recette_mois:1200000, statut:'actif', ico:'🔗', color:'#059669' },
-];
+let tousLesEtablissements = [];
 
 function chargerReseau() {
   const totalEleves = tousLesEtablissements.reduce((s,e)=>s+e.eleves,0);
   const totalEnseignants = tousLesEtablissements.reduce((s,e)=>s+e.enseignants,0);
-  const tauxMoy = Math.round(tousLesEtablissements.reduce((s,e)=>s+e.taux_reussite,0)/tousLesEtablissements.length);
+  const tauxMoy = tousLesEtablissements.length ? Math.round(tousLesEtablissements.reduce((s,e)=>s+e.taux_reussite,0)/tousLesEtablissements.length) : 0;
   const totalRecette = tousLesEtablissements.reduce((s,e)=>s+e.recette_mois,0);
   const alertes = tousLesEtablissements.filter(e=>e.statut==='alerte').length;
 
@@ -13491,7 +13484,7 @@ function chargerReseau() {
   document.getElementById('reseau-taux-reussite').textContent = tauxMoy+'%';
   document.getElementById('reseau-kpi-actifs').textContent = tousLesEtablissements.filter(e=>e.statut==='actif').length;
   document.getElementById('reseau-kpi-recette').textContent = (totalRecette/1000000).toFixed(1)+' M F';
-  document.getElementById('reseau-kpi-moy-notes').textContent = '13.8/20';
+  document.getElementById('reseau-kpi-moy-notes').textContent = tauxMoy > 0 ? (tauxMoy/5).toFixed(1)+'/20' : '—';
   document.getElementById('reseau-kpi-alertes').textContent = alertes;
 
   renderEtablissements(tousLesEtablissements);
@@ -13502,7 +13495,10 @@ function chargerReseau() {
 
 function renderEtablissements(etabs) {
   const grid = document.getElementById('reseau-grid-etablissements');
-  if(!etabs.length){grid.innerHTML='<div class="empty-state">🏫 Aucun établissement</div>';return;}
+  if(!etabs.length){
+    grid.innerHTML='<div class="empty-state" style="padding:3rem;text-align:center"><div style="font-size:40px;margin-bottom:1rem">🏫</div><h3 style="color:#374151;margin-bottom:.5rem">Aucun établissement partenaire</h3><p style="color:#6b7280;font-size:13px">Cliquez sur "+ Établissement" pour ajouter votre premier établissement au réseau EduLink.</p></div>';
+    return;
+  }
   grid.innerHTML = etabs.map(e=>`<div class="reseau-card ${e.type}" onclick="voirDetailEtablissement(${e.id})">
     <div class="reseau-card-header">
       <div class="reseau-card-ico" style="background:${e.color}15;border:2px solid ${e.color}30">${e.ico}</div>
