@@ -2683,8 +2683,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 </div>
 
 
-<!-- ═══════════════════════════════════════
-  <div class="top">
+<!-- ═══ RÉSEAU ÉCOLES ═══════════════════════════════════════ -->
+<div class="page" id="page-reseau">
     <div><h2>🌐 Réseau Multi-Établissements</h2><p class="page-subtitle">Tableau de bord consolidé — Tous les établissements du réseau EduLink</p></div>
     <div class="top-actions">
       <button onclick="ouvrirModalAddEtablissement()">+ Établissement</button>
@@ -2824,6 +2824,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
 </div>
 
+
+</div>
 
 <!-- ═══════════════════════════════════════
      PARAMÈTRES AVANCÉS  ★ JOUR 32
@@ -6342,6 +6344,7 @@ function showPage(p) {
     rh:              chargerRH,
     admissions:      chargerAdmissions,
     'portail-etudiant':  () => chargerPortailEtudiant(1),
+    reseau:               chargerReseau,
     'dashboard-reseau':  chargerDashReseau,
     'parametres-avances': chargerParamAvances,
     'assistant-ia':      chargerAssistantIA,
