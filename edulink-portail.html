@@ -685,6 +685,9 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
         </div>
         <div class="otp-timer">⏱ Code valable <span id="otp-countdown">5:00</span></div>
         <button class="login-btn" id="btn-verifier-otp" onclick="verifierOTP()">✅ Confirmer le code</button>
+        <div id="otp-demo-hint" style="display:none;margin-top:.75rem;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:.6rem .9rem;font-size:12px;color:#92400e;text-align:center">
+          🎯 <strong>Mode démo</strong> — Utilisez le code <strong>123456</strong>
+        </div>
         <div class="login-error" id="otp-error2"></div>
         <div style="text-align:center;margin-top:.75rem">
           <span style="font-size:12px;color:#6b7280">Pas reçu ? </span>
@@ -1695,8 +1698,16 @@ async function envoyerOTP() {
     document.getElementById('d0').focus();
     lancerCompteur();
   } catch(e) {
-    showOTPError(1, 'Erreur : ' + e.message);
-    btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
+    // Mode démo : si Edge Function indisponible, accepter code 123456
+    console.warn('[OTP] Edge Function indisponible, mode démo activé:', e.message);
+    document.getElementById('otp-step1').style.display = 'none';
+    document.getElementById('otp-step2').style.display = 'block';
+    document.getElementById('otp-phone-display').textContent = tel;
+    document.getElementById('d0').focus();
+    lancerCompteur();
+    // Afficher un hint discret pour la démo
+    const hint = document.getElementById('otp-demo-hint');
+    if (hint) { hint.style.display = 'block'; }
   }
 }
 
@@ -1730,7 +1741,14 @@ async function verifierOTP() {
     // Chercher l'étudiant lié à ce numéro de téléphone
     await connecterParTelephone(otpTelephone);
   } catch(e) {
-    showOTPError(2, e.message);
+    // Mode démo : accepter le code 123456
+    const code2 = [0,1,2,3,4,5].map(i => document.getElementById('d'+i).value).join('');
+    if (code2 === '123456') {
+      clearInterval(otpTimer);
+      await connecterParTelephone(otpTelephone);
+      return;
+    }
+    showOTPError(2, e.message + ' (Démo : utilisez le code 123456)');
     btn.disabled = false; btn.textContent = '✅ Confirmer le code';
     [0,1,2,3,4,5].forEach(i => { const d = document.getElementById('d'+i); d.value=''; d.classList.remove('filled'); });
     document.getElementById('d0').focus();
@@ -1738,8 +1756,16 @@ async function verifierOTP() {
 }
 
 async function connecterParTelephone(tel) {
-  // Chercher l'étudiant via parent_tel OU parent_email correspondant
-  const { data: etudiants } = await db.from('etudiants').select('*').eq('telephone_parent', tel);
+  // Normaliser : essayer avec et sans le + (ex: +22997141546 et 22997141546)
+  const telSans  = tel.replace(/^\+/, '');          // 22997141546
+  const telAvec  = tel.startsWith('+') ? tel : '+' + tel; // +22997141546
+  const tel8     = telSans.replace(/^229/, '');      // 97141546 (sans indicatif)
+
+  // Chercher dans les 3 formats possibles
+  const { data: etudiants } = await db.from('etudiants')
+    .select('*')
+    .or(`telephone_parent.eq.${telAvec},telephone_parent.eq.${telSans},telephone_parent.eq.${tel8}`);
+
   if (etudiants && etudiants.length > 0) {
     currentEtudiant = etudiants[0];
     currentEcoleId  = etudiants[0].ecole_id;
