@@ -48,7 +48,7 @@ nav .nav-bottom a { font-size:11px; color:rgba(255,255,255,.5); }
 .ecole-badge .eb-nom { font-size:12px; font-weight:600; color:#fff; }
 .ecole-badge .eb-type { font-size:10px; color:rgba(255,255,255,.6); }
 
-main { flex:1; padding:1.5rem; overflow-y:auto; overflow-x:hidden; }
+main { flex:1; padding:1.5rem; overflow-y:auto; overflow-x:hidden; min-width:0; }
 .page { display:none; }
 .page.active { display:block; animation:fadeIn .2s ease; min-height:100%; }
 @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
@@ -568,7 +568,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 .login-demo .demo-role { color:#6b7280; font-size:11.5px; }
 .login-demo .demo-creds { font-family:monospace; font-size:11px; color:#1d4ed8; cursor:pointer; }
 .login-demo .demo-creds:hover { text-decoration:underline; }
-#app-main { display:none; flex:1; min-width:0; overflow-y:auto; overflow-x:hidden; }
+#app-main { display:none; flex:1; min-width:0; overflow:hidden; }
 .notif-panel { position:fixed; top:0; right:-380px; width:370px; height:100%; background:#fff; box-shadow:-6px 0 30px rgba(0,0,0,.12); z-index:500; transition:right .28s cubic-bezier(.4,0,.2,1); display:flex; flex-direction:column; }
 .notif-panel.open { right:0; }
 .notif-header { padding:1rem 1.2rem; background:#1e3a5f; color:#fff; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
