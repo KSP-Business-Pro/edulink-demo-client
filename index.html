@@ -2192,7 +2192,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <input type="date" id="filter-absence-date" onchange="chargerAbsences()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none;">
   </div>
   <table>
-    <tr><th>Étudiant</th><th>Matière</th><th>Date</th><th>Statut</th><th>Justification</th><th>Parent notifié</th></tr>
+    <tr><th>Étudiant</th><th>Matière</th><th>Date</th><th>Statut</th><th>Justification</th><th>Parent notifié</th><th style="width:100px">Actions</th></tr>
     <tbody id="tbody-presences"><tr><td colspan="6" class="loading">Chargement...</td></tr></tbody>
   </table>
 </div>
@@ -6747,7 +6747,7 @@ async function ajouterEtudiant() {
 
 // ══ ABSENCES ══════════════════════════════════
 async function chargerAbsences() {
-  document.getElementById('tbody-presences').innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
+  document.getElementById('tbody-presences').innerHTML = '<tr><td colspan="7" class="loading">Chargement...</td></tr>';
   let q = db.from('absences').select('*, etudiants(nom, prenom, classe_id, filiere, niveau)').order('created_at',{ascending:false});
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
   const fs       = document.getElementById('filter-absence-statut')?.value;
@@ -6762,7 +6762,18 @@ async function chargerAbsences() {
   let liste = data || [];
   if (fClasse) liste = liste.filter(a => a.etudiants?.classe_id === fClasse);
   document.getElementById('tbody-presences').innerHTML = liste.length
-    ? liste.map(a => `<tr><td>${a.etudiants?a.etudiants.nom+' '+a.etudiants.prenom:'N/A'}</td><td>${a.matiere}</td><td>${fmtDate(a.date_absence)}</td><td><span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span></td><td>${a.justification||'—'}</td><td><span class="badge ${a.parent_notifie?'green':'amber'}">${a.parent_notifie?'✓ Notifié':'En attente'}</span></td></tr>`).join('')
+    ? liste.map(a => `<tr>
+    <td>${a.etudiants?a.etudiants.nom+' '+a.etudiants.prenom:'N/A'}</td>
+    <td>${a.matiere}</td>
+    <td>${fmtDate(a.date_absence)}</td>
+    <td><span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span></td>
+    <td>${a.justification||'—'}</td>
+    <td><span class="badge ${a.parent_notifie?'green':'amber'}">${a.parent_notifie?'✓ Notifié':'En attente'}</span></td>
+    <td style="white-space:nowrap">
+      <button class="btn-sm btn-blue" onclick="modifierAbsence('${a.id}')" title="Modifier">✏️</button>
+      <button class="btn-sm btn-red" onclick="supprimerAbsence('${a.id}')" title="Supprimer" style="margin-left:4px">🗑️</button>
+    </td>
+  </tr>`).join('')
     : '<tr><td colspan="6" class="loading">Aucune absence.</td></tr>';
 }
 async function remplirSelect(selectId, withEmpty=false) {
@@ -6874,10 +6885,48 @@ function initSelectsExamens() {
 async function enregistrerAbsence() {
   const matiere = document.getElementById('input-absence-matiere').value.trim();
   if (!matiere) { showToast('Entrez la matière.','error'); return; }
-  const { error } = await db.from('absences').insert([{ ecole_id:currentEcoleId, etudiant_id:document.getElementById('input-absence-etudiant').value, matiere, date_absence:document.getElementById('input-absence-date').value, statut:document.getElementById('input-absence-statut').value, justification:document.getElementById('input-absence-justification').value.trim() }]);
+  const editId = document.getElementById('modal-absence').dataset.editId;
+  const payload = { ecole_id:currentEcoleId, etudiant_id:document.getElementById('input-absence-etudiant').value, matiere, date_absence:document.getElementById('input-absence-date').value, statut:document.getElementById('input-absence-statut').value, justification:document.getElementById('input-absence-justification').value.trim() };
+  let error;
+  if (editId) {
+    ({ error } = await db.from('absences').update(payload).eq('id', editId));
+  } else {
+    ({ error } = await db.from('absences').insert([payload]));
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-absence'); document.getElementById('input-absence-matiere').value='';
+  delete document.getElementById('modal-absence').dataset.editId;
   showToast('Absence enregistrée !','success'); chargerAbsences(); chargerDashboard();
+}
+
+// ── Modifier absence ──────────────────────────────────────────
+async function modifierAbsence(id) {
+  const { data: a } = await db.from('absences').select('*').eq('id', id).single();
+  if (!a) return showToast('Absence introuvable', 'error');
+  const selEtu = document.getElementById('input-absence-etudiant');
+  const selMat = document.getElementById('input-absence-matiere');
+  const selStat = document.getElementById('input-absence-statut');
+  const inpDate = document.getElementById('input-absence-date');
+  const inpJust = document.getElementById('input-absence-justification');
+  if (selEtu) selEtu.value = a.etudiant_id;
+  if (selMat) selMat.value = a.matiere;
+  if (selStat) selStat.value = a.statut;
+  if (inpDate) inpDate.value = a.date_absence;
+  if (inpJust) inpJust.value = a.justification || '';
+  document.getElementById('modal-absence').dataset.editId = id;
+  const titre = document.getElementById('modal-absence-titre');
+  if (titre) titre.textContent = `✏️ Modifier l'absence`;
+  ouvrirModal('modal-absence');
+}
+
+// ── Supprimer absence ─────────────────────────────────────────
+async function supprimerAbsence(id) {
+  if (!confirm('Supprimer cette absence ?')) return;
+  const { error } = await db.from('absences').delete().eq('id', id);
+  if (error) return showToast('Erreur : ' + error.message, 'error');
+  showToast('✅ Absence supprimée', 'success');
+  chargerAbsences();
+  chargerDashboard();
 }
 
 // ══ NOTES & BULLETINS ════════════════════════
