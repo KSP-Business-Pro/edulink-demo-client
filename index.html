@@ -6423,7 +6423,7 @@ function ouvrirModal(id) {
   if (id === 'modal-candidature'){ remplirSelectCampagnes(); }
   if (id === 'modal-campagne')   { document.getElementById('input-camp-debut').value = new Date().toISOString().split('T')[0]; document.getElementById('input-camp-annee').value = getAnneeScol(); }
   if (id === 'modal-document') remplirSelect('input-doc-etudiant', true);
-  if (id === 'modal-examen') { initModalExamen(); }
+  if (id === 'modal-examen') { if (!document.getElementById('input-exam-id').value) initModalExamen(); }
   if (id === 'modal-enseignant') { initModalEnseignant(); }
   if (id === 'modal-matiere') { remplirSelectEnsModal(); }
 }
@@ -8155,7 +8155,8 @@ function afficherListeExamens(liste) {
         <span class="badge ${statutClass[ex.statut]||'gray'}">${ex.statut||'planifié'}</span>
         <span class="badge purple">${typeLabels[ex.type_examen]||ex.type_examen}</span>
         ${pillTxt ? `<span class="exam-countdown-pill ${pillCls}">${pillTxt}</span>` : ''}
-        <button class="btn-sm btn-blue" onclick="editerExamen('${ex.id}')">✏️ Éditer</button>
+        <button class="btn-sm btn-blue" onclick="editerExamen('${ex.id}')">✏️ Modifier</button>
+        <button class="btn-sm btn-red" onclick="supprimerExamen('${ex.id}')">🗑️ Supprimer</button>
         ${ex.statut === 'termine' ? `<button class="btn-sm btn-green" onclick="ouvrirPV('${ex.id}')">📋 PV</button>`:''}
       </div>
     </div>`;
@@ -8296,7 +8297,10 @@ function initModalExamen() {
 function editerExamen(examId) {
   const ex = tousLesExamens.find(e => e.id === examId);
   if (!ex) return;
-  document.getElementById('modal-examen-titre').textContent = '✏️ Modifier l\'examen';
+  // Ouvrir la modale d'abord (initModalExamen reset les champs)
+  ouvrirModal('modal-examen');
+  // Puis remplir les champs avec les données de l'examen
+  document.getElementById('modal-examen-titre').textContent = "✏️ Modifier l'examen";
   document.getElementById('input-exam-id').value = ex.id;
   document.getElementById('input-exam-matiere').value = ex.matiere||'';
   document.getElementById('input-exam-type').value = ex.type_examen||'controle';
@@ -8310,7 +8314,6 @@ function editerExamen(examId) {
   document.getElementById('input-exam-surveillant').value = ex.surveillant||'';
   document.getElementById('input-exam-instructions').value = ex.instructions||'';
   document.getElementById('input-exam-statut').value = ex.statut||'planifie';
-  ouvrirModal('modal-examen');
 }
 
 async function sauvegarderExamen() {
@@ -8338,6 +8341,14 @@ async function sauvegarderExamen() {
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-examen');
   showToast(id ? '✅ Examen modifié !' : '✅ Examen planifié !','success');
+  chargerExamens();
+}
+
+async function supprimerExamen(id) {
+  if (!confirm('Supprimer cet examen ? Cette action est irréversible.')) return;
+  const { error } = await db.from('examens').delete().eq('id', id);
+  if (error) return showToast('Erreur : ' + error.message, 'error');
+  showToast('✅ Examen supprimé', 'success');
   chargerExamens();
 }
 
