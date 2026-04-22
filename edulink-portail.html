@@ -1757,32 +1757,42 @@ async function verifierOTP() {
 }
 
 async function connecterParTelephone(tel) {
-  // Normaliser : essayer avec et sans le + (ex: +22997141546 et 22997141546)
-  const telSans  = tel.replace(/^\+/, '');          // 22997141546
-  const telAvec  = tel.startsWith('+') ? tel : '+' + tel; // +22997141546
-  const tel8     = telSans.replace(/^229/, '');      // 97141546 (sans indicatif)
+  // Normaliser les formats de numéro
+  const telSans = tel.replace(/^[+]/, '');
+  const telAvec = '+' + telSans;
+  const tel8    = telSans.replace(/^229/, '');
 
-  // Chercher dans les 3 formats possibles
-  const { data: etudiants } = await db.from('etudiants')
-    .select('*')
-    .or(`telephone_parent.eq.${telAvec},telephone_parent.eq.${telSans},telephone_parent.eq.${tel8}`);
+  // Charger tous les étudiants et filtrer côté JS
+  // (évite les problèmes d'encodage du + dans PostgREST)
+  let trouve = null;
+  try {
+    const { data } = await db.from('etudiants').select('*');
+    const liste = (data || []).filter(e => {
+      const t = (e.telephone_parent || '').trim();
+      return t === telAvec || t === telSans || t === tel8;
+    });
+    console.log('[Portail] Recherche tel:', telAvec, '/', telSans, '/', tel8, '->', liste.length, 'résultat(s)');
+    if (liste.length > 0) trouve = liste[0];
+  } catch(e) {
+    console.error('[Portail] Erreur:', e.message);
+  }
 
-  if (etudiants && etudiants.length > 0) {
-    currentEtudiant = etudiants[0];
-    currentEcoleId  = etudiants[0].ecole_id;
-    currentProfile  = { role: 'parent', prenom: 'Parent', nom: '' };
+  if (trouve) {
+    currentEtudiant = trouve;
+    currentEcoleId  = trouve.ecole_id;
+    currentProfile  = { role: 'parent', prenom: 'Parent', nom: trouve.nom };
     currentUser     = { email: tel };
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-portail').style.display  = 'block';
-    document.getElementById('greeting-nom').textContent   = 'Parent de ' + etudiants[0].prenom;
+    document.getElementById('greeting-nom').textContent   = 'Parent de ' + trouve.prenom;
     document.getElementById('greeting-role').textContent  = 'Espace parent';
     document.getElementById('student-pill-wrap').innerHTML =
-      `<div class="student-pill">👨‍🎓 ${etudiants[0].nom} ${etudiants[0].prenom} · ${etudiants[0].filiere} ${etudiants[0].niveau}</div>`;
+      `<div class="student-pill">👨‍🎓 ${trouve.nom} ${trouve.prenom} · ${trouve.filiere} ${trouve.niveau}</div>`;
     chargerTout();
   } else {
-    showOTPError(2, 'Aucun enfant lie a ce numero. Contactez l\'administration.');
-    document.getElementById('btn-verifier-otp').disabled = false;
-    document.getElementById('btn-verifier-otp').textContent = '✅ Confirmer le code';
+    showOTPError(2, 'Aucun enfant lié à ce numéro. Vérifiez ou contactez l'administration.');
+    const btn = document.getElementById('btn-verifier-otp');
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmer le code'; }
   }
 }
 
