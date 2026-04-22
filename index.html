@@ -16435,7 +16435,68 @@ function effacerConversation() {
 /* ══════════════════════════════════════════════════════════════════
    SUITE 11 — SMS & COMMUNICATION PARENTS ★ JOUR 36
 ══════════════════════════════════════════════════════════════════ */
-const SMS_TEMPLATES = [];
+const SMS_TEMPLATES = [
+  {
+    ico: '🚫',
+    nom: 'Absence signalée',
+    preview: 'Votre enfant {nom_eleve} a été absent(e)...',
+    msg: `Bonjour {nom_parent}, votre enfant {nom_eleve} ({classe}) a été absent(e) ce jour. Merci de contacter l'administration pour régulariser. — EduLink`
+  },
+  {
+    ico: '⏰',
+    nom: 'Retard signalé',
+    preview: 'Votre enfant {nom_eleve} est arrivé(e) en retard...',
+    msg: `Bonjour {nom_parent}, votre enfant {nom_eleve} ({classe}) est arrivé(e) en retard aujourd'hui. Merci de veiller à la ponctualité. — EduLink`
+  },
+  {
+    ico: '💳',
+    nom: 'Rappel paiement',
+    preview: 'Un paiement est en attente pour {nom_eleve}...',
+    msg: `Bonjour {nom_parent}, un paiement de scolarité est en attente pour {nom_eleve} ({classe}). Merci de régulariser au plus tôt à la caisse. — EduLink`
+  },
+  {
+    ico: '📊',
+    nom: 'Bulletin disponible',
+    preview: 'Le bulletin de {nom_eleve} est disponible...',
+    msg: `Bonjour {nom_parent}, le bulletin de notes de {nom_eleve} ({classe}) est disponible. Consultez-le sur le portail famille : edulink-demo-client.vercel.app/edulink-portail.html — EduLink`
+  },
+  {
+    ico: '📝',
+    nom: 'Examen à venir',
+    preview: 'Rappel : examen prévu pour {nom_eleve}...',
+    msg: `Bonjour {nom_parent}, rappel : un examen est prévu cette semaine pour {nom_eleve} ({classe}). Assurez-vous de la préparation de votre enfant. — EduLink`
+  },
+  {
+    ico: '👥',
+    nom: 'Réunion parents',
+    preview: 'Réunion parents-professeurs prévue...',
+    msg: `Bonjour {nom_parent}, une réunion parents-professeurs est organisée. Votre présence est souhaitée. Consultez le portail famille pour les détails. — EduLink`
+  },
+  {
+    ico: '🎉',
+    nom: 'Félicitations',
+    preview: 'Excellents résultats pour {nom_eleve}...',
+    msg: `Bonjour {nom_parent}, félicitations ! {nom_eleve} ({classe}) a obtenu d'excellents résultats ce semestre. Bravo et continuez ainsi ! — EduLink`
+  },
+  {
+    ico: '📅',
+    nom: 'Fin de trimestre',
+    preview: 'Fin du trimestre — informations importantes...',
+    msg: `Bonjour {nom_parent}, le trimestre se termine bientôt. Les bulletins seront disponibles sous 48h sur le portail famille. Merci de votre confiance. — EduLink`
+  },
+  {
+    ico: '🏫',
+    nom: 'Fermeture exceptionnelle',
+    preview: `L'établissement sera fermé le...`,
+    msg: `Bonjour {nom_parent}, l'établissement sera exceptionnellement fermé. Les cours reprendront normalement selon le calendrier prévu. — EduLink`
+  },
+  {
+    ico: '💉',
+    nom: 'Visite médicale',
+    preview: 'Visite médicale programmée pour {nom_eleve}...',
+    msg: `Bonjour {nom_parent}, une visite médicale scolaire est programmée pour {nom_eleve} ({classe}). Merci de vous assurer que votre enfant est présent(e). — EduLink`
+  },
+];
 
 const SMS_HISTORIQUE = [];
 
