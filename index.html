@@ -13767,97 +13767,136 @@ function lancerBackup() { showToast('💾 Sauvegarde manuelle lancée — Termin
 ══════════════════════════════════════════════════════════════════ */
 const ETUDIANTS_PORTAIL = {};
 
-function chargerPortailEtudiant(id=1) {
-  const et = ETUDIANTS_PORTAIL[id] || ETUDIANTS_PORTAIL[1];
-  document.getElementById('portail-avatar').textContent = et.nom[0];
-  document.getElementById('portail-avatar').style.background = et.color+'40';
-  document.getElementById('portail-nom-etudiant').textContent = et.nom;
-  document.getElementById('portail-info-etudiant').textContent = `${et.classe} · Matricule: ${et.mat} · Inscrit le 01/09/2025`;
-  document.getElementById('portail-moy-gen').textContent = et.moy;
-  document.getElementById('portail-rang').textContent = et.rang;
-  document.getElementById('portail-absences').textContent = et.absences;
-  document.getElementById('portail-moy-side').textContent = et.moy;
-  document.getElementById('portail-moy-bar').style.width = (et.moy/20*100)+'%';
-
-  // Notes
-  const notesList = document.getElementById('portail-notes-list');
-  if (notesList) notesList.innerHTML = et.notes.map(n=>{
-    const cls = n.note>=16?'excellent':n.note>=13?'bien':n.note>=10?'passable':'insuffisant';
-    return `<div class="bm-matiere-row">
-      <div class="bm-mat-nom">${n.matiere}</div>
-      <div class="bm-coef">Coef. ${n.coef}</div>
-      <div class="bm-note ${cls}">${n.note}/20</div>
-      <div class="bm-trend">${n.trend==='↑'?'📈':n.trend==='↓'?'📉':'➡️'}</div>
-    </div>`;
-  }).join('');
-
-  // Absences
-  const absList = document.getElementById('portail-absences-list');
-  if (absList) absList.innerHTML = et.absencesList.length ? et.absencesList.map(a=>`
-    <div class="absence-mini-item">
-      <div class="abs-dot ${a.type}"></div>
-      <div class="abs-info">
-        <div class="abs-date">${a.date}</div>
-        <div class="abs-cours">${a.cours} · <span class="badge ${a.type==='justifiee'?'green':'red'}" style="font-size:10px">${a.type}</span></div>
-      </div>
-    </div>`).join('') : '<div class="empty-state" style="padding:2rem">✅ Aucune absence enregistrée</div>';
-
-  // Emploi du temps mini
-  const edtGrid = document.getElementById('portail-edt-grid');
-  if (edtGrid) {
-    const jours = ['Lun','Mar','Mer','Jeu','Ven'];
-    const slots = [
-      [{mat:'Maths',ico:'📐',cls:'plan-partiel'},{mat:'SVT',ico:'🔬',cls:'plan-controle'},{mat:'',ico:'',cls:''},{mat:'Philo',ico:'🧠',cls:'plan-soutenance'},{mat:'Ang.',ico:'🗣️',cls:'plan-controle'}],
-      [{mat:'Français',ico:'📝',cls:'plan-controle'},{mat:'',ico:'',cls:''},{mat:'Phys.',ico:'⚗️',cls:'plan-partiel'},{mat:'Hist.',ico:'🌍',cls:'plan-controle'},{mat:'',ico:'',cls:''}],
-      [{mat:'Info.',ico:'💻',cls:'plan-controle'},{mat:'Maths',ico:'📐',cls:'plan-partiel'},{mat:'',ico:'',cls:''},{mat:'',ico:'',cls:''},{mat:'SVT',ico:'🔬',cls:'plan-controle'}],
-    ];
-    edtGrid.innerHTML = jours.map((j,i)=>`
-      <div class="edt-day-col">
-        <div class="edt-day-header">${j}</div>
-        ${slots.map(s=>s[i].mat?`<div class="edt-slot-mini ${s[i].cls}">${s[i].ico} ${s[i].mat}</div>`:'<div style="height:36px"></div>').join('')}
-      </div>`).join('');
+async function chargerPortailEtudiant(etudiantId) {
+  // Peupler le select avec les vrais étudiants si pas encore fait
+  const sel = document.getElementById('portail-etudiant-selector');
+  if (sel && sel.options.length <= 1) {
+    const { data: etus } = await db.from('etudiants')
+      .select('id, nom, prenom, filiere, niveau, matricule')
+      .eq('ecole_id', currentEcoleId)
+      .order('nom');
+    if (etus?.length) {
+      sel.innerHTML = etus.map(e =>
+        `<option value="${e.id}">${e.nom} ${e.prenom} — ${e.filiere} ${e.niveau}</option>`
+      ).join('');
+      if (!etudiantId || etudiantId === 1) etudiantId = etus[0].id;
+    }
   }
 
-  // Messages
-  const msgList = document.getElementById('portail-messages-list');
-  if (msgList) msgList.innerHTML = et.messages.map(m=>`
-    <div class="msg-mini-item ${m.unread?'unread':''}">
-      <div class="mmi-ico" style="background:${m.color}">${m.from[0]}</div>
-      <div class="mmi-body">
-        <div class="mmi-from">${m.from} ${m.unread?'<span class="badge blue" style="font-size:9px">Nouveau</span>':''}</div>
-        <div>${m.sujet}</div>
-        <div class="mmi-preview">${m.preview}</div>
-      </div>
-      <div class="mmi-date">${m.date}</div>
-    </div>`).join('');
+  if (!etudiantId || etudiantId === 1) return;
+
+  // Charger l'étudiant
+  const { data: et } = await db.from('etudiants').select('*').eq('id', etudiantId).single();
+  if (!et) return;
+
+  // Hero banner
+  document.getElementById('portail-avatar').textContent = (et.nom||'?')[0].toUpperCase();
+  document.getElementById('portail-nom-etudiant').textContent = et.nom + ' ' + et.prenom;
+  document.getElementById('portail-info-etudiant').textContent =
+    `${et.filiere} ${et.niveau} · Matricule: ${et.matricule||'—'} · Inscrit le ${fmtDate(et.date_inscription||et.created_at)}`;
+
+  // Notes de l'étudiant
+  const { data: notes } = await db.from('notes').select('*')
+    .eq('etudiant_id', etudiantId).order('created_at', {ascending:false});
+  const tNotes = notes || [];
+
+  // Moyenne générale
+  let moyGen = 0;
+  if (tNotes.length) {
+    const totalPts = tNotes.reduce((s,n) => s + (n.note||0)*(n.coefficient||1), 0);
+    const totalCoef = tNotes.reduce((s,n) => s + (n.coefficient||1), 0);
+    moyGen = totalCoef ? Math.round(totalPts/totalCoef*10)/10 : 0;
+  }
+  document.getElementById('portail-moy-gen').textContent = moyGen || '—';
+  if (document.getElementById('portail-moy-side')) document.getElementById('portail-moy-side').textContent = moyGen || '—';
+  if (document.getElementById('portail-moy-bar')) document.getElementById('portail-moy-bar').style.width = (moyGen/20*100)+'%';
+
+  // Absences de l'étudiant
+  const { data: absences } = await db.from('absences').select('*')
+    .eq('etudiant_id', etudiantId).order('date_absence', {ascending:false});
+  const tAbs = absences || [];
+  document.getElementById('portail-absences').textContent = tAbs.length;
 
   // Paiements
+  const { data: factures } = await db.from('factures').select('*')
+    .eq('ecole_id', currentEcoleId).order('created_at', {ascending:false});
+  const tFac = factures || [];
+  const impayees = tFac.filter(f => f.statut === 'en_attente' || f.statut === 'impayee').length;
+  document.getElementById('portail-paiements').textContent = impayees > 0 ? `⚠️ ${impayees}` : '✅';
+
+  // Rang (comparaison avec les autres étudiants)
+  const { data: tousNotes } = await db.from('notes').select('etudiant_id, note, coefficient')
+    .eq('ecole_id', currentEcoleId);
+  const parEtu = {};
+  (tousNotes||[]).forEach(n => {
+    if (!parEtu[n.etudiant_id]) parEtu[n.etudiant_id] = { pts:0, coef:0 };
+    parEtu[n.etudiant_id].pts += (n.note||0)*(n.coefficient||1);
+    parEtu[n.etudiant_id].coef += (n.coefficient||1);
+  });
+  const moyennes = Object.entries(parEtu)
+    .map(([id,v]) => ({ id, moy: v.coef ? v.pts/v.coef : 0 }))
+    .sort((a,b) => b.moy - a.moy);
+  const rang = moyennes.findIndex(m => m.id === etudiantId) + 1;
+  document.getElementById('portail-rang').textContent = rang > 0 ? rang+'ème' : '—';
+
+  // Tab Notes
+  const notesList = document.getElementById('portail-notes-list');
+  if (notesList) notesList.innerHTML = tNotes.length
+    ? tNotes.map(n => {
+        const cls = n.note>=16?'excellent':n.note>=13?'bien':n.note>=10?'passable':'insuffisant';
+        return `<div class="bm-matiere-row">
+          <div class="bm-mat-nom">${n.matiere}</div>
+          <div class="bm-coef">Coef. ${n.coefficient||1}</div>
+          <div class="bm-note ${cls}">${n.note}/20</div>
+          <div class="bm-trend"><span class="badge gray" style="font-size:10px">${n.periode||''}</span></div>
+        </div>`;
+      }).join('')
+    : '<div class="empty-state" style="padding:2rem">📊 Aucune note enregistrée</div>';
+
+  // Tab Absences
+  const absList = document.getElementById('portail-absences-list');
+  if (absList) absList.innerHTML = tAbs.length
+    ? tAbs.map(a => `
+      <div class="absence-mini-item">
+        <div class="abs-dot ${a.statut==='absent'?'red':'amber'}"></div>
+        <div class="abs-info">
+          <div class="abs-date">${fmtDate(a.date_absence)}</div>
+          <div class="abs-cours">${a.matiere} · <span class="badge ${a.justifiee?'green':'red'}" style="font-size:10px">${a.justifiee?'Justifiée':'Non justifiée'}</span></div>
+        </div>
+      </div>`).join('')
+    : '<div class="empty-state" style="padding:2rem">✅ Aucune absence enregistrée</div>';
+
+  // Tab Paiements
   const paiTbody = document.getElementById('portail-paiements-tbody');
-  if (paiTbody) paiTbody.innerHTML = et.paiements.map(p=>`<tr>
-    <td>${p.libelle}</td>
-    <td><strong style="color:#1e3a5f">${p.montant.toLocaleString('fr-FR')} F</strong></td>
-    <td>${p.echeance}</td>
-    <td><span class="badge ${p.statut==='Payé'?'green':'amber'}">${p.statut}</span></td>
-  </tr>`).join('');
+  if (paiTbody) paiTbody.innerHTML = tFac.length
+    ? tFac.map(p => `<tr>
+        <td>${p.libelle||'—'}</td>
+        <td><strong style="color:#1e3a5f">${(p.montant_total||0).toLocaleString('fr-FR')} F</strong></td>
+        <td>${fmtDate(p.echeance)}</td>
+        <td><span class="badge ${p.statut==='payee'?'green':p.statut==='en_attente'?'amber':'red'}">${p.statut==='payee'?'Payé':p.statut==='en_attente'?'En attente':'Impayé'}</span></td>
+      </tr>`).join('')
+    : '<tr><td colspan="4" class="loading">Aucune facture</td></tr>';
 
-  // Ressources
-  const ressList = document.getElementById('portail-ressources-list');
-  const ressources = [
-    {ico:'📐',titre:'Cours de Maths - Dérivées',type:'PDF',taille:'2.4 MB'},
-    {ico:'⚗️',titre:'TP Physique - Oscillations',type:'PDF',taille:'1.8 MB'},
-    {ico:'🔬',titre:'Révisions SVT - Génétique',type:'DOC',taille:'950 KB'},
-    {ico:'📝',titre:'Baccalauréats corrigés 2024',type:'PDF',taille:'5.1 MB'},
-  ];
-  if (ressList) ressList.innerHTML = ressources.map(r=>`
-    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:.85rem;cursor:pointer;transition:all .15s" onmouseenter="this.style.borderColor='#1e3a5f'" onmouseleave="this.style.borderColor='#e5e7eb'" onclick="showToast('📥 Téléchargement de ${r.titre}...','info')">
-      <div style="font-size:24px;margin-bottom:.4rem">${r.ico}</div>
-      <div style="font-size:12.5px;font-weight:700;color:#111827;margin-bottom:2px">${r.titre}</div>
-      <div style="font-size:11px;color:#9ca3af">${r.type} · ${r.taille}</div>
-    </div>`).join('');
+  // Messages de l'étudiant
+  const { data: msgs } = await db.from('messages').select('*')
+    .eq('ecole_id', currentEcoleId).order('created_at', {ascending:false}).limit(5);
+  const msgList = document.getElementById('portail-messages-list');
+  if (msgList) msgList.innerHTML = (msgs||[]).length
+    ? msgs.map(m => `
+      <div class="msg-mini-item ${m.lu?'':'unread'}">
+        <div class="mmi-ico" style="background:#1e3a5f">${(m.expediteur_nom||'A')[0]}</div>
+        <div class="mmi-body">
+          <div class="mmi-from">${m.expediteur_nom||'Administration'} ${!m.lu?'<span class="badge blue" style="font-size:9px">Nouveau</span>':''}</div>
+          <div>${m.objet||'—'}</div>
+          <div class="mmi-preview">${(m.contenu||'').substring(0,60)}…</div>
+        </div>
+        <div class="mmi-date">${fmtDate(m.created_at)}</div>
+      </div>`).join('')
+    : '<div class="empty-state" style="padding:2rem">📭 Aucun message</div>';
 
-  // Sidebar - progression par matière
-  const progItems = document.getElementById('portail-progression-items');
-  if (progItems) progItems.innerHTML = et.notes.slice(0,4).map(n=>`
+  // Sidebar progression
+  const progItems = document.getElementById('portail-prog-items');
+  if (progItems) progItems.innerHTML = tNotes.slice(0,4).map(n => `
     <div style="margin-bottom:.6rem">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
         <span style="color:#374151;font-weight:500">${n.matiere}</span>
@@ -13868,28 +13907,36 @@ function chargerPortailEtudiant(id=1) {
       </div>
     </div>`).join('');
 
-  // Prochains examens
+  // Sidebar examens
   const examsSide = document.getElementById('portail-examens-side');
-  const examens = [];
-  if (examsSide) examsSide.innerHTML = examens.map(e=>`
-    <div style="display:flex;align-items:center;gap:.75rem;padding:.65rem 1.2rem;border-bottom:1px solid #f3f4f6">
-      <div style="background:#eff6ff;border-radius:8px;padding:4px 8px;text-align:center;flex-shrink:0">
-        <div style="font-size:14px;font-weight:800;color:#1e3a5f">${e.date.split('/')[0]}</div>
-        <div style="font-size:9px;color:#6b7280">${e.date.split('/')[1]}</div>
-      </div>
-      <div><div style="font-size:12.5px;font-weight:600;color:#111827">${e.mat}</div>
-      <div style="font-size:11px;color:#6b7280">${e.type}</div></div>
-    </div>`).join('');
+  const today = new Date().toISOString().split('T')[0];
+  const { data: prochExamens } = await db.from('examens').select('*')
+    .eq('ecole_id', currentEcoleId).gte('date_examen', today)
+    .order('date_examen').limit(3);
+  if (examsSide) examsSide.innerHTML = (prochExamens||[]).length
+    ? prochExamens.map(e => `
+      <div style="display:flex;align-items:center;gap:.75rem;padding:.65rem 1.2rem;border-bottom:1px solid #f3f4f6">
+        <div style="background:#eff6ff;border-radius:8px;padding:4px 8px;text-align:center;flex-shrink:0">
+          <div style="font-size:14px;font-weight:800;color:#1e3a5f">${new Date(e.date_examen).getDate()}</div>
+          <div style="font-size:9px;color:#6b7280">${['JAN','FÉV','MAR','AVR','MAI','JUN','JUL','AOÛ','SEP','OCT','NOV','DÉC'][new Date(e.date_examen).getMonth()]}</div>
+        </div>
+        <div>
+          <div style="font-size:12.5px;font-weight:600;color:#111827">${e.matiere}</div>
+          <div style="font-size:11px;color:#6b7280">${e.type_examen||'Examen'} · ${e.salle||''}</div>
+        </div>
+      </div>`).join('')
+    : '<div style="padding:1rem;text-align:center;font-size:12px;color:#9ca3af">Aucun examen à venir</div>';
 
-  // Résultats récents
+  // Sidebar résultats récents
   const resultsSide = document.getElementById('portail-resultats-side');
-  if (resultsSide) resultsSide.innerHTML = et.notes.slice(0,3).map(n=>`
+  if (resultsSide) resultsSide.innerHTML = tNotes.slice(0,3).map(n => `
     <div style="display:flex;align-items:center;gap:.75rem;padding:.65rem 1.2rem;border-bottom:1px solid #f3f4f6">
       <span style="font-size:18px">${n.note>=16?'🏆':n.note>=13?'✅':'📊'}</span>
       <div style="flex:1"><div style="font-size:12.5px;font-weight:600;color:#111827">${n.matiere}</div></div>
       <span class="badge ${n.note>=16?'green':n.note>=13?'blue':'amber'}">${n.note}/20</span>
     </div>`).join('');
 }
+
 
 function portailSwitchTab(tab, btn) {
   ['notes','absences','emploi','messages','paiements','ressources'].forEach(t=>{
