@@ -2458,8 +2458,14 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="msg-layout">
     <div class="msg-list">
       <div class="msg-list-header">
-        <span>Boîte de réception</span>
-        <span id="count-msgs" style="font-size:11px;color:#6b7280"></span>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+          <input type="checkbox" id="msg-select-all" onchange="toggleSelectAllMessages(this)" style="cursor:pointer">
+          Boîte de réception
+        </label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="count-msgs" style="font-size:11px;color:#6b7280"></span>
+          <button id="btn-delete-selected" class="btn-sm btn-red" onclick="supprimerMessagesSelectionnes()" style="display:none;padding:3px 8px;font-size:11px">🗑️ Supprimer (<span id="count-selected">0</span>)</button>
+        </div>
       </div>
       <div id="msg-list-body"><div class="loading">Chargement...</div></div>
     </div>
@@ -7191,7 +7197,10 @@ async function chargerMessages() {
     ? tousLesMessages.map(m => `
       <div class="msg-item ${m.lu?'':'unread'} ${m.id===selectedMsgId?'selected':''}" onclick="lireMessage('${m.id}')">
         <div class="msg-item-meta">
-          <div class="msg-sender">${m.expediteur_nom||'Inconnu'}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="checkbox" class="msg-checkbox" data-id="${m.id}" onclick="event.stopPropagation();mettreAJourSelectionMessages()" style="cursor:pointer;flex-shrink:0">
+            <div class="msg-sender">${m.expediteur_nom||'Inconnu'}</div>
+          </div>
           <div style="display:flex;align-items:center;gap:4px">
             ${m.lu
               ? `<span class="msg-lu-badge lu">✓✓ Lu</span>`
@@ -7210,6 +7219,47 @@ async function chargerMessages() {
   const b = document.getElementById('badge-msg');
   if (nonLus>0){b.textContent=nonLus;b.style.display='inline';}else b.style.display='none';
 }
+// ── Sélection messages ───────────────────────────────────────
+function mettreAJourSelectionMessages() {
+  const cases = document.querySelectorAll('.msg-checkbox:checked');
+  const total = document.querySelectorAll('.msg-checkbox').length;
+  const nb = cases.length;
+  const btn = document.getElementById('btn-delete-selected');
+  const count = document.getElementById('count-selected');
+  const selectAll = document.getElementById('msg-select-all');
+  if (btn) btn.style.display = nb > 0 ? 'inline-flex' : 'none';
+  if (count) count.textContent = nb;
+  if (selectAll) selectAll.indeterminate = nb > 0 && nb < total;
+  if (selectAll) selectAll.checked = nb === total && total > 0;
+}
+
+function toggleSelectAllMessages(cb) {
+  document.querySelectorAll('.msg-checkbox').forEach(c => c.checked = cb.checked);
+  mettreAJourSelectionMessages();
+}
+
+async function supprimerMessagesSelectionnes() {
+  const cases = document.querySelectorAll('.msg-checkbox:checked');
+  if (!cases.length) return;
+  const ids = [...cases].map(c => c.dataset.id);
+  if (!confirm(`Supprimer ${ids.length} message(s) sélectionné(s) ?`)) return;
+  let erreurs = 0;
+  for (const id of ids) {
+    const { error } = await db.from('messages').delete().eq('id', id);
+    if (error) erreurs++;
+    if (selectedMsgId === id) {
+      selectedMsgId = null;
+      const empty = document.getElementById('msg-detail-empty');
+      const detail = document.getElementById('msg-detail-content');
+      if (empty) empty.style.display = 'flex';
+      if (detail) detail.style.display = 'none';
+    }
+  }
+  if (erreurs) showToast(`⚠️ ${erreurs} message(s) non supprimé(s)`, 'error');
+  else showToast(`✅ ${ids.length} message(s) supprimé(s)`, 'success');
+  chargerMessages();
+}
+
 async function supprimerMessage(id) {
   if (!confirm('Supprimer ce message définitivement ?')) return;
   const { error } = await db.from('messages').delete().eq('id', id);
