@@ -15209,6 +15209,21 @@ async function lancerResetDemo() {
   }
 }
 
+// ── Fonctions stub (références dans le HTML) ─────────────────
+function filtrerUtilisateurs(val) {
+  const q = (val||'').toLowerCase();
+  const rows = document.querySelectorAll('#tbody-utilisateurs tr');
+  rows.forEach(r => {
+    r.style.display = q && !r.textContent.toLowerCase().includes(q) ? 'none' : '';
+  });
+}
+
+function toggleEtudiantField() {
+  const role = document.getElementById('input-user-role')?.value;
+  const etudiantField = document.getElementById('field-user-etudiant');
+  if (etudiantField) etudiantField.style.display = role === 'etudiant' ? 'block' : 'none';
+}
+
 </script>
 </body>
 </html>
