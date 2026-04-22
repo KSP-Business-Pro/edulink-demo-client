@@ -6950,19 +6950,58 @@ async function chargerNotes() {
   const cur = filtMat.value;
   filtMat.innerHTML = '<option value="">Toutes les matières</option>' + matieres.map(m => `<option value="${m}" ${cur===m?'selected':''}>${m}</option>`).join('');
   document.getElementById('tbody-notes').innerHTML = toutesLesNotes.length
-    ? toutesLesNotes.map(n => { const a=getApp(n.note); return `<tr><td>${n.etudiants?n.etudiants.nom+' '+n.etudiants.prenom:'N/A'}</td><td>${n.matiere}</td><td><span class="note-badge ${a.cls}">${n.note}/20</span></td><td>${n.coefficient||1}</td><td><span class="badge gray">${n.periode}</span></td><td><span class="badge ${a.cls}">${a.label}</span></td><td><button class="btn-sm btn-red" onclick="supprimerNote('${n.id}')">✕</button></td></tr>`; }).join('')
+    ? toutesLesNotes.map(n => { const a=getApp(n.note); return `<tr>
+    <td>${n.etudiants?n.etudiants.nom+' '+n.etudiants.prenom:'N/A'}</td>
+    <td>${n.matiere}</td>
+    <td><span class="note-badge ${a.cls}">${n.note}/20</span></td>
+    <td>${n.coefficient||1}</td>
+    <td><span class="badge gray">${n.periode}</span></td>
+    <td><span class="badge ${a.cls}">${a.label}</span></td>
+    <td style="white-space:nowrap">
+      <button class="btn-sm btn-blue" onclick="modifierNote('${n.id}')" title="Modifier">✏️</button>
+      <button class="btn-sm btn-red" onclick="supprimerNote('${n.id}')" title="Supprimer" style="margin-left:4px">🗑️</button>
+    </td>
+  </tr>`; }).join('')
     : '<tr><td colspan="7" class="loading">Aucune note.</td></tr>';
 }
 async function enregistrerNote() {
   const matiere=document.getElementById('input-note-matiere').value.trim(), note=parseFloat(document.getElementById('input-note-valeur').value);
   if (!matiere||isNaN(note)) { showToast('Remplissez matière et note.','error'); return; }
   if (note<0||note>20) { showToast('Note entre 0 et 20.','error'); return; }
-  const { error } = await db.from('notes').insert([{ ecole_id:currentEcoleId, etudiant_id:document.getElementById('input-note-etudiant').value, matiere, note, coefficient:parseInt(document.getElementById('input-note-coeff').value)||2, periode:document.getElementById('input-note-periode').value, commentaire:document.getElementById('input-note-commentaire').value.trim() }]);
+  const editId = document.getElementById('modal-note').dataset.editId;
+  const payload = { ecole_id:currentEcoleId, etudiant_id:document.getElementById('input-note-etudiant').value, matiere, note, coefficient:parseInt(document.getElementById('input-note-coeff').value)||2, periode:document.getElementById('input-note-periode').value, commentaire:document.getElementById('input-note-commentaire').value.trim() };
+  let error;
+  if (editId) {
+    ({ error } = await db.from('notes').update(payload).eq('id', editId));
+  } else {
+    ({ error } = await db.from('notes').insert([payload]));
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  delete document.getElementById('modal-note').dataset.editId;
+  const titreEl = document.querySelector('#modal-note h3');
+  if (titreEl) titreEl.textContent = '📊 Saisir une note';
   fermerModal('modal-note'); ['input-note-matiere','input-note-valeur','input-note-commentaire'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('input-note-coeff').value='2';
-  showToast('Note enregistrée !','success'); chargerNotes(); chargerDashboard();
+  showToast(editId ? '✅ Note modifiée !' : 'Note enregistrée !','success'); chargerNotes(); chargerDashboard();
 }
+async function modifierNote(id) {
+  const { data: n } = await db.from('notes').select('*').eq('id', id).single();
+  if (!n) return showToast('Note introuvable', 'error');
+  // Pré-remplir la modale
+  const el = id => document.getElementById(id);
+  if (el('input-note-etudiant')) el('input-note-etudiant').value = n.etudiant_id;
+  if (el('input-note-matiere'))  el('input-note-matiere').value  = n.matiere;
+  if (el('input-note-valeur'))   el('input-note-valeur').value   = n.note;
+  if (el('input-note-coeff'))    el('input-note-coeff').value    = n.coefficient || 2;
+  if (el('input-note-periode'))  el('input-note-periode').value  = n.periode;
+  if (el('input-note-commentaire')) el('input-note-commentaire').value = n.commentaire || '';
+  // Mode édition
+  document.getElementById('modal-note').dataset.editId = id;
+  const titre = document.querySelector('#modal-note h3');
+  if (titre) titre.textContent = '✏️ Modifier la note';
+  ouvrirModal('modal-note');
+}
+
 async function supprimerNote(id) {
   if (!confirm('Supprimer cette note ?')) return;
   await db.from('notes').delete().eq('id',id);
