@@ -1725,6 +1725,15 @@ async function verifierOTP() {
   if (code.length < 6) { showOTPError(2, 'Entrez les 6 chiffres du code.'); return; }
   const btn = document.getElementById('btn-verifier-otp');
   btn.disabled = true; btn.textContent = 'Vérification...';
+
+  // ── MODE DÉMO : code 123456 accepté directement sans Edge Function ──
+  if (code === '123456') {
+    clearInterval(otpTimer);
+    await connecterParTelephone(otpTelephone);
+    return;
+  }
+
+  // ── MODE PRODUCTION : vérification via Edge Function ──
   try {
     const resp = await fetch(EDGE_URL, {
       method: 'POST',
@@ -1738,17 +1747,9 @@ async function verifierOTP() {
     const data = await resp.json();
     if (!data.success) throw new Error(data.error || 'Code invalide');
     clearInterval(otpTimer);
-    // Chercher l'étudiant lié à ce numéro de téléphone
     await connecterParTelephone(otpTelephone);
   } catch(e) {
-    // Mode démo : accepter le code 123456
-    const code2 = [0,1,2,3,4,5].map(i => document.getElementById('d'+i).value).join('');
-    if (code2 === '123456') {
-      clearInterval(otpTimer);
-      await connecterParTelephone(otpTelephone);
-      return;
-    }
-    showOTPError(2, e.message + ' (Démo : utilisez le code 123456)');
+    showOTPError(2, 'Code incorrect. En mode démo, utilisez le code 123456.');
     btn.disabled = false; btn.textContent = '✅ Confirmer le code';
     [0,1,2,3,4,5].forEach(i => { const d = document.getElementById('d'+i); d.value=''; d.classList.remove('filled'); });
     document.getElementById('d0').focus();
