@@ -11805,20 +11805,20 @@ async function supprimerMatiereProgamme(id, classeId) {
 
 function voirProgrammeClasse(classeId, nom) {
   showPage('classes');
-  setTimeout(() => {
+  chargerClasses().then(() => {
     showTab('cls','tab-cls-programmes');
     const sel = document.getElementById('filter-prog-classe');
     if (sel) { sel.value = classeId; chargerProgramme(); }
-  }, 200);
+  });
 }
 
 function voirAffectationClasse(classeId) {
   showPage('classes');
-  setTimeout(() => {
+  chargerClasses().then(() => {
     showTab('cls','tab-cls-affectation');
     const sel = document.getElementById('filter-aff-classe');
     if (sel) { sel.value = classeId; chargerAffectation(); }
-  }, 200);
+  });
 }
 
 // ── Calendrier scolaire ──────────────────────────────────────────────────
