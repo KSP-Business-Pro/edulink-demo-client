@@ -33,7 +33,7 @@
 body { background:#f3f4f6; margin:0; height:100vh; overflow:hidden; }
 
 /* ── Navigation ── */
-nav { position:fixed; top:0; left:0; width:230px; height:100vh; background:#1e3a5f; padding:1rem; display:flex; flex-direction:column; overflow-y:auto; z-index:100; }
+nav { position:fixed; top:0; left:0; width:230px; height:100vh; background:#1e3a5f; padding:1rem; display:flex; flex-direction:column; overflow-y:auto; z-index:10; box-sizing:border-box; }
 nav .logo { color:#fff; font-size:15px; font-weight:700; margin-bottom:.5rem; }
 nav .ecole-selector-wrap { margin-bottom:1.2rem; }
 nav .ecole-selector-wrap select { width:100%; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.1); color:#fff; font-size:12px; font-family:'Poppins',sans-serif; cursor:pointer; outline:none; }
@@ -48,7 +48,7 @@ nav .nav-bottom a { font-size:11px; color:rgba(255,255,255,.5); }
 .ecole-badge .eb-nom { font-size:12px; font-weight:600; color:#fff; }
 .ecole-badge .eb-type { font-size:10px; color:rgba(255,255,255,.6); }
 
-main { position:fixed; top:0; left:230px; right:0; bottom:0; padding:1.5rem; overflow-y:auto; overflow-x:hidden; box-sizing:border-box; }
+main { position:fixed; top:0; left:230px; right:0; bottom:0; padding:1.5rem; overflow-y:auto; overflow-x:hidden; box-sizing:border-box; background:#f3f4f6; }
 .page { display:none; max-width:100%; }
 .page.active { display:block; animation:fadeIn .2s ease; }
 @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
