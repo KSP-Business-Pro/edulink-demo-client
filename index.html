@@ -48,7 +48,7 @@ nav .nav-bottom a { font-size:11px; color:rgba(255,255,255,.5); }
 .ecole-badge .eb-nom { font-size:12px; font-weight:600; color:#fff; }
 .ecole-badge .eb-type { font-size:10px; color:rgba(255,255,255,.6); }
 
-main { flex:1; height:0; padding:1.5rem; overflow-y:auto; overflow-x:hidden; min-width:0; box-sizing:border-box; }
+main { flex:1; align-self:stretch; padding:1.5rem; overflow-y:auto; overflow-x:hidden; min-width:0; box-sizing:border-box; }
 .page { display:none; max-width:100%; }
 .page.active { display:block; animation:fadeIn .2s ease; }
 @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
@@ -6242,12 +6242,19 @@ async function seConnecter() {
 
 function showApp() {
   const a = document.getElementById('app-main');
-  a.style.cssText = 'display:flex !important; flex-direction:row !important; flex:1 !important; min-width:0; height:100vh; overflow:hidden;';
+  a.style.display = 'flex';
+  a.style.flexDirection = 'row';
+  a.style.flex = '1';
+  a.style.minWidth = '0';
+  a.style.height = '100vh';
+  a.style.overflow = 'hidden';
 }
 
 async function seDeconnecter() {
   await db.auth.signOut();
-  document.getElementById('app-main').style.cssText = 'display:none;';
+  const a = document.getElementById('app-main');
+  a.style.display = 'none';
+  a.style.flex = '';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-pwd').value = '';
 }
