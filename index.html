@@ -18,6 +18,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <!-- Firebase SDK ★ JOUR 15 -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
@@ -2480,7 +2481,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
      PRÉSENCES
 ═══════════════════════════════════════ -->
 <div class="page" id="page-presences">
-  <div class="top"><h2>Présences & Absences</h2><div class="top-actions"><button class="btn-outline" onclick="exporterAbsencesCSV()">⬇️ Export CSV</button><button onclick="ouvrirModal('modal-absence')">+ Enregistrer absence</button></div></div>
+  <div class="top"><h2>Présences & Absences</h2><button onclick="ouvrirModal('modal-absence')">+ Enregistrer absence</button></div>
   <div class="filters">
     <span class="filter-label">Filtrer :</span>
     <select id="filter-absence-statut" onchange="chargerAbsences()">
@@ -2502,8 +2503,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <h2>Notes & Bulletins</h2>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterNotesCSV()">⬇️ Export CSV</button>
-      <button class="btn-secondary" onclick="ouvrirModal('modal-import-notes')">📥 Import CSV</button>
       <button class="btn-outline" onclick="showTab('notes','tab-bulletins')">📄 Voir bulletins</button>
       <button onclick="ouvrirModal('modal-note')">+ Saisir note</button>
     </div>
@@ -2689,6 +2688,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     </div>
     <div class="top-actions">
       <button class="btn-outline" onclick="exporterEnseignantsCSV()">⬇️ Export CSV</button>
+      <button class="btn-secondary" onclick="ouvrirModal('modal-import-enseignants')">📥 Import Excel</button>
       <button onclick="ouvrirModal('modal-enseignant')">+ Ajouter enseignant</button>
     </div>
   </div>
@@ -2748,7 +2748,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
      MESSAGERIE
 ═══════════════════════════════════════ -->
 <div class="page" id="page-messages">
-  <div class="top"><h2>Messagerie</h2><div class="top-actions"><button class="btn-outline" onclick="exporterMessagesCSV()">⬇️ Export CSV</button><button onclick="ouvrirModal('modal-message')">+ Nouveau message</button></div></div>
+  <div class="top"><h2>Messagerie</h2><button onclick="ouvrirModal('modal-message')">+ Nouveau message</button></div>
   <div class="msg-layout">
     <div class="msg-list">
       <div class="msg-list-header">
@@ -2788,7 +2788,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Suivi des frais scolaires et des paiements</p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterPaiementsCSV()">⬇️ Export CSV</button>
       <button class="btn-outline" onclick="showTab('pay','tab-pay-historique')">📋 Historique</button>
       <button onclick="ouvrirModal('modal-facture')">+ Nouvelle facture</button>
       <button class="btn-secondary btn-sm" onclick="envoyerRappelsPaiement()" style="background:#fef9c3;color:#d97706;border:1px solid #fde68a" title="Envoyer rappels email aux parents">📧 Rappels email</button>
@@ -2851,7 +2850,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <h2>Discipline</h2>
       <p class="page-subtitle">Gestion des incidents et sanctions</p>
     </div>
-    <div class="top-actions"><button class="btn-outline" onclick="exporterIncidentsCSV()">⬇️ Export CSV</button><button onclick="ouvrirModal('modal-incident')">+ Nouvel incident</button></div>
+    <button onclick="ouvrirModal('modal-incident')">+ Nouvel incident</button>
   </div>
 
   <div class="discipline-stats">
@@ -2960,7 +2959,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <h2>👥 Utilisateurs &amp; Accès</h2>
       <p class="page-subtitle">Gestion des comptes — <span id="sub-ecole-util-nom"></span></p>
     </div>
-    <div class="top-actions"><button class="btn-outline" onclick="exporterUtilisateursCSV()">⬇️ Export CSV</button><button onclick="ouvrirModal('modal-user')">+ Nouvel utilisateur</button></div>
+    <button onclick="ouvrirModal('modal-user')">+ Nouvel utilisateur</button>
   </div>
   <div class="cards">
     <div class="card"><div class="i">👨‍💼</div><div class="n" id="cnt-admins">0</div><div class="l">Administrateurs</div></div>
@@ -5783,7 +5782,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Gestion du catalogue et des emprunts</p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterBiblioCSV()">⬇️ Export CSV</button>
       <button class="btn-outline" onclick="showTab('bib','tab-bib-emprunts')">📋 Emprunts en cours</button>
       <button onclick="ouvrirModal('modal-livre')">+ Ajouter ouvrage</button>
     </div>
@@ -5924,7 +5922,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>🏫 Classes & Programmes</h2><p class="page-subtitle">Gestion des classes, filières et programmes pédagogiques</p></div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterClassesCSV()">⬇️ Export CSV</button>
+      <button class="btn-secondary" onclick="ouvrirModal('modal-import-classes')">📥 Import Excel</button>
       <button class="btn-outline" onclick="showTab('cls','tab-cls-programmes')">📚 Programmes</button>
       <button onclick="ouvrirModal('modal-classe')">+ Créer une classe</button>
     </div>
@@ -6023,7 +6021,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>🏦 Comptabilité & Trésorerie</h2><p class="page-subtitle">Tableau de bord financier, caisse et facturation en lot</p></div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterComptaCSV()">⬇️ Export CSV</button>
       <button class="btn-outline" onclick="exporterComptaPDF()">📄 Bilan PDF</button>
       <button onclick="ouvrirModal('modal-transaction')">+ Enregistrer dépense</button>
     </div>
@@ -6320,7 +6317,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>🧑‍💼 RH & Personnel</h2><p class="page-subtitle">Gestion du personnel administratif et enseignant</p></div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterRHCSV()">⬇️ Export CSV</button>
       <button class="btn-outline" onclick="exporterRHPDF()">📄 Rapport RH</button>
       <button onclick="ouvrirModal('modal-personnel')">+ Ajouter un agent</button>
     </div>
@@ -6417,7 +6413,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>🎓 Admissions & Inscriptions</h2><p class="page-subtitle">Gestion des candidatures, workflow d'admission et lettres officielles</p></div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterAdmissionsCSV()">⬇️ Export CSV</button>
       <button class="btn-outline" onclick="exporterRapportAdmissions()">📄 Rapport PDF</button>
       <button class="btn-secondary" onclick="ouvrirModal('modal-campagne')">⚙️ Campagne</button>
       <button onclick="ouvrirModal('modal-candidature')">+ Nouvelle candidature</button>
@@ -6602,25 +6597,118 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
 </div>
 
-<!-- Import Notes CSV -->
-<div class="modal-overlay" id="modal-import-notes">
+<!-- ══ MODAL IMPORT EXCEL — ENSEIGNANTS ══ -->
+<div class="modal-overlay" id="modal-import-enseignants">
   <div class="modal modal-lg">
-    <h3>📥 Import CSV — Notes en masse</h3>
+    <h3>📥 Import Excel — Enseignants</h3>
     <div style="background:#eff6ff;border-radius:10px;padding:.85rem;font-size:12px;color:#1d4ed8;margin-bottom:1rem">
-      <strong>Format attendu :</strong><br>
-      <code style="font-size:11px">etudiant (Nom Prenom), matiere, note, coefficient, periode (S1/S2/T1...)</code><br>
-      <a href="#" onclick="telechargerModeleNotes()" style="font-weight:700;color:#1d4ed8;text-decoration:underline;cursor:pointer">⬇️ Télécharger le modèle CSV</a>
+      <strong>Colonnes attendues dans le fichier Excel :</strong><br>
+      <code style="font-size:11px">nom · prenom · email · telephone · specialite · grade · heures_semaine · matieres (séparées par ;) · statut</code><br><br>
+      <a href="#" onclick="telechargerModeleEnseignantsExcel()" style="font-weight:700;color:#1d4ed8;text-decoration:underline;cursor:pointer">⬇️ Télécharger le modèle Excel</a>
     </div>
-    <div class="form-group">
-      <label>Fichier CSV *</label>
-      <input type="file" id="input-import-notes" accept=".csv,.txt" style="padding:8px;border:1px solid #e5e7eb;border-radius:8px;width:100%;font-size:13px">
+
+    <div onclick="document.getElementById('input-import-ens-file').click()"
+         id="ens-drop-zone"
+         ondragover="event.preventDefault();this.style.borderColor='#1d4ed8'"
+         ondragleave="this.style.borderColor='#e5e7eb'"
+         ondrop="gererDropExcelEns(event)"
+         style="border:2px dashed #e5e7eb;border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:1rem">
+      <div style="font-size:32px;margin-bottom:.5rem">📊</div>
+      <div style="font-size:14px;font-weight:600;color:#374151">Cliquez ou glissez votre fichier Excel ici</div>
+      <div style="font-size:12px;color:#9ca3af;margin-top:4px">Formats acceptés : .xlsx · .xls</div>
+      <input type="file" id="input-import-ens-file" accept=".xlsx,.xls" style="display:none" onchange="lireExcelEnseignants(this.files[0])">
     </div>
-    <div style="background:#fef9c3;border-radius:8px;padding:.75rem;font-size:12px;color:#92400e;margin-top:.5rem">
-      ⚠️ Les étudiants doivent être saisis sous la forme <strong>Nom Prenom</strong> exactement comme dans EduLink.
+
+    <div id="ens-import-preview" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+        <div style="font-size:13px;font-weight:600;color:#374151">
+          Aperçu : <span id="ens-import-count" style="color:#059669">0</span> enseignant(s) détecté(s)
+          · <span id="ens-import-errors" style="color:#dc2626">0</span> erreur(s)
+        </div>
+        <button class="btn-sm btn-secondary" onclick="resetImportEns()">🔄 Réinitialiser</button>
+      </div>
+      <div style="overflow-x:auto;max-height:260px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
+        <table style="font-size:11.5px">
+          <thead>
+            <tr>
+              <th>#</th><th>Nom</th><th>Prénom</th><th>Email</th>
+              <th>Spécialité</th><th>Grade</th><th>H/sem</th><th>Statut</th>
+            </tr>
+          </thead>
+          <tbody id="ens-import-tbody"></tbody>
+        </table>
+      </div>
+      <div id="ens-import-progress" style="display:none;margin-top:.75rem">
+        <div style="height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
+          <div id="ens-import-bar" style="height:100%;background:#059669;width:0%;transition:width .3s;border-radius:3px"></div>
+        </div>
+        <div id="ens-import-label" style="font-size:11px;color:#6b7280;text-align:center;margin-top:4px">Import en cours...</div>
+      </div>
     </div>
+
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="fermerModal('modal-import-notes')">Annuler</button>
-      <button class="btn-green" onclick="importerNotesCSV()">✅ Importer les notes</button>
+      <button class="btn-secondary" onclick="fermerModal('modal-import-enseignants');resetImportEns()">Annuler</button>
+      <button id="btn-import-ens-confirm" class="btn-green" onclick="confirmerImportEnseignants()" disabled style="opacity:.5">
+        ✅ Importer les enseignants
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL IMPORT EXCEL — CLASSES ══ -->
+<div class="modal-overlay" id="modal-import-classes">
+  <div class="modal modal-lg">
+    <h3>📥 Import Excel — Classes</h3>
+    <div style="background:#eff6ff;border-radius:10px;padding:.85rem;font-size:12px;color:#1d4ed8;margin-bottom:1rem">
+      <strong>Colonnes attendues dans le fichier Excel :</strong><br>
+      <code style="font-size:11px">nom · filiere · niveau · effectif_max · salle · responsable · annee_scolaire</code><br><br>
+      <a href="#" onclick="telechargerModeleClassesExcel()" style="font-weight:700;color:#1d4ed8;text-decoration:underline;cursor:pointer">⬇️ Télécharger le modèle Excel</a>
+    </div>
+
+    <div onclick="document.getElementById('input-import-cls-file').click()"
+         id="cls-drop-zone"
+         ondragover="event.preventDefault();this.style.borderColor='#1d4ed8'"
+         ondragleave="this.style.borderColor='#e5e7eb'"
+         ondrop="gererDropExcelCls(event)"
+         style="border:2px dashed #e5e7eb;border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:1rem">
+      <div style="font-size:32px;margin-bottom:.5rem">📊</div>
+      <div style="font-size:14px;font-weight:600;color:#374151">Cliquez ou glissez votre fichier Excel ici</div>
+      <div style="font-size:12px;color:#9ca3af;margin-top:4px">Formats acceptés : .xlsx · .xls</div>
+      <input type="file" id="input-import-cls-file" accept=".xlsx,.xls" style="display:none" onchange="lireExcelClasses(this.files[0])">
+    </div>
+
+    <div id="cls-import-preview" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+        <div style="font-size:13px;font-weight:600;color:#374151">
+          Aperçu : <span id="cls-import-count" style="color:#059669">0</span> classe(s) détectée(s)
+          · <span id="cls-import-errors" style="color:#dc2626">0</span> erreur(s)
+        </div>
+        <button class="btn-sm btn-secondary" onclick="resetImportCls()">🔄 Réinitialiser</button>
+      </div>
+      <div style="overflow-x:auto;max-height:260px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
+        <table style="font-size:11.5px">
+          <thead>
+            <tr>
+              <th>#</th><th>Nom</th><th>Filière</th><th>Niveau</th>
+              <th>Effectif max</th><th>Salle</th><th>Responsable</th><th>Année</th>
+            </tr>
+          </thead>
+          <tbody id="cls-import-tbody"></tbody>
+        </table>
+      </div>
+      <div id="cls-import-progress" style="display:none;margin-top:.75rem">
+        <div style="height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
+          <div id="cls-import-bar" style="height:100%;background:#1e3a5f;width:0%;transition:width .3s;border-radius:3px"></div>
+        </div>
+        <div id="cls-import-label" style="font-size:11px;color:#6b7280;text-align:center;margin-top:4px">Import en cours...</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="fermerModal('modal-import-classes');resetImportCls()">Annuler</button>
+      <button id="btn-import-cls-confirm" class="btn-green" onclick="confirmerImportClasses()" disabled style="opacity:.5">
+        ✅ Importer les classes
+      </button>
     </div>
   </div>
 </div>
@@ -18648,212 +18736,232 @@ window.addEventListener('appinstalled', function() {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
-//  EXPORT / IMPORT CSV — TOUS MODULES
+//  IMPORT EXCEL — ENSEIGNANTS & CLASSES  (SheetJS)
 // ══════════════════════════════════════════════════════════════════════════
 
-function csvDownload(filename, header, rows) {
-  const BOM = '\uFEFF';
-  const content = BOM + header + '\n' + rows.join('\n');
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  showToast('✅ Export CSV téléchargé !', 'success');
+// ─── Variables de travail ──────────────────────────────────────────────────
+let _enseignantsAImporter = [];
+let _classesAImporter     = [];
+
+// ─── Utilitaire lecture Excel via SheetJS ─────────────────────────────────
+function lireExcel(file, callback) {
+  if (!window.XLSX) { showToast('SheetJS non chargé. Vérifiez votre connexion.','error'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb   = XLSX.read(e.target.result, { type:'array', cellDates:true });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      callback(rows);
+    } catch(err) {
+      showToast('Erreur lecture Excel : '+err.message,'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
-function csvEscape(v) {
-  if (v === null || v === undefined) return '';
-  const s = String(v);
-  return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
+// ══ ENSEIGNANTS ══════════════════════════════════════════════════════════
+
+function gererDropExcelEns(e) {
+  e.preventDefault();
+  document.getElementById('ens-drop-zone').style.borderColor = '#e5e7eb';
+  const file = e.dataTransfer.files[0];
+  if (file) lireExcelEnseignants(file);
 }
 
-// ── Présences / Absences ──────────────────────────────────────────────────
-async function exporterAbsencesCSV() {
-  let q = db.from('absences').select('*, etudiants(nom,prenom)').order('date_absence',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data } = await q;
-  if (!data?.length) { showToast('Aucune absence à exporter','error'); return; }
-  const header = 'etudiant,matiere,date,statut,justification,parent_notifie';
-  const rows = data.map(a => [
-    csvEscape(a.etudiants ? a.etudiants.nom+' '+a.etudiants.prenom : ''),
-    csvEscape(a.matiere), csvEscape(a.date_absence), csvEscape(a.statut),
-    csvEscape(a.justification), csvEscape(a.parent_notifie ? 'Oui' : 'Non')
-  ].join(','));
-  csvDownload('edulink_absences.csv', header, rows);
+function lireExcelEnseignants(file) {
+  if (!file) return;
+  lireExcel(file, rows => {
+    const valides = [], erreurs = [];
+    rows.forEach((row, i) => {
+      const nom    = String(row['nom']    || row['Nom']    || '').trim();
+      const prenom = String(row['prenom'] || row['Prenom'] || row['Prénom'] || '').trim();
+      if (!nom || !prenom) { erreurs.push(i+2); return; }
+      valides.push({
+        nom, prenom,
+        email:          String(row['email']          || row['Email']          || '').trim(),
+        telephone:      String(row['telephone']      || row['Téléphone']      || row['tel'] || '').trim() || null,
+        specialite:     String(row['specialite']     || row['Spécialité']     || row['specialité'] || '').trim() || null,
+        grade:          String(row['grade']          || row['Grade']          || 'vacataire').trim(),
+        heures_semaine: parseInt(row['heures_semaine']|| row['H/semaine']     || 12) || 12,
+        statut:         String(row['statut']         || row['Statut']         || 'actif').trim().toLowerCase(),
+        matieres:       String(row['matieres']       || row['Matières']       || row['matières'] || '').split(';').map(m=>m.trim()).filter(Boolean),
+      });
+    });
+
+    _enseignantsAImporter = valides;
+    document.getElementById('ens-import-count').textContent  = valides.length;
+    document.getElementById('ens-import-errors').textContent = erreurs.length;
+
+    const tbody = document.getElementById('ens-import-tbody');
+    tbody.innerHTML = valides.slice(0, 50).map((e, i) => `
+      <tr>
+        <td style="color:#9ca3af">${i+1}</td>
+        <td><strong>${e.nom}</strong></td>
+        <td>${e.prenom}</td>
+        <td style="color:#6b7280">${e.email||'—'}</td>
+        <td>${e.specialite||'—'}</td>
+        <td><span class="badge blue" style="font-size:10px">${e.grade}</span></td>
+        <td>${e.heures_semaine}h</td>
+        <td><span class="badge ${e.statut==='actif'?'green':'gray'}" style="font-size:10px">${e.statut}</span></td>
+      </tr>`).join('') + (valides.length > 50 ? `<tr><td colspan="8" style="text-align:center;color:#9ca3af;font-size:11px">... et ${valides.length-50} autres</td></tr>` : '');
+
+    document.getElementById('ens-import-preview').style.display = 'block';
+    const btn = document.getElementById('btn-import-ens-confirm');
+    btn.disabled    = valides.length === 0;
+    btn.style.opacity = valides.length ? '1' : '.5';
+  });
 }
 
-// ── Notes ─────────────────────────────────────────────────────────────────
-async function exporterNotesCSV() {
-  let q = db.from('notes').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data } = await q;
-  if (!data?.length) { showToast('Aucune note à exporter','error'); return; }
-  const header = 'etudiant,matiere,note,coefficient,periode,appreciation,annee_scolaire';
-  const rows = data.map(n => [
-    csvEscape(n.etudiants ? n.etudiants.nom+' '+n.etudiants.prenom : ''),
-    csvEscape(n.matiere), csvEscape(n.note), csvEscape(n.coefficient||1),
-    csvEscape(n.periode), csvEscape(n.appreciation||''), csvEscape(n.annee_scolaire||'')
-  ].join(','));
-  csvDownload('edulink_notes.csv', header, rows);
-}
+async function confirmerImportEnseignants() {
+  if (!_enseignantsAImporter.length) return;
+  const btn = document.getElementById('btn-import-ens-confirm');
+  btn.disabled = true; btn.textContent = '⏳ Import en cours...';
+  document.getElementById('ens-import-progress').style.display = 'block';
 
-async function importerNotesCSV() {
-  const file = document.getElementById('input-import-notes')?.files?.[0];
-  if (!file) { showToast('Sélectionnez un fichier CSV','error'); return; }
-  const text = await file.text();
-  const lines = text.trim().split('\n').slice(1);
-  if (!lines.length) { showToast('Fichier vide','error'); return; }
-  showToast('Import en cours...','info');
   let ok = 0, errors = 0;
-  for (const line of lines) {
-    const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g,''));
-    const [nom_prenom, matiere, note, coefficient, periode] = parts;
-    const etu = tousLesEtudiants.find(e => (e.nom+' '+e.prenom).toLowerCase() === (nom_prenom||'').toLowerCase());
-    if (!etu || !matiere || isNaN(parseFloat(note))) { errors++; continue; }
-    const { error } = await db.from('notes').insert([{
-      ecole_id: currentEcoleId, etudiant_id: etu.id,
-      matiere, note: parseFloat(note), coefficient: parseFloat(coefficient)||1, periode: periode||'S1'
-    }]);
+  const total = _enseignantsAImporter.length;
+
+  for (let i = 0; i < total; i++) {
+    const payload = { ..._enseignantsAImporter[i], ecole_id: currentEcoleId };
+    const { error } = await db.from('enseignants').insert([payload]);
     error ? errors++ : ok++;
+    const pct = Math.round((i+1)/total*100);
+    document.getElementById('ens-import-bar').style.width   = pct+'%';
+    document.getElementById('ens-import-label').textContent = `${i+1} / ${total} — ${pct}%`;
   }
-  fermerModal('modal-import-notes');
-  showToast(`✅ ${ok} notes importées${errors ? `, ${errors} erreurs` : ''}`, ok ? 'success' : 'error');
-  if (ok) chargerNotes();
+
+  fermerModal('modal-import-enseignants');
+  resetImportEns();
+  showToast(`✅ ${ok} enseignant(s) importé(s)${errors ? ` · ${errors} erreur(s)` : ''}`, ok ? 'success' : 'error');
+  chargerEnseignants();
 }
 
-function telechargerModeleNotes() {
-  const content = '\uFEFFetudiant,matiere,note,coefficient,periode\nKOFI Jean,Mathématiques,15.5,3,S1\nAMEVI Marie,Français,12,2,S1';
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'modele_import_notes.csv'; a.click();
+function resetImportEns() {
+  _enseignantsAImporter = [];
+  const preview = document.getElementById('ens-import-preview');
+  if (preview) preview.style.display = 'none';
+  const progress = document.getElementById('ens-import-progress');
+  if (progress) progress.style.display = 'none';
+  const input = document.getElementById('input-import-ens-file');
+  if (input) input.value = '';
+  const btn = document.getElementById('btn-import-ens-confirm');
+  if (btn) { btn.disabled = true; btn.style.opacity = '.5'; btn.textContent = '✅ Importer les enseignants'; }
 }
 
-// ── Paiements ──────────────────────────────────────────────────────────────
-async function exporterPaiementsCSV() {
-  let q = db.from('factures').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data } = await q;
-  if (!data?.length) { showToast('Aucun paiement à exporter','error'); return; }
-  const header = 'reference,etudiant,type_frais,montant_total,montant_paye,reste,statut,echeance,date_creation';
-  const rows = data.map(f => [
-    csvEscape(f.reference||''), csvEscape(f.etudiants ? f.etudiants.nom+' '+f.etudiants.prenom : ''),
-    csvEscape(f.type_frais||''), csvEscape(f.montant_total||0), csvEscape(f.montant_paye||0),
-    csvEscape((f.montant_total||0)-(f.montant_paye||0)), csvEscape(f.statut||''),
-    csvEscape(f.date_echeance||''), csvEscape((f.created_at||'').slice(0,10))
-  ].join(','));
-  csvDownload('edulink_paiements.csv', header, rows);
+function telechargerModeleEnseignantsExcel() {
+  if (!window.XLSX) { showToast('SheetJS non chargé','error'); return; }
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['nom','prenom','email','telephone','specialite','grade','heures_semaine','matieres','statut'],
+    ['KOFI','Jean','jkofi@ecole.bj','+22997000001','Mathématiques','titulaire',18,'Mathématiques;Statistiques','actif'],
+    ['AMEVI','Marie','mamevi@ecole.bj','+22997000002','Littérature','vacataire',12,'Français;Littérature','actif'],
+  ]);
+  ws['!cols'] = [12,10,22,14,16,12,8,25,8].map(w=>({wch:w}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Enseignants');
+  XLSX.writeFile(wb, 'modele_import_enseignants.xlsx');
 }
 
-// ── Discipline ─────────────────────────────────────────────────────────────
-async function exporterIncidentsCSV() {
-  let q = db.from('incidents').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data } = await q;
-  if (!data?.length) { showToast('Aucun incident à exporter','error'); return; }
-  const header = 'etudiant,type,description,severite,sanction,statut,date';
-  const rows = data.map(i => [
-    csvEscape(i.etudiants ? i.etudiants.nom+' '+i.etudiants.prenom : ''),
-    csvEscape(i.type_incident||''), csvEscape(i.description||''),
-    csvEscape(i.severite||''), csvEscape(i.sanction||''),
-    csvEscape(i.statut||''), csvEscape((i.created_at||'').slice(0,10))
-  ].join(','));
-  csvDownload('edulink_incidents.csv', header, rows);
+// ══ CLASSES ══════════════════════════════════════════════════════════════
+
+function gererDropExcelCls(e) {
+  e.preventDefault();
+  document.getElementById('cls-drop-zone').style.borderColor = '#e5e7eb';
+  const file = e.dataTransfer.files[0];
+  if (file) lireExcelClasses(file);
 }
 
-// ── Messagerie ─────────────────────────────────────────────────────────────
-async function exporterMessagesCSV() {
-  let q = db.from('messages').select('*').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data } = await q;
-  if (!data?.length) { showToast('Aucun message à exporter','error'); return; }
-  const header = 'expediteur,destinataire,sujet,type,date,lu';
-  const rows = data.map(m => [
-    csvEscape(m.expediteur||''), csvEscape(m.destinataire||''),
-    csvEscape(m.sujet||''), csvEscape(m.type||''),
-    csvEscape((m.created_at||'').slice(0,10)), csvEscape(m.lu ? 'Oui' : 'Non')
-  ].join(','));
-  csvDownload('edulink_messages.csv', header, rows);
+function lireExcelClasses(file) {
+  if (!file) return;
+  lireExcel(file, rows => {
+    const valides = [], erreurs = [];
+    rows.forEach((row, i) => {
+      const nom    = String(row['nom']    || row['Nom']    || '').trim();
+      const filiere= String(row['filiere']|| row['Filière']|| row['filière']|| '').trim();
+      if (!nom || !filiere) { erreurs.push(i+2); return; }
+      valides.push({
+        nom, filiere,
+        niveau:         String(row['niveau']        || row['Niveau']        || 'L1').trim(),
+        effectif_max:   parseInt(row['effectif_max'] || row['Effectif max'] || 40) || 40,
+        salle:          String(row['salle']          || row['Salle']         || '').trim() || null,
+        responsable:    String(row['responsable']    || row['Responsable']   || '').trim() || null,
+        annee_scolaire: String(row['annee_scolaire'] || row['Année scolaire']|| '').trim() || null,
+        statut: 'active',
+      });
+    });
+
+    _classesAImporter = valides;
+    document.getElementById('cls-import-count').textContent  = valides.length;
+    document.getElementById('cls-import-errors').textContent = erreurs.length;
+
+    const tbody = document.getElementById('cls-import-tbody');
+    tbody.innerHTML = valides.slice(0, 50).map((c, i) => `
+      <tr>
+        <td style="color:#9ca3af">${i+1}</td>
+        <td><strong>${c.nom}</strong></td>
+        <td>${c.filiere}</td>
+        <td><span class="badge blue" style="font-size:10px">${c.niveau}</span></td>
+        <td style="text-align:center">${c.effectif_max}</td>
+        <td>${c.salle||'—'}</td>
+        <td>${c.responsable||'—'}</td>
+        <td style="color:#6b7280">${c.annee_scolaire||'—'}</td>
+      </tr>`).join('') + (valides.length > 50 ? `<tr><td colspan="8" style="text-align:center;color:#9ca3af;font-size:11px">... et ${valides.length-50} autres</td></tr>` : '');
+
+    document.getElementById('cls-import-preview').style.display = 'block';
+    const btn = document.getElementById('btn-import-cls-confirm');
+    btn.disabled    = valides.length === 0;
+    btn.style.opacity = valides.length ? '1' : '.5';
+  });
 }
 
-// ── Utilisateurs ────────────────────────────────────────────────────────────
-async function exporterUtilisateursCSV() {
-  let q = db.from('utilisateurs').select('nom,email,role,statut,created_at').order('nom');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data } = await q;
-  if (!data?.length) { showToast('Aucun utilisateur à exporter','error'); return; }
-  const header = 'nom,email,role,statut,date_creation';
-  const rows = data.map(u => [
-    csvEscape(u.nom||''), csvEscape(u.email||''), csvEscape(u.role||''),
-    csvEscape(u.statut||''), csvEscape((u.created_at||'').slice(0,10))
-  ].join(','));
-  csvDownload('edulink_utilisateurs.csv', header, rows);
+async function confirmerImportClasses() {
+  if (!_classesAImporter.length) return;
+  const btn = document.getElementById('btn-import-cls-confirm');
+  btn.disabled = true; btn.textContent = '⏳ Import en cours...';
+  document.getElementById('cls-import-progress').style.display = 'block';
+
+  let ok = 0, errors = 0;
+  const total = _classesAImporter.length;
+
+  for (let i = 0; i < total; i++) {
+    const payload = { ..._classesAImporter[i], ecole_id: currentEcoleId };
+    const { error } = await db.from('classes').insert([payload]);
+    error ? errors++ : ok++;
+    const pct = Math.round((i+1)/total*100);
+    document.getElementById('cls-import-bar').style.width   = pct+'%';
+    document.getElementById('cls-import-label').textContent = `${i+1} / ${total} — ${pct}%`;
+  }
+
+  fermerModal('modal-import-classes');
+  resetImportCls();
+  showToast(`✅ ${ok} classe(s) importée(s)${errors ? ` · ${errors} erreur(s)` : ''}`, ok ? 'success' : 'error');
+  chargerClasses();
 }
 
-// ── Classes ─────────────────────────────────────────────────────────────────
-function exporterClassesCSV() {
-  if (!toutesLesClasses?.length) { showToast('Aucune classe à exporter','error'); return; }
-  const header = 'nom,filiere,niveau,effectif_max,effectif_actuel,salle,responsable,annee_scolaire,statut';
-  const rows = toutesLesClasses.map(c => [
-    csvEscape(c.nom||''), csvEscape(c.filiere||''), csvEscape(c.niveau||''),
-    csvEscape(c.effectif_max||''), csvEscape(c.effectif_actuel||0),
-    csvEscape(c.salle||''), csvEscape(c.responsable||''),
-    csvEscape(c.annee_scolaire||''), csvEscape(c.statut||'active')
-  ].join(','));
-  csvDownload('edulink_classes.csv', header, rows);
+function resetImportCls() {
+  _classesAImporter = [];
+  const preview = document.getElementById('cls-import-preview');
+  if (preview) preview.style.display = 'none';
+  const progress = document.getElementById('cls-import-progress');
+  if (progress) progress.style.display = 'none';
+  const input = document.getElementById('input-import-cls-file');
+  if (input) input.value = '';
+  const btn = document.getElementById('btn-import-cls-confirm');
+  if (btn) { btn.disabled = true; btn.style.opacity = '.5'; btn.textContent = '✅ Importer les classes'; }
 }
 
-// ── Bibliothèque ────────────────────────────────────────────────────────────
-async function exporterBiblioCSV() {
-  let q = db.from('livres').select('*').order('titre');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data } = await q;
-  if (!data?.length) { showToast('Aucun ouvrage à exporter','error'); return; }
-  const header = 'titre,auteur,isbn,categorie,exemplaires,cote';
-  const rows = data.map(l => [
-    csvEscape(l.titre||''), csvEscape(l.auteur||''), csvEscape(l.isbn||''),
-    csvEscape(l.categorie||''), csvEscape(l.nb_exemplaires||1), csvEscape(l.cote||'')
-  ].join(','));
-  csvDownload('edulink_bibliotheque.csv', header, rows);
-}
-
-// ── RH & Personnel ──────────────────────────────────────────────────────────
-function exporterRHCSV() {
-  if (!toutLePersonnel?.length) { showToast('Aucun agent à exporter','error'); return; }
-  const header = 'nom,prenom,poste,departement,type_contrat,statut,telephone,email,date_embauche,salaire_base';
-  const rows = toutLePersonnel.map(p => [
-    csvEscape(p.nom||''), csvEscape(p.prenom||''), csvEscape(p.poste||''),
-    csvEscape(p.departement||''), csvEscape(p.type_contrat||''),
-    csvEscape(p.statut||''), csvEscape(p.telephone||''), csvEscape(p.email||''),
-    csvEscape(p.date_embauche||''), csvEscape(p.salaire_base||0)
-  ].join(','));
-  csvDownload('edulink_personnel.csv', header, rows);
-}
-
-// ── Admissions ──────────────────────────────────────────────────────────────
-function exporterAdmissionsCSV() {
-  if (!toutesLesCandidatures?.length) { showToast('Aucune candidature à exporter','error'); return; }
-  const header = 'reference,nom,prenom,email,telephone,filiere_souhaitee,statut,note_entretien,date_candidature';
-  const rows = toutesLesCandidatures.map(c => [
-    csvEscape(c.reference||''), csvEscape(c.nom||''), csvEscape(c.prenom||''),
-    csvEscape(c.email||''), csvEscape(c.telephone||''),
-    csvEscape(c.filiere_souhaitee||''), csvEscape(c.statut||''),
-    csvEscape(c.note_entretien||''), csvEscape((c.created_at||'').slice(0,10))
-  ].join(','));
-  csvDownload('edulink_admissions.csv', header, rows);
-}
-
-// ── Comptabilité ────────────────────────────────────────────────────────────
-function exporterComptaCSV() {
-  const data = toutesLesTransactions || [];
-  if (!data.length) { showToast('Aucune transaction à exporter','error'); return; }
-  const header = 'date,type,libelle,montant,categorie,mode_paiement,reference';
-  const rows = data.map(t => [
-    csvEscape((t.date_operation||'').slice(0,10)), csvEscape(t.type_operation||''),
-    csvEscape(t.libelle||''), csvEscape(t.montant||0),
-    csvEscape(t.categorie||''), csvEscape(t.mode_paiement||''), csvEscape(t.reference||'')
-  ].join(','));
-  csvDownload('edulink_transactions.csv', header, rows);
+function telechargerModeleClassesExcel() {
+  if (!window.XLSX) { showToast('SheetJS non chargé','error'); return; }
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['nom','filiere','niveau','effectif_max','salle','responsable','annee_scolaire'],
+    ['Comptabilité L1','Comptabilité','L1',35,'Salle A01','Prof. KOFI','2025-2026'],
+    ['Droit L2','Droit','L2',40,'Amphi B','Prof. AMEVI','2025-2026'],
+    ['Finance M1','Finance','M1',30,'Salle C03','Prof. GAVI','2025-2026'],
+  ]);
+  ws['!cols'] = [18,16,8,12,12,18,12].map(w=>({wch:w}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Classes');
+  XLSX.writeFile(wb, 'modele_import_classes.xlsx');
 }
 
 </script>
