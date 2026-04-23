@@ -6602,39 +6602,31 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="modal modal-lg">
     <h3>📥 Import Excel — Enseignants</h3>
     <div style="background:#eff6ff;border-radius:10px;padding:.85rem;font-size:12px;color:#1d4ed8;margin-bottom:1rem">
-      <strong>Colonnes attendues dans le fichier Excel :</strong><br>
+      <strong>Colonnes attendues :</strong><br>
       <code style="font-size:11px">nom · prenom · email · telephone · specialite · grade · heures_semaine · matieres (séparées par ;) · statut</code><br><br>
       <a href="#" onclick="telechargerModeleEnseignantsExcel()" style="font-weight:700;color:#1d4ed8;text-decoration:underline;cursor:pointer">⬇️ Télécharger le modèle Excel</a>
     </div>
-
-    <div onclick="document.getElementById('input-import-ens-file').click()"
-         id="ens-drop-zone"
+    <div id="ens-drop-zone" onclick="document.getElementById('input-import-ens-file').click()"
          ondragover="event.preventDefault();this.style.borderColor='#1d4ed8'"
          ondragleave="this.style.borderColor='#e5e7eb'"
          ondrop="gererDropExcelEns(event)"
          style="border:2px dashed #e5e7eb;border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:1rem">
       <div style="font-size:32px;margin-bottom:.5rem">📊</div>
-      <div style="font-size:14px;font-weight:600;color:#374151">Cliquez ou glissez votre fichier Excel ici</div>
+      <div style="font-size:14px;font-weight:600;color:#374151">Cliquez ou glissez votre fichier Excel</div>
       <div style="font-size:12px;color:#9ca3af;margin-top:4px">Formats acceptés : .xlsx · .xls</div>
       <input type="file" id="input-import-ens-file" accept=".xlsx,.xls" style="display:none" onchange="lireExcelEnseignants(this.files[0])">
     </div>
-
     <div id="ens-import-preview" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
         <div style="font-size:13px;font-weight:600;color:#374151">
-          Aperçu : <span id="ens-import-count" style="color:#059669">0</span> enseignant(s) détecté(s)
+          Aperçu : <span id="ens-import-count" style="color:#059669">0</span> enseignant(s)
           · <span id="ens-import-errors" style="color:#dc2626">0</span> erreur(s)
         </div>
         <button class="btn-sm btn-secondary" onclick="resetImportEns()">🔄 Réinitialiser</button>
       </div>
-      <div style="overflow-x:auto;max-height:260px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
+      <div style="overflow-x:auto;max-height:240px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
         <table style="font-size:11.5px">
-          <thead>
-            <tr>
-              <th>#</th><th>Nom</th><th>Prénom</th><th>Email</th>
-              <th>Spécialité</th><th>Grade</th><th>H/sem</th><th>Statut</th>
-            </tr>
-          </thead>
+          <thead><tr><th>#</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Spécialité</th><th>Grade</th><th>H/sem</th><th>Statut</th></tr></thead>
           <tbody id="ens-import-tbody"></tbody>
         </table>
       </div>
@@ -6642,15 +6634,12 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div style="height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
           <div id="ens-import-bar" style="height:100%;background:#059669;width:0%;transition:width .3s;border-radius:3px"></div>
         </div>
-        <div id="ens-import-label" style="font-size:11px;color:#6b7280;text-align:center;margin-top:4px">Import en cours...</div>
+        <div id="ens-import-label" style="font-size:11px;color:#6b7280;text-align:center;margin-top:4px"></div>
       </div>
     </div>
-
     <div class="modal-footer">
       <button class="btn-secondary" onclick="fermerModal('modal-import-enseignants');resetImportEns()">Annuler</button>
-      <button id="btn-import-ens-confirm" class="btn-green" onclick="confirmerImportEnseignants()" disabled style="opacity:.5">
-        ✅ Importer les enseignants
-      </button>
+      <button id="btn-import-ens-confirm" class="btn-green" onclick="confirmerImportEnseignants()" disabled style="opacity:.5">✅ Importer les enseignants</button>
     </div>
   </div>
 </div>
@@ -6660,39 +6649,31 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="modal modal-lg">
     <h3>📥 Import Excel — Classes</h3>
     <div style="background:#eff6ff;border-radius:10px;padding:.85rem;font-size:12px;color:#1d4ed8;margin-bottom:1rem">
-      <strong>Colonnes attendues dans le fichier Excel :</strong><br>
+      <strong>Colonnes attendues :</strong><br>
       <code style="font-size:11px">nom · filiere · niveau · effectif_max · salle · responsable · annee_scolaire</code><br><br>
       <a href="#" onclick="telechargerModeleClassesExcel()" style="font-weight:700;color:#1d4ed8;text-decoration:underline;cursor:pointer">⬇️ Télécharger le modèle Excel</a>
     </div>
-
-    <div onclick="document.getElementById('input-import-cls-file').click()"
-         id="cls-drop-zone"
+    <div id="cls-drop-zone" onclick="document.getElementById('input-import-cls-file').click()"
          ondragover="event.preventDefault();this.style.borderColor='#1d4ed8'"
          ondragleave="this.style.borderColor='#e5e7eb'"
          ondrop="gererDropExcelCls(event)"
          style="border:2px dashed #e5e7eb;border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:1rem">
       <div style="font-size:32px;margin-bottom:.5rem">📊</div>
-      <div style="font-size:14px;font-weight:600;color:#374151">Cliquez ou glissez votre fichier Excel ici</div>
+      <div style="font-size:14px;font-weight:600;color:#374151">Cliquez ou glissez votre fichier Excel</div>
       <div style="font-size:12px;color:#9ca3af;margin-top:4px">Formats acceptés : .xlsx · .xls</div>
       <input type="file" id="input-import-cls-file" accept=".xlsx,.xls" style="display:none" onchange="lireExcelClasses(this.files[0])">
     </div>
-
     <div id="cls-import-preview" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
         <div style="font-size:13px;font-weight:600;color:#374151">
-          Aperçu : <span id="cls-import-count" style="color:#059669">0</span> classe(s) détectée(s)
+          Aperçu : <span id="cls-import-count" style="color:#059669">0</span> classe(s)
           · <span id="cls-import-errors" style="color:#dc2626">0</span> erreur(s)
         </div>
         <button class="btn-sm btn-secondary" onclick="resetImportCls()">🔄 Réinitialiser</button>
       </div>
-      <div style="overflow-x:auto;max-height:260px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
+      <div style="overflow-x:auto;max-height:240px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
         <table style="font-size:11.5px">
-          <thead>
-            <tr>
-              <th>#</th><th>Nom</th><th>Filière</th><th>Niveau</th>
-              <th>Effectif max</th><th>Salle</th><th>Responsable</th><th>Année</th>
-            </tr>
-          </thead>
+          <thead><tr><th>#</th><th>Nom</th><th>Filière</th><th>Niveau</th><th>Effectif max</th><th>Salle</th><th>Responsable</th><th>Année</th></tr></thead>
           <tbody id="cls-import-tbody"></tbody>
         </table>
       </div>
@@ -6700,15 +6681,12 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div style="height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
           <div id="cls-import-bar" style="height:100%;background:#1e3a5f;width:0%;transition:width .3s;border-radius:3px"></div>
         </div>
-        <div id="cls-import-label" style="font-size:11px;color:#6b7280;text-align:center;margin-top:4px">Import en cours...</div>
+        <div id="cls-import-label" style="font-size:11px;color:#6b7280;text-align:center;margin-top:4px"></div>
       </div>
     </div>
-
     <div class="modal-footer">
       <button class="btn-secondary" onclick="fermerModal('modal-import-classes');resetImportCls()">Annuler</button>
-      <button id="btn-import-cls-confirm" class="btn-green" onclick="confirmerImportClasses()" disabled style="opacity:.5">
-        ✅ Importer les classes
-      </button>
+      <button id="btn-import-cls-confirm" class="btn-green" onclick="confirmerImportClasses()" disabled style="opacity:.5">✅ Importer les classes</button>
     </div>
   </div>
 </div>
@@ -18739,11 +18717,9 @@ window.addEventListener('appinstalled', function() {
 //  IMPORT EXCEL — ENSEIGNANTS & CLASSES  (SheetJS)
 // ══════════════════════════════════════════════════════════════════════════
 
-// ─── Variables de travail ──────────────────────────────────────────────────
 let _enseignantsAImporter = [];
 let _classesAImporter     = [];
 
-// ─── Utilitaire lecture Excel via SheetJS ─────────────────────────────────
 function lireExcel(file, callback) {
   if (!window.XLSX) { showToast('SheetJS non chargé. Vérifiez votre connexion.','error'); return; }
   const reader = new FileReader();
@@ -18753,15 +18729,12 @@ function lireExcel(file, callback) {
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
       callback(rows);
-    } catch(err) {
-      showToast('Erreur lecture Excel : '+err.message,'error');
-    }
+    } catch(err) { showToast('Erreur lecture Excel : '+err.message,'error'); }
   };
   reader.readAsArrayBuffer(file);
 }
 
-// ══ ENSEIGNANTS ══════════════════════════════════════════════════════════
-
+// ── Enseignants ────────────────────────────────────────────────────────────
 function gererDropExcelEns(e) {
   e.preventDefault();
   document.getElementById('ens-drop-zone').style.borderColor = '#e5e7eb';
@@ -18779,37 +18752,31 @@ function lireExcelEnseignants(file) {
       if (!nom || !prenom) { erreurs.push(i+2); return; }
       valides.push({
         nom, prenom,
-        email:          String(row['email']          || row['Email']          || '').trim(),
-        telephone:      String(row['telephone']      || row['Téléphone']      || row['tel'] || '').trim() || null,
-        specialite:     String(row['specialite']     || row['Spécialité']     || row['specialité'] || '').trim() || null,
-        grade:          String(row['grade']          || row['Grade']          || 'vacataire').trim(),
-        heures_semaine: parseInt(row['heures_semaine']|| row['H/semaine']     || 12) || 12,
-        statut:         String(row['statut']         || row['Statut']         || 'actif').trim().toLowerCase(),
-        matieres:       String(row['matieres']       || row['Matières']       || row['matières'] || '').split(';').map(m=>m.trim()).filter(Boolean),
+        email:          String(row['email']           || row['Email']           || '').trim()  || null,
+        telephone:      String(row['telephone']       || row['Téléphone']       || row['tel'] || '').trim() || null,
+        specialite:     String(row['specialite']      || row['Spécialité']      || row['specialité'] || '').trim() || null,
+        grade:          String(row['grade']           || row['Grade']           || 'vacataire').trim(),
+        heures_semaine: parseInt(row['heures_semaine']|| row['H/semaine']       || 12) || 12,
+        statut:         String(row['statut']          || row['Statut']          || 'actif').trim().toLowerCase(),
+        matieres:       String(row['matieres']        || row['Matières']        || row['matières'] || '').split(';').map(m=>m.trim()).filter(Boolean),
       });
     });
-
     _enseignantsAImporter = valides;
     document.getElementById('ens-import-count').textContent  = valides.length;
     document.getElementById('ens-import-errors').textContent = erreurs.length;
-
-    const tbody = document.getElementById('ens-import-tbody');
-    tbody.innerHTML = valides.slice(0, 50).map((e, i) => `
+    document.getElementById('ens-import-tbody').innerHTML = valides.slice(0,50).map((e,i)=>`
       <tr>
         <td style="color:#9ca3af">${i+1}</td>
-        <td><strong>${e.nom}</strong></td>
-        <td>${e.prenom}</td>
+        <td><strong>${e.nom}</strong></td><td>${e.prenom}</td>
         <td style="color:#6b7280">${e.email||'—'}</td>
         <td>${e.specialite||'—'}</td>
         <td><span class="badge blue" style="font-size:10px">${e.grade}</span></td>
         <td>${e.heures_semaine}h</td>
         <td><span class="badge ${e.statut==='actif'?'green':'gray'}" style="font-size:10px">${e.statut}</span></td>
-      </tr>`).join('') + (valides.length > 50 ? `<tr><td colspan="8" style="text-align:center;color:#9ca3af;font-size:11px">... et ${valides.length-50} autres</td></tr>` : '');
-
+      </tr>`).join('') + (valides.length>50?`<tr><td colspan="8" style="text-align:center;color:#9ca3af;font-size:11px">... et ${valides.length-50} autres</td></tr>`:'');
     document.getElementById('ens-import-preview').style.display = 'block';
     const btn = document.getElementById('btn-import-ens-confirm');
-    btn.disabled    = valides.length === 0;
-    btn.style.opacity = valides.length ? '1' : '.5';
+    btn.disabled = !valides.length; btn.style.opacity = valides.length?'1':'.5';
   });
 }
 
@@ -18818,35 +18785,26 @@ async function confirmerImportEnseignants() {
   const btn = document.getElementById('btn-import-ens-confirm');
   btn.disabled = true; btn.textContent = '⏳ Import en cours...';
   document.getElementById('ens-import-progress').style.display = 'block';
-
   let ok = 0, errors = 0;
   const total = _enseignantsAImporter.length;
-
   for (let i = 0; i < total; i++) {
-    const payload = { ..._enseignantsAImporter[i], ecole_id: currentEcoleId };
-    const { error } = await db.from('enseignants').insert([payload]);
+    const { error } = await db.from('enseignants').insert([{ ..._enseignantsAImporter[i], ecole_id: currentEcoleId }]);
     error ? errors++ : ok++;
     const pct = Math.round((i+1)/total*100);
     document.getElementById('ens-import-bar').style.width   = pct+'%';
     document.getElementById('ens-import-label').textContent = `${i+1} / ${total} — ${pct}%`;
   }
-
-  fermerModal('modal-import-enseignants');
-  resetImportEns();
-  showToast(`✅ ${ok} enseignant(s) importé(s)${errors ? ` · ${errors} erreur(s)` : ''}`, ok ? 'success' : 'error');
+  fermerModal('modal-import-enseignants'); resetImportEns();
+  showToast(`✅ ${ok} enseignant(s) importé(s)${errors?` · ${errors} erreur(s)`:''}`, ok?'success':'error');
   chargerEnseignants();
 }
 
 function resetImportEns() {
   _enseignantsAImporter = [];
-  const preview = document.getElementById('ens-import-preview');
-  if (preview) preview.style.display = 'none';
-  const progress = document.getElementById('ens-import-progress');
-  if (progress) progress.style.display = 'none';
-  const input = document.getElementById('input-import-ens-file');
-  if (input) input.value = '';
+  ['ens-import-preview','ens-import-progress'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
+  const inp = document.getElementById('input-import-ens-file'); if(inp) inp.value='';
   const btn = document.getElementById('btn-import-ens-confirm');
-  if (btn) { btn.disabled = true; btn.style.opacity = '.5'; btn.textContent = '✅ Importer les enseignants'; }
+  if(btn){ btn.disabled=true; btn.style.opacity='.5'; btn.textContent='✅ Importer les enseignants'; }
 }
 
 function telechargerModeleEnseignantsExcel() {
@@ -18862,8 +18820,7 @@ function telechargerModeleEnseignantsExcel() {
   XLSX.writeFile(wb, 'modele_import_enseignants.xlsx');
 }
 
-// ══ CLASSES ══════════════════════════════════════════════════════════════
-
+// ── Classes ────────────────────────────────────────────────────────────────
 function gererDropExcelCls(e) {
   e.preventDefault();
   document.getElementById('cls-drop-zone').style.borderColor = '#e5e7eb';
@@ -18881,36 +18838,29 @@ function lireExcelClasses(file) {
       if (!nom || !filiere) { erreurs.push(i+2); return; }
       valides.push({
         nom, filiere,
-        niveau:         String(row['niveau']        || row['Niveau']        || 'L1').trim(),
-        effectif_max:   parseInt(row['effectif_max'] || row['Effectif max'] || 40) || 40,
-        salle:          String(row['salle']          || row['Salle']         || '').trim() || null,
-        responsable:    String(row['responsable']    || row['Responsable']   || '').trim() || null,
-        annee_scolaire: String(row['annee_scolaire'] || row['Année scolaire']|| '').trim() || null,
+        niveau:         String(row['niveau']         || row['Niveau']         || 'L1').trim(),
+        effectif_max:   parseInt(row['effectif_max'] || row['Effectif max']   || 40) || 40,
+        salle:          String(row['salle']          || row['Salle']          || '').trim() || null,
+        responsable:    String(row['responsable']    || row['Responsable']    || '').trim() || null,
+        annee_scolaire: String(row['annee_scolaire'] || row['Année scolaire'] || '').trim() || null,
         statut: 'active',
       });
     });
-
     _classesAImporter = valides;
     document.getElementById('cls-import-count').textContent  = valides.length;
     document.getElementById('cls-import-errors').textContent = erreurs.length;
-
-    const tbody = document.getElementById('cls-import-tbody');
-    tbody.innerHTML = valides.slice(0, 50).map((c, i) => `
+    document.getElementById('cls-import-tbody').innerHTML = valides.slice(0,50).map((c,i)=>`
       <tr>
         <td style="color:#9ca3af">${i+1}</td>
-        <td><strong>${c.nom}</strong></td>
-        <td>${c.filiere}</td>
+        <td><strong>${c.nom}</strong></td><td>${c.filiere}</td>
         <td><span class="badge blue" style="font-size:10px">${c.niveau}</span></td>
         <td style="text-align:center">${c.effectif_max}</td>
-        <td>${c.salle||'—'}</td>
-        <td>${c.responsable||'—'}</td>
+        <td>${c.salle||'—'}</td><td>${c.responsable||'—'}</td>
         <td style="color:#6b7280">${c.annee_scolaire||'—'}</td>
-      </tr>`).join('') + (valides.length > 50 ? `<tr><td colspan="8" style="text-align:center;color:#9ca3af;font-size:11px">... et ${valides.length-50} autres</td></tr>` : '');
-
+      </tr>`).join('') + (valides.length>50?`<tr><td colspan="8" style="text-align:center;color:#9ca3af;font-size:11px">... et ${valides.length-50} autres</td></tr>`:'');
     document.getElementById('cls-import-preview').style.display = 'block';
     const btn = document.getElementById('btn-import-cls-confirm');
-    btn.disabled    = valides.length === 0;
-    btn.style.opacity = valides.length ? '1' : '.5';
+    btn.disabled = !valides.length; btn.style.opacity = valides.length?'1':'.5';
   });
 }
 
@@ -18919,35 +18869,26 @@ async function confirmerImportClasses() {
   const btn = document.getElementById('btn-import-cls-confirm');
   btn.disabled = true; btn.textContent = '⏳ Import en cours...';
   document.getElementById('cls-import-progress').style.display = 'block';
-
   let ok = 0, errors = 0;
   const total = _classesAImporter.length;
-
   for (let i = 0; i < total; i++) {
-    const payload = { ..._classesAImporter[i], ecole_id: currentEcoleId };
-    const { error } = await db.from('classes').insert([payload]);
+    const { error } = await db.from('classes').insert([{ ..._classesAImporter[i], ecole_id: currentEcoleId }]);
     error ? errors++ : ok++;
     const pct = Math.round((i+1)/total*100);
     document.getElementById('cls-import-bar').style.width   = pct+'%';
     document.getElementById('cls-import-label').textContent = `${i+1} / ${total} — ${pct}%`;
   }
-
-  fermerModal('modal-import-classes');
-  resetImportCls();
-  showToast(`✅ ${ok} classe(s) importée(s)${errors ? ` · ${errors} erreur(s)` : ''}`, ok ? 'success' : 'error');
+  fermerModal('modal-import-classes'); resetImportCls();
+  showToast(`✅ ${ok} classe(s) importée(s)${errors?` · ${errors} erreur(s)`:''}`, ok?'success':'error');
   chargerClasses();
 }
 
 function resetImportCls() {
   _classesAImporter = [];
-  const preview = document.getElementById('cls-import-preview');
-  if (preview) preview.style.display = 'none';
-  const progress = document.getElementById('cls-import-progress');
-  if (progress) progress.style.display = 'none';
-  const input = document.getElementById('input-import-cls-file');
-  if (input) input.value = '';
+  ['cls-import-preview','cls-import-progress'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
+  const inp = document.getElementById('input-import-cls-file'); if(inp) inp.value='';
   const btn = document.getElementById('btn-import-cls-confirm');
-  if (btn) { btn.disabled = true; btn.style.opacity = '.5'; btn.textContent = '✅ Importer les classes'; }
+  if(btn){ btn.disabled=true; btn.style.opacity='.5'; btn.textContent='✅ Importer les classes'; }
 }
 
 function telechargerModeleClassesExcel() {
