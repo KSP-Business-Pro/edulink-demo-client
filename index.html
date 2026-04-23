@@ -568,7 +568,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 .login-demo .demo-role { color:#6b7280; font-size:11.5px; }
 .login-demo .demo-creds { font-family:monospace; font-size:11px; color:#1d4ed8; cursor:pointer; }
 .login-demo .demo-creds:hover { text-decoration:underline; }
-#app-main { display:none; height:100vh; overflow:hidden; }
+#app-main { display:none; height:100vh; overflow:hidden; width:100%; }
 .notif-panel { position:fixed; top:0; right:-380px; width:370px; height:100%; background:#fff; box-shadow:-6px 0 30px rgba(0,0,0,.12); z-index:500; transition:right .28s cubic-bezier(.4,0,.2,1); display:flex; flex-direction:column; }
 .notif-panel.open { right:0; }
 .notif-header { padding:1rem 1.2rem; background:#1e3a5f; color:#fff; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
@@ -663,41 +663,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 .cert-actions-bar { display:flex; gap:8px; margin-bottom:1rem; align-items:center; flex-wrap:wrap; }
 
 /* ══════════════════════════════════════════════
-   BIBLIOTHÈQUE SCOLAIRE  ★ JOUR 19
-══════════════════════════════════════════════ */
-.bib-stat-bar { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.5rem; }
-.bib-stat { background:#fff; border-radius:14px; padding:1.1rem 1.2rem; border:1px solid #e5e7eb; display:flex; align-items:center; gap:.85rem; }
-.bib-stat-ico { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
-.bib-stat-ico.navy   { background:#dbeafe; }
-.bib-stat-ico.green  { background:#dcfce7; }
-.bib-stat-ico.amber  { background:#fef9c3; }
-.bib-stat-ico.red    { background:#fee2e2; }
-.bib-stat .bs-val { font-size:24px; font-weight:700; line-height:1; }
-.bib-stat .bs-lbl { font-size:11px; color:#6b7280; font-weight:500; margin-top:2px; }
-
-/* Catalogue grid */
-.bib-catalogue-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
-.bib-book-card { background:#fff; border-radius:14px; border:1px solid #e5e7eb; padding:1.1rem; cursor:default; transition:all .15s; position:relative; overflow:hidden; }
-.bib-book-card:hover { box-shadow:0 6px 20px rgba(0,0,0,.08); transform:translateY(-2px); }
-.bib-book-card::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; border-radius:4px 0 0 4px; }
-.bib-book-card.disponible::before { background:#059669; }
-.bib-book-card.emprunte::before { background:#c97c1a; }
-.bib-book-card.perdu::before { background:#dc2626; }
-.bib-book-ico { font-size:32px; margin-bottom:.6rem; }
-.bib-book-titre { font-size:13px; font-weight:700; color:#111827; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bib-book-auteur { font-size:11.5px; color:#6b7280; margin-bottom:.3rem; }
-.bib-book-meta { font-size:11px; color:#9ca3af; }
-.bib-book-actions { display:flex; gap:6px; margin-top:.75rem; flex-wrap:wrap; }
-
-/* Tableau emprunts */
-.emprunt-overdue { background:#fff5f5 !important; }
-.emprunt-overdue td { color:#dc2626; }
-.bib-dispo-dot { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:5px; flex-shrink:0; }
-.bib-dispo-dot.green { background:#059669; }
-.bib-dispo-dot.amber { background:#d97706; }
-.bib-dispo-dot.red   { background:#dc2626; }
-
-/* ══════════════════════════════════════════════
    INTELLIGENCE ANALYTIQUE  ★ JOUR 20
 ══════════════════════════════════════════════ */
 .analytics-hero { background:linear-gradient(135deg,#1e3a5f 0%,#2d5a8e 50%,#1e3a5f 100%); border-radius:18px; padding:1.5rem 2rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
@@ -772,14 +737,11 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 .pred-sub   { font-size:11px; color:#6b7280; margin-top:2px; }
 
 @media (max-width:900px) {
-  .bib-stat-bar         { grid-template-columns:1fr 1fr; }
   .analytics-kpi-grid   { grid-template-columns:1fr 1fr; }
   .analytics-grid       { grid-template-columns:1fr; }
   .analytics-grid-3     { grid-template-columns:1fr; }
-  .bib-catalogue-grid   { grid-template-columns:1fr 1fr; }
 }
 @media (max-width:480px) {
-  .bib-stat-bar       { grid-template-columns:1fr; }
   .analytics-kpi-grid { grid-template-columns:1fr; }
   .analytics-hero     { flex-direction:column; }
 }
@@ -1049,115 +1011,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
 
 /* ══════════════════════════════════════════════
-   INFIRMERIE & SANTÉ  ★ JOUR 29
-══════════════════════════════════════════════ */
-.infirm-hero { background:linear-gradient(135deg,#dc2626 0%,#1e3a5f 100%); border-radius:18px; padding:1.5rem 2rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
-.infirm-hero h2 { font-size:18px; font-weight:800; color:#fff; margin-bottom:4px; }
-.infirm-hero p  { font-size:12.5px; color:rgba(255,255,255,.65); }
-.infirm-hero-kpis { display:flex; gap:2rem; flex-wrap:wrap; }
-.infirm-kpi .ik-val { font-size:24px; font-weight:800; color:#fff; line-height:1; }
-.infirm-kpi .ik-lbl { font-size:10px; color:rgba(255,255,255,.6); text-transform:uppercase; font-weight:600; letter-spacing:.05em; margin-top:2px; }
-
-.infirm-stat-bar { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.5rem; }
-.infirm-stat { background:#fff; border-radius:14px; border:1px solid #e5e7eb; padding:1.1rem 1.2rem; display:flex; align-items:center; gap:.85rem; }
-.infirm-stat-ico { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
-
-.infirm-layout { display:grid; grid-template-columns:1fr 300px; gap:1rem; }
-.infirm-main { display:flex; flex-direction:column; gap:1rem; }
-.infirm-side { display:flex; flex-direction:column; gap:1rem; }
-.infirm-block { background:#fff; border-radius:14px; border:1px solid #e5e7eb; overflow:hidden; }
-.infirm-block-header { padding:.9rem 1.2rem; border-bottom:1px solid #f3f4f6; font-size:13px; font-weight:700; color:#374151; display:flex; align-items:center; justify-content:space-between; gap:6px; }
-
-/* Fiche de passage */
-.passage-item { display:flex; gap:.85rem; align-items:flex-start; padding:.85rem 1.2rem; border-bottom:1px solid #f3f4f6; transition:background .1s; }
-.passage-item:hover { background:#fafafa; }
-.passage-item:last-child { border-bottom:none; }
-.passage-ico { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:#fff; flex-shrink:0; }
-.passage-body { flex:1; min-width:0; }
-.passage-nom  { font-size:12.5px; font-weight:700; color:#111827; }
-.passage-motif{ font-size:11.5px; color:#6b7280; margin-top:1px; }
-.passage-right { text-align:right; flex-shrink:0; min-width:100px; }
-.passage-heure { font-size:11px; color:#9ca3af; }
-.passage-sortie{ font-size:11px; font-weight:600; }
-.sortie-ok   { color:#059669; }
-.sortie-encours{ color:#d97706; }
-.sortie-hosp  { color:#dc2626; }
-
-/* Stock médicaments */
-.medoc-item { display:flex; align-items:center; gap:.85rem; padding:.75rem 1.2rem; border-bottom:1px solid #f3f4f6; }
-.medoc-item:last-child { border-bottom:none; }
-.medoc-ico { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
-.medoc-nom  { flex:1; font-size:12.5px; font-weight:600; color:#111827; }
-.medoc-stock { font-size:13px; font-weight:700; }
-.stock-ok    { color:#059669; }
-.stock-bas   { color:#d97706; }
-.stock-vide  { color:#dc2626; }
-
-/* Alerte urgence */
-.urgence-banner { background:linear-gradient(135deg,#fee2e2,#fff5f5); border:1.5px solid #fecaca; border-radius:12px; padding:1rem 1.2rem; margin-bottom:1rem; display:flex; align-items:center; gap:.85rem; }
-.urgence-banner .ub-ico { font-size:28px; flex-shrink:0; }
-.urgence-banner .ub-txt { font-size:13px; font-weight:700; color:#dc2626; }
-.urgence-banner .ub-sub { font-size:11.5px; color:#6b7280; margin-top:2px; }
-
-@media(max-width:900px){
-  .infirm-stat-bar { grid-template-columns:1fr 1fr; }
-  .infirm-layout   { grid-template-columns:1fr; }
-}
-
-/* ══════════════════════════════════════════════
-   ORIENTATION & STAGES  ★ JOUR 30
-══════════════════════════════════════════════ */
-.orient-hero { background:linear-gradient(135deg,#d97706 0%,#7c3aed 100%); border-radius:18px; padding:1.5rem 2rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
-.orient-hero h2 { font-size:18px; font-weight:800; color:#fff; margin-bottom:4px; }
-.orient-hero p  { font-size:12.5px; color:rgba(255,255,255,.65); }
-.orient-hero-kpis { display:flex; gap:2rem; flex-wrap:wrap; }
-.orient-kpi .ok-val { font-size:24px; font-weight:800; color:#fff; line-height:1; }
-.orient-kpi .ok-lbl { font-size:10px; color:rgba(255,255,255,.6); text-transform:uppercase; font-weight:600; letter-spacing:.05em; margin-top:2px; }
-
-.orient-stat-bar { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.5rem; }
-.orient-stat { background:#fff; border-radius:14px; border:1px solid #e5e7eb; padding:1.1rem 1.2rem; display:flex; align-items:center; gap:.85rem; }
-.orient-stat-ico { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
-
-.orient-layout { display:grid; grid-template-columns:1fr 320px; gap:1rem; }
-.orient-main { display:flex; flex-direction:column; gap:1rem; }
-.orient-side { display:flex; flex-direction:column; gap:1rem; }
-.orient-block { background:#fff; border-radius:14px; border:1px solid #e5e7eb; overflow:hidden; }
-.orient-block-header { padding:.9rem 1.2rem; border-bottom:1px solid #f3f4f6; font-size:13px; font-weight:700; color:#374151; display:flex; align-items:center; justify-content:space-between; gap:6px; }
-
-/* Cards offres de stage */
-.stage-card { background:#fff; border-radius:14px; border:1px solid #e5e7eb; padding:1.1rem 1.2rem; margin-bottom:.75rem; transition:all .15s; cursor:pointer; }
-.stage-card:hover { box-shadow:0 6px 20px rgba(0,0,0,.08); transform:translateY(-2px); border-color:#d97706; }
-.stage-card-header { display:flex; align-items:flex-start; gap:.85rem; margin-bottom:.75rem; }
-.stage-enterprise-logo { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
-.stage-titre { font-size:14px; font-weight:700; color:#111827; }
-.stage-entreprise { font-size:12px; color:#6b7280; margin-top:2px; }
-.stage-tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:.75rem; }
-.stage-meta { display:flex; gap:1rem; font-size:11.5px; color:#6b7280; flex-wrap:wrap; }
-.stage-meta span { display:flex; align-items:center; gap:4px; }
-.stage-actions { display:flex; gap:8px; margin-top:.75rem; padding-top:.75rem; border-top:1px solid #f3f4f6; }
-
-/* Candidature étudiant */
-.candidature-item { display:flex; align-items:center; gap:.85rem; padding:.85rem 1.2rem; border-bottom:1px solid #f3f4f6; transition:background .1s; }
-.candidature-item:hover { background:#fafafa; }
-.candidature-item:last-child { border-bottom:none; }
-.cand-avatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; color:#fff; flex-shrink:0; }
-.cand-body { flex:1; min-width:0; }
-.cand-nom { font-size:12.5px; font-weight:700; color:#111827; }
-.cand-stage { font-size:11.5px; color:#6b7280; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.cand-right { text-align:right; flex-shrink:0; }
-
-/* Jauge orientation métier */
-.metier-bar { margin-bottom:.75rem; }
-.metier-bar-label { display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px; font-weight:600; color:#374151; }
-.metier-track { height:8px; background:#f3f4f6; border-radius:4px; overflow:hidden; }
-.metier-fill { height:100%; border-radius:4px; transition:width 1s ease; }
-
-@media(max-width:900px){
-  .orient-stat-bar { grid-template-columns:1fr 1fr; }
-  .orient-layout   { grid-template-columns:1fr; }
-}
-
-/* ══════════════════════════════════════════════
    RÉSEAU MULTI-ÉTABLISSEMENTS  ★ JOUR 31
 ══════════════════════════════════════════════ */
 .reseau-hero { background:linear-gradient(135deg,#1e3a5f 0%,#059669 60%,#0f2040 100%); border-radius:18px; padding:1.5rem 2rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
@@ -1228,213 +1081,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   .reseau-stat-bar { grid-template-columns:1fr; }
 }
 
-/* ══════════════════════════════════════════════
-   BIBLIOTHÈQUE NUMÉRIQUE  ★ JOUR 26
-══════════════════════════════════════════════ */
-.bib-hero { background:linear-gradient(135deg,#1e3a5f 0%,#7c3aed 100%); border-radius:18px; padding:1.5rem 2rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
-.bib-hero h2   { font-size:18px; font-weight:800; color:#fff; margin-bottom:4px; }
-.bib-hero p    { font-size:12.5px; color:rgba(255,255,255,.65); }
-.bib-hero-kpis { display:flex; gap:2rem; flex-wrap:wrap; }
-.bib-kpi .bk-val { font-size:24px; font-weight:800; color:#fff; line-height:1; }
-.bib-kpi .bk-lbl { font-size:10px; color:rgba(255,255,255,.6); text-transform:uppercase; font-weight:600; letter-spacing:.05em; margin-top:2px; }
-
-.bib-stat-bar { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.5rem; }
-.bib-stat { background:#fff; border-radius:14px; border:1px solid #e5e7eb; padding:1.1rem 1.2rem; display:flex; align-items:center; gap:.85rem; }
-.bib-stat-ico { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
-
-.bib-layout { display:grid; grid-template-columns:1fr 320px; gap:1rem; }
-.bib-main  { display:flex; flex-direction:column; gap:1rem; }
-.bib-side  { display:flex; flex-direction:column; gap:1rem; }
-.bib-block { background:#fff; border-radius:14px; border:1px solid #e5e7eb; overflow:hidden; }
-.bib-block-header { padding:.9rem 1.2rem; border-bottom:1px solid #f3f4f6; font-size:13px; font-weight:700; color:#374151; display:flex; align-items:center; justify-content:space-between; gap:6px; }
-
-/* Catalogue livres en grille */
-.book-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; padding:1rem; }
-.book-card { background:#f9fafb; border-radius:12px; border:1px solid #e5e7eb; overflow:hidden; transition:all .15s; cursor:pointer; }
-.book-card:hover { box-shadow:0 6px 20px rgba(0,0,0,.1); transform:translateY(-2px); }
-.book-cover { height:100px; display:flex; align-items:center; justify-content:center; font-size:36px; }
-.book-cover.bleu   { background:linear-gradient(135deg,#dbeafe,#bfdbfe); }
-.book-cover.vert   { background:linear-gradient(135deg,#dcfce7,#bbf7d0); }
-.book-cover.rouge  { background:linear-gradient(135deg,#fee2e2,#fecaca); }
-.book-cover.violet { background:linear-gradient(135deg,#ede9fe,#ddd6fe); }
-.book-cover.or     { background:linear-gradient(135deg,#fef9c3,#fde68a); }
-.book-cover.gris   { background:linear-gradient(135deg,#f3f4f6,#e5e7eb); }
-.book-info { padding:.65rem .8rem; }
-.book-titre { font-size:12px; font-weight:700; color:#111827; line-height:1.3; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.book-auteur{ font-size:11px; color:#6b7280; margin-bottom:.4rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.book-dispo { font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; display:inline-block; }
-.book-dispo.ok      { background:#dcfce7; color:#059669; }
-.book-dispo.emprunte{ background:#fee2e2; color:#dc2626; }
-.book-dispo.reserve { background:#fef9c3; color:#d97706; }
-
-/* Emprunts en cours */
-.emprunt-item { display:flex; gap:.85rem; align-items:center; padding:.85rem 1.2rem; border-bottom:1px solid #f3f4f6; transition:background .1s; }
-.emprunt-item:last-child { border-bottom:none; }
-.emprunt-item:hover { background:#fafafa; }
-.emprunt-ico { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
-.emprunt-body { flex:1; min-width:0; }
-.emprunt-titre  { font-size:12.5px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.emprunt-etudiant{ font-size:11.5px; color:#6b7280; margin-top:1px; }
-.emprunt-right  { text-align:right; flex-shrink:0; }
-.emprunt-date   { font-size:11px; color:#9ca3af; }
-.emprunt-retard { font-size:11px; font-weight:700; color:#dc2626; margin-top:2px; }
-
-/* Statut retour */
-.retour-ok    { color:#059669; font-weight:700; font-size:11px; }
-.retour-late  { color:#dc2626; font-weight:700; font-size:11px; }
-.retour-soon  { color:#d97706; font-weight:700; font-size:11px; }
-
-@media(max-width:900px){
-  .bib-stat-bar { grid-template-columns:1fr 1fr; }
-  .bib-layout   { grid-template-columns:1fr; }
-  .book-grid    { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); }
-}
-
-/* ══════════════════════════════════════════════
-   CANTINE & RESTAURATION  ★ JOUR 27
-══════════════════════════════════════════════ */
-.cant-hero { background:linear-gradient(135deg,#d97706 0%,#c97c1a 50%,#1e3a5f 100%); border-radius:18px; padding:1.5rem 2rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
-.cant-hero h2  { font-size:18px; font-weight:800; color:#fff; margin-bottom:4px; }
-.cant-hero p   { font-size:12.5px; color:rgba(255,255,255,.65); }
-.cant-hero-kpis{ display:flex; gap:2rem; flex-wrap:wrap; }
-.cant-kpi .ck-val { font-size:24px; font-weight:800; color:#fff; line-height:1; }
-.cant-kpi .ck-lbl { font-size:10px; color:rgba(255,255,255,.6); text-transform:uppercase; font-weight:600; letter-spacing:.05em; margin-top:2px; }
-
-.cant-stat-bar { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.5rem; }
-.cant-stat { background:#fff; border-radius:14px; border:1px solid #e5e7eb; padding:1.1rem 1.2rem; display:flex; align-items:center; gap:.85rem; }
-.cant-stat-ico { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
-
-.cant-layout { display:grid; grid-template-columns:1fr 300px; gap:1rem; }
-.cant-main   { display:flex; flex-direction:column; gap:1rem; }
-.cant-side   { display:flex; flex-direction:column; gap:1rem; }
-.cant-block  { background:#fff; border-radius:14px; border:1px solid #e5e7eb; overflow:hidden; }
-.cant-block-header { padding:.9rem 1.2rem; border-bottom:1px solid #f3f4f6; font-size:13px; font-weight:700; color:#374151; display:flex; align-items:center; justify-content:space-between; gap:6px; }
-
-/* Menu semaine */
-.menu-week-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; padding:1rem; }
-.menu-day-card  { border-radius:12px; border:1.5px solid #e5e7eb; overflow:hidden; transition:all .15s; }
-.menu-day-card.today { border-color:#d97706; box-shadow:0 0 0 2px rgba(217,119,6,.15); }
-.menu-day-header{ padding:7px 10px; font-size:11px; font-weight:700; text-align:center; text-transform:uppercase; letter-spacing:.04em; }
-.menu-day-card.today .menu-day-header { background:#d97706; color:#fff; }
-.menu-day-card:not(.today) .menu-day-header { background:#f9fafb; color:#6b7280; }
-.menu-day-body  { padding:8px 10px; }
-.menu-plat { font-size:11.5px; font-weight:600; color:#111827; margin-bottom:3px; display:flex; align-items:center; gap:4px; }
-.menu-plat-type { font-size:9px; color:#9ca3af; font-weight:500; }
-.menu-allergen { font-size:9.5px; color:#d97706; background:#fef9c3; border-radius:4px; padding:1px 5px; margin-top:4px; display:inline-block; }
-.menu-prix { font-size:12px; font-weight:700; color:#059669; margin-top:6px; }
-
-/* Abonnements */
-.abonnement-card { display:flex; align-items:center; gap:.85rem; padding:.85rem 1.2rem; border-bottom:1px solid #f3f4f6; transition:background .1s; }
-.abonnement-card:last-child { border-bottom:none; }
-.abonnement-card:hover { background:#fafafa; }
-.ab-avatar { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; color:#fff; flex-shrink:0; }
-.ab-body { flex:1; min-width:0; }
-.ab-nom    { font-size:12.5px; font-weight:700; color:#111827; }
-.ab-detail { font-size:11px; color:#6b7280; margin-top:1px; }
-.ab-right  { text-align:right; flex-shrink:0; }
-.ab-solde  { font-size:14px; font-weight:800; }
-.ab-solde.positif { color:#059669; }
-.ab-solde.negatif { color:#dc2626; }
-.ab-solde.zero    { color:#d97706; }
-
-/* Pointage du jour */
-.pointage-list { max-height:320px; overflow-y:auto; }
-.pointage-row  { display:flex; align-items:center; gap:.75rem; padding:.65rem 1.2rem; border-bottom:1px solid #f3f4f6; }
-.pointage-row:last-child { border-bottom:none; }
-.pointage-nom  { flex:1; font-size:12.5px; font-weight:600; color:#111827; }
-.pointage-heure{ font-size:11px; color:#9ca3af; width:60px; text-align:right; }
-
-@media(max-width:900px){
-  .cant-stat-bar  { grid-template-columns:1fr 1fr; }
-  .cant-layout    { grid-template-columns:1fr; }
-  .menu-week-grid { grid-template-columns:1fr 1fr; }
-}
-@media(max-width:480px){
-  .cant-stat-bar  { grid-template-columns:1fr; }
-  .menu-week-grid { grid-template-columns:1fr; }
-}
-
-/* ══════════════════════════════════════════════
-   TRANSPORT SCOLAIRE  ★ JOUR 28
-══════════════════════════════════════════════ */
-.trans-hero { background:linear-gradient(135deg,#059669 0%,#1e3a5f 100%); border-radius:18px; padding:1.5rem 2rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
-.trans-hero h2  { font-size:18px; font-weight:800; color:#fff; margin-bottom:4px; }
-.trans-hero p   { font-size:12.5px; color:rgba(255,255,255,.65); }
-.trans-hero-kpis{ display:flex; gap:2rem; flex-wrap:wrap; }
-.trans-kpi .tk-val { font-size:24px; font-weight:800; color:#fff; line-height:1; }
-.trans-kpi .tk-lbl { font-size:10px; color:rgba(255,255,255,.6); text-transform:uppercase; font-weight:600; letter-spacing:.05em; margin-top:2px; }
-
-.trans-stat-bar { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.5rem; }
-.trans-stat { background:#fff; border-radius:14px; border:1px solid #e5e7eb; padding:1.1rem 1.2rem; display:flex; align-items:center; gap:.85rem; }
-.trans-stat-ico { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
-
-.trans-layout { display:grid; grid-template-columns:1fr 300px; gap:1rem; }
-.trans-main   { display:flex; flex-direction:column; gap:1rem; }
-.trans-side   { display:flex; flex-direction:column; gap:1rem; }
-.trans-block  { background:#fff; border-radius:14px; border:1px solid #e5e7eb; overflow:hidden; }
-.trans-block-header { padding:.9rem 1.2rem; border-bottom:1px solid #f3f4f6; font-size:13px; font-weight:700; color:#374151; display:flex; align-items:center; justify-content:space-between; gap:6px; }
-
-/* Carte bus */
-.bus-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; padding:1rem; }
-.bus-card { background:linear-gradient(135deg,#f0fdf4,#e0f2fe); border-radius:14px; border:1px solid #bbf7d0; padding:1.1rem; transition:all .15s; cursor:pointer; }
-.bus-card:hover { box-shadow:0 6px 20px rgba(0,0,0,.1); transform:translateY(-2px); }
-.bus-card.inactif { background:#f9fafb; border-color:#e5e7eb; opacity:.7; }
-.bus-card-header { display:flex; align-items:center; gap:.85rem; margin-bottom:.85rem; }
-.bus-icon { width:48px; height:48px; border-radius:12px; background:#059669; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
-.bus-card.inactif .bus-icon { background:#9ca3af; }
-.bus-nom   { font-size:14px; font-weight:700; color:#111827; }
-.bus-immat { font-size:11.5px; color:#6b7280; margin-top:1px; }
-.bus-stats-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:.85rem; }
-.bus-mini-stat { background:rgba(255,255,255,.7); border-radius:8px; padding:.4rem .6rem; text-align:center; }
-.bus-mini-stat .bms-val { font-size:15px; font-weight:800; color:#1e3a5f; }
-.bus-mini-stat .bms-lbl { font-size:9.5px; color:#9ca3af; font-weight:500; }
-.bus-route { font-size:12px; color:#374151; background:rgba(255,255,255,.8); border-radius:8px; padding:.45rem .75rem; display:flex; align-items:center; gap:6px; margin-bottom:.75rem; }
-.bus-card-actions { display:flex; gap:6px; }
-
-/* Arrêts */
-.arret-list { display:flex; flex-direction:column; gap:0; padding:0 1.2rem 1rem; }
-.arret-item { display:flex; gap:.85rem; align-items:flex-start; padding:.65rem 0; position:relative; }
-.arret-item:not(:last-child)::before { content:''; position:absolute; left:15px; top:32px; bottom:0; width:2px; background:#e5e7eb; z-index:0; }
-.arret-dot  { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; z-index:1; }
-.arret-dot.depart  { background:#059669; color:#fff; }
-.arret-dot.arrivee { background:#1e3a5f; color:#fff; }
-.arret-dot.normal  { background:#e5e7eb; color:#6b7280; border:2px solid #d1d5db; }
-.arret-body { flex:1; }
-.arret-nom   { font-size:12.5px; font-weight:600; color:#111827; }
-.arret-heure { font-size:11px; color:#9ca3af; margin-top:1px; }
-.arret-eleves{ font-size:11px; color:#6b7280; margin-top:2px; }
-
-/* Conducteur card (sidebar) */
-.conducteur-card { display:flex; align-items:center; gap:.85rem; padding:.85rem 1.2rem; border-bottom:1px solid #f3f4f6; transition:background .1s; }
-.conducteur-card:last-child { border-bottom:none; }
-.conducteur-card:hover { background:#fafafa; }
-.cond-avatar { width:40px; height:40px; border-radius:50%; background:#059669; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; color:#fff; flex-shrink:0; }
-.cond-body { flex:1; min-width:0; }
-.cond-nom  { font-size:12.5px; font-weight:700; color:#111827; }
-.cond-bus  { font-size:11px; color:#6b7280; margin-top:1px; }
-.cond-right { text-align:right; flex-shrink:0; }
-.cond-tel  { font-size:11.5px; color:#1e3a5f; font-weight:600; }
-
-/* Carte de suivi live */
-.live-map-placeholder { background:linear-gradient(135deg,#f0fdf4,#eff6ff); border-radius:12px; height:200px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; margin:0 1.2rem 1rem; border:1px dashed #bbf7d0; cursor:pointer; transition:all .15s; }
-.live-map-placeholder:hover { background:linear-gradient(135deg,#dcfce7,#dbeafe); }
-.live-map-placeholder .lmp-ico { font-size:48px; }
-.live-map-placeholder .lmp-txt { font-size:13px; font-weight:600; color:#059669; }
-.live-map-placeholder .lmp-sub { font-size:11px; color:#9ca3af; }
-
-/* Animation ping pour bus actif */
-@keyframes ping { 0%{transform:scale(1);opacity:1} 100%{transform:scale(2.2);opacity:0} }
-.bus-ping { display:inline-block; width:10px; height:10px; border-radius:50%; background:#059669; position:relative; }
-.bus-ping::after { content:''; position:absolute; inset:0; border-radius:50%; background:#059669; animation:ping 1.2s ease-out infinite; }
-
-@media(max-width:900px){
-  .trans-stat-bar { grid-template-columns:1fr 1fr; }
-  .trans-layout   { grid-template-columns:1fr; }
-  .bus-grid       { grid-template-columns:1fr; }
-}
-@media(max-width:480px){
-  .trans-stat-bar { grid-template-columns:1fr; }
-}
 /* ══════════════════════════════════════════════
    PARAMÈTRES AVANCÉS  ★ JOUR 32
 ══════════════════════════════════════════════ */
@@ -1695,27 +1341,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 .ia-hist-time   { font-size:10.5px; color:#9ca3af; margin-top:2px; }
 
 @media(max-width:900px){ .ia-layout { grid-template-columns:1fr; height:auto; } }
-
-/* ══════════════════════════════════════════════
-   SMS & COMMUNICATION PARENTS  ★ JOUR 36
-══════════════════════════════════════════════ */
-
-
-/* Composer SMS */
-
-/* Templates SMS */
-
-/* Historique envois SMS */
-
-/* Contact parent card */
-.parent-contact-item { display:flex; align-items:center; gap:.85rem; padding:.75rem 1.2rem; border-bottom:1px solid #f3f4f6; }
-.parent-contact-item:last-child { border-bottom:none; }
-.pc-ava2 { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; flex-shrink:0; }
-.pc-body2 { flex:1; min-width:0; }
-.pc-parent-nom { font-size:12.5px; font-weight:700; color:#111827; }
-.pc-enfant-nom { font-size:11px; color:#6b7280; margin-top:1px; }
-.pc-tel { font-size:12px; font-weight:600; color:#059669; flex-shrink:0; }
-
 
 /* ══════════════════════════════════════════════
    PWA AVANCÉE  ★ JOUR 37
@@ -2059,7 +1684,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <a onclick="showPage('documents')" id="nav-documents"><span class="ico">📄</span> Documents</a>
   <a onclick="showPage('certificats')" id="nav-certificats"><span class="ico">📜</span> Certificats</a>
   <a onclick="showPage('rapports')"  id="nav-rapports"><span class="ico">📈</span> Rapports</a>
-  <a onclick="showPage('bibliotheque')" id="nav-bibliotheque"><span class="ico">📚</span> Bibliothèque <span id="badge-bib" style="margin-left:auto;background:#c97c1a;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;display:none"></span></a>
   <a onclick="showPage('analytics')" id="nav-analytics"><span class="ico">🧠</span> Analytics IA</a>
   <a onclick="showPage('utilisateurs')" id="nav-utilisateurs" style="display:none"><span class="ico">👥</span> Utilisateurs</a>
   <a onclick="showPage('notifications')" id="nav-notifications"><span class="ico">🔔</span> Notifications <span id="badge-notifs" style="margin-left:auto;background:#dc2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;display:none"></span></a>
@@ -4338,77 +3962,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 </div>
 
 <!-- ═══════════════════════════════════════
-     BIBLIOTHÈQUE SCOLAIRE  ★ JOUR 19
-═══════════════════════════════════════ -->
-<div class="page" id="page-bibliotheque">
-  <div class="top">
-    <div>
-      <h2>📚 Bibliothèque</h2>
-      <p class="page-subtitle">Gestion du catalogue et des emprunts</p>
-    </div>
-    <div class="top-actions">
-      <button class="btn-outline" onclick="showTab('bib','tab-bib-emprunts')">📋 Emprunts en cours</button>
-      <button onclick="ouvrirModal('modal-livre')">+ Ajouter ouvrage</button>
-    </div>
-  </div>
-  <div class="bib-stat-bar">
-    <div class="bib-stat"><div class="bib-stat-ico navy">📚</div><div><div class="bs-val" style="color:#1e3a5f" id="bib-stat-total">—</div><div class="bs-lbl">Ouvrages total</div></div></div>
-    <div class="bib-stat"><div class="bib-stat-ico green">✅</div><div><div class="bs-val" style="color:#059669" id="bib-stat-dispo">—</div><div class="bs-lbl">Disponibles</div></div></div>
-    <div class="bib-stat"><div class="bib-stat-ico amber">📤</div><div><div class="bs-val" style="color:#d97706" id="bib-stat-empruntes">—</div><div class="bs-lbl">Empruntés</div></div></div>
-    <div class="bib-stat"><div class="bib-stat-ico red">⚠️</div><div><div class="bs-val" style="color:#dc2626" id="bib-stat-retard">—</div><div class="bs-lbl">En retard</div></div></div>
-  </div>
-  <div class="tabs">
-    <button class="tab active" id="tab-bib-catalogue-btn" onclick="showTab('bib','tab-bib-catalogue')">📖 Catalogue</button>
-    <button class="tab" id="tab-bib-emprunts-btn" onclick="showTab('bib','tab-bib-emprunts')">📤 Emprunts actifs</button>
-    <button class="tab" id="tab-bib-historique-btn" onclick="showTab('bib','tab-bib-historique')">📋 Historique</button>
-  </div>
-  <div id="tab-bib-catalogue">
-    <div class="search-bar" style="margin-bottom:1rem">
-      <input type="text" id="search-livres" placeholder="🔍 Titre, auteur, ISBN, catégorie..." oninput="filtrerLivres()">
-      <select id="filter-bib-categorie" onchange="filtrerLivres()" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
-        <option value="">Toutes catégories</option>
-        <option value="litterature">Littérature</option><option value="sciences">Sciences</option>
-        <option value="mathematiques">Mathématiques</option><option value="informatique">Informatique</option>
-        <option value="histoire">Histoire & Géographie</option><option value="philosophie">Philosophie</option>
-        <option value="droit">Droit</option><option value="economie">Économie</option><option value="autre">Autre</option>
-      </select>
-      <select id="filter-bib-statut" onchange="filtrerLivres()" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
-        <option value="">Tous statuts</option>
-        <option value="disponible">Disponible</option>
-        <option value="emprunte">Emprunté</option>
-        <option value="perdu">Perdu</option>
-      </select>
-    </div>
-    <div id="bib-catalogue-container" class="bib-catalogue-grid">
-      <div class="loading" style="grid-column:1/-1">Chargement du catalogue...</div>
-    </div>
-  </div>
-  <div id="tab-bib-emprunts" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-      <div style="font-size:12.5px;color:#6b7280">Emprunts actifs (non encore rendus)</div>
-      <button onclick="ouvrirModal('modal-emprunt')">+ Enregistrer emprunt</button>
-    </div>
-    <table>
-      <tr><th>Ouvrage</th><th>Emprunteur</th><th>Date emprunt</th><th>Retour prévu</th><th>Retard</th><th>Statut</th><th>Actions</th></tr>
-      <tbody id="tbody-bib-emprunts"><tr><td colspan="7" class="loading">Chargement...</td></tr></tbody>
-    </table>
-  </div>
-  <div id="tab-bib-historique" style="display:none">
-    <div class="filters" style="margin-bottom:1rem">
-      <span class="filter-label">Période :</span>
-      <select id="filter-bib-hist-periode" onchange="chargerHistoriqueBib()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
-        <option value="30">30 derniers jours</option><option value="90">3 derniers mois</option>
-        <option value="365">Cette année</option><option value="all">Tout l'historique</option>
-      </select>
-    </div>
-    <table>
-      <tr><th>Ouvrage</th><th>Emprunteur</th><th>Emprunté le</th><th>Rendu le</th><th>Durée (j)</th><th>Pénalité</th></tr>
-      <tbody id="tbody-bib-historique"><tr><td colspan="6" class="loading">Chargement...</td></tr></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════
      INTELLIGENCE ANALYTIQUE  ★ JOUR 20
 ═══════════════════════════════════════ -->
 <div class="page" id="page-analytics">
@@ -5774,68 +5327,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
 </div>
 
-<!-- ═══════════════════ MODAL AJOUTER LIVRE ★ JOUR 19 ══════════════════ -->
-<div class="modal-overlay" id="modal-livre">
-  <div class="modal">
-    <h3>📖 Ajouter un ouvrage</h3>
-    <div class="form-grid">
-      <div class="form-group"><label>Titre *</label><input type="text" id="input-livre-titre" placeholder="Titre de l'ouvrage"></div>
-      <div class="form-group"><label>Auteur *</label><input type="text" id="input-livre-auteur" placeholder="Prénom NOM"></div>
-    </div>
-    <div class="form-grid">
-      <div class="form-group"><label>ISBN / Référence</label><input type="text" id="input-livre-isbn" placeholder="978-..."></div>
-      <div class="form-group"><label>Année édition</label><input type="number" id="input-livre-annee" placeholder="2024" min="1900" max="2099"></div>
-    </div>
-    <div class="form-grid">
-      <div class="form-group"><label>Catégorie *</label>
-        <select id="input-livre-categorie">
-          <option value="litterature">Littérature</option>
-          <option value="sciences">Sciences</option>
-          <option value="mathematiques">Mathématiques</option>
-          <option value="informatique">Informatique</option>
-          <option value="histoire">Histoire & Géographie</option>
-          <option value="philosophie">Philosophie</option>
-          <option value="droit">Droit</option>
-          <option value="economie">Économie</option>
-          <option value="autre">Autre</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Nombre d'exemplaires *</label><input type="number" id="input-livre-exemplaires" value="1" min="1"></div>
-    </div>
-    <div class="form-group"><label>Emplacement / Cote</label><input type="text" id="input-livre-cote" placeholder="Ex : A-023 / Rayon Sciences"></div>
-    <div class="form-group"><label>Description (optionnel)</label><textarea rows="2" id="input-livre-desc" placeholder="Résumé ou notes sur l'ouvrage..."></textarea></div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="fermerModal('modal-livre')">Annuler</button>
-      <button onclick="ajouterLivre()">📚 Ajouter au catalogue</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════ MODAL EMPRUNT LIVRE ★ JOUR 19 ══════════════════ -->
-<div class="modal-overlay" id="modal-emprunt">
-  <div class="modal">
-    <h3>📤 Enregistrer un emprunt</h3>
-    <div class="form-group"><label>Ouvrage *</label>
-      <select id="input-emprunt-livre">
-        <option value="">— Sélectionner un ouvrage disponible —</option>
-      </select>
-    </div>
-    <div class="form-group"><label>Emprunteur — Étudiant *</label>
-      <select id="input-emprunt-etudiant">
-        <option value="">— Sélectionner un étudiant —</option>
-      </select>
-    </div>
-    <div class="form-grid">
-      <div class="form-group"><label>Date d'emprunt *</label><input type="date" id="input-emprunt-date"></div>
-      <div class="form-group"><label>Date retour prévue *</label><input type="date" id="input-emprunt-retour"></div>
-    </div>
-    <div class="form-group"><label>Observations (optionnel)</label><textarea rows="2" id="input-emprunt-obs" placeholder="État du livre, remarques..."></textarea></div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="fermerModal('modal-emprunt')">Annuler</button>
-      <button class="btn-amber" onclick="enregistrerEmprunt()" style="background:#d97706">📤 Valider l'emprunt</button>
-    </div>
-  </div>
-</div>
 
 <!-- ═══════════════════ MODAL CRÉER CLASSE ★ JOUR 21 ══════════════════ -->
 <div class="modal-overlay" id="modal-classe">
@@ -6340,7 +5831,6 @@ function showPage(p) {
     enseignants:     chargerEnseignants,
     notifications:   chargerNotifications,
     certificats:     chargerCertificats,
-    bibliotheque:    chargerBibliotheque,
     analytics:       chargerAnalytics,
     classes:         chargerClasses,
     comptabilite:    chargerComptabilite,
@@ -6368,7 +5858,6 @@ function showTab(page, tabId) {
     docs:  { tabs:['tab-docs-galerie','tab-docs-liste'], btns:['tab-docs-galerie-btn','tab-docs-liste-btn'] },
     exam:  { tabs:['tab-exam-planning','tab-exam-liste','tab-exam-resultats'], btns:['tab-exam-planning-btn','tab-exam-liste-btn','tab-exam-resultats-btn'] },
     ens:   { tabs:['tab-ens-liste','tab-ens-matieres','tab-ens-planning'], btns:['tab-ens-liste-btn','tab-ens-matieres-btn','tab-ens-planning-btn'] },
-    bib:   { tabs:['tab-bib-catalogue','tab-bib-emprunts','tab-bib-historique'], btns:['tab-bib-catalogue-btn','tab-bib-emprunts-btn','tab-bib-historique-btn'] },
     cls:   { tabs:['tab-cls-liste','tab-cls-programmes','tab-cls-calendrier','tab-cls-affectation'], btns:['tab-cls-liste-btn','tab-cls-programmes-btn','tab-cls-calendrier-btn','tab-cls-affectation-btn'] },
     cpt:   { tabs:['tab-cpt-tableau','tab-cpt-caisse','tab-cpt-lot','tab-cpt-recus'], btns:['tab-cpt-tableau-btn','tab-cpt-caisse-btn','tab-cpt-lot-btn','tab-cpt-recus-btn'] },
     pens:  { tabs:['tab-pens-saisie','tab-pens-absences','tab-pens-planning','tab-pens-stats'], btns:['tab-pens-saisie-btn','tab-pens-absences-btn','tab-pens-planning-btn','tab-pens-stats-btn'] },
@@ -6388,9 +5877,6 @@ function showTab(page, tabId) {
   if (tabId === 'tab-exam-resultats') afficherResultatsExamens();
   if (tabId === 'tab-pay-historique') chargerHistoriquePaiements();
   if (tabId === 'tab-docs-liste') afficherDocumentsListe();
-  if (tabId === 'tab-bib-catalogue') { chargerCatalogueLivres(); }
-  if (tabId === 'tab-bib-emprunts')  { chargerEmpruntsActifs(); }
-  if (tabId === 'tab-bib-historique'){ chargerHistoriqueBib(); }
   if (tabId === 'tab-cls-liste')       { chargerListeClasses(); }
   if (tabId === 'tab-cls-programmes')  { remplirSelectClasseProg(); }
   if (tabId === 'tab-cls-calendrier')  { chargerCalendrierScolaire(); }
@@ -6420,7 +5906,6 @@ function ouvrirModal(id) {
   if (id === 'modal-note')     remplirSelect('input-note-etudiant');
   if (id === 'modal-facture')  { remplirSelect('input-fac-etudiant'); document.getElementById('input-fac-echeance').value = new Date(Date.now()+30*864e5).toISOString().split('T')[0]; }
   if (id === 'modal-incident') { remplirSelect('input-inc-etudiant'); document.getElementById('input-inc-date').value = new Date().toISOString().split('T')[0]; }
-  if (id === 'modal-emprunt')  { remplirSelectEmprunt(); }
   if (id === 'modal-programme'){ remplirSelectClasseProg(); remplirSelectEnsModal(); }
   if (id === 'modal-transaction') { document.getElementById('input-trans-date').value = new Date().toISOString().split('T')[0]; }
   if (id === 'modal-conge')      { remplirSelectAgentConge(); document.getElementById('input-conge-debut').value = new Date().toISOString().split('T')[0]; }
@@ -6568,7 +6053,6 @@ async function supprimerEtudiant(id, nom) {
     db.from('notes').delete().eq('etudiant_id', id),
     db.from('absences').delete().eq('etudiant_id', id),
     db.from('incidents').delete().eq('etudiant_id', id),
-    db.from('emprunts').delete().eq('etudiant_id', id),
   ]);
   await db.from('factures').delete().eq('etudiant_id', id);
   await db.from('paiements').delete().eq('etudiant_id', id);
@@ -6589,7 +6073,6 @@ async function supprimerSelectionEtudiants() {
       db.from('notes').delete().eq('etudiant_id', id),
       db.from('absences').delete().eq('etudiant_id', id),
       db.from('incidents').delete().eq('etudiant_id', id),
-      db.from('emprunts').delete().eq('etudiant_id', id),
     ]);
     await db.from('factures').delete().eq('etudiant_id', id);
     await db.from('paiements').delete().eq('etudiant_id', id);
@@ -6612,7 +6095,6 @@ async function viderListeEtudiants() {
       db.from('notes').delete().eq('ecole_id', currentEcoleId),
       db.from('absences').delete().eq('ecole_id', currentEcoleId),
       db.from('incidents').delete().eq('ecole_id', currentEcoleId),
-      db.from('emprunts').delete().eq('ecole_id', currentEcoleId),
     ]);
     await db.from('factures').delete().eq('ecole_id', currentEcoleId);
     await db.from('paiements').delete().eq('ecole_id', currentEcoleId);
@@ -10899,245 +10381,6 @@ function certGetAnnee() {
 // ══ FIN CERTIFICATS & ATTESTATIONS  ★ JOUR 18 ══════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════
-//  BIBLIOTHÈQUE SCOLAIRE  ★ JOUR 19
-// ══════════════════════════════════════════════════════════════════════════
-let tousLesLivres = [];
-let tousLesEmprunts = [];
-
-const BIB_CAT_ICO = {
-  litterature:'📕', sciences:'🔬', mathematiques:'📐', informatique:'💻',
-  histoire:'🗺️', philosophie:'🎭', droit:'⚖️', economie:'📈', autre:'📚'
-};
-
-async function chargerBibliotheque() {
-  await chargerStatsBib();
-  await chargerCatalogueLivres();
-}
-
-async function chargerStatsBib() {
-  let qL = db.from('livres').select('*');
-  if (currentEcoleId) qL = qL.eq('ecole_id', currentEcoleId);
-  const { data: livres } = await qL;
-  tousLesLivres = livres || [];
-
-  const total = tousLesLivres.reduce((s,l) => s + (l.exemplaires||1), 0);
-  const empruntes = tousLesLivres.reduce((s,l) => s + (l.exemplaires_empruntes||0), 0);
-  const dispo = total - empruntes;
-
-  // Emprunts en retard
-  const today = new Date().toISOString().split('T')[0];
-  let qE = db.from('emprunts').select('*').eq('statut','actif').lt('date_retour_prevue', today);
-  if (currentEcoleId) qE = qE.eq('ecole_id', currentEcoleId);
-  const { count: retard } = await db.from('emprunts').select('*',{count:'exact',head:true}).eq('statut','actif').lt('date_retour_prevue', today);
-
-  document.getElementById('bib-stat-total').textContent     = total;
-  document.getElementById('bib-stat-dispo').textContent     = dispo;
-  document.getElementById('bib-stat-empruntes').textContent = empruntes;
-  document.getElementById('bib-stat-retard').textContent    = retard || 0;
-
-  // Badge nav
-  const badge = document.getElementById('badge-bib');
-  if (retard > 0) { badge.textContent = retard; badge.style.display='inline'; }
-  else badge.style.display='none';
-}
-
-async function chargerCatalogueLivres() {
-  const container = document.getElementById('bib-catalogue-container');
-  container.innerHTML = '<div class="loading" style="grid-column:1/-1">Chargement...</div>';
-  let q = db.from('livres').select('*').order('titre');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data } = await q;
-  tousLesLivres = data || [];
-  afficherCatalogueLivres(tousLesLivres);
-}
-
-function afficherCatalogueLivres(liste) {
-  const container = document.getElementById('bib-catalogue-container');
-  if (!liste.length) {
-    container.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📚</div><h3>Catalogue vide</h3><p>Ajoutez votre premier ouvrage !</p></div>';
-    return;
-  }
-  container.innerHTML = liste.map(l => {
-    const ico   = BIB_CAT_ICO[l.categorie] || '📚';
-    const dispo = (l.exemplaires||1) - (l.exemplaires_empruntes||0);
-    const statut = dispo > 0 ? 'disponible' : 'emprunte';
-    const sCls  = dispo > 0 ? 'green' : 'amber';
-    const sLbl  = dispo > 0 ? `${dispo} dispo.` : 'Emprunté';
-    return `<div class="bib-book-card ${statut}">
-      <div class="bib-book-ico">${ico}</div>
-      <div class="bib-book-titre" title="${l.titre}">${l.titre}</div>
-      <div class="bib-book-auteur">${l.auteur||'Auteur inconnu'}</div>
-      <div class="bib-book-meta">${l.annee_edition||'—'} · ${l.categorie||'—'}</div>
-      ${l.cote ? `<div style="font-size:10.5px;color:#9ca3af;margin-top:2px">📍 ${l.cote}</div>` : ''}
-      <div style="display:flex;align-items:center;gap:6px;margin-top:.5rem">
-        <span class="badge ${sCls}">${sLbl}</span>
-        <span style="font-size:10px;color:#9ca3af">${l.exemplaires||1} ex.</span>
-      </div>
-      <div class="bib-book-actions">
-        ${dispo > 0 ? `<button class="btn-sm btn-blue" onclick="preRemplirEmprunt('${l.id}')">📤 Emprunter</button>` : ''}
-        <button class="btn-sm btn-red" onclick="supprimerLivre('${l.id}')">✕</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function filtrerLivres() {
-  const q    = (document.getElementById('search-livres')?.value || '').toLowerCase();
-  const cat  = document.getElementById('filter-bib-categorie')?.value || '';
-  const stat = document.getElementById('filter-bib-statut')?.value || '';
-  let liste = tousLesLivres;
-  if (q)    liste = liste.filter(l => (l.titre||'').toLowerCase().includes(q) || (l.auteur||'').toLowerCase().includes(q) || (l.isbn||'').toLowerCase().includes(q));
-  if (cat)  liste = liste.filter(l => l.categorie === cat);
-  if (stat === 'disponible') liste = liste.filter(l => (l.exemplaires||1)-(l.exemplaires_empruntes||0) > 0);
-  if (stat === 'emprunte')   liste = liste.filter(l => (l.exemplaires_empruntes||0) > 0 && (l.exemplaires||1)-(l.exemplaires_empruntes||0) <= 0);
-  afficherCatalogueLivres(liste);
-}
-
-async function ajouterLivre() {
-  const titre = document.getElementById('input-livre-titre').value.trim();
-  const auteur= document.getElementById('input-livre-auteur').value.trim();
-  if (!titre || !auteur) { showToast('Titre et auteur obligatoires.','error'); return; }
-  const { error } = await db.from('livres').insert([{
-    ecole_id: currentEcoleId,
-    titre, auteur,
-    isbn: document.getElementById('input-livre-isbn').value.trim(),
-    annee_edition: parseInt(document.getElementById('input-livre-annee').value)||null,
-    categorie: document.getElementById('input-livre-categorie').value,
-    exemplaires: parseInt(document.getElementById('input-livre-exemplaires').value)||1,
-    exemplaires_empruntes: 0,
-    cote: document.getElementById('input-livre-cote').value.trim(),
-    description: document.getElementById('input-livre-desc').value.trim(),
-    statut:'disponible'
-  }]);
-  if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  fermerModal('modal-livre');
-  ['input-livre-titre','input-livre-auteur','input-livre-isbn','input-livre-annee','input-livre-cote','input-livre-desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('input-livre-exemplaires').value='1';
-  showToast('📚 Ouvrage ajouté au catalogue !','success');
-  chargerBibliotheque();
-}
-
-async function supprimerLivre(id) {
-  if (!confirm('Supprimer cet ouvrage du catalogue ?')) return;
-  await db.from('livres').delete().eq('id',id);
-  showToast('Ouvrage supprimé.','success');
-  chargerBibliotheque();
-}
-
-async function remplirSelectEmprunt() {
-  // Livres disponibles
-  let qL = db.from('livres').select('id,titre,auteur,exemplaires,exemplaires_empruntes').order('titre');
-  if (currentEcoleId) qL = qL.eq('ecole_id', currentEcoleId);
-  const { data: livres } = await qL;
-  const sel = document.getElementById('input-emprunt-livre');
-  sel.innerHTML = '<option value="">— Sélectionner —</option>' +
-    (livres||[]).filter(l => (l.exemplaires||1)-(l.exemplaires_empruntes||0) > 0)
-    .map(l => `<option value="${l.id}">${l.titre} — ${l.auteur} (${(l.exemplaires||1)-(l.exemplaires_empruntes||0)} dispo.)</option>`).join('');
-  // Étudiants
-  await remplirSelect('input-emprunt-etudiant');
-  // Dates par défaut
-  const today = new Date().toISOString().split('T')[0];
-  const retour = new Date(Date.now()+14*864e5).toISOString().split('T')[0];
-  document.getElementById('input-emprunt-date').value = today;
-  document.getElementById('input-emprunt-retour').value = retour;
-}
-
-async function preRemplirEmprunt(livreId) {
-  ouvrirModal('modal-emprunt');
-  setTimeout(()=>{ document.getElementById('input-emprunt-livre').value = livreId; }, 300);
-}
-
-async function enregistrerEmprunt() {
-  const livreId    = document.getElementById('input-emprunt-livre').value;
-  const etudiantId = document.getElementById('input-emprunt-etudiant').value;
-  const dateEmp    = document.getElementById('input-emprunt-date').value;
-  const dateRet    = document.getElementById('input-emprunt-retour').value;
-  if (!livreId||!etudiantId||!dateEmp||!dateRet) { showToast('Remplissez tous les champs.','error'); return; }
-  const ref = 'EMP-' + Date.now().toString().slice(-6);
-  const { error } = await db.from('emprunts').insert([{
-    ecole_id: currentEcoleId, livre_id: livreId, etudiant_id: etudiantId,
-    reference: ref, date_emprunt: dateEmp, date_retour_prevue: dateRet,
-    statut: 'actif', observations: document.getElementById('input-emprunt-obs').value.trim()
-  }]);
-  if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  // Incrémenter exemplaires_empruntes
-  const livre = tousLesLivres.find(l=>l.id===livreId);
-  if (livre) await db.from('livres').update({ exemplaires_empruntes:(livre.exemplaires_empruntes||0)+1 }).eq('id',livreId);
-  fermerModal('modal-emprunt');
-  document.getElementById('input-emprunt-obs').value='';
-  showToast('📤 Emprunt enregistré — Réf. '+ref,'success');
-  chargerBibliotheque();
-  chargerEmpruntsActifs();
-}
-
-async function chargerEmpruntsActifs() {
-  document.getElementById('tbody-bib-emprunts').innerHTML='<tr><td colspan="7" class="loading">Chargement...</td></tr>';
-  let q = db.from('emprunts').select('*, livres(titre,auteur), etudiants(nom,prenom)').eq('statut','actif').order('date_retour_prevue');
-  if (currentEcoleId) q = q.eq('ecole_id',currentEcoleId);
-  const { data } = await q;
-  const today = new Date();
-  tousLesEmprunts = data || [];
-  document.getElementById('tbody-bib-emprunts').innerHTML = tousLesEmprunts.length
-    ? tousLesEmprunts.map(e => {
-        const retour  = new Date(e.date_retour_prevue);
-        const diffJ   = Math.floor((today-retour)/864e5);
-        const enRetard= diffJ > 0;
-        const rowCls  = enRetard ? 'emprunt-overdue' : '';
-        const retardLbl = enRetard ? `<span class="badge red">${diffJ}j retard</span>` : `<span class="badge green">J+${Math.abs(diffJ)}</span>`;
-        return `<tr class="${rowCls}">
-          <td><strong>${e.livres?.titre||'—'}</strong><br><small style="color:#6b7280">${e.livres?.auteur||''}</small></td>
-          <td>${e.etudiants?e.etudiants.nom+' '+e.etudiants.prenom:'N/A'}</td>
-          <td>${fmtDate(e.date_emprunt)}</td>
-          <td>${fmtDate(e.date_retour_prevue)}</td>
-          <td>${retardLbl}</td>
-          <td><span class="badge amber">En cours</span></td>
-          <td><button class="btn-sm btn-green" onclick="enregistrerRetour('${e.id}','${e.livre_id}')">✅ Retour</button></td>
-        </tr>`;
-      }).join('')
-    : '<tr><td colspan="7" class="empty-state" style="padding:2rem">✅ Aucun emprunt actif en ce moment.</td></tr>';
-}
-
-async function enregistrerRetour(empruntId, livreId) {
-  if (!confirm('Confirmer le retour de cet ouvrage ?')) return;
-  const { error } = await db.from('emprunts').update({ statut:'rendu', date_retour_reel:new Date().toISOString().split('T')[0] }).eq('id',empruntId);
-  if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  const livre = tousLesLivres.find(l=>l.id===livreId);
-  if (livre) await db.from('livres').update({ exemplaires_empruntes:Math.max(0,(livre.exemplaires_empruntes||1)-1) }).eq('id',livreId);
-  showToast('📥 Retour enregistré !','success');
-  chargerBibliotheque();
-  chargerEmpruntsActifs();
-}
-
-async function chargerHistoriqueBib() {
-  document.getElementById('tbody-bib-historique').innerHTML='<tr><td colspan="6" class="loading">Chargement...</td></tr>';
-  const periode = document.getElementById('filter-bib-hist-periode')?.value || '30';
-  let q = db.from('emprunts').select('*, livres(titre,auteur), etudiants(nom,prenom)').eq('statut','rendu').order('date_retour_reel',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id',currentEcoleId);
-  if (periode !== 'all') {
-    const depuis = new Date(Date.now()-parseInt(periode)*864e5).toISOString().split('T')[0];
-    q = q.gte('date_retour_reel', depuis);
-  }
-  const { data } = await q;
-  document.getElementById('tbody-bib-historique').innerHTML = data?.length
-    ? data.map(e => {
-        const debut = new Date(e.date_emprunt);
-        const fin   = new Date(e.date_retour_reel);
-        const duree = Math.max(0,Math.floor((fin-debut)/864e5));
-        const prevue= new Date(e.date_retour_prevue);
-        const penalty = fin > prevue ? Math.floor((fin-prevue)/864e5) : 0;
-        return `<tr>
-          <td><strong>${e.livres?.titre||'—'}</strong><br><small style="color:#6b7280">${e.livres?.auteur||''}</small></td>
-          <td>${e.etudiants?e.etudiants.nom+' '+e.etudiants.prenom:'N/A'}</td>
-          <td>${fmtDate(e.date_emprunt)}</td>
-          <td>${fmtDate(e.date_retour_reel)}</td>
-          <td>${duree} jour(s)</td>
-          <td>${penalty>0?`<span class="badge red">${penalty}j de retard</span>`:'<span class="badge green">Dans les temps</span>'}</td>
-        </tr>`;
-      }).join('')
-    : '<tr><td colspan="6" class="loading">Aucun historique.</td></tr>';
-}
-
-// ══════════════════════════════════════════════════════════════════════════
 //  INTELLIGENCE ANALYTIQUE  ★ JOUR 20
 // ══════════════════════════════════════════════════════════════════════════
 let analyticsCharts = {};
@@ -11369,10 +10612,6 @@ async function genererAlertesIntelligentes() {
   if (currentEcoleId) qEx = qEx.eq('ecole_id',currentEcoleId);
   const { count: nbExSem } = await qEx;
   if (nbExSem > 0) alertes.push({ type:'info', ico:'📝', titre:`${nbExSem} examen(s) cette semaine`, msg:'Des épreuves sont planifiées dans les 7 prochains jours.', time:'7 jours' });
-
-  // Emprunts en retard
-  const { count: nbEmpRetard } = await db.from('emprunts').select('*',{count:'exact',head:true}).eq('statut','actif').lt('date_retour_prevue',today);
-  if (nbEmpRetard > 0) alertes.push({ type:'warning', ico:'📚', titre:`${nbEmpRetard} livre(s) en retard de retour`, msg:'Des ouvrages de la bibliothèque n\'ont pas été restitués à temps.', time:'Bibliothèque' });
 
   if (!alertes.length) alertes.push({ type:'success', ico:'✅', titre:'Tout est en ordre', msg:'Aucune alerte critique détectée. L\'établissement fonctionne normalement.', time:'Maintenant' });
 
@@ -13459,187 +12698,6 @@ async function exporterRapportAdmissions() {
 
 
 /* ══════════════════════════════════════════════════════════════════
-   SUITE 8 — BIBLIOTHÈQUE NUMÉRIQUE ★ JOUR 26
-══════════════════════════════════════════════════════════════════ */
-let bib8Livres = [];
-let bib8Emprunts = [];
-
-const LIVRES_DEMO = [];
-
-const EMPRUNTS_DEMO = [];
-
-let tousLesEtablissements = [];
-
-function chargerReseau() {
-  const totalEleves = tousLesEtablissements.reduce((s,e)=>s+e.eleves,0);
-  const totalEnseignants = tousLesEtablissements.reduce((s,e)=>s+e.enseignants,0);
-  const tauxMoy = tousLesEtablissements.length ? Math.round(tousLesEtablissements.reduce((s,e)=>s+e.taux_reussite,0)/tousLesEtablissements.length) : 0;
-  const totalRecette = tousLesEtablissements.reduce((s,e)=>s+e.recette_mois,0);
-  const alertes = tousLesEtablissements.filter(e=>e.statut==='alerte').length;
-
-  document.getElementById('reseau-nb-ecoles').textContent = tousLesEtablissements.length;
-  document.getElementById('reseau-nb-eleves').textContent = totalEleves.toLocaleString('fr-FR');
-  document.getElementById('reseau-nb-enseignants').textContent = totalEnseignants;
-  document.getElementById('reseau-taux-reussite').textContent = tauxMoy+'%';
-  document.getElementById('reseau-kpi-actifs').textContent = tousLesEtablissements.filter(e=>e.statut==='actif').length;
-  document.getElementById('reseau-kpi-recette').textContent = (totalRecette/1000000).toFixed(1)+' M F';
-  document.getElementById('reseau-kpi-moy-notes').textContent = tauxMoy > 0 ? (tauxMoy/5).toFixed(1)+'/20' : '—';
-  document.getElementById('reseau-kpi-alertes').textContent = alertes;
-
-  renderEtablissements(tousLesEtablissements);
-  renderComparaison();
-  renderClassement();
-  renderAlertesReseau();
-}
-
-function renderEtablissements(etabs) {
-  const grid = document.getElementById('reseau-grid-etablissements');
-  if(!etabs.length){
-    grid.innerHTML='<div class="empty-state" style="padding:3rem;text-align:center"><div style="font-size:40px;margin-bottom:1rem">🏫</div><h3 style="color:#374151;margin-bottom:.5rem">Aucun établissement partenaire</h3><p style="color:#6b7280;font-size:13px">Cliquez sur "+ Établissement" pour ajouter votre premier établissement au réseau EduLink.</p></div>';
-    return;
-  }
-  grid.innerHTML = etabs.map(e=>`<div class="reseau-card ${e.type}" onclick="voirDetailEtablissement(${e.id})">
-    <div class="reseau-card-header">
-      <div class="reseau-card-ico" style="background:${e.color}15;border:2px solid ${e.color}30">${e.ico}</div>
-      <div style="flex:1">
-        <div class="reseau-card-nom">${e.nom}</div>
-        <div class="reseau-card-ville">📍 ${e.ville} · ${e.type==='lycee'?'Lycée':e.type==='college'?'Collège':'Primaire'}</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:5px">
-        <div class="status-dot ${e.statut}"></div>
-        <span style="font-size:10.5px;font-weight:600;color:${e.statut==='actif'?'#059669':e.statut==='alerte'?'#d97706':'#dc2626'}">${e.statut}</span>
-      </div>
-    </div>
-    <div class="reseau-card-kpis">
-      <div class="rck"><div class="rv" style="color:${e.color}">${e.eleves}</div><div class="rl">Élèves</div></div>
-      <div class="rck"><div class="rv">${e.enseignants}</div><div class="rl">Profs</div></div>
-      <div class="rck"><div class="rv" style="color:${e.taux_reussite>=80?'#059669':e.taux_reussite>=70?'#d97706':'#dc2626'}">${e.taux_reussite}%</div><div class="rl">Réussite</div></div>
-    </div>
-    <div class="reseau-card-footer">
-      <span style="font-size:11.5px;color:#6b7280">👤 ${e.directeur}</span>
-      <span style="font-size:12px;font-weight:700;color:#059669">${(e.recette_mois/1000).toFixed(0)}K F/mois</span>
-    </div>
-  </div>`).join('');
-}
-
-function filtrerEtablissements() {
-  const q=(document.getElementById('reseau-search').value||'').toLowerCase();
-  const type=document.getElementById('reseau-filter-type').value;
-  renderEtablissements(tousLesEtablissements.filter(e=>(!q||e.nom.toLowerCase().includes(q)||e.ville.toLowerCase().includes(q))&&(!type||e.type===type)));
-}
-
-function renderComparaison() {
-  const maxReussite=Math.max(...tousLesEtablissements.map(e=>e.taux_reussite));
-  const maxRecette=Math.max(...tousLesEtablissements.map(e=>e.recette_mois));
-  const maxEleves=Math.max(...tousLesEtablissements.map(e=>e.eleves));
-  const maxAbs=Math.max(...tousLesEtablissements.map(e=>e.absences_taux));
-
-  const colorR=['#1d4ed8','#059669','#d97706','#7c3aed','#dc2626','#0d9488'];
-
-  document.getElementById('reseau-compare-reussite').innerHTML = tousLesEtablissements.map((e,i)=>`<div class="compare-bar-item">
-    <div class="compare-nom" title="${e.nom}">${e.nom.split(' ').slice(0,2).join(' ')}</div>
-    <div class="compare-track"><div class="compare-fill" style="width:${Math.round(e.taux_reussite/maxReussite*100)}%;background:${colorR[i%colorR.length]}">${e.taux_reussite}%</div></div>
-    <div class="compare-val">${e.taux_reussite}%</div>
-  </div>`).join('');
-
-  document.getElementById('reseau-compare-recettes').innerHTML = tousLesEtablissements.map((e,i)=>`<div class="compare-bar-item">
-    <div class="compare-nom" title="${e.nom}">${e.nom.split(' ').slice(0,2).join(' ')}</div>
-    <div class="compare-track"><div class="compare-fill" style="width:${Math.round(e.recette_mois/maxRecette*100)}%;background:${colorR[i%colorR.length]}">${(e.recette_mois/1000000).toFixed(1)}M</div></div>
-    <div class="compare-val">${(e.recette_mois/1000).toFixed(0)}K</div>
-  </div>`).join('');
-
-  document.getElementById('reseau-compare-effectifs').innerHTML = tousLesEtablissements.map((e,i)=>`<div class="compare-bar-item">
-    <div class="compare-nom" title="${e.nom}">${e.nom.split(' ').slice(0,2).join(' ')}</div>
-    <div class="compare-track"><div class="compare-fill" style="width:${Math.round(e.eleves/maxEleves*100)}%;background:${colorR[i%colorR.length]}">${e.eleves}</div></div>
-    <div class="compare-val">${e.eleves}</div>
-  </div>`).join('');
-
-  document.getElementById('reseau-compare-absences').innerHTML = tousLesEtablissements.map((e,i)=>`<div class="compare-bar-item">
-    <div class="compare-nom" title="${e.nom}">${e.nom.split(' ').slice(0,2).join(' ')}</div>
-    <div class="compare-track"><div class="compare-fill" style="width:${Math.round(e.absences_taux/maxAbs*100)}%;background:${e.absences_taux<=6?'#059669':e.absences_taux<=10?'#d97706':'#dc2626'}">${e.absences_taux}%</div></div>
-    <div class="compare-val">${e.absences_taux}%</div>
-  </div>`).join('');
-}
-
-function renderClassement() {
-  const byReussite=[...tousLesEtablissements].sort((a,b)=>b.taux_reussite-a.taux_reussite);
-  const byRecette=[...tousLesEtablissements].sort((a,b)=>b.recette_mois-a.recette_mois);
-  const rangCls=(i)=>i===0?'rang-1':i===1?'rang-2':i===2?'rang-3':'rang-n';
-  const rangIco=(i)=>i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'';
-  document.getElementById('reseau-classement-reussite').innerHTML = byReussite.map((e,i)=>`<div class="classement-item">
-    <div class="classement-rang ${rangCls(i)}">${rangIco(i)}</div>
-    <div class="classement-nom">${e.nom}</div>
-    <div class="classement-score">${e.taux_reussite}%</div>
-  </div>`).join('');
-  document.getElementById('reseau-classement-recettes').innerHTML = byRecette.map((e,i)=>`<div class="classement-item">
-    <div class="classement-rang ${rangCls(i)}">${rangIco(i)}</div>
-    <div class="classement-nom">${e.nom}</div>
-    <div class="classement-score">${(e.recette_mois/1000000).toFixed(2)} M F</div>
-  </div>`).join('');
-}
-
-function renderAlertesReseau() {
-  const alertes = [
-    {etab:'Lycée Mathieu Bouké',type:'Taux d\'absentéisme',detail:'12% — Au-dessus du seuil toléré (10%)',color:'#fef9c3',ico:'🟡',icoColor:'#fef9c3'},
-    {etab:'Lycée Mathieu Bouké',type:'Paiements en retard',detail:'23% de frais de scolarité non réglés',color:'#fee2e2',ico:'🔴',icoColor:'#fee2e2'},
-    {etab:'Réseau EduLink',type:'Renouvellement licences',detail:'3 établissements — Licence expire le 30 avril',color:'#dbeafe',ico:'🔵',icoColor:'#dbeafe'},
-  ];
-  document.getElementById('reseau-alertes-list').innerHTML = alertes.map(a=>`<div class="reseau-alerte-item">
-    <div class="ra-ico" style="background:${a.icoColor}">${a.ico}</div>
-    <div class="ra-body">
-      <div class="ra-titre">${a.etab} — ${a.type}</div>
-      <div class="ra-detail">${a.detail}</div>
-    </div>
-    <button class="btn-sm btn-secondary" onclick="showToast('✅ Alerte marquée comme traitée','success')">Traiter</button>
-  </div>`).join('');
-}
-
-function reseauSwitchTab(tab,btn) {
-  ['etablissements','comparaison','classement','alertes'].forEach(t=>{
-    const el=document.getElementById('reseau-tab-'+t); if(el) el.style.display=t===tab?'block':'none';
-  });
-  document.querySelectorAll('#page-reseau .tab').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-}
-
-function voirDetailEtablissement(id) {
-  const e=tousLesEtablissements.find(et=>et.id===id);
-  if(!e) return;
-  showToast(`🏫 ${e.nom} — ${e.eleves} élèves · ${e.taux_reussite}% réussite · ${(e.recette_mois/1000).toFixed(0)}K F/mois`,'info');
-}
-
-function ouvrirModalAddEtablissement() { ouvrirModal('modal-add-etab'); }
-
-function ajouterEtablissement() {
-  const nom=document.getElementById('etab-nom').value.trim();
-  const ville=document.getElementById('etab-ville').value.trim();
-  if(!nom||!ville){showToast('Nom et ville requis','error');return;}
-  const type=document.getElementById('etab-type').value;
-  const icos={lycee:'🏫',college:'🏛️',primaire:'⭐'};
-  const colors={lycee:'#1e3a5f',college:'#059669',primaire:'#d97706'};
-  tousLesEtablissements.push({id:Date.now(),nom,type,ville,directeur:document.getElementById('etab-directeur').value||'—',eleves:0,enseignants:0,classes:0,taux_reussite:0,absences_taux:0,recette_mois:0,statut:document.getElementById('etab-statut').value,ico:icos[type]||'🏫',color:colors[type]||'#6b7280'});
-  fermerModal('modal-add-etab');
-  chargerReseau();
-  showToast(`🏫 ${nom} ajouté au réseau !`,'success');
-}
-
-function exporterRapportReseau() { showToast('📥 Rapport réseau PDF en cours de génération...','info'); }
-
-/* — Chargement des pages Suite 9 — */
-(function() {
-  window.addEventListener('load', function() {
-    if (typeof window.showPage === 'function') {
-      const _base = window.showPage;
-      window.showPage = function(id) {
-        _base(id);
-        if (id==='reseau') setTimeout(chargerReseau,50);
-      };
-    }
-  });
-})();
-
-
-/* ══════════════════════════════════════════════════════════════════
    SUITE 10 — PARAMÈTRES AVANCÉS ★ JOUR 32
 ══════════════════════════════════════════════════════════════════ */
 const THEMES_COLORS = [];
@@ -14301,185 +13359,6 @@ function effacerConversation() {
   chargerAssistantIA();
   showToast('🗑️ Conversation effacée','info');
 }
-
-/* ══════════════════════════════════════════════════════════════════
-   SUITE 11 — SMS & COMMUNICATION PARENTS ★ JOUR 36
-══════════════════════════════════════════════════════════════════ */
-
-const PWA_DEVICES_INSTALLED = [];
-const PWA_CACHE_ITEMS = [];
-const PWA_SYNC_ITEMS = [];
-
-function chargerPWAAvancee() {
-  // Hero KPIs
-  const heroKpis = document.getElementById('pwa-hero-kpis');
-  if (heroKpis) heroKpis.innerHTML = [
-    {v:'0', l:'Appareils installés'},
-    {v:'—', l:'Score Lighthouse'},
-    {v:'0 MB', l:'Cache total'},
-    {v:'—', l:'Disponibilité'},
-  ].map(k=>`<div class="pwa-kpi"><div class="wk-val">${k.v}</div><div class="wk-lbl">${k.l}</div></div>`).join('');
-
-  // Résumé sidebar
-  const resume = document.getElementById('pwa-resume');
-  if (resume) resume.innerHTML = [
-    {l:'Version app', v:'2.10.0 (Suite 11)'},
-    {l:'Service Worker', v:'✅ Actif'},
-    {l:'Manifest', v:'✅ Valide'},
-    {l:'Mode hors-ligne', v:'✅ Activé'},
-    {l:'Notifications push', v:'✅ Configurées'},
-  ].map(k=>`<div class="kpi-row"><span class="kpi-label">${k.l}</span><span class="kpi-value" style="font-size:12px">${k.v}</span></div>`).join('');
-
-  // Sécurité
-  const sec = document.getElementById('pwa-securite');
-  if (sec) sec.innerHTML = [
-    {l:'HTTPS', v:'✅ Activé', c:'#059669'},
-    {l:'Certificat SSL', v:'✅ Valide', c:'#059669'},
-    {l:'Content-Security-Policy', v:'✅ Définie', c:'#059669'},
-    {l:'Expiration SSL', v:'2027-03-15', c:'#1d4ed8'},
-  ].map(k=>`<div class="kpi-row"><span class="kpi-label">${k.l}</span><span style="font-size:12px;font-weight:700;color:${k.c}">${k.v}</span></div>`).join('');
-
-  renderPWAInstallDevices();
-  renderPWADevicesTable();
-  renderPWAPerformance();
-  renderPWACache();
-  renderPWAPush();
-}
-
-function renderPWAInstallDevices() {
-  const cont = document.getElementById('pwa-install-devices');
-  if (!cont) return;
-  const devices = [
-    {ico:'🤖', nom:'Android', desc:'Chrome / Edge', color:'#dcfce7', steps:['Ouvrez app.afryx.io dans Chrome', 'Appuyez sur le menu ⋮ (3 points)', 'Sélectionnez "Ajouter à l\'écran d\'accueil"', 'Confirmez l\'installation']},
-    {ico:'🍎', nom:'iPhone / iPad', desc:'Safari', color:'#dbeafe', steps:['Ouvrez app.afryx.io dans Safari', 'Appuyez sur l\'icône Partager (⬆)', 'Sélectionnez "Sur l\'écran d\'accueil"', 'Appuyez sur "Ajouter"']},
-    {ico:'🖥️', nom:'PC Windows / Mac', desc:'Chrome / Edge', color:'#ede9fe', steps:['Ouvrez app.afryx.io dans Chrome', 'Cliquez sur l\'icône 💻 dans la barre d\'adresse', 'Cliquez "Installer EduLink"', 'Confirmez l\'installation']},
-  ];
-  cont.innerHTML = devices.map(d=>`<div class="install-device-card">
-    <div class="idc-ico" style="background:${d.color}">${d.ico}</div>
-    <div class="idc-body">
-      <div class="idc-nom">${d.nom} <span style="font-size:11px;color:#9ca3af">— ${d.desc}</span></div>
-      <div class="idc-steps">
-        ${d.steps.map((s,i)=>`<div class="idc-step"><span style="width:18px;height:18px;border-radius:50%;background:#dcfce7;border:1.5px solid #bbf7d0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${i+1}</span>${s}</div>`).join('')}
-      </div>
-    </div>
-  </div>`).join('');
-}
-
-function renderPWADevicesTable() {
-  const tbody = document.getElementById('pwa-devices-tbody');
-  if (!tbody) return;
-  tbody.innerHTML = PWA_DEVICES_INSTALLED.map(d=>`<tr>
-    <td><strong>${d.user}</strong></td>
-    <td><span class="badge blue">${d.role}</span></td>
-    <td>${d.device}</td>
-    <td>${d.os}</td>
-    <td>${d.date}</td>
-    <td><span class="badge green">${d.synchro}</span></td>
-  </tr>`).join('');
-}
-
-function renderPWAPerformance() {
-  const scores = document.getElementById('pwa-perf-scores');
-  if (!scores) return;
-  const metrics = [
-    {label:'Performance', score:98, cls:'excellent'},
-    {label:'Accessibilité', score:94, cls:'excellent'},
-    {label:'Bonnes pratiques', score:96, cls:'excellent'},
-    {label:'SEO', score:88, cls:'good'},
-  ];
-  scores.innerHTML = metrics.map(m=>`<div class="perf-item">
-    <div class="perf-ring ${m.cls}" style="--pct:${m.score*3.6}deg">
-      <div class="perf-ring-inner">${m.score}</div>
-    </div>
-    <div class="perf-label">${m.label}</div>
-  </div>`).join('');
-
-  const loadTimes = document.getElementById('pwa-load-times');
-  if (loadTimes) loadTimes.innerHTML = [
-    {label:'Premier rendu (FCP)', val:'0.8s', cls:'green'},
-    {label:'Interactif (TTI)', val:'1.2s', cls:'green'},
-    {label:'Chargement complet', val:'2.1s', cls:'blue'},
-    {label:'Service Worker activé', val:'0.3s', cls:'green'},
-  ].map(l=>`<div class="kpi-row"><span class="kpi-label">${l.label}</span><span class="badge ${l.cls}">${l.val}</span></div>`).join('');
-}
-
-function renderPWACache() {
-  const list = document.getElementById('pwa-cache-list');
-  if (!list) return;
-  const total = PWA_CACHE_ITEMS.reduce((s,c)=>s+parseFloat(c.size),0).toFixed(1);
-  const totalEl = document.getElementById('pwa-cache-total');
-  if (totalEl) totalEl.textContent = total+' MB total';
-  list.innerHTML = PWA_CACHE_ITEMS.map(c=>`<div class="cache-item">
-    <div class="cache-ico" style="background:#f3f4f6">${c.ico}</div>
-    <div class="cache-body">
-      <div class="cache-nom">${c.nom}</div>
-      <div class="cache-size">${c.size}</div>
-      <div class="cache-bar"><div class="cache-fill" style="width:${c.pct}%;background:${c.color}"></div></div>
-    </div>
-    <span style="font-size:12px;font-weight:700;color:${c.color}">${c.pct}%</span>
-  </div>`).join('');
-
-  const syncList = document.getElementById('pwa-sync-list');
-  if (syncList) syncList.innerHTML = PWA_SYNC_ITEMS.map(s=>`<div class="kpi-row">
-    <span class="kpi-label">${s.nom}</span>
-    <span class="badge ${s.statut==='synced'?'green':'amber'}">${s.statut==='synced'?'✅ Synchronisé':'⏳ '+s.nb+' en attente'}</span>
-  </div>`).join('');
-}
-
-function renderPWAPush() {
-  const stats = document.getElementById('pwa-push-stats');
-  if (!stats) return;
-  stats.innerHTML = [
-    {val:'0', lbl:'Appareils abonnés'},
-    {val:'0', lbl:'Notifs envoyées'},
-    {val:'89%', lbl:'Taux d\'ouverture'},
-    {val:'3', lbl:'Notifs aujourd\'hui'},
-  ].map(s=>`<div class="push-stat-card"><div class="psc-val">${s.val}</div><div class="psc-lbl">${s.lbl}</div></div>`).join('');
-}
-
-function pwaSwitchTab(tab, btn) {
-  ['installation','performance','cache','push'].forEach(t=>{
-    const el=document.getElementById('pwa-tab-'+t); if(el) el.style.display=t===tab?'block':'none';
-  });
-  document.querySelectorAll('#page-pwa-avancee .tab').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-}
-
-function viderCache() {
-  if ('caches' in window) { caches.keys().then(keys=>keys.forEach(k=>caches.delete(k))); }
-  showToast('🗑️ Cache vidé — 0 MB','success');
-}
-
-function actualiserPWA() { chargerPWAAvancee(); showToast('🔄 Données PWA actualisées','success'); }
-
-function envoyerPushTest() {
-  const titre = document.getElementById('push-titre').value;
-  const msg = document.getElementById('push-message').value;
-  if (!titre||!msg) { showToast('Titre et message requis','error'); return; }
-  if ('Notification' in window) {
-    Notification.requestPermission().then(perm=>{
-      if (perm==='granted') {
-        new Notification(titre, {body:msg, icon:'/icons/icon-192.png'});
-        showToast('✅ Notification push envoyée !','success');
-      } else { showToast('✅ Test envoyé (notifications bloquées dans ce navigateur)','info'); }
-    });
-  } else { showToast('✅ Notification push test envoyée aux 5 appareils !','success'); }
-}
-
-/* — Hook showPage Suite 11 — */
-(function() {
-  window.addEventListener('load', function() {
-    if (typeof window.showPage === 'function') {
-      const _b = window.showPage;
-      window.showPage = function(id) {
-        _b(id);
-        if (id==='assistant-ia') setTimeout(chargerAssistantIA, 50);
-        if (id==='pwa-avancee')  setTimeout(chargerPWAAvancee, 50);
-      };
-    }
-  });
-})();
-
 
 /* ══════════════════════════════════════════════════════════════════
    SUITE 12 — DASHBOARD DIRECTEUR ★ JOUR 38
@@ -15378,7 +14257,7 @@ async function lancerResetDemo() {
   try {
     const ecoleId = currentEcoleId;
     // 1. Vider les données existantes (ordre FK)
-    const tables = ['emprunts','certificats','transactions_caisse','paiements','factures',
+    const tables = ['certificats','transactions_caisse','paiements','factures',
       'notes','absences','incidents','messages','notifications','conges_personnel',
       'personnel','emploi_du_temps','periodes_scolaires','programmes','examens',
       'etudiants','enseignants','classes','documents','parametres'];
