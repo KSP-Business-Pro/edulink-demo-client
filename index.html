@@ -30,10 +30,10 @@
    BASE
 ══════════════════════════════════════════════ */
 * { margin:0; box-sizing:border-box; font-family:'Poppins',sans-serif; }
-body { background:#f3f4f6; margin:0; display:flex; height:100vh; overflow:hidden; }
+body { background:#f3f4f6; margin:0; padding:0; height:100vh; overflow:hidden; }
 
 /* ── Navigation ── */
-nav { width:230px; min-width:230px; flex-shrink:0; background:#1e3a5f; height:100vh; padding:1rem; display:flex; flex-direction:column; overflow-y:auto; }
+nav { width:230px; min-width:230px; flex-shrink:0; background:#1e3a5f; height:100%; padding:1rem; display:flex; flex-direction:column; overflow-y:auto; }
 nav .logo { color:#fff; font-size:15px; font-weight:700; margin-bottom:.5rem; }
 nav .ecole-selector-wrap { margin-bottom:1.2rem; }
 nav .ecole-selector-wrap select { width:100%; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.1); color:#fff; font-size:12px; font-family:'Poppins',sans-serif; cursor:pointer; outline:none; }
@@ -48,7 +48,7 @@ nav .nav-bottom a { font-size:11px; color:rgba(255,255,255,.5); }
 .ecole-badge .eb-nom { font-size:12px; font-weight:600; color:#fff; }
 .ecole-badge .eb-type { font-size:10px; color:rgba(255,255,255,.6); }
 
-main { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:1.5rem; box-sizing:border-box; }
+main { flex:1; width:0; min-width:0; height:100%; overflow-y:auto; overflow-x:hidden; padding:1.5rem; box-sizing:border-box; }
 .page { display:none; }
 .page.active { display:block; animation:fadeIn .2s ease; min-height:100%; }
 @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
@@ -568,7 +568,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 .login-demo .demo-role { color:#6b7280; font-size:11.5px; }
 .login-demo .demo-creds { font-family:monospace; font-size:11px; color:#1d4ed8; cursor:pointer; }
 .login-demo .demo-creds:hover { text-decoration:underline; }
-#app-main { display:none; flex:1; }
+#app-main { display:none; flex-direction:row; width:100%; height:100vh; overflow:hidden; }
 .notif-panel { position:fixed; top:0; right:-380px; width:370px; height:100%; background:#fff; box-shadow:-6px 0 30px rgba(0,0,0,.12); z-index:500; transition:right .28s cubic-bezier(.4,0,.2,1); display:flex; flex-direction:column; }
 .notif-panel.open { right:0; }
 .notif-header { padding:1rem 1.2rem; background:#1e3a5f; color:#fff; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
