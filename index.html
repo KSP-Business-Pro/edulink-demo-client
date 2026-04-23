@@ -6631,11 +6631,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       </div>
       <div class="form-group"><label>Niveau *</label>
         <select id="input-niveau">
-          <option>CP</option><option>CE1</option><option>CE2</option><option>CM1</option><option>CM2</option>
-          <option>6ème</option><option>5ème</option><option>4ème</option><option>3ème</option>
-          <option>2nde</option><option>1ère</option><option>Tle</option>
           <option>L1</option><option>L2</option><option>L3</option>
           <option>M1</option><option>M2</option><option>Doctorat</option>
+          <option>6ème</option><option>5ème</option><option>4ème</option><option>3ème</option>
+          <option>2nde</option><option>1ère</option><option>Tle</option>
         </select>
       </div>
     </div>
@@ -7971,9 +7970,21 @@ async function chargerDashboard() {
 // ══ ÉTUDIANTS ════════════════════════════════
 async function chargerEtudiants() {
   document.getElementById('tbody-etudiants').innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
-  let q = db.from('etudiants').select('*, classes(id, nom, filiere, niveau)').order('nom');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data } = await q;
+  // Essayer avec le join classes — si la FK n'est pas encore déclarée dans Supabase,
+  // fallback sur un select simple
+  let data = null;
+  try {
+    let q = db.from('etudiants').select('*, classes(id, nom, filiere, niveau)').order('nom');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const res = await q;
+    if (!res.error) { data = res.data; }
+  } catch(e) {}
+  if (!data) {
+    let q = db.from('etudiants').select('*').order('nom');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const res = await q;
+    data = res.data || [];
+  }
   tousLesEtudiants = data || [];
   afficherEtudiants(tousLesEtudiants);
 }
@@ -7981,9 +7992,10 @@ function afficherEtudiants(liste) {
   const t = document.getElementById('tbody-etudiants');
   t.innerHTML = liste?.length
     ? liste.map(e => {
-        const classeLabel = e.classes
-          ? `<span class="badge blue" style="font-size:10px">${e.classes.nom||e.classes.filiere+' '+e.classes.niveau}</span>`
-          : `<span class="badge gray" style="font-size:10px">${e.niveau}</span>`;
+        const cls = e.classes;
+        const classeLabel = cls
+          ? `<span class="badge blue" style="font-size:10px">${cls.nom||cls.filiere+' '+cls.niveau}</span>`
+          : `<span class="badge gray" style="font-size:10px">${e.niveau||'—'}</span>`;
         return `<tr>
           <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${e.matricule}</code></td>
           <td><strong>${e.nom} ${e.prenom}</strong></td>
@@ -8047,11 +8059,10 @@ async function ajouterEtudiant() {
   const nom=document.getElementById('input-nom').value.trim(), prenom=document.getElementById('input-prenom').value.trim(), matricule=document.getElementById('input-matricule').value.trim();
   if (!nom||!prenom||!matricule) { showToast('Remplissez les champs obligatoires', 'error'); return; }
   const classeId = document.getElementById('input-classe-etudiant')?.value || null;
-  // Payload sans classe_id pour éviter le problème de schema cache Supabase
   const payload = {
     ecole_id:currentEcoleId, nom, prenom, matricule,
     sexe:document.getElementById('input-sexe').value,
-    filiere:document.getElementById('input-filiere')?.value.trim() || document.getElementById('input-filiere')?.value || '',
+    filiere:document.getElementById('input-filiere')?.value?.trim()||'',
     niveau:document.getElementById('input-niveau').value,
     email:document.getElementById('input-email').value.trim(),
     statut:'actif'
@@ -8062,7 +8073,7 @@ async function ajouterEtudiant() {
   if (parentTel)   payload.parent_tel   = parentTel;
   const { data: inserted, error } = await db.from('etudiants').insert([payload]).select('id').single();
   if (error) { showToast('Erreur : '+(error.message.includes('unique')?'Matricule déjà utilisé.':error.message),'error'); return; }
-  // Assigner la classe via update séparé (contourne le schema cache)
+  // Assigner la classe via update séparé (contourne le problème de schema cache)
   if (classeId && inserted?.id) {
     await db.from('etudiants').update({ classe_id: classeId }).eq('id', inserted.id);
   }
@@ -8070,8 +8081,7 @@ async function ajouterEtudiant() {
   ['input-nom','input-prenom','input-matricule','input-email','input-parent-email','input-parent-tel'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const fi=document.getElementById('input-filiere'); if(fi) fi.value='';
   const sc=document.getElementById('input-classe-etudiant'); if(sc) sc.value='';
-  showToast('✅ Étudiant ajouté !','success');
-  chargerEtudiants(); chargerDashboard();
+  showToast('✅ Étudiant ajouté !','success'); chargerEtudiants(); chargerDashboard();
   if (classeId) chargerClasses();
 }
 
@@ -8079,8 +8089,13 @@ async function ajouterEtudiant() {
 async function remplirSelectClassesEtudiant() {
   const sel = document.getElementById('input-classe-etudiant');
   if (!sel) return;
-  if (!toutesLesClasses || !toutesLesClasses.length) await chargerClasses();
-  const actives = (toutesLesClasses||[]).filter(c => c.statut !== 'archive');
+  if (!toutesLesClasses || !toutesLesClasses.length) {
+    let q = db.from('classes').select('id,nom,filiere,niveau,statut').order('filiere');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q;
+    toutesLesClasses = data || [];
+  }
+  const actives = toutesLesClasses.filter(c => c.statut !== 'archive');
   sel.innerHTML = '<option value="">— Sélectionner (optionnel) —</option>'
     + actives.map(c => `<option value="${c.id}" data-filiere="${c.filiere||''}" data-niveau="${c.niveau||''}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
 }
