@@ -33,7 +33,7 @@
 body { background:#f3f4f6; margin:0; padding:0; }
 
 /* ── Navigation ── */
-nav { width:230px; background:#1e3a5f; height:100vh; padding:1rem; display:flex; flex-direction:column; overflow-y:auto; position:fixed; top:0; left:0; z-index:100; }
+nav { width:230px; background:#1e3a5f; height:100vh; padding:1rem; display:flex; flex-direction:column; overflow-y:auto; position:fixed; top:0; left:0; z-index:10; }
 nav .logo { color:#fff; font-size:15px; font-weight:700; margin-bottom:.5rem; }
 nav .ecole-selector-wrap { margin-bottom:1.2rem; }
 nav .ecole-selector-wrap select { width:100%; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.1); color:#fff; font-size:12px; font-family:'Poppins',sans-serif; cursor:pointer; outline:none; }
@@ -48,9 +48,9 @@ nav .nav-bottom a { font-size:11px; color:rgba(255,255,255,.5); }
 .ecole-badge .eb-nom { font-size:12px; font-weight:600; color:#fff; }
 .ecole-badge .eb-type { font-size:10px; color:rgba(255,255,255,.6); }
 
-main { margin-left:230px; padding:1.5rem; overflow-x:hidden; }
-.page { display:none; }
-.page.active { display:block; animation:fadeIn .2s ease; min-height:100%; }
+main { margin-left:230px; padding:1.5rem; min-width:0; box-sizing:border-box; }
+.page { display:none; max-width:100%; }
+.page.active { display:block; animation:fadeIn .2s ease; }
 @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
 
 /* ── Top ── */
@@ -552,7 +552,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 /* ══════════════════════════════════════════════
    JOUR 4 — AUTH + NOTIFS + USERS
 ══════════════════════════════════════════════ */
-#login-screen { position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg,#1e3a5f 0%,#163050 60%,#0f2040 100%); display:flex; align-items:center; justify-content:center; z-index:2000; }
+#login-screen { position:fixed; top:0; left:0; width:100%; height:100%; z-index:999; background:linear-gradient(135deg,#1e3a5f 0%,#163050 60%,#0f2040 100%); display:flex; align-items:center; justify-content:center; z-index:2000; }
 .login-card { background:#fff; border-radius:20px; padding:2.5rem; width:420px; max-width:95%; box-shadow:0 25px 60px rgba(0,0,0,.35); }
 .login-logo { text-align:center; margin-bottom:2rem; }
 .login-logo .l-ico { font-size:44px; }
@@ -6233,7 +6233,6 @@ async function seConnecter() {
     document.getElementById('app-main').style.display = 'block';
     await chargerEcoles();
     initOfflineMode();
-    initSuite8?.();
   } catch(e) {
     err.textContent = e.message || 'Identifiants incorrects.';
     err.style.display = 'block';
