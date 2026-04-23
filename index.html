@@ -6619,8 +6619,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div id="ens-import-preview" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
         <div style="font-size:13px;font-weight:600;color:#374151">
-          Aperçu : <span id="ens-import-count" style="color:#059669">0</span> enseignant(s)
-          · <span id="ens-import-errors" style="color:#dc2626">0</span> erreur(s)
+          Aperçu : <span id="ens-import-count" style="color:#059669">0</span> enseignant(s) · <span id="ens-import-errors" style="color:#dc2626">0</span> erreur(s)
         </div>
         <button class="btn-sm btn-secondary" onclick="resetImportEns()">🔄 Réinitialiser</button>
       </div>
@@ -6666,8 +6665,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div id="cls-import-preview" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
         <div style="font-size:13px;font-weight:600;color:#374151">
-          Aperçu : <span id="cls-import-count" style="color:#059669">0</span> classe(s)
-          · <span id="cls-import-errors" style="color:#dc2626">0</span> erreur(s)
+          Aperçu : <span id="cls-import-count" style="color:#059669">0</span> classe(s) · <span id="cls-import-errors" style="color:#dc2626">0</span> erreur(s)
         </div>
         <button class="btn-sm btn-secondary" onclick="resetImportCls()">🔄 Réinitialiser</button>
       </div>
@@ -18720,21 +18718,32 @@ window.addEventListener('appinstalled', function() {
 let _enseignantsAImporter = [];
 let _classesAImporter     = [];
 
+// Utilitaire : lire un fichier Excel et retourner les lignes en JSON
+// NB : PAS de cellDates:true pour éviter que '2025-2026' soit parsé en Date
 function lireExcel(file, callback) {
   if (!window.XLSX) { showToast('SheetJS non chargé. Vérifiez votre connexion.','error'); return; }
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const wb   = XLSX.read(e.target.result, { type:'array', cellDates:true });
+      const wb   = XLSX.read(e.target.result, { type:'array' });
       const ws   = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      // raw:false pour que tout soit converti en string sauf les nombres
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:'', raw:false });
       callback(rows);
     } catch(err) { showToast('Erreur lecture Excel : '+err.message,'error'); }
   };
   reader.readAsArrayBuffer(file);
 }
 
-// ── Enseignants ────────────────────────────────────────────────────────────
+// Convertir proprement une valeur en string non-vide ou null
+function xlsStr(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s === '' ? null : s;
+}
+
+// ══ ENSEIGNANTS ══════════════════════════════════════════════════════════
+
 function gererDropExcelEns(e) {
   e.preventDefault();
   document.getElementById('ens-drop-zone').style.borderColor = '#e5e7eb';
@@ -18747,20 +18756,23 @@ function lireExcelEnseignants(file) {
   lireExcel(file, rows => {
     const valides = [], erreurs = [];
     rows.forEach((row, i) => {
-      const nom    = String(row['nom']    || row['Nom']    || '').trim();
-      const prenom = String(row['prenom'] || row['Prenom'] || row['Prénom'] || '').trim();
+      // Accepter les headers FR et EN
+      const nom    = xlsStr(row['nom']    ?? row['Nom']);
+      const prenom = xlsStr(row['prenom'] ?? row['Prenom'] ?? row['Prénom']);
       if (!nom || !prenom) { erreurs.push(i+2); return; }
       valides.push({
         nom, prenom,
-        email:          String(row['email']           || row['Email']           || '').trim()  || null,
-        telephone:      String(row['telephone']       || row['Téléphone']       || row['tel'] || '').trim() || null,
-        specialite:     String(row['specialite']      || row['Spécialité']      || row['specialité'] || '').trim() || null,
-        grade:          String(row['grade']           || row['Grade']           || 'vacataire').trim(),
-        heures_semaine: parseInt(row['heures_semaine']|| row['H/semaine']       || 12) || 12,
-        statut:         String(row['statut']          || row['Statut']          || 'actif').trim().toLowerCase(),
-        matieres:       String(row['matieres']        || row['Matières']        || row['matières'] || '').split(';').map(m=>m.trim()).filter(Boolean),
+        email:          xlsStr(row['email']           ?? row['Email']),
+        telephone:      xlsStr(row['telephone']       ?? row['Téléphone'] ?? row['tel']),
+        specialite:     xlsStr(row['specialite']      ?? row['Spécialité'] ?? row['specialité']),
+        grade:          xlsStr(row['grade']           ?? row['Grade']) || 'vacataire',
+        heures_semaine: parseInt(row['heures_semaine']?? row['H/semaine'] ?? 12) || 12,
+        statut:         (xlsStr(row['statut'] ?? row['Statut']) || 'actif').toLowerCase(),
+        matieres:       (xlsStr(row['matieres'] ?? row['Matières'] ?? row['matières']) || '')
+                          .split(';').map(m=>m.trim()).filter(Boolean),
       });
     });
+
     _enseignantsAImporter = valides;
     document.getElementById('ens-import-count').textContent  = valides.length;
     document.getElementById('ens-import-errors').textContent = erreurs.length;
@@ -18768,15 +18780,18 @@ function lireExcelEnseignants(file) {
       <tr>
         <td style="color:#9ca3af">${i+1}</td>
         <td><strong>${e.nom}</strong></td><td>${e.prenom}</td>
-        <td style="color:#6b7280">${e.email||'—'}</td>
+        <td style="color:#6b7280;font-size:11px">${e.email||'—'}</td>
         <td>${e.specialite||'—'}</td>
         <td><span class="badge blue" style="font-size:10px">${e.grade}</span></td>
         <td>${e.heures_semaine}h</td>
         <td><span class="badge ${e.statut==='actif'?'green':'gray'}" style="font-size:10px">${e.statut}</span></td>
-      </tr>`).join('') + (valides.length>50?`<tr><td colspan="8" style="text-align:center;color:#9ca3af;font-size:11px">... et ${valides.length-50} autres</td></tr>`:'');
+      </tr>`).join('')
+      + (valides.length>50 ? `<tr><td colspan="8" style="text-align:center;color:#9ca3af;font-size:11px">... et ${valides.length-50} autres</td></tr>` : '');
+
     document.getElementById('ens-import-preview').style.display = 'block';
     const btn = document.getElementById('btn-import-ens-confirm');
-    btn.disabled = !valides.length; btn.style.opacity = valides.length?'1':'.5';
+    btn.disabled = !valides.length;
+    btn.style.opacity = valides.length ? '1' : '.5';
   });
 }
 
@@ -18802,8 +18817,8 @@ async function confirmerImportEnseignants() {
 function resetImportEns() {
   _enseignantsAImporter = [];
   ['ens-import-preview','ens-import-progress'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
-  const inp = document.getElementById('input-import-ens-file'); if(inp) inp.value='';
-  const btn = document.getElementById('btn-import-ens-confirm');
+  const inp=document.getElementById('input-import-ens-file'); if(inp) inp.value='';
+  const btn=document.getElementById('btn-import-ens-confirm');
   if(btn){ btn.disabled=true; btn.style.opacity='.5'; btn.textContent='✅ Importer les enseignants'; }
 }
 
@@ -18820,7 +18835,8 @@ function telechargerModeleEnseignantsExcel() {
   XLSX.writeFile(wb, 'modele_import_enseignants.xlsx');
 }
 
-// ── Classes ────────────────────────────────────────────────────────────────
+// ══ CLASSES ══════════════════════════════════════════════════════════════
+
 function gererDropExcelCls(e) {
   e.preventDefault();
   document.getElementById('cls-drop-zone').style.borderColor = '#e5e7eb';
@@ -18833,19 +18849,20 @@ function lireExcelClasses(file) {
   lireExcel(file, rows => {
     const valides = [], erreurs = [];
     rows.forEach((row, i) => {
-      const nom    = String(row['nom']    || row['Nom']    || '').trim();
-      const filiere= String(row['filiere']|| row['Filière']|| row['filière']|| '').trim();
+      const nom    = xlsStr(row['nom']     ?? row['Nom']);
+      const filiere= xlsStr(row['filiere'] ?? row['Filière'] ?? row['filiere']);
       if (!nom || !filiere) { erreurs.push(i+2); return; }
       valides.push({
         nom, filiere,
-        niveau:         String(row['niveau']         || row['Niveau']         || 'L1').trim(),
-        effectif_max:   parseInt(row['effectif_max'] || row['Effectif max']   || 40) || 40,
-        salle:          String(row['salle']          || row['Salle']          || '').trim() || null,
-        responsable:    String(row['responsable']    || row['Responsable']    || '').trim() || null,
-        annee_scolaire: String(row['annee_scolaire'] || row['Année scolaire'] || '').trim() || null,
+        niveau:         xlsStr(row['niveau']         ?? row['Niveau'])         || 'L1',
+        effectif_max:   parseInt(row['effectif_max'] ?? row['Effectif max']    ?? 40) || 40,
+        salle:          xlsStr(row['salle']          ?? row['Salle']),
+        responsable:    xlsStr(row['responsable']    ?? row['Responsable']),
+        annee_scolaire: xlsStr(row['annee_scolaire'] ?? row['Année scolaire']),
         statut: 'active',
       });
     });
+
     _classesAImporter = valides;
     document.getElementById('cls-import-count').textContent  = valides.length;
     document.getElementById('cls-import-errors').textContent = erreurs.length;
@@ -18857,10 +18874,13 @@ function lireExcelClasses(file) {
         <td style="text-align:center">${c.effectif_max}</td>
         <td>${c.salle||'—'}</td><td>${c.responsable||'—'}</td>
         <td style="color:#6b7280">${c.annee_scolaire||'—'}</td>
-      </tr>`).join('') + (valides.length>50?`<tr><td colspan="8" style="text-align:center;color:#9ca3af;font-size:11px">... et ${valides.length-50} autres</td></tr>`:'');
+      </tr>`).join('')
+      + (valides.length>50 ? `<tr><td colspan="8" style="text-align:center;color:#9ca3af;font-size:11px">... et ${valides.length-50} autres</td></tr>` : '');
+
     document.getElementById('cls-import-preview').style.display = 'block';
     const btn = document.getElementById('btn-import-cls-confirm');
-    btn.disabled = !valides.length; btn.style.opacity = valides.length?'1':'.5';
+    btn.disabled = !valides.length;
+    btn.style.opacity = valides.length ? '1' : '.5';
   });
 }
 
@@ -18873,7 +18893,7 @@ async function confirmerImportClasses() {
   const total = _classesAImporter.length;
   for (let i = 0; i < total; i++) {
     const { error } = await db.from('classes').insert([{ ..._classesAImporter[i], ecole_id: currentEcoleId }]);
-    error ? errors++ : ok++;
+    if (error) { console.error('Erreur classe', _classesAImporter[i].nom, error.message); errors++; } else ok++;
     const pct = Math.round((i+1)/total*100);
     document.getElementById('cls-import-bar').style.width   = pct+'%';
     document.getElementById('cls-import-label').textContent = `${i+1} / ${total} — ${pct}%`;
@@ -18886,8 +18906,8 @@ async function confirmerImportClasses() {
 function resetImportCls() {
   _classesAImporter = [];
   ['cls-import-preview','cls-import-progress'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
-  const inp = document.getElementById('input-import-cls-file'); if(inp) inp.value='';
-  const btn = document.getElementById('btn-import-cls-confirm');
+  const inp=document.getElementById('input-import-cls-file'); if(inp) inp.value='';
+  const btn=document.getElementById('btn-import-cls-confirm');
   if(btn){ btn.disabled=true; btn.style.opacity='.5'; btn.textContent='✅ Importer les classes'; }
 }
 
