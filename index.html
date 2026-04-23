@@ -7641,8 +7641,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 ═══════════════════════════════════════════ -->
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ══ SUPABASE ══════════════════════════════════
-const SUPABASE_URL = 'https://wpexhfngdbagmgodgzzt.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_8e4xKWS3YpfwGFAQlZ7lgQ_9hDx8ljQ';
+const SUPABASE_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -7970,22 +7970,22 @@ async function chargerDashboard() {
 // ══ ÉTUDIANTS ════════════════════════════════
 async function chargerEtudiants() {
   document.getElementById('tbody-etudiants').innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
-  // Essayer avec le join classes — si la FK n'est pas encore déclarée dans Supabase,
-  // fallback sur un select simple
   let data = null;
+  // Essayer avec join classes (nécessite FK déclarée dans Supabase)
   try {
-    let q = db.from('etudiants').select('*, classes(id, nom, filiere, niveau)').order('nom');
+    let q = db.from('etudiants').select('*, classes(id,nom,filiere,niveau)').order('nom');
     if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
     const res = await q;
-    if (!res.error) { data = res.data; }
+    if (!res.error && res.data) data = res.data;
   } catch(e) {}
+  // Fallback sans join
   if (!data) {
     let q = db.from('etudiants').select('*').order('nom');
     if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
     const res = await q;
     data = res.data || [];
   }
-  tousLesEtudiants = data || [];
+  tousLesEtudiants = data;
   afficherEtudiants(tousLesEtudiants);
 }
 function afficherEtudiants(liste) {
@@ -7993,14 +7993,14 @@ function afficherEtudiants(liste) {
   t.innerHTML = liste?.length
     ? liste.map(e => {
         const cls = e.classes;
-        const classeLabel = cls
+        const badge = cls
           ? `<span class="badge blue" style="font-size:10px">${cls.nom||cls.filiere+' '+cls.niveau}</span>`
           : `<span class="badge gray" style="font-size:10px">${e.niveau||'—'}</span>`;
         return `<tr>
           <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${e.matricule}</code></td>
           <td><strong>${e.nom} ${e.prenom}</strong></td>
           <td>${e.filiere}</td>
-          <td>${classeLabel}</td>
+          <td>${badge}</td>
           <td><span class="badge ${e.statut==='actif'?'green':'amber'}">${e.statut}</span></td>
           <td><button class="btn-sm btn-blue" onclick="voirEtudiant('${e.id}')">Voir</button></td>
         </tr>`;
@@ -8073,7 +8073,6 @@ async function ajouterEtudiant() {
   if (parentTel)   payload.parent_tel   = parentTel;
   const { data: inserted, error } = await db.from('etudiants').insert([payload]).select('id').single();
   if (error) { showToast('Erreur : '+(error.message.includes('unique')?'Matricule déjà utilisé.':error.message),'error'); return; }
-  // Assigner la classe via update séparé (contourne le problème de schema cache)
   if (classeId && inserted?.id) {
     await db.from('etudiants').update({ classe_id: classeId }).eq('id', inserted.id);
   }
@@ -8099,7 +8098,6 @@ async function remplirSelectClassesEtudiant() {
   sel.innerHTML = '<option value="">— Sélectionner (optionnel) —</option>'
     + actives.map(c => `<option value="${c.id}" data-filiere="${c.filiere||''}" data-niveau="${c.niveau||''}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
 }
-
 function syncFiliereNiveauEtudiant(sel) {
   const opt = sel.options[sel.selectedIndex];
   if (!opt || !opt.value) return;
