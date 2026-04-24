@@ -9097,7 +9097,7 @@ async function chargerIncidents() {
   const fetu = document.getElementById('filter-disc-etudiant')?.value;
   if (fs)   q = q.eq('severite', fs);
   if (fst)  q = q.eq('statut', fst);
-  if (ftyp) q = q.eq('type_incident', ftyp);
+  if (ftyp) q = q.eq('type', ftyp);
   if (fetu) q = q.eq('etudiant_id', fetu);
   const { data } = await q;
   const all = data || [];
@@ -9122,7 +9122,7 @@ async function chargerIncidents() {
     return `<div class="incident-card">
       <div class="incident-ico sev-${i.severite}">${ico}</div>
       <div class="incident-body">
-        <div class="inc-titre">${typeLabels[i.type_incident]||i.type_incident} — ${i.etudiants?i.etudiants.nom+' '+i.etudiants.prenom:'N/A'}</div>
+        <div class="inc-titre">${typeLabels[i.type||i.type_incident]||i.type||i.type_incident} — ${i.etudiants?i.etudiants.nom+' '+i.etudiants.prenom:'N/A'}</div>
         <div class="inc-meta">
           <span>📅 ${fmtDate(i.date_incident||i.created_at)}</span>
           <span><span class="badge ${sevCls}">Sév. ${i.severite}</span></span>
@@ -9147,7 +9147,7 @@ async function enregistrerIncident() {
   const editId = modal?.dataset?.editId;
   const payload = {
     etudiant_id:   document.getElementById('input-inc-etudiant').value,
-    type_incident: document.getElementById('input-inc-type').value,
+    type:          document.getElementById('input-inc-type').value,
     severite:      document.getElementById('input-inc-severite').value,
     date_incident: document.getElementById('input-inc-date').value,
     description:   desc,
@@ -9171,7 +9171,7 @@ function ouvrirModifierIncident(id) {
   db.from('incidents').select('*').eq('id', id).single().then(({data:inc}) => {
     if (!inc) return;
     document.getElementById('input-inc-etudiant').value = inc.etudiant_id||'';
-    document.getElementById('input-inc-type').value     = inc.type_incident||'comportement';
+    document.getElementById('input-inc-type').value     = inc.type||inc.type_incident||'comportement';
     document.getElementById('input-inc-severite').value = inc.severite||'faible';
     document.getElementById('input-inc-date').value     = inc.date_incident||'';
     document.getElementById('input-inc-desc').value     = inc.description||'';
