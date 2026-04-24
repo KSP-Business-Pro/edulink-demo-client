@@ -10319,28 +10319,6 @@ async function afficherPlanningEnseignant() {
       </table>
     </div>` : '<div class="empty-state"><div class="icon">📅</div><h3>Aucun créneau trouvé</h3><p>Vérifiez que le nom du professeur dans l\'emploi du temps correspond à cet enseignant.</p></div>'}`;
 }
-  const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-  const heures = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
-  const typeColors = { cours:'ens-slot-blue', td:'ens-slot-green', tp:'ens-slot-purple', examen:'ens-slot-amber' };
-  container.innerHTML = `
-    <div style="font-size:13px;font-weight:700;margin-bottom:1rem;color:#374151">
-      📅 Emploi du temps — ${ens.nom} ${ens.prenom}
-      <span class="badge blue" style="margin-left:8px">${siens.length} créneau(x)</span>
-    </div>
-    ${siens.length ? `
-    <div class="ens-planning-wrap">
-      <table class="ens-planning-grid">
-        <tr><th>Heure</th>${jours.map(j=>`<th>${j}</th>`).join('')}</tr>
-        ${heures.map(h => `<tr>
-          <td class="time-col">${h}</td>
-          ${jours.map(j => {
-            const cr = siens.find(c => c.heure_debut?.slice(0,5)===h && c.jour===j);
-            return `<td>${cr?`<div class="ens-slot ${typeColors[cr.type_cours]||'ens-slot-blue'}"><strong>${cr.matiere}</strong><div style="font-size:10px">${cr.classe||''} ${cr.salle?'· '+cr.salle:''}</div></div>`:''}</td>`;
-          }).join('')}
-        </tr>`).join('')}
-      </table>
-    </div>` : '<div class="empty-state"><div class="icon">📅</div><h3>Aucun créneau</h3><p>Ajoutez des créneaux via l\'Emploi du temps.</p></div>'}`;
-}
 
 function exporterEnseignantsCSV() {
   if (!tousLesEnseignants.length) { showToast('Aucun enseignant à exporter','error'); return; }
