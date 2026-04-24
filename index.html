@@ -3160,19 +3160,45 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 <div class="page" id="page-utilisateurs">
   <div class="top">
     <div>
-      <h2>👥 Utilisateurs &amp; Accès</h2>
+      <h2>👥 Utilisateurs & Accès</h2>
       <p class="page-subtitle">Gestion des comptes — <span id="sub-ecole-util-nom"></span></p>
     </div>
-    <button onclick="ouvrirModal('modal-user')">+ Nouvel utilisateur</button>
+    <div class="top-actions">
+      <button class="btn-outline" onclick="exporterUtilisateursCSV()">⬇️ Export CSV</button>
+      <button onclick="ouvrirModal('modal-user')">+ Nouvel utilisateur</button>
+    </div>
   </div>
+
+  <!-- Stats cards -->
   <div class="cards">
     <div class="card"><div class="i">👨‍💼</div><div class="n" id="cnt-admins">0</div><div class="l">Administrateurs</div></div>
     <div class="card"><div class="i">👨‍🏫</div><div class="n" id="cnt-profs">0</div><div class="l">Enseignants</div></div>
-    <div class="card"><div class="i">💰</div><div class="n"  id="cnt-comptas">0</div><div class="l">Comptables</div></div>
+    <div class="card"><div class="i">💰</div><div class="n" id="cnt-comptas">0</div><div class="l">Comptables</div></div>
     <div class="card"><div class="i">👨‍👩‍👧</div><div class="n" id="cnt-parents">0</div><div class="l">Parents/Étudiants</div></div>
   </div>
+
+  <!-- Filtres -->
+  <div class="filters" style="margin-bottom:.75rem">
+    <span class="filter-label">Filtrer :</span>
+    <select id="filter-user-role" onchange="filtrerUtilisateurs()">
+      <option value="">Tous les rôles</option>
+      <option value="admin">Administrateur</option>
+      <option value="enseignant">Enseignant</option>
+      <option value="comptable">Comptable</option>
+      <option value="parent">Parent</option>
+      <option value="etudiant">Étudiant</option>
+    </select>
+    <select id="filter-user-statut" onchange="filtrerUtilisateurs()">
+      <option value="">Tous statuts</option>
+      <option value="actif">Actif</option>
+      <option value="inactif">Inactif</option>
+      <option value="suspendu">Suspendu</option>
+    </select>
+    <button class="btn-sm btn-secondary" onclick="resetFiltresUsers()">🔄 Réinitialiser</button>
+  </div>
+
   <div class="search-bar">
-    <input type="text" placeholder="🔍 Rechercher..." oninput="filtrerUtilisateurs(this.value)">
+    <input type="text" id="search-users" placeholder="🔍 Rechercher par nom, prénom, email..." oninput="filtrerUtilisateurs()">
   </div>
   <table>
     <tr><th>Utilisateur</th><th>E-mail</th><th>Rôle</th><th>Statut</th><th>Dernière connexion</th><th>Actions</th></tr>
@@ -8057,7 +8083,7 @@ function showPage(p) {
     discipline:   () => { chargerIncidents(); peuplerFiltresDisc(); },
     documents:    chargerDocuments,
     rapports:     () => { peuplerFiltresRapports(); afficherRapport('effectifs'); },
-    utilisateurs: () => { if (typeof chargerUtilisateurs === 'function') chargerUtilisateurs(); },
+    utilisateurs: () => { chargerUtilisateurs(); },
     parametres:   () => { chargerParametres(); chargerConfigFCM(); },
     examens:      () => { chargerExamens(); peuplerFiltresExamens(); },
     enseignants:     () => { chargerEnseignants(); },
@@ -8193,6 +8219,15 @@ function fermerModal(id) {
     const modal=document.getElementById('modal-livre');
     if(modal) delete modal.dataset.editId;
     const h3=document.querySelector('#modal-livre h3'); if(h3) h3.textContent='📚 Ajouter un ouvrage';
+  }
+  if (id === 'modal-user') {
+    const modal=document.getElementById('modal-user');
+    if(modal) delete modal.dataset.editId;
+    const h3=document.querySelector('#modal-user h3'); if(h3) h3.textContent='👤 Nouvel utilisateur';
+    const mdpField=document.getElementById('input-user-mdp');
+    if(mdpField){mdpField.disabled=false;mdpField.placeholder='Minimum 6 caractères';}
+    const field=document.getElementById('user-etudiant-field');
+    if(field) field.style.display='none';
   }
 }
 document.querySelectorAll('.modal-overlay').forEach(o => {
@@ -9881,6 +9916,198 @@ async function exporterCSV(type) {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast('Export CSV téléchargé !', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  UTILISATEURS & ACCÈS
+// ══════════════════════════════════════════════════════════════════════
+let tousLesUtilisateurs = [];
+
+async function chargerUtilisateurs() {
+  document.getElementById('tbody-utilisateurs').innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
+  let q = db.from('utilisateurs').select('*').order('created_at', { ascending: false });
+  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  const { data, error } = await q;
+  if (error) { showToast('Erreur chargement utilisateurs : ' + error.message, 'error'); return; }
+  tousLesUtilisateurs = data || [];
+
+  // Stats par rôle
+  const roles = { admin:0, enseignant:0, comptable:0, parent:0, etudiant:0 };
+  tousLesUtilisateurs.forEach(u => { if (roles[u.role] !== undefined) roles[u.role]++; });
+  document.getElementById('cnt-admins').textContent  = roles.admin;
+  document.getElementById('cnt-profs').textContent   = roles.enseignant;
+  document.getElementById('cnt-comptas').textContent = roles.comptable;
+  document.getElementById('cnt-parents').textContent = roles.parent + roles.etudiant;
+
+  // Nom école
+  const ecole = tousLesEcoles?.find(e => e.id === currentEcoleId);
+  const subNom = document.getElementById('sub-ecole-util-nom');
+  if (subNom && ecole) subNom.textContent = ecole.nom;
+
+  afficherUtilisateurs(tousLesUtilisateurs);
+}
+
+function afficherUtilisateurs(liste) {
+  const roleLabels = {
+    admin:     '👨‍💼 Administrateur',
+    enseignant:'👨‍🏫 Enseignant',
+    comptable: '💰 Comptable',
+    parent:    '👨‍👩‍👧 Parent',
+    etudiant:  '👨‍🎓 Étudiant',
+  };
+  document.getElementById('tbody-utilisateurs').innerHTML = liste.length
+    ? liste.map(u => `<tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;border-radius:50%;background:#e8edf5;display:flex;align-items:center;justify-content:center;font-weight:700;color:#1e3a5f;font-size:14px;flex-shrink:0">
+              ${(u.prenom?.[0]||'').toUpperCase()}${(u.nom?.[0]||'').toUpperCase()}
+            </div>
+            <div>
+              <div style="font-weight:600;font-size:13px">${u.prenom||''} ${u.nom||''}</div>
+              <div style="font-size:11px;color:#9ca3af">${u.created_at ? 'Créé le '+fmtDate(u.created_at) : ''}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size:12px">${u.email||'—'}</td>
+        <td><span class="badge blue" style="font-size:11px">${roleLabels[u.role]||u.role}</span></td>
+        <td><span class="badge ${u.statut==='actif'?'green':u.statut==='suspendu'?'red':'amber'}">${u.statut||'actif'}</span></td>
+        <td style="font-size:12px;color:#6b7280">${u.derniere_connexion ? fmtDateTime(u.derniere_connexion) : '—'}</td>
+        <td style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn-sm btn-secondary" onclick="ouvrirModifierUser('${u.id}')">✏️</button>
+          ${u.statut==='actif'
+            ? `<button class="btn-sm btn-secondary" onclick="changerStatutUser('${u.id}','suspendu')" title="Suspendre">🔒</button>`
+            : `<button class="btn-sm btn-green" onclick="changerStatutUser('${u.id}','actif')" title="Réactiver">🔓</button>`}
+          <button class="btn-sm btn-red" onclick="supprimerUtilisateur('${u.id}','${u.prenom||''} ${u.nom||''}')">✕</button>
+        </td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" class="loading">Aucun utilisateur trouvé.</td></tr>';
+}
+
+function filtrerUtilisateurs() {
+  const q    = (document.getElementById('search-users')?.value || '').toLowerCase();
+  const role = document.getElementById('filter-user-role')?.value || '';
+  const stat = document.getElementById('filter-user-statut')?.value || '';
+  let liste  = tousLesUtilisateurs;
+  if (q)    liste = liste.filter(u => (u.nom||'').toLowerCase().includes(q) || (u.prenom||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q));
+  if (role) liste = liste.filter(u => u.role === role);
+  if (stat) liste = liste.filter(u => (u.statut||'actif') === stat);
+  afficherUtilisateurs(liste);
+}
+
+function resetFiltresUsers() {
+  ['filter-user-role','filter-user-statut','search-users'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  afficherUtilisateurs(tousLesUtilisateurs);
+}
+
+async function creerUtilisateur() {
+  const prenom = document.getElementById('input-user-prenom').value.trim();
+  const nom    = document.getElementById('input-user-nom').value.trim();
+  const email  = document.getElementById('input-user-email').value.trim();
+  const mdp    = document.getElementById('input-user-mdp').value;
+  const role   = document.getElementById('input-user-role').value;
+  if (!email) { showToast('E-mail obligatoire.','error'); return; }
+  const modal  = document.getElementById('modal-user');
+  const editId = modal?.dataset?.editId;
+
+  if (editId) {
+    // Mode édition — mettre à jour seulement les champs non-auth
+    const payload = { prenom, nom, role };
+    const etudiantId = document.getElementById('input-user-etudiant')?.value||null;
+    if (['parent','etudiant'].includes(role) && etudiantId) payload.etudiant_id = etudiantId;
+    const { error } = await db.from('utilisateurs').update(payload).eq('id', editId);
+    if (error) { showToast('Erreur : '+error.message,'error'); return; }
+    showToast('✅ Utilisateur modifié !','success');
+  } else {
+    // Création via Supabase Auth
+    if (!mdp || mdp.length < 6) { showToast('Mot de passe min. 6 caractères.','error'); return; }
+    const { data: authData, error: authErr } = await db.auth.signUp({ email, password: mdp });
+    if (authErr) { showToast('Erreur auth : '+authErr.message,'error'); return; }
+    const authId = authData?.user?.id;
+    const payload = { ecole_id: currentEcoleId, auth_id: authId, prenom, nom, email, role, statut: 'actif' };
+    const etudiantId = document.getElementById('input-user-etudiant')?.value||null;
+    if (['parent','etudiant'].includes(role) && etudiantId) payload.etudiant_id = etudiantId;
+    const { error: dbErr } = await db.from('utilisateurs').insert([payload]);
+    if (dbErr) { showToast('Erreur DB : '+dbErr.message,'error'); return; }
+    showToast('✅ Utilisateur créé ! Un email de confirmation a été envoyé.','success');
+  }
+
+  fermerModal('modal-user');
+  if (modal) delete modal.dataset.editId;
+  document.querySelector('#modal-user h3').textContent = '👤 Nouvel utilisateur';
+  ['input-user-prenom','input-user-nom','input-user-email','input-user-mdp'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  chargerUtilisateurs();
+}
+
+function ouvrirModifierUser(id) {
+  const u = tousLesUtilisateurs.find(x=>x.id===id);
+  if (!u) return;
+  document.getElementById('input-user-prenom').value = u.prenom||'';
+  document.getElementById('input-user-nom').value    = u.nom||'';
+  document.getElementById('input-user-email').value  = u.email||'';
+  document.getElementById('input-user-mdp').value    = '';
+  document.getElementById('input-user-role').value   = u.role||'admin';
+  // Champ mdp non modifiable en mode édition
+  const mdpField = document.getElementById('input-user-mdp');
+  if (mdpField) { mdpField.disabled = true; mdpField.placeholder = 'Non modifiable ici'; }
+  toggleEtudiantField();
+  if (['parent','etudiant'].includes(u.role) && u.etudiant_id) {
+    remplirSelectUserEtudiant().then(()=>{
+      const sel = document.getElementById('input-user-etudiant');
+      if (sel) sel.value = u.etudiant_id;
+    });
+  }
+  const modal = document.getElementById('modal-user');
+  if (modal) modal.dataset.editId = id;
+  document.querySelector('#modal-user h3').textContent = '✏️ Modifier l\'utilisateur';
+  ouvrirModal('modal-user');
+}
+
+async function changerStatutUser(id, newStatut) {
+  const { error } = await db.from('utilisateurs').update({ statut: newStatut }).eq('id', id);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast(newStatut==='actif' ? '🔓 Compte réactivé !' : '🔒 Compte suspendu.','success');
+  chargerUtilisateurs();
+}
+
+async function supprimerUtilisateur(id, nom) {
+  if (!confirm(`Supprimer le compte de "${nom.trim()}" ?\nCette action est irréversible.`)) return;
+  const { error } = await db.from('utilisateurs').delete().eq('id', id);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast('Utilisateur supprimé.','success');
+  chargerUtilisateurs();
+}
+
+function toggleEtudiantField() {
+  const role = document.getElementById('input-user-role')?.value;
+  const field = document.getElementById('user-etudiant-field');
+  if (!field) return;
+  if (['parent','etudiant'].includes(role)) {
+    field.style.display = 'block';
+    remplirSelectUserEtudiant();
+  } else {
+    field.style.display = 'none';
+  }
+}
+
+async function remplirSelectUserEtudiant() {
+  const sel = document.getElementById('input-user-etudiant');
+  if (!sel) return;
+  if (!tousLesEtudiants.length) {
+    let q = db.from('etudiants').select('id,nom,prenom').order('nom');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q; tousLesEtudiants = data||[];
+  }
+  sel.innerHTML = '<option value="">— Sélectionner —</option>'
+    + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+}
+
+function exporterUtilisateursCSV() {
+  if (!tousLesUtilisateurs.length) { showToast('Aucun utilisateur à exporter','error'); return; }
+  const header = ['prenom','nom','email','role','statut','date_creation'];
+  const rows = tousLesUtilisateurs.map(u=>[
+    u.prenom||'', u.nom||'', u.email||'', u.role||'', u.statut||'actif', fmtDate(u.created_at)
+  ]);
+  csvDownload('utilisateurs.csv', header, rows);
 }
 
 // ══ DASHBOARD CHARTS ══════════════════════════
