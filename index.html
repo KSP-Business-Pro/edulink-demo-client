@@ -3118,20 +3118,38 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     </div>
   </div>
 
+  <!-- Filtres globaux -->
+  <div class="filters" style="margin-bottom:1rem">
+    <span class="filter-label">Filtres :</span>
+    <select id="filter-rpt-classe" onchange="afficherRapportActif()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none">
+      <option value="">Toutes les classes</option>
+    </select>
+    <select id="filter-rpt-periode" onchange="afficherRapportActif()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none">
+      <option value="">Toute la période</option>
+      <option value="7">7 derniers jours</option>
+      <option value="30">30 derniers jours</option>
+      <option value="90">Ce trimestre</option>
+      <option value="180">Ce semestre</option>
+      <option value="365">Cette année</option>
+    </select>
+    <button class="btn-sm btn-secondary" onclick="resetFiltresRapports()">🔄 Réinitialiser</button>
+  </div>
+
   <div class="rapport-layout">
     <!-- Menu -->
     <div class="rapport-menu">
       <div class="section-label" style="padding:0 8px;margin-bottom:.5rem">Sélectionner un rapport</div>
-      <div class="rapport-menu-item active" id="rmenu-effectifs" onclick="afficherRapport('effectifs')">👥 Effectifs par filière</div>
-      <div class="rapport-menu-item" id="rmenu-absences" onclick="afficherRapport('absences')">🚫 Taux d'absentéisme</div>
-      <div class="rapport-menu-item" id="rmenu-moyennes" onclick="afficherRapport('moyennes')">📊 Moyennes par matière</div>
-      <div class="rapport-menu-item" id="rmenu-paiements" onclick="afficherRapport('paiements')">💳 État des paiements</div>
-      <div class="rapport-menu-item" id="rmenu-discipline" onclick="afficherRapport('discipline')">⚠️ Rapport disciplinaire</div>
+      <div class="rapport-menu-item active" id="rmenu-effectifs"  onclick="afficherRapport('effectifs')">👥 Effectifs par filière</div>
+      <div class="rapport-menu-item"        id="rmenu-absences"   onclick="afficherRapport('absences')">🚫 Taux d'absentéisme</div>
+      <div class="rapport-menu-item"        id="rmenu-moyennes"   onclick="afficherRapport('moyennes')">📊 Moyennes par matière</div>
+      <div class="rapport-menu-item"        id="rmenu-paiements"  onclick="afficherRapport('paiements')">💳 État des paiements</div>
+      <div class="rapport-menu-item"        id="rmenu-discipline" onclick="afficherRapport('discipline')">⚠️ Rapport disciplinaire</div>
+      <div class="rapport-menu-item"        id="rmenu-progression" onclick="afficherRapport('progression')">📈 Progression étudiants</div>
     </div>
 
     <!-- Vue rapport -->
     <div class="rapport-view" id="rapport-view">
-      <div class="loading">Sélectionnez un rapport pour l'afficher</div>
+      <div class="loading">Génération du rapport...</div>
     </div>
   </div>
 </div>
@@ -8038,7 +8056,7 @@ function showPage(p) {
     paiements:    () => { chargerPaiements(); },
     discipline:   () => { chargerIncidents(); peuplerFiltresDisc(); },
     documents:    chargerDocuments,
-    rapports:     () => afficherRapport('effectifs'),
+    rapports:     () => { peuplerFiltresRapports(); afficherRapport('effectifs'); },
     utilisateurs: () => { if (typeof chargerUtilisateurs === 'function') chargerUtilisateurs(); },
     parametres:   () => { chargerParametres(); chargerConfigFCM(); },
     examens:      () => { chargerExamens(); peuplerFiltresExamens(); },
@@ -9600,7 +9618,205 @@ function selectRapportMenu(id) {
   const el = document.getElementById('rmenu-'+id);
   if (el) el.classList.add('active');
 }
+
+let _rapportActifType = 'effectifs';
+function afficherRapportActif() { afficherRapport(_rapportActifType); }
+
+function resetFiltresRapports() {
+  ['filter-rpt-classe','filter-rpt-periode'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  afficherRapport(_rapportActifType);
+}
+
+async function peuplerFiltresRapports() {
+  const sel = document.getElementById('filter-rpt-classe');
+  if (!sel) return;
+  if (!toutesLesClasses?.length) await chargerClasses();
+  sel.innerHTML = '<option value="">Toutes les classes</option>'
+    + (toutesLesClasses||[]).filter(c=>c.statut!=='archive')
+        .map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+}
+
+function getRptFilters() {
+  const classeId = document.getElementById('filter-rpt-classe')?.value || '';
+  const periode  = document.getElementById('filter-rpt-periode')?.value || '';
+  const depuis   = periode ? new Date(Date.now()-parseInt(periode)*864e5).toISOString().split('T')[0] : null;
+  return { classeId, depuis };
+}
+
 async function afficherRapport(type) {
+  _rapportActifType = type;
+  selectRapportMenu(type);
+  const view = document.getElementById('rapport-view');
+  view.innerHTML = '<div class="loading">Génération du rapport...</div>';
+  if (rapportChartInst) { rapportChartInst.destroy(); rapportChartInst=null; }
+  const { classeId, depuis } = getRptFilters();
+
+  if (type === 'effectifs') {
+    let q = db.from('etudiants').select('filiere, niveau, sexe, classe_id');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    if (classeId) q = q.eq('classe_id', classeId);
+    const { data } = await q;
+    const all = data||[];
+    const filieres = {}, niveaux = {};
+    all.forEach(e => {
+      filieres[e.filiere||'N/A'] = (filieres[e.filiere||'N/A']||0)+1;
+      niveaux[e.niveau||'N/A']   = (niveaux[e.niveau||'N/A']||0)+1;
+    });
+    const nbF = all.filter(e=>e.sexe==='F').length;
+    const nbM = all.filter(e=>e.sexe==='M').length;
+    view.innerHTML = `<h3>👥 Effectifs${classeId?` — <span style="color:#1e3a5f">${document.getElementById('filter-rpt-classe').options[document.getElementById('filter-rpt-classe').selectedIndex].text}</span>`:' par filière'}</h3>
+      <div class="rapport-grid">
+        <div class="rapport-block">
+          <div class="rb-title">Répartition par filière</div>
+          <canvas id="chart-filieres" height="220"></canvas>
+        </div>
+        <div class="rapport-block">
+          <div class="rb-title">Chiffres clés</div>
+          ${Object.entries(niveaux).map(([k,v])=>`<div class="kpi-row"><span class="kpi-label">${k}</span><span class="kpi-value">${v}</span></div>`).join('')}
+          <div class="kpi-row" style="margin-top:.5rem;border-top:1px solid #f3f4f6;padding-top:.5rem">
+            <span class="kpi-label">👩 Filles</span><span class="kpi-value" style="color:#7c3aed">${nbF}</span></div>
+          <div class="kpi-row"><span class="kpi-label">👦 Garçons</span><span class="kpi-value" style="color:#1e3a5f">${nbM}</span></div>
+          <div class="kpi-row" style="margin-top:.5rem"><span class="kpi-label" style="font-weight:700">Total</span><span class="kpi-value" style="color:#c97c1a">${all.length}</span></div>
+        </div>
+      </div>`;
+    const COLORS=['#1e3a5f','#c97c1a','#059669','#dc2626','#7c3aed','#0d9488','#d97706'];
+    rapportChartInst = new Chart(document.getElementById('chart-filieres'), { type:'doughnut', data:{ labels:Object.keys(filieres), datasets:[{ data:Object.values(filieres), backgroundColor:COLORS, borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, plugins:{ legend:{ position:'bottom', labels:{ font:{family:'Poppins',size:11} } } } } });
+
+  } else if (type === 'absences') {
+    let q = db.from('absences').select('statut, date_absence, matiere, etudiants(nom,prenom)').order('date_absence',{ascending:false});
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    if (depuis) q = q.gte('date_absence', depuis);
+    const { data } = await q;
+    const stats = { absent:0, retard:0, excuse:0 };
+    (data||[]).forEach(a => { if(stats[a.statut]!==undefined) stats[a.statut]++; });
+    // Top 5 matières
+    const parMat = {};
+    (data||[]).forEach(a=>{ parMat[a.matiere||'N/A']=(parMat[a.matiere||'N/A']||0)+1; });
+    const topMat = Object.entries(parMat).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    view.innerHTML = `<h3>🚫 Taux d'absentéisme</h3>
+      <div class="rapport-grid">
+        <div class="rapport-block">
+          <div class="rb-title">Par statut</div>
+          <canvas id="chart-absences" height="200"></canvas>
+        </div>
+        <div class="rapport-block">
+          <div class="rb-title">Chiffres clés</div>
+          <div class="kpi-row"><span class="kpi-label">Total absences</span><span class="kpi-value">${data?.length||0}</span></div>
+          <div class="kpi-row"><span class="kpi-label">Injustifiées</span><span class="kpi-value" style="color:#dc2626">${stats.absent}</span></div>
+          <div class="kpi-row"><span class="kpi-label">Retards</span><span class="kpi-value" style="color:#d97706">${stats.retard}</span></div>
+          <div class="kpi-row"><span class="kpi-label">Excusées</span><span class="kpi-value" style="color:#059669">${stats.excuse}</span></div>
+          ${topMat.length?`<div class="rb-title" style="margin-top:.75rem">Top matières absences</div>${topMat.map(([m,n])=>`<div class="kpi-row"><span class="kpi-label">${m}</span><span class="kpi-value">${n}</span></div>`).join('')}`:''}
+        </div>
+      </div>`;
+    rapportChartInst = new Chart(document.getElementById('chart-absences'), { type:'bar', data:{ labels:['Absent','Retard','Excusé'], datasets:[{ label:'Nombre', data:[stats.absent,stats.retard,stats.excuse], backgroundColor:['#fee2e2','#fef9c3','#dcfce7'], borderColor:['#dc2626','#d97706','#059669'], borderWidth:2 }] }, options:{ responsive:true, scales:{ y:{ beginAtZero:true } }, plugins:{ legend:{ display:false } } } });
+
+  } else if (type === 'moyennes') {
+    let q = db.from('notes').select('matiere, note, coefficient, etudiant_id');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q;
+    const matieres = {};
+    (data||[]).forEach(n => {
+      if (!matieres[n.matiere]) matieres[n.matiere] = { pts:0, coeff:0, nb:0 };
+      matieres[n.matiere].pts   += n.note*(n.coefficient||1);
+      matieres[n.matiere].coeff += (n.coefficient||1);
+      matieres[n.matiere].nb++;
+    });
+    const moyMat = Object.entries(matieres).map(([m,v]) => ({ matiere:m, moy:v.coeff>0?v.pts/v.coeff:0, nb:v.nb })).sort((a,b)=>b.moy-a.moy);
+    view.innerHTML = `<h3>📊 Moyennes par matière</h3>
+      <div class="chart-wrap"><canvas id="chart-moy" height="300"></canvas></div>
+      <div style="margin-top:1.2rem">
+        <table><tr><th>Matière</th><th>Moyenne /20</th><th>Nb notes</th><th>Appréciation</th></tr>
+        ${moyMat.map(m=>{const a=getApp(m.moy);return`<tr><td>${m.matiere}</td><td><strong>${m.moy.toFixed(2)}/20</strong></td><td style="color:#6b7280">${m.nb}</td><td><span class="badge ${a.cls}">${a.label}</span></td></tr>`;}).join('')||'<tr><td colspan="4" class="loading">Aucune note.</td></tr>'}
+        </table>
+      </div>`;
+    rapportChartInst = new Chart(document.getElementById('chart-moy'), { type:'bar', data:{ labels:moyMat.map(m=>m.matiere), datasets:[{ label:'Moyenne /20', data:moyMat.map(m=>parseFloat(m.moy.toFixed(2))), backgroundColor:moyMat.map(m=>m.moy>=10?'#dcfce7':'#fee2e2'), borderColor:moyMat.map(m=>m.moy>=10?'#059669':'#dc2626'), borderWidth:2 }] }, options:{ responsive:true, scales:{ y:{ min:0, max:20 } }, plugins:{ legend:{ display:false } } } });
+
+  } else if (type === 'paiements') {
+    let q = db.from('factures').select('statut, montant_total, montant_paye, type_frais');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q;
+    const all = data||[];
+    const totalDu = all.reduce((s,f)=>s+(f.montant_total||0),0);
+    const totalPaye = all.reduce((s,f)=>s+(f.montant_paye||0),0);
+    const statuts = { payée:0, en_attente:0, retard:0, partiellement_payée:0 };
+    all.forEach(f => { if(statuts[f.statut]!==undefined) statuts[f.statut]++; });
+    view.innerHTML = `<h3>💳 État des paiements</h3>
+      <div class="rapport-grid">
+        <div class="rapport-block">
+          <div class="rb-title">Répartition des factures</div>
+          <canvas id="chart-pay" height="220"></canvas>
+        </div>
+        <div class="rapport-block">
+          <div class="rb-title">Bilan financier</div>
+          <div class="kpi-row"><span class="kpi-label">Total facturé</span><span class="kpi-value">${fmtMontant(totalDu)}</span></div>
+          <div class="kpi-row"><span class="kpi-label">Total encaissé</span><span class="kpi-value" style="color:#059669">${fmtMontant(totalPaye)}</span></div>
+          <div class="kpi-row"><span class="kpi-label">Reste à percevoir</span><span class="kpi-value" style="color:#dc2626">${fmtMontant(totalDu-totalPaye)}</span></div>
+          <div class="kpi-row"><span class="kpi-label">Taux recouvrement</span><span class="kpi-value" style="color:#7c3aed">${totalDu>0?(totalPaye/totalDu*100).toFixed(1)+'%':'—'}</span></div>
+          <div class="kpi-row" style="margin-top:.5rem"><span class="kpi-label">Payées</span><span class="kpi-value">${statuts.payée}</span></div>
+          <div class="kpi-row"><span class="kpi-label">En attente</span><span class="kpi-value" style="color:#d97706">${statuts.en_attente}</span></div>
+          <div class="kpi-row"><span class="kpi-label">En retard</span><span class="kpi-value" style="color:#dc2626">${statuts.retard}</span></div>
+        </div>
+      </div>`;
+    rapportChartInst = new Chart(document.getElementById('chart-pay'), { type:'doughnut', data:{ labels:['Payées','En attente','En retard','Partielles'], datasets:[{ data:[statuts['payée'],statuts['en_attente'],statuts['retard'],statuts['partiellement_payée']], backgroundColor:['#dcfce7','#fef9c3','#fee2e2','#dbeafe'], borderColor:['#059669','#d97706','#dc2626','#1d4ed8'], borderWidth:2 }] }, options:{ responsive:true, plugins:{ legend:{ position:'bottom', labels:{ font:{family:'Poppins',size:11} } } } } });
+
+  } else if (type === 'discipline') {
+    let q = db.from('incidents').select('severite, statut, type');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    if (depuis) q = q.gte('created_at', depuis);
+    const { data } = await q;
+    const all = data||[];
+    const bySev = { haute:0, moyenne:0, faible:0 };
+    all.forEach(i => { if(bySev[i.severite]!==undefined) bySev[i.severite]++; });
+    const byType = {};
+    all.forEach(i => { const t=i.type||'autre'; byType[t]=(byType[t]||0)+1; });
+    const estResolu = i => i.statut==='résolu'||i.statut==='resolu';
+    view.innerHTML = `<h3>⚠️ Rapport disciplinaire</h3>
+      <div class="rapport-grid">
+        <div class="rapport-block">
+          <div class="rb-title">Par sévérité</div>
+          <canvas id="chart-disc" height="200"></canvas>
+        </div>
+        <div class="rapport-block">
+          <div class="rb-title">Par type d'incident</div>
+          ${Object.entries(byType).length
+            ? Object.entries(byType).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="kpi-row"><span class="kpi-label">${k}</span><span class="kpi-value">${v}</span></div>`).join('')
+            : '<div class="kpi-row"><span class="kpi-label" style="color:#9ca3af">Aucun incident</span></div>'}
+          <div class="kpi-row" style="margin-top:.5rem;border-top:1px solid #f3f4f6;padding-top:.5rem">
+            <span class="kpi-label">Résolus</span><span class="kpi-value" style="color:#059669">${all.filter(estResolu).length}</span></div>
+          <div class="kpi-row"><span class="kpi-label" style="font-weight:700">Total</span><span class="kpi-value">${all.length}</span></div>
+        </div>
+      </div>`;
+    rapportChartInst = new Chart(document.getElementById('chart-disc'), { type:'pie', data:{ labels:['Haute','Moyenne','Faible'], datasets:[{ data:[bySev.haute,bySev.moyenne,bySev.faible], backgroundColor:['#fee2e2','#fef9c3','#dcfce7'], borderColor:['#dc2626','#d97706','#059669'], borderWidth:2 }] }, options:{ responsive:true, plugins:{ legend:{ position:'bottom' } } } });
+
+  } else if (type === 'progression') {
+    // Nouveau rapport : Top étudiants par moyenne
+    let q = db.from('notes').select('etudiant_id, note, coefficient, etudiants(nom,prenom,filiere,niveau)');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q;
+    const parEtu = {};
+    (data||[]).forEach(n => {
+      if (!parEtu[n.etudiant_id]) parEtu[n.etudiant_id] = { etu:n.etudiants, pts:0, coeff:0 };
+      parEtu[n.etudiant_id].pts   += n.note*(n.coefficient||1);
+      parEtu[n.etudiant_id].coeff += (n.coefficient||1);
+    });
+    const ranking = Object.values(parEtu)
+      .filter(x=>x.coeff>0)
+      .map(x=>({ ...x.etu, moy:x.pts/x.coeff }))
+      .sort((a,b)=>b.moy-a.moy);
+    view.innerHTML = `<h3>📈 Classement des étudiants</h3>
+      <table>
+        <tr><th>#</th><th>Étudiant</th><th>Filière</th><th>Niveau</th><th>Moyenne /20</th><th>Mention</th></tr>
+        ${ranking.length ? ranking.map((e,i)=>{const a=getApp(e.moy);return`<tr>
+          <td><strong style="color:${i<3?'#c97c1a':'#6b7280'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</strong></td>
+          <td><strong>${e.nom||''} ${e.prenom||''}</strong></td>
+          <td>${e.filiere||'—'}</td><td>${e.niveau||'—'}</td>
+          <td><strong style="color:${e.moy>=10?'#059669':'#dc2626'}">${e.moy.toFixed(2)}/20</strong></td>
+          <td><span class="badge ${a.cls}">${a.label}</span></td>
+        </tr>`;}).join('')
+        : '<tr><td colspan="6" class="loading">Aucune note enregistrée.</td></tr>'}
+      </table>`;
+  }
+}
   selectRapportMenu(type);
   const view = document.getElementById('rapport-view');
   view.innerHTML = '<div class="loading">Génération du rapport...</div>';
@@ -9772,8 +9988,8 @@ async function exporterCSV(type) {
     showToast('Sélectionnez un rapport pour exporter.', 'info'); return;
   }
 
-  const csv = [headers, ...rows].map(r => r.map(esc).join(',')).join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' });
+  const csv_final = [headers, ...rows].map(r => r.map(v=>'\"'+String(v==null?'':v).replace(/"/g,'\"\"')+'\"').join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv_final], { type:'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url; a.download = filename + '_' + new Date().toISOString().split('T')[0] + '.csv';
