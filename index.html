@@ -2580,14 +2580,31 @@ button:hover { background:#a86615; transform:translateY(-1px); }
      EMPLOI DU TEMPS
 ═══════════════════════════════════════ -->
 <div class="page" id="page-emploi">
-  <div class="top"><h2>Emploi du temps</h2><button onclick="ouvrirModal('modal-emploi')">+ Ajouter créneau</button></div>
+  <div class="top">
+    <h2>Emploi du temps</h2>
+    <div class="top-actions">
+      <button class="btn-outline" onclick="exporterEdtCSV()">⬇️ Export CSV</button>
+      <button onclick="ouvrirModal('modal-emploi')">+ Ajouter créneau</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="cards" style="margin-bottom:1rem">
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#1e3a5f" id="stat-edt-total">—</div><div style="font-size:12px;color:#6b7280">Créneaux total</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#3b82f6" id="stat-edt-cours">—</div><div style="font-size:12px;color:#6b7280">Cours</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#059669" id="stat-edt-td">—</div><div style="font-size:12px;color:#6b7280">TD / TP</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#7c3aed" id="stat-edt-profs">—</div><div style="font-size:12px;color:#6b7280">Enseignants assignés</div></div>
+  </div>
+
   <div class="edt-controls">
     <span class="filter-label">Classe :</span>
     <select id="edt-filter-classe" onchange="chargerEmploiDuTemps()">
       <option value="">Toutes les classes</option>
-      <option>L1 Informatique</option><option>L2 Informatique</option><option>L3 Informatique</option>
-      <option>L1 Gestion</option><option>L2 Gestion</option><option>L3 Gestion</option>
-      <option>M1</option><option>M2</option>
+    </select>
+    <select id="edt-filter-jour" onchange="renderGrilleEDT()" style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;">
+      <option value="">Tous les jours</option>
+      <option>Lundi</option><option>Mardi</option><option>Mercredi</option>
+      <option>Jeudi</option><option>Vendredi</option><option>Samedi</option>
     </select>
     <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
       <span style="font-size:11px;color:#6b7280">Légende :</span>
@@ -2595,6 +2612,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <span class="badge purple">TP</span><span class="badge amber">Exam</span>
     </div>
   </div>
+
   <div class="edt-wrap">
     <table class="edt-grid" id="edt-table">
       <tr>
@@ -6728,7 +6746,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <select id="input-edt-jour"><option>Lundi</option><option>Mardi</option><option>Mercredi</option><option>Jeudi</option><option>Vendredi</option><option>Samedi</option></select>
       </div>
       <div class="form-group"><label>Classe *</label>
-        <select id="input-edt-classe"><option>L1 Informatique</option><option>L2 Informatique</option><option>L3 Informatique</option><option>L1 Gestion</option><option>L2 Gestion</option><option>L3 Gestion</option><option>M1</option><option>M2</option></select>
+        <select id="input-edt-classe"><option value="">— Sélectionner une classe —</option></select>
       </div>
       <div class="form-group"><label>Heure début *</label>
         <select id="input-edt-debut"><option value="07:00">07:00</option><option value="08:00">08:00</option><option value="09:00">09:00</option><option value="10:00">10:00</option><option value="11:00">11:00</option><option value="12:00">12:00</option><option value="13:00">13:00</option><option value="14:00">14:00</option><option value="15:00">15:00</option><option value="16:00">16:00</option><option value="17:00">17:00</option></select>
@@ -7805,7 +7823,7 @@ function showPage(p) {
     presences:    () => { chargerAbsences(); peuplerFiltresAbsences(); },
     notes:        () => { chargerNotes(); remplirSelectBulletin(); peuplerFiltresNotes(); },
     messages:     chargerMessages,
-    emploi:       chargerEmploiDuTemps,
+    emploi:       () => { peuplerClassesEDT().then(chargerEmploiDuTemps); },
     paiements:    chargerPaiements,
     discipline:   chargerIncidents,
     documents:    chargerDocuments,
@@ -7900,6 +7918,7 @@ function showTab(page, tabId) {
 function ouvrirModal(id) {
   document.getElementById(id).classList.add('open');
   if (id === 'modal-etudiant') remplirSelectClassesEtudiant();
+  if (id === 'modal-emploi')   peuplerClassesEDT();
   if (id === 'modal-absence')  remplirSelect('input-absence-etudiant');
   if (id === 'modal-note')     remplirSelect('input-note-etudiant');
   if (id === 'modal-facture')  { remplirSelect('input-fac-etudiant'); document.getElementById('input-fac-echeance').value = new Date(Date.now()+30*864e5).toISOString().split('T')[0]; }
@@ -8477,47 +8496,159 @@ async function chargerEmploiDuTemps() {
   if (classe) q = q.eq('classe', classe);
   const { data } = await q;
   tousLesCreneaux = data || [];
+
+  // Stats
+  const st = document.getElementById('stat-edt-total');  if(st) st.textContent = tousLesCreneaux.length;
+  const sc = document.getElementById('stat-edt-cours');  if(sc) sc.textContent = tousLesCreneaux.filter(c=>c.type==='cours').length;
+  const td = document.getElementById('stat-edt-td');     if(td) td.textContent = tousLesCreneaux.filter(c=>c.type==='td'||c.type==='tp').length;
+  const sp = document.getElementById('stat-edt-profs');  if(sp) sp.textContent = [...new Set(tousLesCreneaux.map(c=>c.professeur).filter(Boolean))].length;
+
   renderGrilleEDT();
 }
+
 function renderGrilleEDT() {
   const table = document.getElementById('edt-table');
+  const filJour = document.getElementById('edt-filter-jour')?.value || '';
+  const joursAffiches = filJour ? [filJour] : JOURS;
+
   const index = {};
-  tousLesCreneaux.forEach(c => { const k=c.jour+'|'+c.heure_debut; if(!index[k])index[k]=[]; index[k].push(c); });
+  tousLesCreneaux.forEach(c => {
+    const k = c.jour + '|' + c.heure_debut;
+    if (!index[k]) index[k] = [];
+    index[k].push(c);
+  });
+
+  // Header dynamique
+  const hdrRow = '<tr><th>Heure</th>' + joursAffiches.map(j => `<th>${j}</th>`).join('') + '</tr>';
   let rows = '';
   HEURES.forEach(h => {
-    let cells = `<td>${h}</td>`;
-    JOURS.forEach(j => {
-      const slots = index[j+'|'+h] || [];
+    let cells = `<td style="font-weight:600;color:#6b7280;font-size:12px;white-space:nowrap">${h}</td>`;
+    joursAffiches.forEach(j => {
+      const slots = index[j + '|' + h] || [];
       cells += slots.length
-        ? `<td>${slots.map(s=>`<div class="edt-slot edt-slot-${TC[s.type]||'blue'}" onclick="supprimerCreneau('${s.id}','${j}','${h}')"><div class="s-mat">${s.matiere}</div>${s.professeur?`<div class="s-prof">${s.professeur}</div>`:''}</div>`).join('')}</td>`
+        ? `<td>${slots.map(s => `
+            <div class="edt-slot edt-slot-${TC[s.type]||'blue'}" style="cursor:pointer" onclick="voirCreneau('${s.id}')">
+              <div class="s-mat">${s.matiere}</div>
+              ${s.professeur ? `<div class="s-prof">👤 ${s.professeur}</div>` : ''}
+              ${s.salle      ? `<div class="s-prof">📍 ${s.salle}</div>` : ''}
+              ${s.classe     ? `<div class="s-prof" style="color:#7c3aed">${s.classe}</div>` : ''}
+            </div>`).join('')}</td>`
         : `<td><button class="edt-add-btn" onclick="ouvrirEdtAvec('${j}','${h}')">+</button></td>`;
     });
     rows += `<tr>${cells}</tr>`;
   });
-  const hdr = table.querySelector('tr');
-  table.innerHTML = ''; table.appendChild(hdr);
-  table.insertAdjacentHTML('beforeend', rows);
+
+  table.innerHTML = hdrRow + rows;
 }
+
+function voirCreneau(id) {
+  const s = tousLesCreneaux.find(c => c.id === id);
+  if (!s) return;
+  // Popup de détail avec options modifier/supprimer
+  const typeLabel = {cours:'Cours magistral', td:'Travaux dirigés', tp:'Travaux pratiques', exam:'Examen/Contrôle'}[s.type] || s.type;
+  if (confirm(
+    `📅 ${s.jour} ${s.heure_debut}–${s.heure_fin}\n` +
+    `📚 ${s.matiere}\n` +
+    `🏷️ ${typeLabel}\n` +
+    `${s.professeur ? '👤 '+s.professeur+'\n' : ''}` +
+    `${s.salle ? '📍 '+s.salle+'\n' : ''}` +
+    `${s.classe ? '🎓 '+s.classe+'\n' : ''}` +
+    `\nModifier ce créneau ?`
+  )) {
+    ouvrirModifierCreneau(id);
+  }
+}
+
 function ouvrirEdtAvec(jour, heure) {
-  ouvrirModal('modal-emploi');
+  const modal = document.getElementById('modal-emploi');
+  if (modal) { delete modal.dataset.editId; }
+  const h3 = document.querySelector('#modal-emploi h3'); if(h3) h3.textContent = '📅 Ajouter un créneau';
   document.getElementById('input-edt-jour').value = jour;
   document.getElementById('input-edt-debut').value = heure;
   const idx = HEURES.indexOf(heure);
-  document.getElementById('input-edt-fin').value = HEURES[idx+1] || '18:00';
+  document.getElementById('input-edt-fin').value = HEURES[idx + 1] || '18:00';
+  ouvrirModal('modal-emploi');
 }
+
+function ouvrirModifierCreneau(id) {
+  const s = tousLesCreneaux.find(c => c.id === id);
+  if (!s) return;
+  document.getElementById('input-edt-jour').value   = s.jour;
+  document.getElementById('input-edt-debut').value  = s.heure_debut;
+  document.getElementById('input-edt-fin').value    = s.heure_fin;
+  document.getElementById('input-edt-matiere').value= s.matiere;
+  document.getElementById('input-edt-prof').value   = s.professeur || '';
+  document.getElementById('input-edt-salle').value  = s.salle || '';
+  document.getElementById('input-edt-type').value   = s.type || 'cours';
+  // Classe — sera peuplée dynamiquement, on settera la valeur après
+  const scls = document.getElementById('input-edt-classe');
+  if (scls) {
+    // Chercher l'option qui correspond
+    Array.from(scls.options).forEach(o => { o.selected = o.text === s.classe || o.value === s.classe; });
+  }
+  const modal = document.getElementById('modal-emploi');
+  if (modal) modal.dataset.editId = id;
+  const h3 = document.querySelector('#modal-emploi h3'); if(h3) h3.textContent = '✏️ Modifier le créneau';
+  ouvrirModal('modal-emploi');
+}
+
 async function ajouterCreneau() {
   const matiere = document.getElementById('input-edt-matiere').value.trim();
-  if (!matiere) { showToast('Entrez la matière.','error'); return; }
-  const { error } = await db.from('emploi_du_temps').insert([{ ecole_id:currentEcoleId, jour:document.getElementById('input-edt-jour').value, classe:document.getElementById('input-edt-classe').value, heure_debut:document.getElementById('input-edt-debut').value, heure_fin:document.getElementById('input-edt-fin').value, matiere, professeur:document.getElementById('input-edt-prof').value.trim(), salle:document.getElementById('input-edt-salle').value.trim(), type:document.getElementById('input-edt-type').value }]);
-  if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  fermerModal('modal-emploi'); ['input-edt-matiere','input-edt-prof','input-edt-salle'].forEach(id=>document.getElementById(id).value='');
-  showToast('Créneau ajouté !','success'); chargerEmploiDuTemps();
+  if (!matiere) { showToast('Entrez la matière.', 'error'); return; }
+  const modal = document.getElementById('modal-emploi');
+  const editId = modal?.dataset?.editId;
+  // Récupérer le nom de la classe depuis le select (texte, pas UUID)
+  const selCls = document.getElementById('input-edt-classe');
+  const classeVal = selCls ? (selCls.options[selCls.selectedIndex]?.text || '') : '';
+  const payload = {
+    jour:        document.getElementById('input-edt-jour').value,
+    classe:      classeVal,
+    heure_debut: document.getElementById('input-edt-debut').value,
+    heure_fin:   document.getElementById('input-edt-fin').value,
+    matiere,
+    professeur:  document.getElementById('input-edt-prof').value.trim(),
+    salle:       document.getElementById('input-edt-salle').value.trim(),
+    type:        document.getElementById('input-edt-type').value
+  };
+  let error;
+  if (editId) {
+    ({ error } = await db.from('emploi_du_temps').update(payload).eq('id', editId));
+  } else {
+    ({ error } = await db.from('emploi_du_temps').insert([{ ...payload, ecole_id: currentEcoleId }]));
+  }
+  if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
+  fermerModal('modal-emploi');
+  if (modal) delete modal.dataset.editId;
+  const h3 = document.querySelector('#modal-emploi h3'); if(h3) h3.textContent = '📅 Ajouter un créneau';
+  ['input-edt-matiere','input-edt-prof','input-edt-salle'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  showToast(editId ? '✅ Créneau modifié !' : '✅ Créneau ajouté !', 'success');
+  chargerEmploiDuTemps();
 }
+
 async function supprimerCreneau(id, j, h) {
-  if (!confirm(`Supprimer ce créneau (${j} ${h}) ?`)) return;
-  await db.from('emploi_du_temps').delete().eq('id',id);
-  showToast('Créneau supprimé.','success'); chargerEmploiDuTemps();
+  if (!confirm(`Supprimer ce créneau (${j||''} ${h||''}) ?`)) return;
+  await db.from('emploi_du_temps').delete().eq('id', id);
+  showToast('Créneau supprimé.', 'success'); chargerEmploiDuTemps();
 }
+
+async function peuplerClassesEDT() {
+  const selF = document.getElementById('edt-filter-classe');
+  const selM = document.getElementById('input-edt-classe');
+  if (!selF && !selM) return;
+  if (!toutesLesClasses?.length) await chargerClasses();
+  const actives = (toutesLesClasses || []).filter(c => c.statut !== 'archive');
+  const opts = actives.map(c => `<option value="${c.id}">${c.nom || c.filiere + ' ' + c.niveau}</option>`).join('');
+  if (selF) selF.innerHTML = '<option value="">Toutes les classes</option>' + opts;
+  if (selM) selM.innerHTML = '<option value="">— Sélectionner —</option>' + opts;
+}
+
+function exporterEdtCSV() {
+  if (!tousLesCreneaux.length) { showToast('Aucun créneau à exporter.','error'); return; }
+  const header = ['Jour','Heure début','Heure fin','Matière','Professeur','Salle','Type','Classe'];
+  const rows = tousLesCreneaux.map(c => [c.jour,c.heure_debut,c.heure_fin,c.matiere,c.professeur||'',c.salle||'',c.type||'',c.classe||'']);
+  csvDownload('emploi_du_temps.csv', header, rows);
+}
+
 
 // ══ MESSAGERIE ════════════════════════════════
 async function chargerMessages() {
