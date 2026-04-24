@@ -6208,9 +6208,9 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab active" id="tab-cpt-tableau-btn"  onclick="showTab('cpt','tab-cpt-tableau')">📊 Tableau de bord</button>
-    <button class="tab"        id="tab-cpt-caisse-btn"   onclick="showTab('cpt','tab-cpt-caisse')">💰 Caisse</button>
+    <button class="tab"        id="tab-cpt-caisse-btn"   onclick="showTab('cpt','tab-cpt-caisse');chargerCaisse()">💰 Caisse</button>
     <button class="tab"        id="tab-cpt-lot-btn"      onclick="showTab('cpt','tab-cpt-lot')">📋 Facturation en lot</button>
-    <button class="tab"        id="tab-cpt-recus-btn"    onclick="showTab('cpt','tab-cpt-recus')">🧾 Reçus</button>
+    <button class="tab"        id="tab-cpt-recus-btn"    onclick="showTab('cpt','tab-cpt-recus');chargerRecus()">🧾 Reçus</button>
   </div>
 
   <!-- TAB Tableau de bord financier -->
@@ -6253,13 +6253,22 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
   <!-- TAB Caisse -->
   <div id="tab-cpt-caisse" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
       <div class="filters" style="margin-bottom:0">
         <span class="filter-label">Type :</span>
         <select id="filter-caisse-type" onchange="chargerCaisse()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
           <option value="">Toutes opérations</option>
           <option value="recette">Recettes</option>
           <option value="depense">Dépenses</option>
+        </select>
+        <select id="filter-caisse-categorie" onchange="chargerCaisse()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
+          <option value="">Toutes catégories</option>
+          <option value="scolarite">Scolarité</option>
+          <option value="salaires">Salaires</option>
+          <option value="fournitures">Fournitures</option>
+          <option value="infrastructure">Infrastructure</option>
+          <option value="communication">Communication</option>
+          <option value="autre">Autre</option>
         </select>
         <select id="filter-caisse-periode" onchange="chargerCaisse()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
           <option value="30">30 derniers jours</option>
@@ -6268,7 +6277,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
           <option value="all">Tout</option>
         </select>
       </div>
-      <button onclick="ouvrirModal('modal-transaction')">+ Nouvelle opération</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn-outline btn-sm" onclick="exporterCaisseCSV()">⬇️ Export CSV</button>
+        <button onclick="ouvrirModal('modal-transaction')">+ Nouvelle opération</button>
+      </div>
     </div>
     <table>
       <tr><th>Date</th><th>Libellé</th><th>Catégorie</th><th>Type</th><th>Montant</th><th>Référence</th><th>Actions</th></tr>
@@ -6288,7 +6300,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.2rem">
       <div class="form-group"><label>Cibler</label>
-        <select id="lot-cible" onchange="mettreAJourAperçuLot()" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none">
+        <select id="lot-cible" onchange="mettreAJourAperçuLot();toggleLotClasseSelect(this.value)" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none">
           <option value="tous">Tous les étudiants</option>
           <option value="filiere">Par filière</option>
           <option value="niveau">Par niveau</option>
@@ -6298,6 +6310,9 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       </div>
       <div class="form-group"><label>Valeur du filtre</label>
         <input type="text" id="lot-filtre-valeur" placeholder="Ex : Informatique, L1..." oninput="mettreAJourAperçuLot()" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none">
+        <select id="lot-filtre-classe" onchange="document.getElementById('lot-filtre-valeur').value=this.options[this.selectedIndex].text;mettreAJourAperçuLot()" style="display:none;width:100%;margin-top:6px;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none">
+          <option value="">— Sélectionner une classe —</option>
+        </select>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.2rem">
@@ -8110,6 +8125,11 @@ function fermerModal(id) {
     const modal=document.getElementById('modal-facture');
     if(modal) delete modal.dataset.editId;
     const h3=document.querySelector('#modal-facture h3'); if(h3) h3.textContent='💳 Nouvelle facture';
+  }
+  if (id === 'modal-transaction') {
+    const modal=document.getElementById('modal-transaction');
+    if(modal) delete modal.dataset.editId;
+    const h3=document.querySelector('#modal-transaction h3'); if(h3) h3.textContent='💸 Enregistrer une opération';
   }
 }
 document.querySelectorAll('.modal-overlay').forEach(o => {
@@ -13922,11 +13942,13 @@ async function chargerTableauCompta() {
 
 // ── Caisse ───────────────────────────────────────────────────────────────
 async function chargerCaisse() {
-  const typeF = document.getElementById('filter-caisse-type')?.value||'';
-  const periode= document.getElementById('filter-caisse-periode')?.value||'30';
+  const typeF    = document.getElementById('filter-caisse-type')?.value||'';
+  const catF     = document.getElementById('filter-caisse-categorie')?.value||'';
+  const periode  = document.getElementById('filter-caisse-periode')?.value||'30';
   let q = db.from('transactions_caisse').select('*').order('date_operation',{ascending:false});
   if (currentEcoleId) q = q.eq('ecole_id',currentEcoleId);
   if (typeF) q = q.eq('type_operation',typeF);
+  if (catF)  q = q.eq('categorie',catF);
   if (periode!=='all') { const depuis=new Date(Date.now()-parseInt(periode)*864e5).toISOString().split('T')[0]; q=q.gte('date_operation',depuis); }
   const { data } = await q;
   toutesLesTransactions = data||[];
@@ -13946,37 +13968,94 @@ async function chargerCaisse() {
         <td><span class="badge ${t.type_operation==='recette'?'green':'red'}">${t.type_operation==='recette'?'📥 Recette':'📤 Dépense'}</span></td>
         <td><strong style="color:${t.type_operation==='recette'?'#059669':'#dc2626'}">${t.type_operation==='recette'?'+':'-'}${fmtMontant(t.montant)}</strong></td>
         <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${t.reference||'—'}</code></td>
-        <td><button class="btn-sm btn-red" onclick="supprimerTransaction('${t.id}')">✕</button></td>
+        <td style="display:flex;gap:4px">
+          <button class="btn-sm btn-secondary" onclick="ouvrirModifierTransaction('${t.id}')">✏️</button>
+          <button class="btn-sm btn-red" onclick="supprimerTransaction('${t.id}')">✕</button>
+        </td>
       </tr>`).join('')
     : '<tr><td colspan="7" class="loading">Aucune opération enregistrée.</td></tr>';
 }
 
+function ouvrirModifierTransaction(id) {
+  const t = toutesLesTransactions.find(x=>x.id===id);
+  if (!t) return;
+  document.getElementById('input-trans-type').value      = t.type_operation||'depense';
+  document.getElementById('input-trans-libelle').value   = t.libelle||'';
+  document.getElementById('input-trans-montant').value   = t.montant||'';
+  document.getElementById('input-trans-date').value      = t.date_operation||'';
+  document.getElementById('input-trans-categorie').value = t.categorie||'';
+  document.getElementById('input-trans-mode').value      = t.mode_paiement||'';
+  document.getElementById('input-trans-ref').value       = t.reference||'';
+  if (document.getElementById('input-trans-notes'))
+    document.getElementById('input-trans-notes').value   = t.notes||'';
+  const modal = document.getElementById('modal-transaction');
+  if (modal) modal.dataset.editId = id;
+  document.querySelector('#modal-transaction h3').textContent = '✏️ Modifier l\'opération';
+  ouvrirModal('modal-transaction');
+}
+
 async function enregistrerTransaction() {
-  const libelle  = document.getElementById('input-trans-libelle').value.trim();
-  const montant  = parseFloat(document.getElementById('input-trans-montant').value);
+  const libelle = document.getElementById('input-trans-libelle').value.trim();
+  const montant = parseFloat(document.getElementById('input-trans-montant').value);
   if (!libelle||!montant||montant<=0) { showToast('Remplissez libellé et montant.','error'); return; }
-  const { error } = await db.from('transactions_caisse').insert([{
-    ecole_id:       currentEcoleId,
+  const modal  = document.getElementById('modal-transaction');
+  const editId = modal?.dataset?.editId;
+  const payload = {
     type_operation: document.getElementById('input-trans-type').value,
-    libelle,
-    montant,
+    libelle, montant,
     date_operation: document.getElementById('input-trans-date').value,
     categorie:      document.getElementById('input-trans-categorie').value,
     mode_paiement:  document.getElementById('input-trans-mode').value,
     reference:      document.getElementById('input-trans-ref').value.trim(),
-    notes:          document.getElementById('input-trans-notes').value.trim(),
-  }]);
+    notes:          document.getElementById('input-trans-notes')?.value.trim()||null,
+  };
+  let error;
+  if (editId) {
+    ({ error } = await db.from('transactions_caisse').update(payload).eq('id', editId));
+  } else {
+    ({ error } = await db.from('transactions_caisse').insert([{ ...payload, ecole_id: currentEcoleId }]));
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-transaction');
-  ['input-trans-libelle','input-trans-montant','input-trans-ref','input-trans-notes'].forEach(id=>document.getElementById(id).value='');
-  showToast('💰 Opération enregistrée !','success');
+  if (modal) delete modal.dataset.editId;
+  document.querySelector('#modal-transaction h3').textContent = '💸 Enregistrer une opération';
+  ['input-trans-libelle','input-trans-montant','input-trans-ref'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  showToast(editId?'✅ Opération modifiée !':'💰 Opération enregistrée !','success');
   chargerComptabilite();
 }
+
+function exporterCaisseCSV() {
+  if (!toutesLesTransactions.length) { showToast('Aucune opération à exporter','error'); return; }
+  const header = ['date','libelle','categorie','type','montant','reference'];
+  const rows = toutesLesTransactions.map(t=>[
+    fmtDate(t.date_operation), t.libelle||'', t.categorie||'',
+    t.type_operation||'', t.montant||0, t.reference||''
+  ]);
+  csvDownload('caisse.csv', header, rows);
+}
+
+
 
 async function supprimerTransaction(id) {
   if (!confirm('Supprimer cette opération ?')) return;
   await db.from('transactions_caisse').delete().eq('id',id);
   showToast('Opération supprimée.','success'); chargerCaisse();
+}
+
+async function toggleLotClasseSelect(val) {
+  const inp = document.getElementById('lot-filtre-valeur');
+  const sel = document.getElementById('lot-filtre-classe');
+  if (!inp || !sel) return;
+  if (val === 'classe') {
+    inp.style.display = 'none'; sel.style.display = 'block';
+    if (!toutesLesClasses?.length) await chargerClasses();
+    sel.innerHTML = '<option value="">— Sélectionner une classe —</option>'
+      + (toutesLesClasses||[]).filter(c=>c.statut!=='archive')
+          .map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+  } else {
+    inp.style.display = 'block'; sel.style.display = 'none';
+    inp.value = '';
+  }
 }
 
 // ── Facturation en lot ───────────────────────────────────────────────────
