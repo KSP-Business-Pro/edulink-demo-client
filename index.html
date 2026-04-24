@@ -6472,9 +6472,9 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab active" id="tab-pens-saisie-btn"    onclick="showTab('pens','tab-pens-saisie')">📝 Saisie rapide notes</button>
-    <button class="tab"        id="tab-pens-absences-btn"  onclick="showTab('pens','tab-pens-absences')">🚫 Signaler absences</button>
-    <button class="tab"        id="tab-pens-planning-btn"  onclick="showTab('pens','tab-pens-planning')">📅 Mon planning</button>
-    <button class="tab"        id="tab-pens-stats-btn"     onclick="showTab('pens','tab-pens-stats')">📊 Mes statistiques</button>
+    <button class="tab"        id="tab-pens-absences-btn"  onclick="showTab('pens','tab-pens-absences');remplirSelectMatieresPens()">🚫 Signaler absences</button>
+    <button class="tab"        id="tab-pens-planning-btn"  onclick="showTab('pens','tab-pens-planning');chargerPlanningEns();chargerExamensEns()">📅 Mon planning</button>
+    <button class="tab"        id="tab-pens-stats-btn"     onclick="showTab('pens','tab-pens-stats');chargerStatsEnseignant()">📊 Mes statistiques</button>
   </div>
 
   <!-- TAB Saisie rapide des notes -->
@@ -6509,10 +6509,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     </div>
     <div class="filters" style="margin-bottom:1rem">
       <span class="filter-label">Matière :</span>
-      <select id="pens-abs-matiere" style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none;min-width:200px">
+      <select id="pens-abs-matiere" onchange="chargerListeEtudiantsPensAbs()" style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none;min-width:200px">
         <option value="">— Sélectionner —</option>
       </select>
-      <input type="date" id="pens-abs-date" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
+      <input type="date" id="pens-abs-date" onchange="chargerListeEtudiantsPensAbs()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
     </div>
     <div id="pens-abs-liste-container">
       <div class="empty-state"><div class="icon">👥</div><h3>Sélectionnez une matière</h3><p>La liste des étudiants apparaîtra pour cocher les absents.</p></div>
@@ -14819,35 +14819,49 @@ let pensEtudiantsSaisie = [];
 let pensAbsCheckList = [];
 
 async function chargerPortailEnseignant() {
-  // Identifier l'enseignant connecté par email
-  const userEmail = document.getElementById('nav-user-name')?.textContent || '';
-  let q = db.from('enseignants').select('*');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data: ens } = await q;
-  const ensActif = (ens||[]).find(e => e.email && userEmail && e.nom && userEmail.includes(e.nom.toLowerCase()))
-    || (ens||[])[0]; // fallback au premier enseignant
+  // Identifier l'enseignant via la session auth
+  let ensActif = null;
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    const sessionEmail = session?.user?.email;
+    let q = db.from('enseignants').select('*');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data: ens } = await q;
+    if (sessionEmail) {
+      ensActif = (ens||[]).find(e => e.email && e.email.toLowerCase() === sessionEmail.toLowerCase());
+    }
+    // Fallback : par nom affiché dans la nav
+    if (!ensActif) {
+      const userNom = (document.getElementById('nav-user-name')?.textContent||'').toLowerCase();
+      ensActif = (ens||[]).find(e => e.nom && userNom.includes(e.nom.toLowerCase()))
+        || (ens||[])[0];
+    }
+  } catch(e) {
+    console.warn('[Portail Ens] identification:', e.message);
+  }
 
   if (ensActif) {
     const ini = (ensActif.prenom?.[0]||'') + (ensActif.nom?.[0]||'');
     document.getElementById('pens-avatar').textContent = ini.toUpperCase() || '👨‍🏫';
     document.getElementById('pens-nom').textContent = (ensActif.prenom||'') + ' ' + (ensActif.nom||'');
     document.getElementById('pens-poste').textContent = (ensActif.specialite||'Enseignant') + ' · ' + (ensActif.email||'');
-    // KPIs
-    document.getElementById('pens-kpi-cours').textContent   = ensActif.heures_semaine || '—';
-    document.getElementById('pens-kpi-etudiants').textContent = tousLesEtudiants.length || '—';
-    // Stats
+    document.getElementById('pens-kpi-cours').textContent    = ensActif.heures_semaine || '—';
+    document.getElementById('pens-kpi-etudiants').textContent= tousLesEtudiants.length || '—';
+
     let qN = db.from('notes').select('id',{count:'exact',head:true});
-    if (ensActif.id) qN = qN.eq('enseignant_id', ensActif.id);
+    if (currentEcoleId) qN = qN.eq('ecole_id', currentEcoleId);
     const { count: nbN } = await qN;
     document.getElementById('pens-kpi-notes').textContent           = nbN||0;
     document.getElementById('pens-stat-notes-saisies').textContent  = nbN||0;
 
     let qM = db.from('programmes').select('matiere');
+    if (currentEcoleId) qM = qM.eq('ecole_id', currentEcoleId);
     if (ensActif.id) qM = qM.eq('enseignant_id', ensActif.id);
     const { data: mats } = await qM;
     document.getElementById('pens-stat-matieres').textContent = (mats||[]).length;
 
     let qA = db.from('absences').select('id',{count:'exact',head:true});
+    if (currentEcoleId) qA = qA.eq('ecole_id', currentEcoleId);
     const { count: nbA } = await qA;
     document.getElementById('pens-stat-absences-signalees').textContent = nbA||0;
     document.getElementById('pens-stat-heures').textContent = (ensActif.heures_semaine||0) * 4 + 'h';
@@ -14874,6 +14888,9 @@ async function remplirSelectMatieresPens() {
   const opts = '<option value="">— Sélectionner une matière —</option>' + allMats.map(m=>`<option value="${m}">${m}</option>`).join('');
   const sels = ['pens-filter-matiere','pens-abs-matiere'];
   sels.forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = opts; });
+  // Auto-remplir la date d'aujourd'hui
+  const dateEl = document.getElementById('pens-abs-date');
+  if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
 }
 
 async function chargerSaisieRapideNotes() {
@@ -14969,7 +14986,7 @@ async function enregistrerAbsencesBatch() {
   const absents = pensAbsCheckList.filter(e => e.absent);
   if (!absents.length) { showToast('Aucun étudiant marqué absent.','error'); return; }
   const { error } = await db.from('absences').insert(absents.map(e=>({
-    etudiant_id:e.id, matiere, date_absence:date, statut:'absent', parent_notifie:false
+    ecole_id: currentEcoleId, etudiant_id:e.id, matiere, date_absence:date, statut:'absent', parent_notifie:false
   })));
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast(`🚫 ${absents.length} absence(s) enregistrée(s) !`, 'success');
@@ -14979,10 +14996,24 @@ async function enregistrerAbsencesBatch() {
 
 async function chargerPlanningEns() {
   const container = document.getElementById('pens-planning-container');
-  let q = db.from('emplois_du_temps').select('*').order('heure_debut');
+  // La table s'appelle emploi_du_temps (sans s)
+  // Le champ du prof est 'professeur' (texte), pas enseignant_id
+  let q = db.from('emploi_du_temps').select('*').order('heure_debut');
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  if (window._pensEnsId) q = q.eq('enseignant_id', window._pensEnsId);
-  const { data } = await q;
+  const { data: allCreneaux } = await q;
+  // Filtrer par nom du professeur si on connait l'enseignant actif
+  let data = allCreneaux || [];
+  if (window._pensEnsId) {
+    const ens = (await db.from('enseignants').select('nom,prenom').eq('id',window._pensEnsId).single()).data;
+    if (ens) {
+      const nomEns = (ens.nom||'').toLowerCase();
+      const prenomEns = (ens.prenom||'').toLowerCase();
+      data = data.filter(c => {
+        const prof = (c.professeur||'').toLowerCase();
+        return prof.includes(nomEns) || prof.includes(prenomEns);
+      });
+    }
+  }
   if (!data?.length) {
     container.innerHTML = '<div class="empty-state" style="padding:2rem"><div class="icon">📅</div><h3>Aucun cours planifié</h3></div>';
     return;
@@ -15013,9 +15044,9 @@ async function chargerExamensEns() {
   container.innerHTML = data?.length
     ? data.map(e=>`<div style="display:flex;align-items:center;gap:10px;padding:.75rem 1.2rem;border-bottom:1px solid #f3f4f6">
         <span style="font-size:20px">📝</span>
-        <div style="flex:1"><div style="font-size:12.5px;font-weight:600">${e.matiere||'—'} — ${e.classe||'—'}</div>
+        <div style="flex:1"><div style="font-size:12.5px;font-weight:600">${e.matiere||'—'} — ${e.classe||e.filiere||'—'}</div>
         <div style="font-size:11px;color:#6b7280">${fmtDate(e.date_examen)} · ${e.heure_debut||''} · ${e.salle||''}</div></div>
-        <span class="badge ${e.type_examen==='final'?'red':e.type_examen==='partiel'?'amber':'blue'}">${e.type_examen||'—'}</span>
+        <span class="badge ${(e.type||e.type_examen)==='final'?'red':(e.type||e.type_examen)==='partiel'?'amber':'blue'}">${e.type||e.type_examen||'—'}</span>
       </div>`).join('')
     : '<div style="padding:1.2rem;font-size:12.5px;color:#9ca3af;text-align:center">Aucun examen à venir.</div>';
 }
