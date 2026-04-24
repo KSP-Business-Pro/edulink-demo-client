@@ -2953,19 +2953,32 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <h2>Discipline</h2>
       <p class="page-subtitle">Gestion des incidents et sanctions</p>
     </div>
-    <button onclick="ouvrirModal('modal-incident')">+ Nouvel incident</button>
+    <div class="top-actions">
+      <button class="btn-outline" onclick="exporterIncidentsCSV()">⬇️ Export CSV</button>
+      <button onclick="ouvrirModal('modal-incident')">+ Nouvel incident</button>
+    </div>
   </div>
 
   <div class="discipline-stats">
     <div class="disc-stat"><div class="ds-val" id="ds-total" style="color:#1e3a5f">0</div><div class="ds-lbl">Incidents total</div></div>
     <div class="disc-stat"><div class="ds-val" id="ds-ouverts" style="color:#dc2626">0</div><div class="ds-lbl">En cours / Ouverts</div></div>
     <div class="disc-stat"><div class="ds-val" id="ds-resolus" style="color:#059669">0</div><div class="ds-lbl">Résolus</div></div>
+    <div class="disc-stat"><div class="ds-val" id="ds-haute" style="color:#d97706">0</div><div class="ds-lbl">Sévérité haute</div></div>
   </div>
 
   <div class="filters">
-    <span class="filter-label">Sévérité :</span>
+    <span class="filter-label">Filtrer :</span>
+    <select id="filter-disc-type" onchange="chargerIncidents()">
+      <option value="">Tous types</option>
+      <option value="comportement">Comportement</option>
+      <option value="violence">Violence</option>
+      <option value="fraude">Fraude/Triche</option>
+      <option value="absences">Absences répétées</option>
+      <option value="retards">Retards répétés</option>
+      <option value="autre">Autre</option>
+    </select>
     <select id="filter-disc-sev" onchange="chargerIncidents()">
-      <option value="">Toutes</option>
+      <option value="">Toutes sévérités</option>
       <option value="haute">Haute</option>
       <option value="moyenne">Moyenne</option>
       <option value="faible">Faible</option>
@@ -2976,6 +2989,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <option value="en_traitement">En traitement</option>
       <option value="résolu">Résolu</option>
     </select>
+    <select id="filter-disc-etudiant" onchange="chargerIncidents()">
+      <option value="">Tous les étudiants</option>
+    </select>
+    <button class="btn-sm btn-secondary" onclick="resetFiltresDisc()">🔄 Réinitialiser</button>
   </div>
 
   <div id="incidents-list">
@@ -7931,7 +7948,7 @@ function showPage(p) {
     messages:     () => { chargerMessages(); },
     emploi:       () => { peuplerClassesEDT().then(chargerEmploiDuTemps); },
     paiements:    chargerPaiements,
-    discipline:   chargerIncidents,
+    discipline:   () => { chargerIncidents(); peuplerFiltresDisc(); },
     documents:    chargerDocuments,
     rapports:     () => afficherRapport('effectifs'),
     utilisateurs: () => { if (typeof chargerUtilisateurs === 'function') chargerUtilisateurs(); },
@@ -9074,42 +9091,50 @@ async function chargerIncidents() {
   document.getElementById('incidents-list').innerHTML='<div class="loading">Chargement...</div>';
   let q = db.from('incidents').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const fs = document.getElementById('filter-disc-sev')?.value;
-  const fst= document.getElementById('filter-disc-statut')?.value;
-  if (fs)  q = q.eq('severite', fs);
-  if (fst) q = q.eq('statut', fst);
+  const fs   = document.getElementById('filter-disc-sev')?.value;
+  const fst  = document.getElementById('filter-disc-statut')?.value;
+  const ftyp = document.getElementById('filter-disc-type')?.value;
+  const fetu = document.getElementById('filter-disc-etudiant')?.value;
+  if (fs)   q = q.eq('severite', fs);
+  if (fst)  q = q.eq('statut', fst);
+  if (ftyp) q = q.eq('type_incident', ftyp);
+  if (fetu) q = q.eq('etudiant_id', fetu);
   const { data } = await q;
   const all = data || [];
+  const estResolu = i => i.statut === 'résolu' || i.statut === 'resolu' || i.statut === 'Résolu';
   document.getElementById('ds-total').textContent   = all.length;
-  document.getElementById('ds-ouverts').textContent = all.filter(i=>i.statut!=='résolu').length;
-  document.getElementById('ds-resolus').textContent = all.filter(i=>i.statut==='résolu').length;
+  document.getElementById('ds-ouverts').textContent = all.filter(i=>!estResolu(i)).length;
+  document.getElementById('ds-resolus').textContent = all.filter(i=>estResolu(i)).length;
+  const dsh = document.getElementById('ds-haute'); if(dsh) dsh.textContent = all.filter(i=>i.severite==='haute').length;
   const badgeD = document.getElementById('badge-disc');
-  const nbOuv = all.filter(i=>i.statut!=='résolu').length;
-  if (nbOuv>0){badgeD.textContent=nbOuv;badgeD.style.display='inline';}else badgeD.style.display='none';
+  const nbOuv = all.filter(i=>!estResolu(i)).length;
+  if (badgeD) { if(nbOuv>0){badgeD.textContent=nbOuv;badgeD.style.display='inline';}else badgeD.style.display='none'; }
   if (!all.length) {
     document.getElementById('incidents-list').innerHTML='<div class="empty-state"><div class="icon">✅</div><h3>Aucun incident signalé</h3><p>L\'établissement fonctionne normalement.</p></div>';
     return;
   }
-  const typeLabels = { comportement:'Comportement', violence:'Violence', fraude:'Fraude/Triche', absences:'Absences répétées', retards:'Retards répétés', autre:'Autre' };
+  const typeLabels  = { comportement:'Comportement', violence:'Violence', fraude:'Fraude/Triche', absences:'Absences répétées', retards:'Retards répétés', autre:'Autre' };
   const sanctLabels = { avertissement:'Avertissement verbal', blame:'Blâme écrit', exclusion_temp:'Exclusion temporaire', exclusion_def:'Exclusion définitive', parents:'Convocation parents' };
   document.getElementById('incidents-list').innerHTML = all.map(i => {
     const sevCls = i.severite==='haute'?'red':i.severite==='moyenne'?'amber':'green';
     const ico = i.severite==='haute'?'🔴':i.severite==='moyenne'?'🟡':'🟢';
+    const statutCls = estResolu(i)?'green':i.statut==='en_traitement'?'blue':'red';
     return `<div class="incident-card">
       <div class="incident-ico sev-${i.severite}">${ico}</div>
       <div class="incident-body">
         <div class="inc-titre">${typeLabels[i.type_incident]||i.type_incident} — ${i.etudiants?i.etudiants.nom+' '+i.etudiants.prenom:'N/A'}</div>
         <div class="inc-meta">
-          <span>📅 ${fmtDate(i.date_incident)}</span>
-          <span><span class="badge ${sevCls}">Sévérité : ${i.severite}</span></span>
-          <span><span class="badge ${i.statut==='résolu'?'green':i.statut==='en_traitement'?'blue':'red'}">${i.statut}</span></span>
+          <span>📅 ${fmtDate(i.date_incident||i.created_at)}</span>
+          <span><span class="badge ${sevCls}">Sév. ${i.severite}</span></span>
+          <span><span class="badge ${statutCls}">${i.statut}</span></span>
           ${i.sanction?`<span>⚖️ ${sanctLabels[i.sanction]||i.sanction}</span>`:''}
         </div>
         <div class="inc-desc">${i.description||''}</div>
         ${i.note_resolution?`<div style="margin-top:6px;font-size:12px;color:#059669;background:#f0fdf4;padding:6px 10px;border-radius:6px">✅ Résolution : ${i.note_resolution}</div>`:''}
       </div>
       <div class="incident-actions">
-        ${i.statut!=='résolu'?`<button class="btn-sm btn-green" onclick="ouvrirResolution('${i.id}')">Résoudre</button>`:''}
+        <button class="btn-sm btn-secondary" onclick="ouvrirModifierIncident('${i.id}')">✏️</button>
+        ${!estResolu(i)?`<button class="btn-sm btn-green" onclick="ouvrirResolution('${i.id}')">✅ Résoudre</button>`:''}
         <button class="btn-sm btn-red" onclick="supprimerIncident('${i.id}')">✕</button>
       </div>
     </div>`;
@@ -9117,11 +9142,74 @@ async function chargerIncidents() {
 }
 async function enregistrerIncident() {
   const desc = document.getElementById('input-inc-desc').value.trim();
-  if (!desc) { showToast('Décrivez l\'incident.','error'); return; }
-  const { error } = await db.from('incidents').insert([{ ecole_id:currentEcoleId, etudiant_id:document.getElementById('input-inc-etudiant').value, type_incident:document.getElementById('input-inc-type').value, severite:document.getElementById('input-inc-severite').value, date_incident:document.getElementById('input-inc-date').value, description:desc, sanction:document.getElementById('input-inc-sanction').value, statut:'ouvert' }]);
+  if (!desc) { showToast("Décrivez l'incident.",'error'); return; }
+  const modal = document.getElementById('modal-incident');
+  const editId = modal?.dataset?.editId;
+  const payload = {
+    etudiant_id:   document.getElementById('input-inc-etudiant').value,
+    type_incident: document.getElementById('input-inc-type').value,
+    severite:      document.getElementById('input-inc-severite').value,
+    date_incident: document.getElementById('input-inc-date').value,
+    description:   desc,
+    sanction:      document.getElementById('input-inc-sanction').value,
+  };
+  let error;
+  if (editId) {
+    ({ error } = await db.from('incidents').update(payload).eq('id', editId));
+  } else {
+    ({ error } = await db.from('incidents').insert([{ ...payload, ecole_id:currentEcoleId, statut:'ouvert' }]));
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  fermerModal('modal-incident'); document.getElementById('input-inc-desc').value='';
-  showToast('Incident enregistré !','success'); chargerIncidents(); chargerDashboard();
+  fermerModal('modal-incident');
+  if (modal) delete modal.dataset.editId;
+  document.querySelector('#modal-incident h3').textContent = '⚠️ Signaler un incident';
+  document.getElementById('input-inc-desc').value='';
+  showToast(editId?'✅ Incident modifié !':'Incident enregistré !','success');
+  chargerIncidents(); chargerDashboard();
+}
+function ouvrirModifierIncident(id) {
+  db.from('incidents').select('*').eq('id', id).single().then(({data:inc}) => {
+    if (!inc) return;
+    document.getElementById('input-inc-etudiant').value = inc.etudiant_id||'';
+    document.getElementById('input-inc-type').value     = inc.type_incident||'comportement';
+    document.getElementById('input-inc-severite').value = inc.severite||'faible';
+    document.getElementById('input-inc-date').value     = inc.date_incident||'';
+    document.getElementById('input-inc-desc').value     = inc.description||'';
+    document.getElementById('input-inc-sanction').value = inc.sanction||'';
+    const modal = document.getElementById('modal-incident');
+    if (modal) modal.dataset.editId = id;
+    document.querySelector('#modal-incident h3').textContent = "✏️ Modifier l'incident";
+    ouvrirModal('modal-incident');
+  });
+}
+function resetFiltresDisc() {
+  ['filter-disc-type','filter-disc-sev','filter-disc-statut','filter-disc-etudiant']
+    .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  chargerIncidents();
+}
+async function peuplerFiltresDisc() {
+  const sel = document.getElementById('filter-disc-etudiant');
+  if (!sel) return;
+  if (!tousLesEtudiants.length) {
+    let q = db.from('etudiants').select('id,nom,prenom').order('nom');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q; tousLesEtudiants = data||[];
+  }
+  sel.innerHTML = '<option value="">Tous les étudiants</option>'
+    + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+}
+function exporterIncidentsCSV() {
+  db.from('incidents').select('*, etudiants(nom,prenom)').eq('ecole_id', currentEcoleId||'').order('created_at',{ascending:false})
+    .then(({data}) => {
+      if (!data?.length) { showToast('Aucun incident à exporter','error'); return; }
+      const header = ['etudiant','type','severite','date','statut','sanction','description'];
+      const rows = data.map(i=>[
+        i.etudiants?i.etudiants.nom+' '+i.etudiants.prenom:'N/A',
+        i.type_incident||'', i.severite||'', fmtDate(i.date_incident||i.created_at),
+        i.statut||'', i.sanction||'', (i.description||'').replace(/,/g,';')
+      ]);
+      csvDownload('incidents.csv', header, rows);
+    });
 }
 function ouvrirResolution(id) {
   document.getElementById('input-res-id').value = id;
