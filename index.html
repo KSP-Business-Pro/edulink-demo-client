@@ -9578,11 +9578,6 @@ function exporterDocumentsCSV() {
 }
 
 
-  const { data } = await q;
-  tousLesDocuments = data || [];
-  afficherDocumentsGalerie();
-  afficherDocumentsListe();
-}
 function previewDocFichier(input) {
   if (!input.files.length) return;
   const f = input.files[0];
