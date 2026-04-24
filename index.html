@@ -5993,8 +5993,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Gestion du catalogue et des emprunts</p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="showTab('bib','tab-bib-emprunts')">📋 Emprunts en cours</button>
-      <button onclick="ouvrirModal('modal-livre')">+ Ajouter ouvrage</button>
+      <button class="btn-outline" onclick="exporterBiblioCSV()">⬇️ Export CSV</button>
+      <button class="btn-secondary" onclick="ouvrirModal('modal-livre')">+ Ajouter ouvrage</button>
     </div>
   </div>
   <div class="bib-stat-bar">
@@ -6004,9 +6004,9 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div class="bib-stat"><div class="bib-stat-ico red">⚠️</div><div><div class="bs-val" style="color:#dc2626" id="bib-stat-retard">—</div><div class="bs-lbl">En retard</div></div></div>
   </div>
   <div class="tabs">
-    <button class="tab active" id="tab-bib-catalogue-btn" onclick="showTab('bib','tab-bib-catalogue')">📖 Catalogue</button>
-    <button class="tab" id="tab-bib-emprunts-btn" onclick="showTab('bib','tab-bib-emprunts')">📤 Emprunts actifs</button>
-    <button class="tab" id="tab-bib-historique-btn" onclick="showTab('bib','tab-bib-historique')">📋 Historique</button>
+    <button class="tab active" id="tab-bib-catalogue-btn"   onclick="showTab('bib','tab-bib-catalogue')">📖 Catalogue</button>
+    <button class="tab"        id="tab-bib-emprunts-btn"    onclick="showTab('bib','tab-bib-emprunts');chargerEmpruntsActifs()">📤 Emprunts actifs</button>
+    <button class="tab"        id="tab-bib-historique-btn"  onclick="showTab('bib','tab-bib-historique');chargerHistoriqueBib()">📋 Historique</button>
   </div>
   <div id="tab-bib-catalogue">
     <div class="search-bar" style="margin-bottom:1rem">
@@ -8063,7 +8063,7 @@ function showPage(p) {
     enseignants:     () => { chargerEnseignants(); },
     notifications:   chargerNotifications,
     certificats:     () => { chargerCertificats(); peuplerFiltresCert(); },
-    bibliotheque:    chargerBibliotheque,
+    bibliotheque:    () => { chargerBibliotheque(); },
     analytics:       chargerAnalytics,
     classes:         chargerClasses,
     comptabilite:    chargerComptabilite,
@@ -8188,6 +8188,11 @@ function fermerModal(id) {
     const modal=document.getElementById('modal-document');
     if(modal) delete modal.dataset.editId;
     const h3=document.querySelector('#modal-document h3'); if(h3) h3.textContent='📄 Ajouter un document';
+  }
+  if (id === 'modal-livre') {
+    const modal=document.getElementById('modal-livre');
+    if(modal) delete modal.dataset.editId;
+    const h3=document.querySelector('#modal-livre h3'); if(h3) h3.textContent='📚 Ajouter un ouvrage';
   }
 }
 document.querySelectorAll('.modal-overlay').forEach(o => {
@@ -13153,6 +13158,7 @@ function afficherCatalogueLivres(liste) {
       </div>
       <div class="bib-book-actions">
         ${dispo > 0 ? `<button class="btn-sm btn-blue" onclick="preRemplirEmprunt('${l.id}')">📤 Emprunter</button>` : ''}
+        <button class="btn-sm btn-secondary" onclick="ouvrirModifierLivre('${l.id}')">✏️</button>
         <button class="btn-sm btn-red" onclick="supprimerLivre('${l.id}')">✕</button>
       </div>
     </div>`;
@@ -13175,25 +13181,62 @@ async function ajouterLivre() {
   const titre = document.getElementById('input-livre-titre').value.trim();
   const auteur= document.getElementById('input-livre-auteur').value.trim();
   if (!titre || !auteur) { showToast('Titre et auteur obligatoires.','error'); return; }
-  const { error } = await db.from('livres').insert([{
-    ecole_id: currentEcoleId,
+  const modal  = document.getElementById('modal-livre');
+  const editId = modal?.dataset?.editId;
+  const payload = {
     titre, auteur,
-    isbn: document.getElementById('input-livre-isbn').value.trim(),
+    isbn:          document.getElementById('input-livre-isbn').value.trim(),
     annee_edition: parseInt(document.getElementById('input-livre-annee').value)||null,
-    categorie: document.getElementById('input-livre-categorie').value,
-    exemplaires: parseInt(document.getElementById('input-livre-exemplaires').value)||1,
-    exemplaires_empruntes: 0,
-    cote: document.getElementById('input-livre-cote').value.trim(),
-    description: document.getElementById('input-livre-desc').value.trim(),
-    statut:'disponible'
-  }]);
+    categorie:     document.getElementById('input-livre-categorie').value,
+    exemplaires:   parseInt(document.getElementById('input-livre-exemplaires').value)||1,
+    cote:          document.getElementById('input-livre-cote').value.trim(),
+    description:   document.getElementById('input-livre-desc').value.trim(),
+  };
+  let error;
+  if (editId) {
+    ({ error } = await db.from('livres').update(payload).eq('id', editId));
+  } else {
+    ({ error } = await db.from('livres').insert([{ ...payload, ecole_id:currentEcoleId, exemplaires_empruntes:0, statut:'disponible' }]));
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-livre');
+  if (modal) delete modal.dataset.editId;
+  document.querySelector('#modal-livre h3').textContent = '📚 Ajouter un ouvrage';
   ['input-livre-titre','input-livre-auteur','input-livre-isbn','input-livre-annee','input-livre-cote','input-livre-desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('input-livre-exemplaires').value='1';
-  showToast('📚 Ouvrage ajouté au catalogue !','success');
+  showToast(editId?'✅ Ouvrage modifié !':'📚 Ouvrage ajouté au catalogue !','success');
   chargerBibliotheque();
 }
+
+function ouvrirModifierLivre(id) {
+  const l = tousLesLivres.find(x=>x.id===id);
+  if (!l) return;
+  document.getElementById('input-livre-titre').value      = l.titre||'';
+  document.getElementById('input-livre-auteur').value     = l.auteur||'';
+  document.getElementById('input-livre-isbn').value       = l.isbn||'';
+  document.getElementById('input-livre-annee').value      = l.annee_edition||'';
+  document.getElementById('input-livre-categorie').value  = l.categorie||'';
+  document.getElementById('input-livre-exemplaires').value= l.exemplaires||1;
+  document.getElementById('input-livre-cote').value       = l.cote||'';
+  document.getElementById('input-livre-desc').value       = l.description||'';
+  const modal = document.getElementById('modal-livre');
+  if (modal) modal.dataset.editId = id;
+  document.querySelector('#modal-livre h3').textContent = '✏️ Modifier l\'ouvrage';
+  ouvrirModal('modal-livre');
+}
+
+function exporterBiblioCSV() {
+  if (!tousLesLivres.length) { showToast('Catalogue vide','error'); return; }
+  const header = ['titre','auteur','isbn','annee','categorie','exemplaires','disponibles','cote'];
+  const rows = tousLesLivres.map(l=>[
+    l.titre||'', l.auteur||'', l.isbn||'', l.annee_edition||'',
+    l.categorie||'', l.exemplaires||1,
+    (l.exemplaires||1)-(l.exemplaires_empruntes||0), l.cote||''
+  ]);
+  csvDownload('catalogue.csv', header, rows);
+}
+
+
 
 async function supprimerLivre(id) {
   if (!confirm('Supprimer cet ouvrage du catalogue ?')) return;
@@ -15708,18 +15751,6 @@ function renderLivres(livres) {
   }).join('');
 }
 
-function filtrerLivres() {
-  const q = (document.getElementById('bib-search').value||'').toLowerCase();
-  const cat = document.getElementById('bib-filter-cat').value;
-  const dispo = document.getElementById('bib-filter-dispo').value;
-  let res = bib8Livres.filter(l=>{
-    const matchQ = !q || l.titre.toLowerCase().includes(q) || l.auteur.toLowerCase().includes(q) || (l.isbn||'').includes(q);
-    const matchCat = !cat || l.categorie===cat;
-    const matchDispo = !dispo || (dispo==='disponible'&&l.disponibles>0) || (dispo==='emprunte'&&l.disponibles===0);
-    return matchQ && matchCat && matchDispo;
-  });
-  renderLivres(res);
-}
 
 function renderEmprunts(emprunts) {
   const container = document.getElementById('bib-emprunts-list');
