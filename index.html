@@ -2711,7 +2711,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       </select>
       <select id="filter-exam-classe" onchange="filtrerExamens()">
         <option value="">Toutes classes</option>
-        <option>L1</option><option>L2</option><option>L3</option><option>M1</option><option>M2</option>
       </select>
     </div>
     <div id="exam-liste-container"><div class="loading">Chargement...</div></div>
@@ -6969,17 +6968,20 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div class="form-group"><label>Heure de fin</label><input type="time" id="input-exam-heure-fin" value="10:00"></div>
     </div>
     <div class="form-grid">
+      <div class="form-group"><label>Classe (optionnel)</label>
+        <select id="input-exam-classe" onchange="syncFiliereNiveauExamen(this)">
+          <option value="">— Toutes les classes —</option>
+        </select>
+      </div>
       <div class="form-group"><label>Filière</label>
         <select id="input-exam-filiere">
           <option value="">Toutes les filières</option>
-          <option>Informatique</option><option>Gestion</option><option>Droit</option>
-          <option>Médecine</option><option>Finance</option><option>Lettres</option>
         </select>
       </div>
       <div class="form-group"><label>Niveau</label>
         <select id="input-exam-niveau">
           <option value="">Tous niveaux</option>
-          <option>L1</option><option>L2</option><option>L3</option><option>M1</option><option>M2</option>
+          <option>L1</option><option>L2</option><option>L3</option><option>M1</option><option>M2</option><option>Doctorat</option>
         </select>
       </div>
       <div class="form-group"><label>Salle / Lieu</label><input type="text" id="input-exam-salle" placeholder="Ex: Amphi A, Salle 101"></div>
@@ -7830,7 +7832,7 @@ function showPage(p) {
     rapports:     () => afficherRapport('effectifs'),
     utilisateurs: () => { if (typeof chargerUtilisateurs === 'function') chargerUtilisateurs(); },
     parametres:   () => { chargerParametres(); chargerConfigFCM(); },
-    examens:      chargerExamens,
+    examens:      () => { chargerExamens(); peuplerFiltresExamens(); },
     enseignants:     chargerEnseignants,
     notifications:   chargerNotifications,
     certificats:     chargerCertificats,
@@ -7919,6 +7921,19 @@ function ouvrirModal(id) {
   document.getElementById(id).classList.add('open');
   if (id === 'modal-etudiant') remplirSelectClassesEtudiant();
   if (id === 'modal-emploi')   peuplerClassesEDT();
+  if (id === 'modal-examen') {
+    peuplerFiltresExamens();
+    // Réinitialiser si pas en mode édition
+    if (!document.getElementById('input-exam-id').value) {
+      document.getElementById('modal-examen-titre').textContent = '📝 Planifier un examen';
+      ['input-exam-matiere','input-exam-date','input-exam-salle','input-exam-surveillant','input-exam-instructions'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+      document.getElementById('input-exam-duree').value='120';
+      document.getElementById('input-exam-heure-debut').value='08:00';
+      document.getElementById('input-exam-heure-fin').value='10:00';
+      document.getElementById('input-exam-type').value='controle';
+      document.getElementById('input-exam-statut').value='planifie';
+    }
+  }
   if (id === 'modal-absence')  remplirSelect('input-absence-etudiant');
   if (id === 'modal-note')     remplirSelect('input-note-etudiant');
   if (id === 'modal-facture')  { remplirSelect('input-fac-etudiant'); document.getElementById('input-fac-echeance').value = new Date(Date.now()+30*864e5).toISOString().split('T')[0]; }
@@ -7935,7 +7950,10 @@ function ouvrirModal(id) {
   if (id === 'modal-enseignant') { initModalEnseignant(); }
   if (id === 'modal-matiere') { remplirSelectEnsModal(); }
 }
-function fermerModal(id) { document.getElementById(id).classList.remove('open'); }
+function fermerModal(id) {
+  document.getElementById(id).classList.remove('open');
+  if (id === 'modal-examen') { const el=document.getElementById('input-exam-id'); if(el) el.value=''; }
+}
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
 });
@@ -9558,7 +9576,15 @@ function filtrerExamens() {
   let liste = tousLesExamens;
   if (fType)   liste = liste.filter(e => e.type_examen === fType);
   if (fStatut) liste = liste.filter(e => e.statut === fStatut);
-  if (fClasse) liste = liste.filter(e => e.niveau === fClasse);
+  if (fClasse) {
+    // fClasse peut être un nom de classe ou un niveau
+    const cls = (toutesLesClasses||[]).find(c => c.id === fClasse);
+    if (cls) {
+      liste = liste.filter(e => e.filiere === cls.filiere || e.niveau === cls.niveau);
+    } else {
+      liste = liste.filter(e => e.niveau === fClasse);
+    }
+  }
   afficherListeExamens(liste);
 }
 
@@ -9599,6 +9625,8 @@ function afficherListeExamens(liste) {
         ${pillTxt ? `<span class="exam-countdown-pill ${pillCls}">${pillTxt}</span>` : ''}
         <button class="btn-sm btn-blue" onclick="editerExamen('${ex.id}')">✏️ Éditer</button>
         ${ex.statut === 'termine' ? `<button class="btn-sm btn-green" onclick="ouvrirPV('${ex.id}')">📋 PV</button>`:''}
+        ${ex.statut !== 'termine' ? `<button class="btn-sm btn-secondary" onclick="changerStatutExamen('${ex.id}','termine')">✅ Terminer</button>`:''}
+        <button class="btn-sm btn-red" onclick="supprimerExamen('${ex.id}','${ex.matiere}')">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -9738,7 +9766,7 @@ function initModalExamen() {
 function editerExamen(examId) {
   const ex = tousLesExamens.find(e => e.id === examId);
   if (!ex) return;
-  document.getElementById('modal-examen-titre').textContent = '✏️ Modifier l\'examen';
+  document.getElementById('modal-examen-titre').textContent = '✏️ Modifier l'examen';
   document.getElementById('input-exam-id').value = ex.id;
   document.getElementById('input-exam-matiere').value = ex.matiere||'';
   document.getElementById('input-exam-type').value = ex.type_examen||'controle';
@@ -9746,13 +9774,17 @@ function editerExamen(examId) {
   document.getElementById('input-exam-duree').value = ex.duree||120;
   document.getElementById('input-exam-heure-debut').value = ex.heure_debut||'08:00';
   document.getElementById('input-exam-heure-fin').value = ex.heure_fin||'10:00';
-  document.getElementById('input-exam-filiere').value = ex.filiere||'';
-  document.getElementById('input-exam-niveau').value = ex.niveau||'';
   document.getElementById('input-exam-salle').value = ex.salle||'';
   document.getElementById('input-exam-surveillant').value = ex.surveillant||'';
   document.getElementById('input-exam-instructions').value = ex.instructions||'';
   document.getElementById('input-exam-statut').value = ex.statut||'planifie';
+  const fi=ex.filiere||''; const nv=ex.niveau||'';
   ouvrirModal('modal-examen');
+  setTimeout(function(){
+    const sf=document.getElementById('input-exam-filiere'); const sn=document.getElementById('input-exam-niveau');
+    if(sf) Array.from(sf.options).forEach(function(o){o.selected=o.value===fi;});
+    if(sn) Array.from(sn.options).forEach(function(o){o.selected=o.value===nv;});
+  },300);
 }
 
 async function sauvegarderExamen() {
@@ -9790,6 +9822,58 @@ function exporterExamensCSV() {
   const blob = new Blob([header+'\n'+rows.join('\n')],{type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='edulink_examens.csv'; a.click();
   showToast('Export CSV téléchargé !','success');
+}
+
+async function supprimerExamen(id, matiere) {
+  if (!confirm(`Supprimer l'examen "${matiere}" ?\nLes notes associées (PV) seront aussi supprimées.`)) return;
+  await db.from('notes').delete().eq('periode', 'EXAM-' + id);
+  await db.from('examens').delete().eq('id', id);
+  showToast('Examen supprimé.', 'success');
+  chargerExamens();
+}
+
+async function changerStatutExamen(id, newStatut) {
+  await db.from('examens').update({ statut: newStatut }).eq('id', id);
+  const labels = { termine:'✅ Terminé', en_cours:'En cours', planifie:'Planifié', annule:'Annulé' };
+  showToast(labels[newStatut] || 'Statut mis à jour', 'success');
+  chargerExamens();
+}
+
+async function peuplerFiltresExamens() {
+  // Filtre classe dans l'onglet liste
+  const selFil = document.getElementById('filter-exam-classe');
+  // Select classe dans la modale
+  const selMod = document.getElementById('input-exam-classe');
+  // Select filière dans la modale
+  const selFil2 = document.getElementById('input-exam-filiere');
+  if (!toutesLesClasses?.length) await chargerClasses();
+  const actives = (toutesLesClasses || []).filter(c => c.statut !== 'archive');
+  if (selFil) {
+    selFil.innerHTML = '<option value="">Toutes classes</option>'
+      + actives.map(c => `<option value="${c.id}">${c.nom || c.filiere + ' ' + c.niveau}</option>`).join('');
+  }
+  if (selMod) {
+    selMod.innerHTML = '<option value="">— Toutes les classes —</option>'
+      + actives.map(c => `<option value="${c.id}" data-filiere="${c.filiere||''}" data-niveau="${c.niveau||''}">${c.nom || c.filiere + ' ' + c.niveau}</option>`).join('');
+  }
+  if (selFil2) {
+    const filieres = [...new Set(actives.map(c => c.filiere).filter(Boolean))].sort();
+    selFil2.innerHTML = '<option value="">Toutes les filières</option>'
+      + filieres.map(f => `<option value="${f}">${f}</option>`).join('');
+  }
+}
+
+function syncFiliereNiveauExamen(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return;
+  const fi = document.getElementById('input-exam-filiere');
+  const nv = document.getElementById('input-exam-niveau');
+  if (fi && opt.dataset.filiere) {
+    Array.from(fi.options).forEach(o => { o.selected = o.value === opt.dataset.filiere; });
+  }
+  if (nv && opt.dataset.niveau) {
+    Array.from(nv.options).forEach(o => { o.selected = o.value === opt.dataset.niveau; });
+  }
 }
 
 // ══ ENSEIGNANTS  ★ JOUR 13 ═══════════════════════════════════════════
