@@ -2815,7 +2815,42 @@ button:hover { background:#a86615; transform:translateY(-1px); }
      MESSAGERIE
 ═══════════════════════════════════════ -->
 <div class="page" id="page-messages">
-  <div class="top"><h2>Messagerie</h2><button onclick="ouvrirModal('modal-message')">+ Nouveau message</button></div>
+  <div class="top">
+    <h2>Messagerie</h2>
+    <div class="top-actions">
+      <button class="btn-outline" onclick="exporterMessagesCSV()">⬇️ Export CSV</button>
+      <button onclick="ouvrirModal('modal-message')">+ Nouveau message</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="cards" style="margin-bottom:1rem">
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#1e3a5f" id="stat-msg-total">—</div><div style="font-size:12px;color:#6b7280">Total messages</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#dc2626" id="stat-msg-nonlus">—</div><div style="font-size:12px;color:#6b7280">Non lus</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#059669" id="stat-msg-lus">—</div><div style="font-size:12px;color:#6b7280">Lus</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#7c3aed" id="stat-msg-envoyes">—</div><div style="font-size:12px;color:#6b7280">Envoyés ce mois</div></div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="filters" style="margin-bottom:.75rem">
+    <span class="filter-label">Filtrer :</span>
+    <select id="filter-msg-statut" onchange="filtrerMessages()">
+      <option value="">Tous</option>
+      <option value="nonlu">Non lus</option>
+      <option value="lu">Lus</option>
+    </select>
+    <select id="filter-msg-role" onchange="filtrerMessages()">
+      <option value="">Tous rôles</option>
+      <option value="parent">Parents</option>
+      <option value="etudiant">Étudiants</option>
+      <option value="professeur">Professeurs</option>
+      <option value="administration">Administration</option>
+    </select>
+    <input type="text" id="search-msg" placeholder="🔍 Rechercher..." oninput="filtrerMessages()"
+      style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:'Poppins',sans-serif">
+    <button class="btn-sm btn-secondary" onclick="resetFiltresMessages()">🔄 Réinitialiser</button>
+  </div>
+
   <div class="msg-layout">
     <div class="msg-list">
       <div class="msg-list-header">
@@ -2833,6 +2868,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
             <span>De : <strong id="msg-detail-from">—</strong></span>
             <span>Rôle : <span id="msg-detail-role">—</span></span>
             <span id="msg-detail-date" style="margin-left:auto"></span>
+            <button class="btn-sm btn-red" id="btn-supprimer-msg" onclick="supprimerMessageActif()" style="margin-left:8px">🗑️ Supprimer</button>
           </div>
         </div>
         <div class="msg-detail-body" id="msg-detail-body"></div>
@@ -4652,8 +4688,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
       <!-- Zone de saisie -->
       <div class="ia-input-area">
-        <input class="ia-input" id="ia-input" placeholder="Posez votre question à EduLink AI..." onkeypress="if(event.key==='Enter')envoyerMessage()" />
-        <button class="ia-send-btn" onclick="envoyerMessage()" title="Envoyer">➤</button>
+        <input class="ia-input" id="ia-input" placeholder="Posez votre question à EduLink AI..." onkeypress="if(event.key==='Enter')envoyerMessageIA()" />
+        <button class="ia-send-btn" onclick="envoyerMessageIA()" title="Envoyer">➤</button>
       </div>
     </div>
 
@@ -6833,9 +6869,19 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 <div class="modal-overlay" id="modal-message">
   <div class="modal">
     <h3>✉️ Nouveau message</h3>
-    <div class="form-group"><label>Destinataire *</label><input type="text" id="input-msg-destinataire" placeholder="Ex: M. Kossi AGBODJAN (Parent)"></div>
+    <div class="form-group"><label>Destinataire *</label>
+      <select id="input-msg-destinataire-select" onchange="syncDestinataire(this)" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;margin-bottom:6px">
+        <option value="">— Sélectionner ou saisir manuellement —</option>
+      </select>
+      <input type="text" id="input-msg-destinataire" placeholder="Nom du destinataire (manuel)">
+    </div>
     <div class="form-group"><label>Rôle destinataire</label>
-      <select id="input-msg-role"><option value="parent">Parent d'élève</option><option value="etudiant">Étudiant</option><option value="professeur">Professeur</option><option value="administration">Administration</option></select>
+      <select id="input-msg-role">
+        <option value="parent">Parent d'élève</option>
+        <option value="etudiant">Étudiant</option>
+        <option value="professeur">Professeur</option>
+        <option value="administration">Administration</option>
+      </select>
     </div>
     <div class="form-group"><label>Objet *</label><input type="text" id="input-msg-objet" placeholder="Objet du message"></div>
     <div class="form-group"><label>Message *</label><textarea rows="5" id="input-msg-contenu" placeholder="Saisissez votre message..."></textarea></div>
@@ -7882,7 +7928,7 @@ function showPage(p) {
     etudiants:    () => { chargerEtudiants(); peuplerFiltresEtudiants(); },
     presences:    () => { chargerAbsences(); peuplerFiltresAbsences(); },
     notes:        () => { chargerNotes(); remplirSelectBulletin(); peuplerFiltresNotes(); },
-    messages:     chargerMessages,
+    messages:     () => { chargerMessages(); },
     emploi:       () => { peuplerClassesEDT().then(chargerEmploiDuTemps); },
     paiements:    chargerPaiements,
     discipline:   chargerIncidents,
@@ -7986,6 +8032,7 @@ function ouvrirModal(id) {
       initModalExamen();
     }
   }
+  if (id === 'modal-message')  peuplerDestinataires();
   if (id === 'modal-absence')  remplirSelect('input-absence-etudiant');
   if (id === 'modal-note')     remplirSelect('input-note-etudiant');
   if (id === 'modal-facture')  { remplirSelect('input-fac-etudiant'); document.getElementById('input-fac-echeance').value = new Date(Date.now()+30*864e5).toISOString().split('T')[0]; }
@@ -8726,28 +8773,111 @@ async function chargerMessages() {
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
   const { data } = await q;
   tousLesMessages = data || [];
-  document.getElementById('count-msgs').textContent = tousLesMessages.length + ' message(s)';
-  document.getElementById('msg-list-body').innerHTML = tousLesMessages.length
-    ? tousLesMessages.map(m => `
+  // Stats
+  const today = new Date();
+  const debutMois = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+  const st = document.getElementById('stat-msg-total');   if(st) st.textContent = tousLesMessages.length;
+  const sn = document.getElementById('stat-msg-nonlus');  if(sn) sn.textContent = tousLesMessages.filter(m=>!m.lu).length;
+  const sl = document.getElementById('stat-msg-lus');     if(sl) sl.textContent = tousLesMessages.filter(m=>m.lu).length;
+  const se = document.getElementById('stat-msg-envoyes'); if(se) se.textContent = tousLesMessages.filter(m=>m.created_at>=debutMois).length;
+  afficherListeMessages(tousLesMessages);
+  const nonLus = tousLesMessages.filter(m=>!m.lu).length;
+  const b = document.getElementById('badge-msg');
+  if (b) { if(nonLus>0){b.textContent=nonLus;b.style.display='inline';}else b.style.display='none'; }
+}
+
+function afficherListeMessages(liste) {
+  document.getElementById('count-msgs').textContent = liste.length + ' message(s)';
+  document.getElementById('msg-list-body').innerHTML = liste.length
+    ? liste.map(m => `
       <div class="msg-item ${m.lu?'':'unread'} ${m.id===selectedMsgId?'selected':''}" onclick="lireMessage('${m.id}')">
         <div class="msg-item-meta">
           <div class="msg-sender">${m.expediteur_nom||'Inconnu'}</div>
           <div style="display:flex;align-items:center;gap:4px">
-            ${m.lu
-              ? `<span class="msg-lu-badge lu">✓✓ Lu</span>`
-              : `<span class="msg-lu-badge nonlu">Non lu</span>`
-            }
+            ${m.lu ? '<span class="msg-lu-badge lu">✓✓ Lu</span>' : '<span class="msg-lu-badge nonlu">Non lu</span>'}
             <span class="msg-date" style="float:none">${fmtDate(m.created_at)}</span>
           </div>
         </div>
-        <div class="msg-subject">${m.objet}</div>
+        <div class="msg-subject">${m.objet||'(sans objet)'}</div>
         <div class="msg-preview">${(m.contenu||'').substring(0,60)}…</div>
         ${m.lu && m.lu_at ? `<div style="font-size:10px;color:#059669;margin-top:2px">✓ Lu le ${fmtDateTime(m.lu_at)}</div>` : ''}
       </div>`).join('')
     : '<div class="empty-state" style="padding:2rem"><div class="icon">📭</div><p style="font-size:12px">Aucun message</p></div>';
-  const nonLus = tousLesMessages.filter(m=>!m.lu).length;
-  const b = document.getElementById('badge-msg');
-  if (nonLus>0){b.textContent=nonLus;b.style.display='inline';}else b.style.display='none';
+}
+
+function filtrerMessages() {
+  const fSt  = document.getElementById('filter-msg-statut')?.value || '';
+  const fRol = document.getElementById('filter-msg-role')?.value || '';
+  const fQ   = (document.getElementById('search-msg')?.value || '').toLowerCase();
+  let liste = tousLesMessages;
+  if (fSt === 'nonlu') liste = liste.filter(m => !m.lu);
+  if (fSt === 'lu')    liste = liste.filter(m => m.lu);
+  if (fRol) liste = liste.filter(m => (m.expediteur_role||m.destinataire_role||'') === fRol);
+  if (fQ)   liste = liste.filter(m =>
+    (m.objet||'').toLowerCase().includes(fQ) ||
+    (m.expediteur_nom||'').toLowerCase().includes(fQ) ||
+    (m.contenu||'').toLowerCase().includes(fQ)
+  );
+  afficherListeMessages(liste);
+}
+
+function resetFiltresMessages() {
+  ['filter-msg-statut','filter-msg-role','search-msg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  afficherListeMessages(tousLesMessages);
+}
+
+async function supprimerMessageActif() {
+  if (!selectedMsgId) return;
+  const msg = tousLesMessages.find(m=>m.id===selectedMsgId);
+  if (!confirm('Supprimer ce message ?')) return;
+  await db.from('messages').delete().eq('id', selectedMsgId);
+  selectedMsgId = null;
+  document.getElementById('msg-detail-empty').style.display = 'block';
+  document.getElementById('msg-detail-content').style.display = 'none';
+  showToast('Message supprimé.','success');
+  chargerMessages();
+}
+
+function exporterMessagesCSV() {
+  if (!tousLesMessages.length) { showToast('Aucun message à exporter','error'); return; }
+  const header = ['expediteur','role_expediteur','destinataire','objet','date','lu'];
+  const rows = tousLesMessages.map(m => [
+    m.expediteur_nom||'', m.expediteur_role||'', m.destinataire_nom||'',
+    (m.objet||'').replace(/,/g,';'), fmtDate(m.created_at), m.lu?'oui':'non'
+  ]);
+  csvDownload('messages.csv', header, rows);
+}
+
+async function peuplerDestinataires() {
+  const sel = document.getElementById('input-msg-destinataire-select');
+  if (!sel) return;
+  if (!tousLesEnseignants.length) {
+    let qe = db.from('enseignants').select('id,nom,prenom').order('nom');
+    if(currentEcoleId) qe=qe.eq('ecole_id',currentEcoleId);
+    const {data} = await qe; tousLesEnseignants = data||[];
+  }
+  if (!tousLesEtudiants.length) {
+    let qet = db.from('etudiants').select('id,nom,prenom,parent_email').order('nom');
+    if(currentEcoleId) qet=qet.eq('ecole_id',currentEcoleId);
+    const {data} = await qet; tousLesEtudiants = data||[];
+  }
+  sel.innerHTML = '<option value="">— Sélectionner ou saisir manuellement —</option>'
+    + '<optgroup label="👨‍🏫 Enseignants">'
+    + tousLesEnseignants.map(e=>`<option value="${e.nom+' '+e.prenom}" data-role="professeur">${e.nom} ${e.prenom}</option>`).join('')
+    + '</optgroup><optgroup label="🎓 Étudiants">'
+    + tousLesEtudiants.map(e=>`<option value="${e.nom+' '+e.prenom}" data-role="etudiant">${e.nom} ${e.prenom}</option>`).join('')
+    + '</optgroup><optgroup label="👨‍👩‍👧 Parents">'
+    + tousLesEtudiants.filter(e=>e.parent_email).map(e=>`<option value="Parent de ${e.nom} ${e.prenom}" data-role="parent">Parent de ${e.nom} ${e.prenom}</option>`).join('')
+    + '</optgroup>';
+}
+
+function syncDestinataire(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return;
+  const inp = document.getElementById('input-msg-destinataire');
+  if (inp) inp.value = opt.value;
+  const role = document.getElementById('input-msg-role');
+  if (role && opt.dataset.role) Array.from(role.options).forEach(o=>{o.selected=o.value===opt.dataset.role;});
 }
 async function lireMessage(id) {
   selectedMsgId = id;
@@ -16897,7 +17027,7 @@ function afficherTyping() {
   return div;
 }
 
-async function envoyerMessage() {
+async function envoyerMessageIA() {
   const input = document.getElementById('ia-input');
   if (!input) return;
   const msg = input.value.trim();
@@ -16924,7 +17054,7 @@ async function envoyerMessage() {
 
 function envoyerSuggestion(btn) {
   const input = document.getElementById('ia-input');
-  if (input) { input.value = btn.textContent; envoyerMessage(); }
+  if (input) { input.value = btn.textContent; envoyerMessageIA(); }
 }
 
 function effacerConversation() {
