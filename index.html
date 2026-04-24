@@ -7923,15 +7923,9 @@ function ouvrirModal(id) {
   if (id === 'modal-emploi')   peuplerClassesEDT();
   if (id === 'modal-examen') {
     peuplerFiltresExamens();
-    // Réinitialiser si pas en mode édition
+    // Réinitialiser seulement en mode création (pas d'id existant)
     if (!document.getElementById('input-exam-id').value) {
-      document.getElementById('modal-examen-titre').textContent = '📝 Planifier un examen';
-      ['input-exam-matiere','input-exam-date','input-exam-salle','input-exam-surveillant','input-exam-instructions'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
-      document.getElementById('input-exam-duree').value='120';
-      document.getElementById('input-exam-heure-debut').value='08:00';
-      document.getElementById('input-exam-heure-fin').value='10:00';
-      document.getElementById('input-exam-type').value='controle';
-      document.getElementById('input-exam-statut').value='planifie';
+      initModalExamen();
     }
   }
   if (id === 'modal-absence')  remplirSelect('input-absence-etudiant');
@@ -7946,7 +7940,6 @@ function ouvrirModal(id) {
   if (id === 'modal-candidature'){ remplirSelectCampagnes(); }
   if (id === 'modal-campagne')   { document.getElementById('input-camp-debut').value = new Date().toISOString().split('T')[0]; document.getElementById('input-camp-annee').value = getAnneeScol(); }
   if (id === 'modal-document') remplirSelect('input-doc-etudiant', true);
-  if (id === 'modal-examen') { initModalExamen(); }
   if (id === 'modal-enseignant') { initModalEnseignant(); }
   if (id === 'modal-matiere') { remplirSelectEnsModal(); }
 }
@@ -9763,28 +9756,30 @@ function initModalExamen() {
   document.getElementById('input-exam-statut').value = 'planifie';
 }
 
-function editerExamen(examId) {
+async function editerExamen(examId) {
   const ex = tousLesExamens.find(e => e.id === examId);
   if (!ex) return;
-  document.getElementById('modal-examen-titre').textContent = "✏️ Modifier l'examen";
+  // Remplir input-exam-id EN PREMIER pour que ouvrirModal ne réinitialise pas
   document.getElementById('input-exam-id').value = ex.id;
-  document.getElementById('input-exam-matiere').value = ex.matiere||'';
-  document.getElementById('input-exam-type').value = ex.type_examen||'controle';
-  document.getElementById('input-exam-date').value = ex.date_examen||'';
-  document.getElementById('input-exam-duree').value = ex.duree||120;
-  document.getElementById('input-exam-heure-debut').value = ex.heure_debut||'08:00';
-  document.getElementById('input-exam-heure-fin').value = ex.heure_fin||'10:00';
-  document.getElementById('input-exam-salle').value = ex.salle||'';
-  document.getElementById('input-exam-surveillant').value = ex.surveillant||'';
-  document.getElementById('input-exam-instructions').value = ex.instructions||'';
-  document.getElementById('input-exam-statut').value = ex.statut||'planifie';
-  const fi=ex.filiere||''; const nv=ex.niveau||'';
-  ouvrirModal('modal-examen');
-  setTimeout(function(){
-    const sf=document.getElementById('input-exam-filiere'); const sn=document.getElementById('input-exam-niveau');
-    if(sf) Array.from(sf.options).forEach(function(o){o.selected=o.value===fi;});
-    if(sn) Array.from(sn.options).forEach(function(o){o.selected=o.value===nv;});
-  },300);
+  document.getElementById('modal-examen-titre').textContent = "✏️ Modifier l'examen";
+  document.getElementById('input-exam-matiere').value    = ex.matiere||'';
+  document.getElementById('input-exam-type').value       = ex.type_examen||'controle';
+  document.getElementById('input-exam-date').value       = ex.date_examen||'';
+  document.getElementById('input-exam-duree').value      = ex.duree||120;
+  document.getElementById('input-exam-heure-debut').value= ex.heure_debut||'08:00';
+  document.getElementById('input-exam-heure-fin').value  = ex.heure_fin||'10:00';
+  document.getElementById('input-exam-salle').value      = ex.salle||'';
+  document.getElementById('input-exam-surveillant').value= ex.surveillant||'';
+  document.getElementById('input-exam-instructions').value= ex.instructions||'';
+  document.getElementById('input-exam-statut').value     = ex.statut||'planifie';
+  // Ouvrir la modale (peuplerFiltresExamens est appelé dedans)
+  document.getElementById('modal-examen').classList.add('open');
+  // Attendre que peuplerFiltresExamens soit terminé, puis sélectionner filière/niveau
+  await peuplerFiltresExamens();
+  const sf = document.getElementById('input-exam-filiere');
+  const sn = document.getElementById('input-exam-niveau');
+  if (sf && ex.filiere) Array.from(sf.options).forEach(o => { o.selected = o.value === ex.filiere; });
+  if (sn && ex.niveau)  Array.from(sn.options).forEach(o => { o.selected = o.value === ex.niveau; });
 }
 
 async function sauvegarderExamen() {
