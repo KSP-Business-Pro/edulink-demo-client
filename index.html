@@ -3048,14 +3048,45 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Bibliothèque de documents de l'établissement</p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="showTab('docs','tab-docs-liste')">📋 Liste</button>
+      <button class="btn-outline" onclick="exporterDocumentsCSV()">⬇️ Export CSV</button>
       <button onclick="ouvrirModal('modal-document')">+ Ajouter document</button>
     </div>
   </div>
 
+  <!-- Stats -->
+  <div class="cards" style="margin-bottom:1rem">
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#1e3a5f" id="stat-docs-total">—</div><div style="font-size:12px;color:#6b7280">Total documents</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#7c3aed" id="stat-docs-admin">—</div><div style="font-size:12px;color:#6b7280">Administratifs</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#059669" id="stat-docs-ped">—</div><div style="font-size:12px;color:#6b7280">Pédagogiques</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#c97c1a" id="stat-docs-etu">—</div><div style="font-size:12px;color:#6b7280">Dossiers étudiants</div></div>
+  </div>
+
+  <!-- Filtres communs -->
+  <div class="filters" style="margin-bottom:.75rem">
+    <span class="filter-label">Filtrer :</span>
+    <select id="filter-docs-categorie" onchange="chargerDocuments()">
+      <option value="">Toutes catégories</option>
+      <option value="administratif">Administratif</option>
+      <option value="pédagogique">Pédagogique</option>
+      <option value="etudiant">Dossier étudiant</option>
+      <option value="financier">Financier</option>
+      <option value="autre">Autre</option>
+    </select>
+    <select id="filter-docs-type" onchange="chargerDocuments()">
+      <option value="">Tous types</option>
+      <option value="pdf">PDF</option>
+      <option value="word">Word (DOCX)</option>
+      <option value="excel">Excel (XLSX)</option>
+      <option value="image">Image</option>
+    </select>
+    <input type="text" id="search-docs" placeholder="🔍 Rechercher un document..." oninput="filtrerDocuments()"
+      style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:'Poppins',sans-serif">
+    <button class="btn-sm btn-secondary" onclick="resetFiltresDocs()">🔄 Réinitialiser</button>
+  </div>
+
   <div class="tabs">
-    <button class="tab active" id="tab-docs-galerie-btn" onclick="showTab('docs','tab-docs-galerie')">🗂️ Galerie</button>
-    <button class="tab" id="tab-docs-liste-btn" onclick="showTab('docs','tab-docs-liste')">📋 Liste</button>
+    <button class="tab active" id="tab-docs-galerie-btn" onclick="showTab('docs','tab-docs-galerie');afficherDocumentsGalerie()">🗂️ Galerie</button>
+    <button class="tab" id="tab-docs-liste-btn" onclick="showTab('docs','tab-docs-liste');afficherDocumentsListe()">📋 Liste</button>
   </div>
 
   <!-- Tab : Galerie -->
@@ -3067,9 +3098,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
   <!-- Tab : Liste -->
   <div id="tab-docs-liste" style="display:none">
-    <div class="search-bar">
-      <input type="text" id="search-docs" placeholder="Rechercher un document..." oninput="filtrerDocuments()">
-    </div>
     <table>
       <tr><th>Nom</th><th>Type</th><th>Catégorie</th><th>Étudiant concerné</th><th>Ajouté le</th><th>Taille</th><th>Actions</th></tr>
       <tbody id="tbody-documents"><tr><td colspan="7" class="loading">Chargement...</td></tr></tbody>
@@ -8131,6 +8159,11 @@ function fermerModal(id) {
     if(modal) delete modal.dataset.editId;
     const h3=document.querySelector('#modal-transaction h3'); if(h3) h3.textContent='💸 Enregistrer une opération';
   }
+  if (id === 'modal-document') {
+    const modal=document.getElementById('modal-document');
+    if(modal) delete modal.dataset.editId;
+    const h3=document.querySelector('#modal-document h3'); if(h3) h3.textContent='📄 Ajouter un document';
+  }
 }
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
@@ -9398,46 +9431,158 @@ async function supprimerIncident(id) {
 async function chargerDocuments() {
   let q = db.from('documents').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  const fcat = document.getElementById('filter-docs-categorie')?.value;
+  const ftyp = document.getElementById('filter-docs-type')?.value;
+  if (fcat) q = q.eq('categorie', fcat);
+  if (ftyp) {
+    // Filtrer par type de fichier
+    const extMap = { pdf:'application/pdf', word:'docx', excel:'xlsx', image:'image' };
+    const val = extMap[ftyp]||ftyp;
+    q = q.ilike('type_fichier', '%'+val+'%');
+  }
+  const { data } = await q;
+  tousLesDocuments = data || [];
+
+  // Stats
+  const st = document.getElementById('stat-docs-total'); if(st) st.textContent = tousLesDocuments.length;
+  const sa = document.getElementById('stat-docs-admin'); if(sa) sa.textContent = tousLesDocuments.filter(d=>d.categorie==='administratif').length;
+  const sp = document.getElementById('stat-docs-ped');   if(sp) sp.textContent = tousLesDocuments.filter(d=>d.categorie==='pédagogique').length;
+  const se = document.getElementById('stat-docs-etu');   if(se) se.textContent = tousLesDocuments.filter(d=>d.categorie==='etudiant').length;
+
+  afficherDocumentsGalerie();
+  afficherDocumentsListe();
+}
+
+function getDocsFiltres() {
+  const q = (document.getElementById('search-docs')?.value||'').toLowerCase();
+  return q ? tousLesDocuments.filter(d => (d.nom||'').toLowerCase().includes(q) || (d.categorie||'').toLowerCase().includes(q)) : tousLesDocuments;
+}
+
+function afficherDocumentsGalerie() {
+  const container = document.getElementById('docs-galerie-container');
+  const liste = getDocsFiltres();
+  if (!liste.length) {
+    container.innerHTML='<div class="empty-state"><div class="icon">📂</div><h3>Aucun document</h3><p>Ajoutez votre premier document.</p></div>';
+    return;
+  }
+  const cats = ['administratif','pédagogique','etudiant','financier','autre'];
+  const catLabels = { administratif:'📋 Administratif', 'pédagogique':'📚 Pédagogique', etudiant:'👤 Dossiers étudiants', financier:'💰 Financier', autre:'📁 Autres' };
+  let html = '';
+  cats.forEach(cat => {
+    const docs = liste.filter(d => d.categorie === cat);
+    if (!docs.length) return;
+    html += `<div class="doc-cat-header"><div class="dch-label">${catLabels[cat]||cat} <span style="font-size:11px;color:#9ca3af;margin-left:4px">(${docs.length})</span></div><div class="dch-line"></div></div>
+    <div class="doc-grid">${docs.map(d=>`
+      <div class="doc-card">
+        <div class="dc-ico">${getDocIcon(d.nom_fichier||d.nom)}</div>
+        <div class="dc-nom" title="${d.nom}">${d.nom}</div>
+        <div class="dc-meta">${fmtDate(d.created_at)}${d.taille_affichage?' · '+d.taille_affichage:''}</div>
+        ${d.etudiants?`<div class="dc-meta" style="margin-top:2px;color:#7c3aed">👤 ${d.etudiants.nom} ${d.etudiants.prenom}</div>`:''}
+        <div class="dc-actions">
+          ${d.url?`<button class="btn-sm btn-blue" onclick="window.open('${d.url}','_blank')">Ouvrir</button>`:''}
+          <button class="btn-sm btn-secondary" onclick="ouvrirModifierDocument('${d.id}')">✏️</button>
+          <button class="btn-sm btn-red" onclick="supprimerDocument('${d.id}')">✕</button>
+        </div>
+      </div>`).join('')}</div>`;
+  });
+  container.innerHTML = html || '<div class="empty-state"><div class="icon">📂</div><h3>Aucun document dans cette catégorie</h3></div>';
+}
+
+function afficherDocumentsListe() {
+  const liste = getDocsFiltres();
+  document.getElementById('tbody-documents').innerHTML = liste.length
+    ? liste.map(d=>`<tr>
+        <td>${getDocIcon(d.nom_fichier||d.nom)} <strong>${d.nom}</strong></td>
+        <td>${d.type_fichier||'—'}</td>
+        <td><span class="badge gray">${d.categorie}</span></td>
+        <td>${d.etudiants?d.etudiants.nom+' '+d.etudiants.prenom:'—'}</td>
+        <td>${fmtDate(d.created_at)}</td>
+        <td>${d.taille_affichage||'—'}</td>
+        <td style="display:flex;gap:4px">
+          ${d.url?`<button class="btn-sm btn-blue" onclick="window.open('${d.url}','_blank')">Ouvrir</button>`:''}
+          <button class="btn-sm btn-secondary" onclick="ouvrirModifierDocument('${d.id}')">✏️</button>
+          <button class="btn-sm btn-red" onclick="supprimerDocument('${d.id}')">✕</button>
+        </td>
+      </tr>`).join('')
+    : '<tr><td colspan="7" class="loading">Aucun document trouvé.</td></tr>';
+}
+
+function filtrerDocuments() {
+  afficherDocumentsGalerie();
+  afficherDocumentsListe();
+}
+
+function resetFiltresDocs() {
+  ['filter-docs-categorie','filter-docs-type','search-docs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  chargerDocuments();
+}
+
+function ouvrirModifierDocument(id) {
+  const d = tousLesDocuments.find(x=>x.id===id);
+  if (!d) return;
+  document.getElementById('input-doc-nom').value = d.nom||'';
+  document.getElementById('input-doc-categorie').value = d.categorie||'administratif';
+  document.getElementById('input-doc-etudiant').value = d.etudiant_id||'';
+  const modal = document.getElementById('modal-document');
+  if (modal) modal.dataset.editId = id;
+  document.querySelector('#modal-document h3').textContent = '✏️ Modifier le document';
+  ouvrirModal('modal-document');
+}
+
+async function ajouterDocument() {
+  const nom  = document.getElementById('input-doc-nom').value.trim();
+  const cat  = document.getElementById('input-doc-categorie').value;
+  const etId = document.getElementById('input-doc-etudiant').value || null;
+  const file = document.getElementById('input-doc-file').files[0];
+  if (!nom) { showToast('Entrez un nom pour le document.','error'); return; }
+  const modal  = document.getElementById('modal-document');
+  const editId = modal?.dataset?.editId;
+  const payload = { nom, categorie:cat, etudiant_id:etId };
+  let error;
+  if (editId) {
+    ({ error } = await db.from('documents').update(payload).eq('id', editId));
+  } else {
+    const taille = file ? (file.size<1048576?(file.size/1024).toFixed(1)+' Ko':(file.size/1048576).toFixed(1)+' Mo') : null;
+    ({ error } = await db.from('documents').insert([{
+      ...payload, ecole_id:currentEcoleId,
+      nom_fichier:file?.name||null, type_fichier:file?.type||null,
+      taille_affichage:taille, url:null
+    }]));
+  }
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  fermerModal('modal-document');
+  if (modal) delete modal.dataset.editId;
+  document.querySelector('#modal-document h3').textContent = '📄 Ajouter un document';
+  document.getElementById('input-doc-nom').value='';
+  document.getElementById('input-doc-file').value='';
+  document.getElementById('doc-file-preview').style.display='none';
+  showToast(editId?'✅ Document modifié !':'Document enregistré !','success');
+  chargerDocuments();
+}
+
+async function supprimerDocument(id) {
+  if (!confirm('Supprimer ce document ?')) return;
+  await db.from('documents').delete().eq('id',id);
+  showToast('Document supprimé.','success'); chargerDocuments();
+}
+
+function exporterDocumentsCSV() {
+  if (!tousLesDocuments.length) { showToast('Aucun document à exporter','error'); return; }
+  const header = ['nom','categorie','type_fichier','etudiant','taille','date_ajout'];
+  const rows = tousLesDocuments.map(d=>[
+    d.nom||'', d.categorie||'', d.type_fichier||'',
+    d.etudiants?d.etudiants.nom+' '+d.etudiants.prenom:'',
+    d.taille_affichage||'', fmtDate(d.created_at)
+  ]);
+  csvDownload('documents.csv', header, rows);
+}
+
+
   const { data } = await q;
   tousLesDocuments = data || [];
   afficherDocumentsGalerie();
   afficherDocumentsListe();
 }
-function afficherDocumentsGalerie() {
-  const container = document.getElementById('docs-galerie-container');
-  if (!tousLesDocuments.length) {
-    container.innerHTML='<div class="empty-state"><div class="icon">📂</div><h3>Aucun document</h3><p>Ajoutez votre premier document.</p></div>';
-    return;
-  }
-  const cats = ['administratif','pédagogique','etudiant','financier','autre'];
-  const catLabels = { administratif:'📋 Administratif', pédagogique:'📚 Pédagogique', etudiant:'👤 Dossiers étudiants', financier:'💰 Financier', autre:'📁 Autres' };
-  let html = '';
-  cats.forEach(cat => {
-    const docs = tousLesDocuments.filter(d => d.categorie === cat);
-    if (!docs.length) return;
-    html += `<div class="doc-cat-header"><div class="dch-label">${catLabels[cat]||cat}</div><div class="dch-line"></div></div>
-    <div class="doc-grid">${docs.map(d=>`
-      <div class="doc-card">
-        <div class="dc-ico">${getDocIcon(d.nom_fichier||d.nom)}</div>
-        <div class="dc-nom">${d.nom}</div>
-        <div class="dc-meta">${fmtDate(d.created_at)}${d.taille_affichage?' · '+d.taille_affichage:''}</div>
-        ${d.etudiants?`<div class="dc-meta" style="margin-top:2px">👤 ${d.etudiants.nom} ${d.etudiants.prenom}</div>`:''}
-        <div class="dc-actions">
-          ${d.url?`<button class="btn-sm btn-blue" onclick="window.open('${d.url}','_blank')">Ouvrir</button>`:''}
-          <button class="btn-sm btn-red" onclick="supprimerDocument('${d.id}')">✕</button>
-        </div>
-      </div>`).join('')}</div>`;
-  });
-  container.innerHTML = html;
-}
-function afficherDocumentsListe() {
-  const q = document.getElementById('search-docs')?.value.toLowerCase()||'';
-  const liste = tousLesDocuments.filter(d => d.nom.toLowerCase().includes(q));
-  document.getElementById('tbody-documents').innerHTML = liste.length
-    ? liste.map(d=>`<tr><td>${getDocIcon(d.nom_fichier||d.nom)} ${d.nom}</td><td>${d.type_fichier||'—'}</td><td><span class="badge gray">${d.categorie}</span></td><td>${d.etudiants?d.etudiants.nom+' '+d.etudiants.prenom:'—'}</td><td>${fmtDate(d.created_at)}</td><td>${d.taille_affichage||'—'}</td><td><div style="display:flex;gap:4px">${d.url?`<button class="btn-sm btn-blue" onclick="window.open('${d.url}','_blank')">Ouvrir</button>`:''}<button class="btn-sm btn-red" onclick="supprimerDocument('${d.id}')">✕</button></div></td></tr>`).join('')
-    : '<tr><td colspan="7" class="loading">Aucun document trouvé.</td></tr>';
-}
-function filtrerDocuments() { afficherDocumentsListe(); }
 function previewDocFichier(input) {
   if (!input.files.length) return;
   const f = input.files[0];
@@ -9447,31 +9592,6 @@ function previewDocFichier(input) {
   document.getElementById('input-doc-nom').value = document.getElementById('input-doc-nom').value || f.name.replace(/\.[^.]+$/,'');
   document.getElementById('input-doc-nom-fichier-hidden') && (document.getElementById('input-doc-nom-fichier-hidden').value = f.name);
 }
-async function ajouterDocument() {
-  const nom  = document.getElementById('input-doc-nom').value.trim();
-  const cat  = document.getElementById('input-doc-categorie').value;
-  const etId = document.getElementById('input-doc-etudiant').value || null;
-  const file = document.getElementById('input-doc-file').files[0];
-  if (!nom) { showToast('Entrez un nom pour le document.','error'); return; }
-  const taille = file ? (file.size<1048576?(file.size/1024).toFixed(1)+' Ko':(file.size/1048576).toFixed(1)+' Mo') : null;
-  const { error } = await db.from('documents').insert([{
-    ecole_id: currentEcoleId, nom, categorie:cat, etudiant_id:etId,
-    nom_fichier: file?.name||null, type_fichier: file?.type||null, taille_affichage:taille,
-    url: null // L'URL réelle nécessite Supabase Storage — à configurer
-  }]);
-  if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  fermerModal('modal-document');
-  document.getElementById('input-doc-nom').value='';
-  document.getElementById('input-doc-file').value='';
-  document.getElementById('doc-file-preview').style.display='none';
-  showToast('Document enregistré !','success'); chargerDocuments();
-}
-async function supprimerDocument(id) {
-  if (!confirm('Supprimer ce document ?')) return;
-  await db.from('documents').delete().eq('id',id);
-  showToast('Document supprimé.','success'); chargerDocuments();
-}
-
 // ══ RAPPORTS  ★ JOUR 3 ════════════════════════
 function selectRapportMenu(id) {
   document.querySelectorAll('.rapport-menu-item').forEach(el => el.classList.remove('active'));
