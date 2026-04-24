@@ -12296,9 +12296,78 @@ async function envoyerDepuisCompose() {
   const result = document.getElementById('nc-compose-result');
 
   if (!titre || !body) { showToast('Titre et message obligatoires', 'error'); return; }
+  if (result) { result.style.display='block'; result.textContent='⏳ Envoi en cours...'; result.style.color='#6b7280'; }
 
+  const ICONES_TYPE = { annonce:'📢', absence:'🚫', note:'📊', examen:'📝', paiement:'💳', message:'✉️' };
+  const icone = ICONES_TYPE[ncTypeCompose] || '🔔';
+
+  let succes = 0, echecs = 0;
   const serverKey = localStorage.getItem('edulink_fcm_server_key');
-  if (!serverKey) { showToast('Clé Server FCM manquante — Voir Paramètres', 'error'); return; }
+
+  if (serverKey) {
+    // Mode FCM push si clé configurée
+    let q = db.from('push_tokens').select('token, role').eq('ecole_id', currentEcoleId);
+    if (dest === 'parents')   q = q.eq('role', 'parent');
+    if (dest === 'etudiants') q = q.eq('role', 'etudiant');
+    const { data: tokens } = await q;
+
+    if (tokens?.length) {
+      try {
+        const resp = await fetch('https://fcm.googleapis.com/fcm/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'key=' + serverKey },
+          body: JSON.stringify({
+            registration_ids: tokens.slice(0, 500).map(t => t.token),
+            notification: { title: icone + ' ' + titre, body, icon:'/icon-192.png', badge:'/icon-72.png' },
+            data: { title: titre, body, url:'/edulink-portail.html', tag:'edulink-'+ncTypeCompose+'-'+Date.now(), ecole_id: currentEcoleId },
+            priority: urgent ? 'high' : 'normal'
+          })
+        });
+        const res = await resp.json();
+        succes = res.success || 0;
+        echecs = res.failure || 0;
+      } catch(e) { echecs = tokens.length; }
+    } else {
+      if (result) { result.textContent='⚠️ Aucun appareil abonné (push)'; result.style.color='#d97706'; }
+    }
+  } else {
+    // Mode dégradé : pas de FCM — enregistrement dans Supabase uniquement
+    succes = 1; echecs = 0;
+  }
+
+  // Persister dans l'historique
+  await db.from('notifications_historique').insert([{
+    ecole_id: currentEcoleId, titre, body,
+    type: ncTypeCompose, destinataires: dest,
+    nb_envoyes: succes, nb_echecs: echecs,
+    priorite: urgent ? 'high' : 'normal',
+    envoyee_par: 'admin'
+  }]).catch(() => {});
+
+  // Persister dans la table notifications (portail)
+  await db.from('notifications').insert([{
+    ecole_id: currentEcoleId, etudiant_id: null,
+    type: ncTypeCompose, titre: icone + ' ' + titre,
+    corps: body, icone, couleur: 'blue',
+    priorite: urgent ? 'high' : 'normal'
+  }]).catch(() => {});
+
+  if (result) {
+    const modeLabel = serverKey ? '' : ' (mode in-app — sans push FCM)';
+    result.textContent = succes > 0
+      ? `✅ Notification enregistrée${modeLabel}${succes > 1 ? ` — ${succes} envoyés` : ''}`
+      : `❌ ${echecs} échec(s)`;
+    result.style.color = succes > 0 ? '#059669' : '#dc2626';
+  }
+  showToast(`🔔 Notification envoyée !`, 'success');
+
+  setTimeout(() => {
+    if (result) result.style.display = 'none';
+    ['nc-compose-titre','nc-compose-body'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    chargerHistoriqueNotifications();
+    chargerKPIsNotifications();
+  }, 2500);
+}
 
   if (result) { result.style.display = 'block'; result.textContent = '⏳ Envoi en cours...'; result.style.color = '#6b7280'; }
 
@@ -12371,16 +12440,12 @@ async function envoyerDepuisCompose() {
 // ── Export CSV historique ──────────────────────────────────────────────
 function exporterHistoriqueNotifCSV() {
   if (!ncHistoriqueData.length) { showToast('Aucune donnée à exporter', 'error'); return; }
-  const header = 'Titre,Type,Message,Destinataires,Envoyés,Echecs,Taux ouverture,Date';
-  const rows = ncHistoriqueData.map(h =>
-    [h.titre,h.type||'annonce',h.body,h.destinataires,h.nb_envoyes,h.nb_echecs,(h.taux_ouverture||0)+'%',fmtDateHeure(h.created_at)]
-    .map(v => '"'+(v||'').toString().replace(/"/g,'""')+'"').join(',')
-  ).join('\n');
-  const blob = new Blob(['\ufeff'+header+'\n'+rows], {type:'text/csv;charset=utf-8;'});
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), {href:url, download:'edulink_notifications_'+new Date().toISOString().split('T')[0]+'.csv'});
-  a.click(); URL.revokeObjectURL(url);
-  showToast('✅ Export CSV généré', 'success');
+  const header = ['titre','type','message','destinataires','envoyes','echecs','taux_ouverture','date'];
+  const rows = ncHistoriqueData.map(h => [
+    h.titre||'', h.type||'annonce', h.body||'', h.destinataires||'',
+    h.nb_envoyes||0, h.nb_echecs||0, (h.taux_ouverture||0)+'%', fmtDateHeure(h.created_at)
+  ]);
+  csvDownload('notifications.csv', header, rows);
 }
 
 // ── Hook showPage — ajouter notifications dans les loaders ────────────
