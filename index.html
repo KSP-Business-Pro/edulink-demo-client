@@ -6568,7 +6568,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>🧑‍💼 RH & Personnel</h2><p class="page-subtitle">Gestion du personnel administratif et enseignant</p></div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterRHPDF()">📄 Rapport RH</button>
+      <button class="btn-outline" onclick="exporterRHCSV()">⬇️ Export CSV</button>
+      <button class="btn-secondary" onclick="exporterRHPDF()">📄 Rapport RH</button>
       <button onclick="ouvrirModal('modal-personnel')">+ Ajouter un agent</button>
     </div>
   </div>
@@ -6584,9 +6585,9 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab active" id="tab-rh-fiches-btn"   onclick="showTab('rh','tab-rh-fiches')">👥 Fiches Personnel</button>
-    <button class="tab"        id="tab-rh-conges-btn"   onclick="showTab('rh','tab-rh-conges')">🏖️ Congés</button>
-    <button class="tab"        id="tab-rh-paie-btn"     onclick="showTab('rh','tab-rh-paie')">💰 Fiches de paie</button>
-    <button class="tab"        id="tab-rh-contrats-btn" onclick="showTab('rh','tab-rh-contrats')">📋 Contrats</button>
+    <button class="tab"        id="tab-rh-conges-btn"   onclick="showTab('rh','tab-rh-conges');chargerConges()">🏖️ Congés</button>
+    <button class="tab"        id="tab-rh-paie-btn"     onclick="showTab('rh','tab-rh-paie');peuplerSelectAgentPaie()">💰 Fiches de paie</button>
+    <button class="tab"        id="tab-rh-contrats-btn" onclick="showTab('rh','tab-rh-contrats');chargerContrats()">📋 Contrats</button>
   </div>
 
   <!-- TAB Fiches Personnel -->
@@ -8094,7 +8095,7 @@ function showPage(p) {
     classes:         chargerClasses,
     comptabilite:    chargerComptabilite,
     'portail-ens':   chargerPortailEnseignant,
-    rh:              chargerRH,
+    rh:              () => { chargerRH(); },
     admissions:      chargerAdmissions,
     'bibliotheque-num': chargerBibliothequeNum,
     cantine:         chargerCantine,
@@ -8228,6 +8229,11 @@ function fermerModal(id) {
     if(mdpField){mdpField.disabled=false;mdpField.placeholder='Minimum 6 caractères';}
     const field=document.getElementById('user-etudiant-field');
     if(field) field.style.display='none';
+  }
+  if (id === 'modal-personnel') {
+    const modal=document.getElementById('modal-personnel');
+    if(modal) delete modal.dataset.editId;
+    const h3=document.querySelector('#modal-personnel h3'); if(h3) h3.textContent='🧑‍💼 Ajouter un agent au personnel';
   }
 }
 document.querySelectorAll('.modal-overlay').forEach(o => {
@@ -15132,8 +15138,7 @@ async function chargerRH() {
   const { count: nbC } = await qC;
   document.getElementById('rh-stat-conges').textContent = nbC||0;
   const badgeRH = document.getElementById('badge-rh');
-  const nbAtt = toutLePersonnel.length; // badge indicatif
-  if (nbAtt>0) { badgeRH.textContent=nbAtt; badgeRH.style.display='inline'; }
+  if (badgeRH) badgeRH.style.display='none'; // badge non utilisé ici
   chargerListePersonnel();
 }
 
@@ -15142,8 +15147,8 @@ function chargerListePersonnel() {
   const t = document.getElementById('filter-rh-type')?.value||'';
   const s = document.getElementById('filter-rh-statut')?.value||'';
   let liste = toutLePersonnel;
-  if (q) liste = liste.filter(p=>(p.nom+p.prenom+p.poste).toLowerCase().includes(q));
-  if (t) liste = liste.filter(p=>p.departement===t);
+  if (q) liste = liste.filter(p=>(p.nom+p.prenom+(p.poste||'')).toLowerCase().includes(q));
+  if (t) liste = liste.filter(p=>(p.departement||p.type_agent||'').toLowerCase() === t);
   if (s) liste = liste.filter(p=>(p.statut||'actif')===s);
   afficherPersonnel(liste);
 }
@@ -15177,7 +15182,8 @@ function afficherPersonnel(liste) {
       </div>
       <div class="pc-actions">
         <button class="btn-sm btn-blue" onclick="voirFichePaieAgent('${p.id}')">💰 Paie</button>
-        <button class="btn-sm btn-secondary" onclick="ouvrirModal('modal-conge')" title="Demande de congé">🏖️ Congé</button>
+        <button class="btn-sm btn-secondary" onclick="ouvrirModifierPersonnel('${p.id}')">✏️</button>
+        <button class="btn-sm btn-secondary" onclick="ouvrirModal('modal-conge')" title="Demande de congé">🏖️</button>
         <button class="btn-sm btn-red" onclick="supprimerPersonnel('${p.id}')">✕</button>
       </div>
     </div>`;
@@ -15191,26 +15197,88 @@ async function ajouterPersonnel() {
   const prenom = document.getElementById('input-rh-prenom').value.trim();
   const poste  = document.getElementById('input-rh-poste').value.trim();
   if (!nom||!prenom||!poste) { showToast('Nom, prénom et poste obligatoires.','error'); return; }
-  const { error } = await db.from('personnel').insert([{
-    ecole_id:       currentEcoleId,
+  const modal  = document.getElementById('modal-personnel');
+  const editId = modal?.dataset?.editId;
+  const payload = {
     nom, prenom,
-    email:          document.getElementById('input-rh-email').value.trim(),
-    telephone:      document.getElementById('input-rh-tel').value.trim(),
+    email:           document.getElementById('input-rh-email').value.trim(),
+    telephone:       document.getElementById('input-rh-tel').value.trim(),
     poste,
-    departement:    document.getElementById('input-rh-dept').value,
-    type_contrat:   document.getElementById('input-rh-contrat').value,
-    date_embauche:  document.getElementById('input-rh-embauche').value,
-    salaire_brut:   parseFloat(document.getElementById('input-rh-salaire').value)||0,
+    departement:     document.getElementById('input-rh-dept').value,
+    type_contrat:    document.getElementById('input-rh-contrat').value,
+    date_embauche:   document.getElementById('input-rh-embauche').value,
+    salaire_brut:    parseFloat(document.getElementById('input-rh-salaire').value)||0,
     date_fin_contrat:document.getElementById('input-rh-fin-contrat').value||null,
-    observations:   document.getElementById('input-rh-obs').value.trim(),
-    statut: 'actif'
-  }]);
+    observations:    document.getElementById('input-rh-obs')?.value.trim()||'',
+  };
+  let error;
+  if (editId) {
+    ({ error } = await db.from('personnel').update(payload).eq('id', editId));
+  } else {
+    ({ error } = await db.from('personnel').insert([{ ...payload, ecole_id:currentEcoleId, statut:'actif' }]));
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-personnel');
-  ['input-rh-nom','input-rh-prenom','input-rh-email','input-rh-tel','input-rh-poste','input-rh-salaire','input-rh-obs'].forEach(id=>document.getElementById(id).value='');
-  showToast('✅ Agent ajouté !','success');
+  if (modal) delete modal.dataset.editId;
+  document.querySelector('#modal-personnel h3').textContent = '🧑‍💼 Ajouter un agent au personnel';
+  ['input-rh-nom','input-rh-prenom','input-rh-email','input-rh-tel','input-rh-poste','input-rh-salaire','input-rh-obs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  showToast(editId?'✅ Agent modifié !':'✅ Agent ajouté !','success');
   chargerRH();
 }
+
+function ouvrirModifierPersonnel(id) {
+  const p = toutLePersonnel.find(x=>x.id===id);
+  if (!p) return;
+  document.getElementById('input-rh-nom').value          = p.nom||'';
+  document.getElementById('input-rh-prenom').value       = p.prenom||'';
+  document.getElementById('input-rh-email').value        = p.email||'';
+  document.getElementById('input-rh-tel').value          = p.telephone||'';
+  document.getElementById('input-rh-poste').value        = p.poste||'';
+  document.getElementById('input-rh-dept').value         = p.departement||'administratif';
+  document.getElementById('input-rh-contrat').value      = p.type_contrat||'CDI';
+  document.getElementById('input-rh-embauche').value     = p.date_embauche||'';
+  document.getElementById('input-rh-salaire').value      = p.salaire_brut||'';
+  document.getElementById('input-rh-fin-contrat').value  = p.date_fin_contrat||'';
+  if (document.getElementById('input-rh-obs')) document.getElementById('input-rh-obs').value = p.observations||'';
+  const modal = document.getElementById('modal-personnel');
+  if (modal) modal.dataset.editId = id;
+  document.querySelector('#modal-personnel h3').textContent = "✏️ Modifier l'agent";
+  ouvrirModal('modal-personnel');
+}
+
+function voirFichePaieAgent(id) {
+  showTab('rh','tab-rh-paie');
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-rh-paie-btn')?.classList.add('active');
+  peuplerSelectAgentPaie().then(()=>{
+    const sel = document.getElementById('filter-paie-agent');
+    if (sel) { sel.value=id; chargerFichePaie(); }
+  });
+}
+
+async function peuplerSelectAgentPaie() {
+  const sel = document.getElementById('filter-paie-agent');
+  if (!sel) return;
+  if (!toutLePersonnel.length) await chargerRH();
+  const moisActuel = new Date().getMonth()+1;
+  document.getElementById('filter-paie-mois').value = moisActuel;
+  sel.innerHTML = '<option value="">— Sélectionner un agent —</option>'
+    + toutLePersonnel.map(p=>`<option value="${p.id}">${p.prenom} ${p.nom} — ${p.poste||''}</option>`).join('');
+}
+
+function exporterRHCSV() {
+  if (!toutLePersonnel.length) { showToast('Aucun agent à exporter','error'); return; }
+  const header = ['prenom','nom','email','telephone','poste','departement','type_contrat','date_embauche','date_fin_contrat','salaire_brut','statut'];
+  const rows = toutLePersonnel.map(p=>[
+    p.prenom||'', p.nom||'', p.email||'', p.telephone||'',
+    p.poste||'', p.departement||'', p.type_contrat||'',
+    fmtDate(p.date_embauche), fmtDate(p.date_fin_contrat),
+    p.salaire_brut||0, p.statut||'actif'
+  ]);
+  csvDownload('personnel_rh.csv', header, rows);
+}
+
+
 
 async function supprimerPersonnel(id) {
   if (!confirm('Supprimer cet agent ?')) return;
