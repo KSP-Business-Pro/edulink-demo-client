@@ -5797,7 +5797,13 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
   <div class="search-bar"><input type="text" id="search-certificats" placeholder="Rechercher par étudiant, référence CERT-..." oninput="filtrerCertificats()"></div>
   <div class="filters">
-    <span class="filter-label">Type :</span>
+    <span class="filter-label">Filtrer :</span>
+    <select id="filter-cert-classe" onchange="filtrerCertParClasse()">
+      <option value="">Toutes les classes</option>
+    </select>
+    <select id="filter-cert-etudiant" onchange="filtrerCertificats()">
+      <option value="">Tous les étudiants</option>
+    </select>
     <select id="filter-cert-type" onchange="filtrerCertificats()">
       <option value="">Tous les types</option>
       <option value="attestation_inscription">📋 Attestation d'inscription</option>
@@ -5811,6 +5817,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <option value="signe">Signé</option>
       <option value="annule">Annulé</option>
     </select>
+    <button class="btn-sm btn-secondary" onclick="resetFiltresCert()">🔄 Réinitialiser</button>
   </div>
   <table>
     <tr><th>Référence</th><th>Étudiant</th><th>Type de document</th><th>Signataire</th><th>Date d'émission</th><th>Statut</th><th>Actions</th></tr>
@@ -8037,7 +8044,7 @@ function showPage(p) {
     examens:      () => { chargerExamens(); peuplerFiltresExamens(); },
     enseignants:     () => { chargerEnseignants(); },
     notifications:   chargerNotifications,
-    certificats:     chargerCertificats,
+    certificats:     () => { chargerCertificats(); peuplerFiltresCert(); },
     bibliotheque:    chargerBibliotheque,
     analytics:       chargerAnalytics,
     classes:         chargerClasses,
@@ -12269,26 +12276,84 @@ function afficherCertificats(liste) {
       <td style="font-size:12px;color:#6b7280">${c.delivre_par||'—'}</td>
       <td>${fmtDate(c.created_at)}</td>
       <td><span class="badge ${stCls}">${c.statut}</span></td>
-      <td>
+      <td style="display:flex;flex-direction:column;gap:3px">
         <button class="btn-sm btn-blue" onclick="retelechargerCertificat('${c.id}')">⬇ PDF</button>
-        ${c.statut !== 'annule'
-          ? `<button class="btn-sm btn-red" style="margin-top:3px" onclick="annulerCertificatDB('${c.id}')">✕</button>`
-          : ''}
+        ${c.statut === 'emis' ? `<button class="btn-sm btn-green" onclick="signerCertificat('${c.id}')">✅ Signer</button>` : ''}
+        ${c.statut !== 'annule' ? `<button class="btn-sm btn-red" onclick="annulerCertificatDB('${c.id}')">✕ Annuler</button>` : ''}
       </td>
     </tr>`;
   }).join('');
 }
 
 function filtrerCertificats() {
-  const q  = document.getElementById('search-certificats').value.toLowerCase();
-  const ft = document.getElementById('filter-cert-type').value;
-  const fs = document.getElementById('filter-cert-statut').value;
+  const q   = document.getElementById('search-certificats').value.toLowerCase();
+  const ft  = document.getElementById('filter-cert-type').value;
+  const fs  = document.getElementById('filter-cert-statut').value;
+  const fe  = document.getElementById('filter-cert-etudiant')?.value||'';
   const liste = tousLesCertificats.filter(c => {
     const txt = ((c.etudiants?.nom||'') + ' ' + (c.etudiants?.prenom||'') + ' ' + c.reference).toLowerCase();
-    return (!q || txt.includes(q)) && (!ft || c.type === ft) && (!fs || c.statut === fs);
+    return (!q || txt.includes(q))
+      && (!ft || c.type === ft)
+      && (!fs || c.statut === fs)
+      && (!fe || c.etudiant_id === fe);
   });
   afficherCertificats(liste);
 }
+
+async function peuplerFiltresCert() {
+  const selCls = document.getElementById('filter-cert-classe');
+  const selEtu = document.getElementById('filter-cert-etudiant');
+  if (!toutesLesClasses?.length) await chargerClasses();
+  if (selCls) selCls.innerHTML = '<option value="">Toutes les classes</option>'
+    + (toutesLesClasses||[]).filter(c=>c.statut!=='archive')
+        .map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+  if (!tousLesEtudiants.length) {
+    let q = db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q; tousLesEtudiants = data||[];
+  }
+  if (selEtu) selEtu.innerHTML = '<option value="">Tous les étudiants</option>'
+    + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+}
+
+async function filtrerCertParClasse() {
+  const cls = document.getElementById('filter-cert-classe')?.value;
+  const sel = document.getElementById('filter-cert-etudiant');
+  if (!sel) return;
+  const etus = cls ? tousLesEtudiants.filter(e=>e.classe_id===cls) : tousLesEtudiants;
+  sel.innerHTML = '<option value="">Tous les étudiants</option>'
+    + etus.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  sel.value = '';
+  filtrerCertificats();
+}
+
+function resetFiltresCert() {
+  ['filter-cert-classe','filter-cert-etudiant','filter-cert-type','filter-cert-statut','search-certificats']
+    .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  afficherCertificats(tousLesCertificats);
+}
+
+async function signerCertificat(id) {
+  if (!confirm('Marquer ce certificat comme signé ?')) return;
+  const { error } = await db.from('certificats').update({ statut:'signe' }).eq('id', id);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast('✅ Certificat signé !','success');
+  chargerCertificats();
+}
+
+function exporterCertificatsCSV() {
+  if (!tousLesCertificats.length) { showToast('Aucun document à exporter.','error'); return; }
+  const header = ['reference','type','etudiant','matricule','signataire','statut','periode','date'];
+  const rows = tousLesCertificats.map(c => {
+    const t = CERT_TYPES[c.type]?.label || c.type;
+    const e = c.etudiants;
+    return [c.reference||'', t, e?e.nom+' '+e.prenom:'—', e?.matricule||'—',
+            c.delivre_par||'—', c.statut||'', c.periode||'—', fmtDate(c.created_at)];
+  });
+  csvDownload('certificats.csv', header, rows);
+}
+
+
 
 // ── Modal : émission ───────────────────────────────────────────────────────
 async function ouvrirModalCertificat(type = 'attestation_inscription') {
@@ -12439,26 +12504,6 @@ async function annulerCertificatDB(id) {
   showToast('Document annulé.', 'info');
   chargerCertificats();
 }
-
-function exporterCertificatsCSV() {
-  if (!tousLesCertificats.length) { showToast('Aucun document à exporter.', 'error'); return; }
-  const header = 'Référence,Type,Étudiant,Matricule,Signataire,Statut,Période,Date';
-  const rows = tousLesCertificats.map(c => {
-    const t = CERT_TYPES[c.type]?.label || c.type;
-    const e = c.etudiants;
-    return [c.reference, t, (e?e.nom+' '+e.prenom:'—'), (e?.matricule||'—'),
-            (c.delivre_par||'—'), c.statut, (c.periode||'—'), fmtDate(c.created_at)]
-      .map(v => '"'+String(v||'').replace(/"/g,'""')+'"').join(',');
-  }).join('\n');
-  const blob = new Blob(['\ufeff'+header+'\n'+rows], { type:'text/csv;charset=utf-8;' });
-  const a = Object.assign(document.createElement('a'), {
-    href:     URL.createObjectURL(blob),
-    download: `EduLink_Certificats_${new Date().toISOString().split('T')[0]}.csv`
-  });
-  a.click();
-  showToast('✅ Export CSV généré', 'success');
-}
-
 
 // ════════════════════════════════════════════════════════════════════════════
 //  GÉNÉRATION PDF CERTIFICATS  ★ JOUR 18
