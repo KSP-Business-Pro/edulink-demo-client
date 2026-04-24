@@ -15208,7 +15208,6 @@ async function ajouterPersonnel() {
     type_contrat:    document.getElementById('input-rh-contrat').value,
     date_embauche:   document.getElementById('input-rh-embauche').value,
     salaire_brut:    parseFloat(document.getElementById('input-rh-salaire').value)||0,
-    date_fin_contrat:document.getElementById('input-rh-fin-contrat').value||null,
     observations:    document.getElementById('input-rh-obs')?.value.trim()||'',
   };
   let error;
@@ -15238,7 +15237,7 @@ function ouvrirModifierPersonnel(id) {
   document.getElementById('input-rh-contrat').value      = p.type_contrat||'CDI';
   document.getElementById('input-rh-embauche').value     = p.date_embauche||'';
   document.getElementById('input-rh-salaire').value      = p.salaire_brut||'';
-  document.getElementById('input-rh-fin-contrat').value  = p.date_fin_contrat||'';
+  // date_fin_contrat non supporté par Supabase schema
   if (document.getElementById('input-rh-obs')) document.getElementById('input-rh-obs').value = p.observations||'';
   const modal = document.getElementById('modal-personnel');
   if (modal) modal.dataset.editId = id;
@@ -15268,11 +15267,11 @@ async function peuplerSelectAgentPaie() {
 
 function exporterRHCSV() {
   if (!toutLePersonnel.length) { showToast('Aucun agent à exporter','error'); return; }
-  const header = ['prenom','nom','email','telephone','poste','departement','type_contrat','date_embauche','date_fin_contrat','salaire_brut','statut'];
+  const header = ['prenom','nom','email','telephone','poste','departement','type_contrat','date_embauche','salaire_brut','statut'];
   const rows = toutLePersonnel.map(p=>[
     p.prenom||'', p.nom||'', p.email||'', p.telephone||'',
     p.poste||'', p.departement||'', p.type_contrat||'',
-    fmtDate(p.date_embauche), fmtDate(p.date_fin_contrat),
+    fmtDate(p.date_embauche),
     p.salaire_brut||0, p.statut||'actif'
   ]);
   csvDownload('personnel_rh.csv', header, rows);
