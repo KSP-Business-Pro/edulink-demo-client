@@ -2471,7 +2471,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
   <div class="search-bar"><input type="text" id="search-etudiants" placeholder="Rechercher par nom, prénom, matricule..." oninput="filtrerEtudiants()"></div>
   <table>
-    <tr><th>Matricule</th><th>Nom complet</th><th>Filière</th><th>Classe</th><th>Statut</th><th>Actions</th></tr>
+    <tr><th>Matricule</th><th>Nom complet</th><th>Filière</th><th>Niveau</th><th>Statut</th><th>Actions</th></tr>
     <tbody id="tbody-etudiants"><tr><td colspan="6" class="loading">Chargement...</td></tr></tbody>
   </table>
 </div>
@@ -2513,6 +2513,12 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div id="tab-saisie">
     <div class="filters">
       <span class="filter-label">Filtrer :</span>
+      <select id="filter-notes-classe" onchange="filtrerNotesParClasse()">
+        <option value="">Toutes les classes</option>
+      </select>
+      <select id="filter-notes-etudiant" onchange="chargerNotes()">
+        <option value="">Tous les étudiants</option>
+      </select>
       <select id="filter-notes-periode" onchange="chargerNotes()">
         <option value="">Toutes périodes</option>
         <option value="S1">Semestre 1</option><option value="S2">Semestre 2</option>
@@ -6621,21 +6627,11 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div class="form-group"><label>Sexe</label>
         <select id="input-sexe"><option value="M">Masculin</option><option value="F">Féminin</option></select>
       </div>
-      <div class="form-group"><label>Classe</label>
-        <select id="input-classe-etudiant" onchange="syncFiliereNiveauEtudiant(this)">
-          <option value="">— Sélectionner (optionnel) —</option>
-        </select>
-      </div>
       <div class="form-group"><label>Filière *</label>
-        <input type="text" id="input-filiere" placeholder="Ex: Finance, Droit...">
+        <select id="input-filiere"><option>Informatique</option><option>Gestion</option><option>Droit</option><option>Médecine</option><option>Finance</option><option>Lettres</option></select>
       </div>
       <div class="form-group"><label>Niveau *</label>
-        <select id="input-niveau">
-          <option>L1</option><option>L2</option><option>L3</option>
-          <option>M1</option><option>M2</option><option>Doctorat</option>
-          <option>6ème</option><option>5ème</option><option>4ème</option><option>3ème</option>
-          <option>2nde</option><option>1ère</option><option>Tle</option>
-        </select>
+        <select id="input-niveau"><option>L1</option><option>L2</option><option>L3</option><option>M1</option><option>M2</option></select>
       </div>
     </div>
     <div class="form-group"><label>Email étudiant</label><input type="email" id="input-email" placeholder="email@etudiant.com"></div>
@@ -6689,7 +6685,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div class="form-group"><label>Commentaire</label><textarea rows="2" id="input-note-commentaire" placeholder="Appréciation (optionnel)..."></textarea></div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="fermerModal('modal-note')">Annuler</button>
-      <button onclick="enregistrerNote()">Enregistrer</button>
+      <button onclick="enregistrerOuModifierNote()">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -7778,7 +7774,7 @@ function showPage(p) {
     dashboard:    chargerDashboard,
     etudiants:    chargerEtudiants,
     presences:    chargerAbsences,
-    notes:        () => { chargerNotes(); remplirSelectBulletin(); },
+    notes:        () => { chargerNotes(); remplirSelectBulletin(); peuplerFiltresNotes(); },
     messages:     chargerMessages,
     emploi:       chargerEmploiDuTemps,
     paiements:    chargerPaiements,
@@ -7874,7 +7870,6 @@ function showTab(page, tabId) {
 // ══ MODALS ════════════════════════════════════
 function ouvrirModal(id) {
   document.getElementById(id).classList.add('open');
-  if (id === 'modal-etudiant') remplirSelectClassesEtudiant();
   if (id === 'modal-absence')  remplirSelect('input-absence-etudiant');
   if (id === 'modal-note')     remplirSelect('input-note-etudiant');
   if (id === 'modal-facture')  { remplirSelect('input-fac-etudiant'); document.getElementById('input-fac-echeance').value = new Date(Date.now()+30*864e5).toISOString().split('T')[0]; }
@@ -7970,29 +7965,16 @@ async function chargerDashboard() {
 // ══ ÉTUDIANTS ════════════════════════════════
 async function chargerEtudiants() {
   document.getElementById('tbody-etudiants').innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
-  let data = null;
-  try {
-    let q = db.from('etudiants').select('*, classes(id,nom,filiere,niveau)').order('nom');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-    const res = await q;
-    if (!res.error && res.data) data = res.data;
-  } catch(e) {}
-  if (!data) {
-    let q = db.from('etudiants').select('*').order('nom');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-    const res = await q; data = res.data || [];
-  }
-  tousLesEtudiants = data;
+  let q = db.from('etudiants').select('*').order('nom');
+  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  const { data } = await q;
+  tousLesEtudiants = data || [];
   afficherEtudiants(tousLesEtudiants);
 }
 function afficherEtudiants(liste) {
   const t = document.getElementById('tbody-etudiants');
   t.innerHTML = liste?.length
-    ? liste.map(e => {
-        const cls = e.classes;
-        const badge = cls ? `<span class="badge blue" style="font-size:10px">${cls.nom||cls.filiere+' '+cls.niveau}</span>` : `<span class="badge gray" style="font-size:10px">${e.niveau||'—'}</span>`;
-        return `<tr><td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${e.matricule}</code></td><td><strong>${e.nom} ${e.prenom}</strong></td><td>${e.filiere}</td><td>${badge}</td><td><span class="badge ${e.statut==='actif'?'green':'amber'}">${e.statut}</span></td><td><button class="btn-sm btn-blue" onclick="voirEtudiant('${e.id}')">Voir</button></td></tr>`;
-      }).join('')
+    ? liste.map(e => `<tr><td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${e.matricule}</code></td><td><strong>${e.nom} ${e.prenom}</strong></td><td>${e.filiere}</td><td><span class="badge gray">${e.niveau}</span></td><td><span class="badge ${e.statut==='actif'?'green':'amber'}">${e.statut}</span></td><td><button class="btn-sm btn-blue" onclick="voirEtudiant('${e.id}')">Voir</button></td></tr>`).join('')
     : '<tr><td colspan="6" class="loading">Aucun étudiant.</td></tr>';
 }
 function filtrerEtudiants() {
@@ -8046,43 +8028,16 @@ async function voirEtudiant(id) {
 async function ajouterEtudiant() {
   const nom=document.getElementById('input-nom').value.trim(), prenom=document.getElementById('input-prenom').value.trim(), matricule=document.getElementById('input-matricule').value.trim();
   if (!nom||!prenom||!matricule) { showToast('Remplissez les champs obligatoires', 'error'); return; }
-  const classeId = document.getElementById('input-classe-etudiant')?.value || null;
-  const payload = { ecole_id:currentEcoleId, nom, prenom, matricule, sexe:document.getElementById('input-sexe').value, filiere:document.getElementById('input-filiere')?.value?.trim()||'', niveau:document.getElementById('input-niveau').value, email:document.getElementById('input-email').value.trim(), statut:'actif' };
+  const payload = { ecole_id:currentEcoleId, nom, prenom, matricule, sexe:document.getElementById('input-sexe').value, filiere:document.getElementById('input-filiere').value, niveau:document.getElementById('input-niveau').value, email:document.getElementById('input-email').value.trim(), statut:'actif' };
   const parentEmail = document.getElementById('input-parent-email').value.trim();
   const parentTel   = document.getElementById('input-parent-tel').value.trim();
   if (parentEmail) payload.parent_email = parentEmail;
   if (parentTel)   payload.parent_tel   = parentTel;
-  const { data: inserted, error } = await db.from('etudiants').insert([payload]).select('id').single();
+  const { error } = await db.from('etudiants').insert([payload]);
   if (error) { showToast('Erreur : '+(error.message.includes('unique')?'Matricule déjà utilisé.':error.message),'error'); return; }
-  if (classeId && inserted?.id) await db.from('etudiants').update({ classe_id: classeId }).eq('id', inserted.id);
   fermerModal('modal-etudiant');
-  ['input-nom','input-prenom','input-matricule','input-email','input-parent-email','input-parent-tel'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const fi=document.getElementById('input-filiere'); if(fi) fi.value='';
-  const sc=document.getElementById('input-classe-etudiant'); if(sc) sc.value='';
-  showToast('✅ Étudiant ajouté !','success'); chargerEtudiants(); chargerDashboard();
-  if (classeId) chargerClasses();
-}
-
-// ── Liaison étudiant ↔ classe ──────────────────────────────────────────────
-async function remplirSelectClassesEtudiant() {
-  const sel = document.getElementById('input-classe-etudiant');
-  if (!sel) return;
-  if (!toutesLesClasses || !toutesLesClasses.length) {
-    let q = db.from('classes').select('id,nom,filiere,niveau,statut').order('filiere');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-    const { data } = await q; toutesLesClasses = data || [];
-  }
-  const actives = toutesLesClasses.filter(c => c.statut !== 'archive');
-  sel.innerHTML = '<option value="">— Sélectionner (optionnel) —</option>'
-    + actives.map(c => `<option value="${c.id}" data-filiere="${c.filiere||''}" data-niveau="${c.niveau||''}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
-}
-function syncFiliereNiveauEtudiant(sel) {
-  const opt = sel.options[sel.selectedIndex];
-  if (!opt || !opt.value) return;
-  const fi = document.getElementById('input-filiere');
-  const nv = document.getElementById('input-niveau');
-  if (fi && opt.dataset.filiere) fi.value = opt.dataset.filiere;
-  if (nv && opt.dataset.niveau) Array.from(nv.options).forEach(o => { o.selected = o.value === opt.dataset.niveau; });
+  ['input-nom','input-prenom','input-matricule','input-email','input-parent-email','input-parent-tel'].forEach(id=>document.getElementById(id).value='');
+  showToast('Étudiant ajouté !','success'); chargerEtudiants(); chargerDashboard();
 }
 
 // ══ ABSENCES ══════════════════════════════════
@@ -8123,31 +8078,101 @@ async function enregistrerAbsence() {
 // ══ NOTES & BULLETINS ════════════════════════
 async function chargerNotes() {
   document.getElementById('tbody-notes').innerHTML = '<tr><td colspan="7" class="loading">Chargement...</td></tr>';
-  let q = db.from('notes').select('*, etudiants(nom, prenom)').order('created_at',{ascending:false});
+  let q = db.from('notes').select('*, etudiants(nom, prenom, classe_id)').order('created_at',{ascending:false});
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
   const fp = document.getElementById('filter-notes-periode')?.value;
   const fm = document.getElementById('filter-notes-matiere')?.value;
+  const fe = document.getElementById('filter-notes-etudiant')?.value;
   if (fp) q = q.eq('periode', fp);
   if (fm) q = q.eq('matiere', fm);
+  if (fe) q = q.eq('etudiant_id', fe);
   const { data } = await q;
   toutesLesNotes = data || [];
+  // Peupler filtre matières
   const matieres = [...new Set(toutesLesNotes.map(n => n.matiere))].sort();
   const filtMat = document.getElementById('filter-notes-matiere');
   const cur = filtMat.value;
   filtMat.innerHTML = '<option value="">Toutes les matières</option>' + matieres.map(m => `<option value="${m}" ${cur===m?'selected':''}>${m}</option>`).join('');
   document.getElementById('tbody-notes').innerHTML = toutesLesNotes.length
-    ? toutesLesNotes.map(n => { const a=getApp(n.note); return `<tr><td>${n.etudiants?n.etudiants.nom+' '+n.etudiants.prenom:'N/A'}</td><td>${n.matiere}</td><td><span class="note-badge ${a.cls}">${n.note}/20</span></td><td>${n.coefficient||1}</td><td><span class="badge gray">${n.periode}</span></td><td><span class="badge ${a.cls}">${a.label}</span></td><td><button class="btn-sm btn-red" onclick="supprimerNote('${n.id}')">✕</button></td></tr>`; }).join('')
+    ? toutesLesNotes.map(n => {
+        const a = getApp(n.note);
+        return `<tr>
+          <td>${n.etudiants ? n.etudiants.nom+' '+n.etudiants.prenom : 'N/A'}</td>
+          <td>${n.matiere}</td>
+          <td><span class="note-badge ${a.cls}">${n.note}/20</span></td>
+          <td>${n.coefficient||1}</td>
+          <td><span class="badge gray">${n.periode}</span></td>
+          <td><span class="badge ${a.cls}">${a.label}</span></td>
+          <td style="display:flex;gap:4px">
+            <button class="btn-sm btn-blue" onclick="ouvrirModifierNote('${n.id}','${n.etudiant_id}','${n.matiere}',${n.note},${n.coefficient||1},'${n.periode}','${n.commentaire||''}')">✏️</button>
+            <button class="btn-sm btn-red" onclick="supprimerNote('${n.id}')">✕</button>
+          </td>
+        </tr>`;
+      }).join('')
     : '<tr><td colspan="7" class="loading">Aucune note.</td></tr>';
 }
-async function enregistrerNote() {
-  const matiere=document.getElementById('input-note-matiere').value.trim(), note=parseFloat(document.getElementById('input-note-valeur').value);
-  if (!matiere||isNaN(note)) { showToast('Remplissez matière et note.','error'); return; }
-  if (note<0||note>20) { showToast('Note entre 0 et 20.','error'); return; }
-  const { error } = await db.from('notes').insert([{ ecole_id:currentEcoleId, etudiant_id:document.getElementById('input-note-etudiant').value, matiere, note, coefficient:parseInt(document.getElementById('input-note-coeff').value)||2, periode:document.getElementById('input-note-periode').value, commentaire:document.getElementById('input-note-commentaire').value.trim() }]);
+
+async function filtrerNotesParClasse() {
+  const classeId = document.getElementById('filter-notes-classe')?.value;
+  const selEtu = document.getElementById('filter-notes-etudiant');
+  if (!classeId) {
+    selEtu.innerHTML = '<option value="">Tous les étudiants</option>'
+      + tousLesEtudiants.map(e => `<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  } else {
+    const etus = tousLesEtudiants.filter(e => e.classe_id === classeId);
+    selEtu.innerHTML = '<option value="">Tous les étudiants</option>'
+      + etus.map(e => `<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  }
+  selEtu.value = '';
+  chargerNotes();
+}
+
+function ouvrirModifierNote(id, etudiantId, matiere, note, coeff, periode, commentaire) {
+  // Réutiliser la modale note en mode édition
+  document.getElementById('input-note-etudiant').value = etudiantId;
+  document.getElementById('input-note-matiere').value  = matiere;
+  document.getElementById('input-note-valeur').value   = note;
+  document.getElementById('input-note-coeff').value    = coeff;
+  document.getElementById('input-note-periode').value  = periode;
+  if (document.getElementById('input-note-commentaire'))
+    document.getElementById('input-note-commentaire').value = commentaire;
+  // Marquer la modale en mode édition
+  document.getElementById('modal-note').dataset.editId = id;
+  document.querySelector('#modal-note h3').textContent = '✏️ Modifier la note';
+  ouvrirModal('modal-note');
+}
+
+async function enregistrerOuModifierNote() {
+  const modal = document.getElementById('modal-note');
+  const editId = modal.dataset.editId;
+  const matiere = document.getElementById('input-note-matiere').value.trim();
+  const note    = parseFloat(document.getElementById('input-note-valeur').value);
+  if (!matiere || isNaN(note)) { showToast('Remplissez matière et note.','error'); return; }
+  if (note < 0 || note > 20)   { showToast('Note entre 0 et 20.','error'); return; }
+  const payload = {
+    matiere, note,
+    coefficient: parseInt(document.getElementById('input-note-coeff').value)||2,
+    periode:     document.getElementById('input-note-periode').value,
+    commentaire: document.getElementById('input-note-commentaire')?.value.trim()||''
+  };
+  let error;
+  if (editId) {
+    ({ error } = await db.from('notes').update(payload).eq('id', editId));
+  } else {
+    ({ error } = await db.from('notes').insert([{
+      ...payload,
+      ecole_id:    currentEcoleId,
+      etudiant_id: document.getElementById('input-note-etudiant').value
+    }]));
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  fermerModal('modal-note'); ['input-note-matiere','input-note-valeur','input-note-commentaire'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('input-note-coeff').value='2';
-  showToast('Note enregistrée !','success'); chargerNotes(); chargerDashboard();
+  fermerModal('modal-note');
+  delete modal.dataset.editId;
+  document.querySelector('#modal-note h3').textContent = '📝 Saisir une note';
+  ['input-note-matiere','input-note-valeur','input-note-commentaire'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('input-note-coeff').value = '2';
+  showToast(editId ? '✅ Note modifiée !' : 'Note enregistrée !','success');
+  chargerNotes(); chargerDashboard();
 }
 async function supprimerNote(id) {
   if (!confirm('Supprimer cette note ?')) return;
@@ -8196,6 +8221,25 @@ function pdfSafe(str) {
     .replace(/[-￿]/g, '');
 }
 
+async function peuplerFiltresNotes() {
+  // Filtre classes
+  const selCls = document.getElementById('filter-notes-classe');
+  if (!selCls) return;
+  if (!toutesLesClasses || !toutesLesClasses.length) await chargerClasses();
+  selCls.innerHTML = '<option value="">Toutes les classes</option>'
+    + (toutesLesClasses||[]).filter(c=>c.statut!=='archive')
+        .map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+  // Filtre étudiants (tous au départ)
+  const selEtu = document.getElementById('filter-notes-etudiant');
+  if (!tousLesEtudiants || !tousLesEtudiants.length) {
+    let q = db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q; tousLesEtudiants = data || [];
+  }
+  selEtu.innerHTML = '<option value="">Tous les étudiants</option>'
+    + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+}
+
 async function remplirSelectBulletin() {
   // Charger les étudiants depuis DB si cache vide
   if (!tousLesEtudiants.length) {
@@ -8238,24 +8282,57 @@ async function chargerBulletin() {
   const container  = document.getElementById('bulletin-container');
   if (!etudiantId) { container.innerHTML='<div class="empty-state"><div class="icon">📄</div><h3>Sélectionnez un étudiant</h3></div>'; return; }
   container.innerHTML = '<div class="loading">Génération du bulletin...</div>';
-  const { data:notes } = await db.from('notes').select('*').eq('etudiant_id',etudiantId).eq('periode',periode);
+  const { data:notes } = await db.from('notes').select('*').eq('etudiant_id',etudiantId).eq('periode',periode).order('matiere');
   const etudiant = tousLesEtudiants.find(e => e.id === etudiantId);
   if (!notes?.length) { container.innerHTML='<div class="empty-state"><div class="icon">📭</div><h3>Aucune note pour cette période.</h3></div>'; return; }
   let totalPts=0, totalCoeff=0;
   notes.forEach(n => { totalPts+=n.note*(n.coefficient||1); totalCoeff+=(n.coefficient||1); });
   const moy = totalCoeff>0?(totalPts/totalCoeff):0;
   const app = getApp(moy);
+  // Infos classe
+  const classe = (toutesLesClasses||[]).find(c => c.id === etudiant?.classe_id);
+  const classeLabel = classe ? (classe.nom||classe.filiere+' '+classe.niveau) : (etudiant?.filiere||'—');
+  const ecole = tousLesEcoles?.find(e => e.id === currentEcoleId);
+
   container.innerHTML = `<div class="bulletin-wrap" id="bulletin-print">
-    <div class="bulletin-header"><h3>Bulletin de Notes — ${etudiant?.nom||''} ${etudiant?.prenom||''}</h3><p>${labelPeriodeHTML(periode)} · Edité le ${fmtDate(new Date())}</p></div>
-    <div class="bulletin-stats">
+    <div class="bulletin-header">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h3 style="font-size:16px;font-weight:700">${ecole?.nom||'Établissement'}</h3>
+          <p style="font-size:11px;opacity:.85">${ecole?.ville||''} · Année ${ecole?.annee_scolaire||''}</p>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;opacity:.85">BULLETIN DE NOTES</div>
+          <div style="font-size:10px;opacity:.75">Édité le ${fmtDate(new Date())}</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:1rem">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#1e3a5f">${etudiant?.nom||''} ${etudiant?.prenom||''}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px">
+          Matricule : <strong>${etudiant?.matricule||'—'}</strong> · 
+          Classe : <strong>${classeLabel}</strong> · 
+          Niveau : <strong>${etudiant?.niveau||'—'}</strong>
+        </div>
+      </div>
+      <div style="text-align:center;background:${moy>=10?'#dcfce7':'#fee2e2'};border-radius:10px;padding:.5rem 1rem">
+        <div style="font-size:22px;font-weight:800;color:${moy>=10?'#059669':'#dc2626'}">${moy.toFixed(2)}/20</div>
+        <div style="font-size:11px;color:${moy>=10?'#059669':'#dc2626'};font-weight:600">${app.label}</div>
+      </div>
+    </div>
+    <div class="bulletin-stats" style="margin-bottom:1rem">
       <div class="bstat"><div class="val">${moy.toFixed(2)}/20</div><div class="lbl">Moyenne générale</div></div>
       <div class="bstat"><div class="val">${notes.length}</div><div class="lbl">Matières évaluées</div></div>
+      <div class="bstat"><div class="val">${totalCoeff}</div><div class="lbl">Total coefficients</div></div>
       <div class="bstat"><div class="val"><span class="badge ${app.cls}">${app.label}</span></div><div class="lbl">Mention</div></div>
     </div>
-    <table><tr><th>Matière</th><th>Note /20</th><th>Coefficient</th><th>Points</th><th>Appréciation</th></tr>
+    <table><tr><th>Matière</th><th>Note /20</th><th>Coefficient</th><th>Points pondérés</th><th>Appréciation</th></tr>
     ${notes.map(n=>{const a=getApp(n.note);return`<tr><td>${n.matiere}</td><td><strong>${n.note}/20</strong></td><td>${n.coefficient||1}</td><td>${(n.note*(n.coefficient||1)).toFixed(2)}</td><td><span class="badge ${a.cls}">${a.label}</span></td></tr>`;}).join('')}
-    <tr style="background:#f9fafb;font-weight:700"><td>MOYENNE GÉNÉRALE</td><td><strong style="color:#1e3a5f;font-size:15px">${moy.toFixed(2)}/20</strong></td><td>${totalCoeff}</td><td>${totalPts.toFixed(2)}</td><td><span class="badge ${app.cls}">${app.label}</span></td></tr>
-    </table></div>`;
+    <tr style="background:#f9fafb;font-weight:700"><td colspan="2">MOYENNE GÉNÉRALE</td><td>${totalCoeff}</td><td>${totalPts.toFixed(2)}</td><td><span class="badge ${app.cls}">${app.label} — ${moy.toFixed(2)}/20</span></td></tr>
+    </table>
+    ${notes[0]?.commentaire ? `<div style="margin-top:.75rem;padding:.75rem;background:#fffbeb;border-radius:8px;font-size:12px;color:#92400e"><strong>Appréciation :</strong> ${notes[0].commentaire}</div>` : ''}
+  </div>`;
 }
 function imprimerBulletin() {
   const el = document.getElementById('bulletin-print');
@@ -12623,35 +12700,20 @@ async function chargerClasses() {
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
   const { data } = await q;
   toutesLesClasses = data || [];
-
-  // Charger étudiants et programmes en parallèle
+  // Stats
+  const filieres = [...new Set(toutesLesClasses.map(c => c.filiere))];
+  document.getElementById('cls-stat-total').textContent    = toutesLesClasses.filter(c=>c.statut!=='archive').length;
+  document.getElementById('cls-stat-filieres').textContent = filieres.length;
+  // Nb étudiants affectés
   let qE = db.from('etudiants').select('id,classe_id');
   if (currentEcoleId) qE = qE.eq('ecole_id', currentEcoleId);
-  let qM = db.from('programmes').select('id,classe_id');
+  const { data: etus } = await qE;
+  document.getElementById('cls-stat-etudiants').textContent = (etus||[]).filter(e=>e.classe_id).length;
+  // Nb matières
+  let qM = db.from('programmes').select('id',{count:'exact',head:true});
   if (currentEcoleId) qM = qM.eq('ecole_id', currentEcoleId);
-  const [{ data: etus }, { data: progs }] = await Promise.all([qE, qM]);
-
-  // Calculer effectif_actuel et nb_matieres par classe
-  const effectifs = {}, matieres = {};
-  (etus||[]).forEach(e => { if (e.classe_id) effectifs[e.classe_id] = (effectifs[e.classe_id]||0) + 1; });
-  (progs||[]).forEach(p => { if (p.classe_id) matieres[p.classe_id]  = (matieres[p.classe_id]||0)  + 1; });
-
-  // Enrichir chaque classe avec ses stats calculées
-  toutesLesClasses = toutesLesClasses.map(c => ({
-    ...c,
-    effectif_actuel: effectifs[c.id] || 0,
-    nb_matieres:     matieres[c.id]  || 0,
-  }));
-
-  // Stats globales
-  const totalAffectes = Object.values(effectifs).reduce((a,b)=>a+b, 0);
-  const totalMatieres = Object.values(matieres).reduce((a,b)=>a+b, 0);
-  const filieres = [...new Set(toutesLesClasses.map(c => c.filiere))];
-  document.getElementById('cls-stat-total').textContent     = toutesLesClasses.filter(c=>c.statut!=='archive').length;
-  document.getElementById('cls-stat-filieres').textContent  = filieres.length;
-  document.getElementById('cls-stat-etudiants').textContent = totalAffectes;
-  document.getElementById('cls-stat-matieres').textContent  = totalMatieres;
-
+  const { count: nbM } = await qM;
+  document.getElementById('cls-stat-matieres').textContent = nbM || 0;
   // Filtre filière
   const selF = document.getElementById('filter-cls-filiere');
   const curF = selF.value;
