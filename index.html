@@ -2465,13 +2465,29 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 <div class="page" id="page-etudiants">
   <div class="top"><h2>Étudiants</h2>
     <div class="top-actions">
-      <button class="btn-secondary" onclick="ouvrirModal('modal-import-csv')" title="Importer via fichier CSV">📥 Import CSV</button>
+      <button class="btn-outline" onclick="exporterEtudiantsCSV()">⬇️ Export CSV</button>
+      <button class="btn-secondary" onclick="ouvrirModal('modal-import-csv')">📥 Import CSV</button>
       <button onclick="ouvrirModal('modal-etudiant')">+ Ajouter étudiant</button>
     </div>
   </div>
+  <div class="cards" style="margin-bottom:1rem">
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#1e3a5f" id="stat-etu-total">—</div><div style="font-size:12px;color:#6b7280">Total inscrits</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#059669" id="stat-etu-actifs">—</div><div style="font-size:12px;color:#6b7280">Actifs</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#7c3aed" id="stat-etu-filles">—</div><div style="font-size:12px;color:#6b7280">Étudiantes (F)</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#c97c1a" id="stat-etu-classes">—</div><div style="font-size:12px;color:#6b7280">Affectés à une classe</div></div>
+  </div>
+  <div class="filters" style="margin-bottom:.75rem">
+    <span class="filter-label">Filtrer :</span>
+    <select id="filter-etu-classe" onchange="filtrerEtudiants()"><option value="">Toutes les classes</option></select>
+    <select id="filter-etu-filiere" onchange="filtrerEtudiants()"><option value="">Toutes les filières</option></select>
+    <select id="filter-etu-statut" onchange="filtrerEtudiants()">
+      <option value="">Tous les statuts</option><option value="actif">Actif</option><option value="inactif">Inactif</option>
+    </select>
+    <button class="btn-sm btn-secondary" onclick="resetFiltresEtudiants()">🔄 Réinitialiser</button>
+  </div>
   <div class="search-bar"><input type="text" id="search-etudiants" placeholder="Rechercher par nom, prénom, matricule..." oninput="filtrerEtudiants()"></div>
   <table>
-    <tr><th>Matricule</th><th>Nom complet</th><th>Filière</th><th>Niveau</th><th>Statut</th><th>Actions</th></tr>
+    <tr><th>Matricule</th><th>Nom complet</th><th>Filière</th><th>Classe</th><th>Statut</th><th>Actions</th></tr>
     <tbody id="tbody-etudiants"><tr><td colspan="6" class="loading">Chargement...</td></tr></tbody>
   </table>
 </div>
@@ -2480,33 +2496,28 @@ button:hover { background:#a86615; transform:translateY(-1px); }
      PRÉSENCES
 ═══════════════════════════════════════ -->
 <div class="page" id="page-presences">
-  <div class="top">
-    <h2>Présences & Absences</h2>
+  <div class="top"><h2>Présences & Absences</h2>
     <div class="top-actions">
       <button class="btn-outline" onclick="exporterAbsencesCSV()">⬇️ Export CSV</button>
       <button onclick="ouvrirModal('modal-absence')">+ Enregistrer absence</button>
     </div>
   </div>
-
   <div class="cards" style="margin-bottom:1rem">
     <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#dc2626" id="stat-abs-total">—</div><div style="font-size:12px;color:#6b7280">Total absences</div></div>
     <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#d97706" id="stat-abs-today">—</div><div style="font-size:12px;color:#6b7280">Aujourd'hui</div></div>
     <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#7c3aed" id="stat-abs-nonexcuses">—</div><div style="font-size:12px;color:#6b7280">Non excusées</div></div>
     <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:#059669" id="stat-abs-notifies">—</div><div style="font-size:12px;color:#6b7280">Parents notifiés</div></div>
   </div>
-
   <div class="filters">
     <span class="filter-label">Filtrer :</span>
     <select id="filter-absence-classe" onchange="filtrerAbsencesParClasse()"><option value="">Toutes les classes</option></select>
     <select id="filter-absence-etudiant" onchange="chargerAbsences()"><option value="">Tous les étudiants</option></select>
     <select id="filter-absence-statut" onchange="chargerAbsences()">
-      <option value="">Tous les statuts</option>
-      <option value="absent">Absent</option><option value="retard">Retard</option><option value="excuse">Excusé</option>
+      <option value="">Tous les statuts</option><option value="absent">Absent</option><option value="retard">Retard</option><option value="excuse">Excusé</option>
     </select>
     <input type="date" id="filter-absence-date" onchange="chargerAbsences()" style="padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:'Poppins',sans-serif;outline:none;">
     <button class="btn-sm btn-secondary" onclick="resetFiltresAbsences()">🔄 Réinitialiser</button>
   </div>
-
   <table>
     <tr><th>Étudiant</th><th>Matière</th><th>Date</th><th>Statut</th><th>Justification</th><th>Parent notifié</th><th>Actions</th></tr>
     <tbody id="tbody-presences"><tr><td colspan="7" class="loading">Chargement...</td></tr></tbody>
@@ -2531,6 +2542,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div id="tab-saisie">
     <div class="filters">
       <span class="filter-label">Filtrer :</span>
+      <select id="filter-notes-classe" onchange="filtrerNotesParClasse()"><option value="">Toutes les classes</option></select>
+      <select id="filter-notes-etudiant" onchange="chargerNotes()"><option value="">Tous les étudiants</option></select>
       <select id="filter-notes-periode" onchange="chargerNotes()">
         <option value="">Toutes périodes</option>
         <option value="S1">Semestre 1</option><option value="S2">Semestre 2</option>
@@ -6639,18 +6652,22 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div class="form-group"><label>Sexe</label>
         <select id="input-sexe"><option value="M">Masculin</option><option value="F">Féminin</option></select>
       </div>
-      <div class="form-group"><label>Filière *</label>
-        <select id="input-filiere"><option>Informatique</option><option>Gestion</option><option>Droit</option><option>Médecine</option><option>Finance</option><option>Lettres</option></select>
+      <div class="form-group"><label>Classe</label>
+        <select id="input-classe-etudiant" onchange="syncFiliereNiveauEtudiant(this)"><option value="">— Sélectionner (optionnel) —</option></select>
       </div>
+      <div class="form-group"><label>Filière *</label><input type="text" id="input-filiere" placeholder="Ex: Finance, Droit..."></div>
       <div class="form-group"><label>Niveau *</label>
-        <select id="input-niveau"><option>L1</option><option>L2</option><option>L3</option><option>M1</option><option>M2</option></select>
+        <select id="input-niveau">
+          <option>L1</option><option>L2</option><option>L3</option><option>M1</option><option>M2</option><option>Doctorat</option>
+          <option>6ème</option><option>5ème</option><option>4ème</option><option>3ème</option><option>2nde</option><option>1ère</option><option>Tle</option>
+        </select>
       </div>
     </div>
     <div class="form-group"><label>Email étudiant</label><input type="email" id="input-email" placeholder="email@etudiant.com"></div>
     <div style="background:#f0fdf4;border-radius:10px;padding:.85rem;margin-bottom:1rem;border:1px solid #bbf7d0">
       <div style="font-size:12px;font-weight:700;color:#059669;margin-bottom:.6rem">👨‍👩‍👧 Liaison Parent — Portail Famille</div>
       <div class="form-grid">
-        <div class="form-group" style="margin-bottom:0"><label>Email parent *</label><input type="email" id="input-parent-email" placeholder="parent@gmail.com"></div>
+        <div class="form-group" style="margin-bottom:0"><label>Email parent</label><input type="email" id="input-parent-email" placeholder="parent@gmail.com"></div>
         <div class="form-group" style="margin-bottom:0"><label>Tél. parent</label><input type="text" id="input-parent-tel" placeholder="+229 97 00 00 00"></div>
       </div>
     </div>
@@ -6697,7 +6714,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div class="form-group"><label>Commentaire</label><textarea rows="2" id="input-note-commentaire" placeholder="Appréciation (optionnel)..."></textarea></div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="fermerModal('modal-note')">Annuler</button>
-      <button onclick="enregistrerNote()">Enregistrer</button>
+      <button onclick="enregistrerOuModifierNote()">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -7784,9 +7801,9 @@ function showPage(p) {
   if (navEl)  navEl.classList.add('on');
   const loaders = {
     dashboard:    chargerDashboard,
-    etudiants:    chargerEtudiants,
+    etudiants:    () => { chargerEtudiants(); peuplerFiltresEtudiants(); },
     presences:    () => { chargerAbsences(); peuplerFiltresAbsences(); },
-    notes:        () => { chargerNotes(); remplirSelectBulletin(); },
+    notes:        () => { chargerNotes(); remplirSelectBulletin(); peuplerFiltresNotes(); },
     messages:     chargerMessages,
     emploi:       chargerEmploiDuTemps,
     paiements:    chargerPaiements,
@@ -7882,6 +7899,7 @@ function showTab(page, tabId) {
 // ══ MODALS ════════════════════════════════════
 function ouvrirModal(id) {
   document.getElementById(id).classList.add('open');
+  if (id === 'modal-etudiant') remplirSelectClassesEtudiant();
   if (id === 'modal-absence')  remplirSelect('input-absence-etudiant');
   if (id === 'modal-note')     remplirSelect('input-note-etudiant');
   if (id === 'modal-facture')  { remplirSelect('input-fac-etudiant'); document.getElementById('input-fac-echeance').value = new Date(Date.now()+30*864e5).toISOString().split('T')[0]; }
@@ -7977,79 +7995,173 @@ async function chargerDashboard() {
 // ══ ÉTUDIANTS ════════════════════════════════
 async function chargerEtudiants() {
   document.getElementById('tbody-etudiants').innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
-  let q = db.from('etudiants').select('*').order('nom');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data } = await q;
-  tousLesEtudiants = data || [];
+  let data=null;
+  try {
+    let q=db.from('etudiants').select('*, classes(id,nom,filiere,niveau)').order('nom');
+    if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);
+    const res=await q; if(!res.error&&res.data)data=res.data;
+  } catch(e){}
+  if(!data){let q=db.from('etudiants').select('*').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const res=await q;data=res.data||[];}
+  tousLesEtudiants=data;
+  // Stats
+  const st=document.getElementById('stat-etu-total');   if(st)st.textContent=tousLesEtudiants.length;
+  const sa=document.getElementById('stat-etu-actifs');  if(sa)sa.textContent=tousLesEtudiants.filter(e=>e.statut==='actif').length;
+  const sf=document.getElementById('stat-etu-filles');  if(sf)sf.textContent=tousLesEtudiants.filter(e=>e.sexe==='F').length;
+  const sc2=document.getElementById('stat-etu-classes');if(sc2)sc2.textContent=tousLesEtudiants.filter(e=>e.classe_id).length;
+  // Peupler filtre filière
+  const filieres=[...new Set(tousLesEtudiants.map(e=>e.filiere).filter(Boolean))].sort();
+  const sf2=document.getElementById('filter-etu-filiere');
+  if(sf2){const cv=sf2.value;sf2.innerHTML='<option value="">Toutes les filières</option>'+filieres.map(f=>`<option value="${f}" ${cv===f?'selected':''}>${f}</option>`).join('');}
   afficherEtudiants(tousLesEtudiants);
 }
 function afficherEtudiants(liste) {
-  const t = document.getElementById('tbody-etudiants');
-  t.innerHTML = liste?.length
-    ? liste.map(e => `<tr><td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${e.matricule}</code></td><td><strong>${e.nom} ${e.prenom}</strong></td><td>${e.filiere}</td><td><span class="badge gray">${e.niveau}</span></td><td><span class="badge ${e.statut==='actif'?'green':'amber'}">${e.statut}</span></td><td><button class="btn-sm btn-blue" onclick="voirEtudiant('${e.id}')">Voir</button></td></tr>`).join('')
-    : '<tr><td colspan="6" class="loading">Aucun étudiant.</td></tr>';
+  const t=document.getElementById('tbody-etudiants');
+  t.innerHTML=liste?.length
+    ?liste.map(e=>{
+      const cls=e.classes;
+      const badge=cls?`<span class="badge blue" style="font-size:10px">${cls.nom||cls.filiere+' '+cls.niveau}</span>`:`<span class="badge gray" style="font-size:10px">${e.niveau||'—'}</span>`;
+      return`<tr>
+        <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${e.matricule}</code></td>
+        <td><strong>${e.nom} ${e.prenom}</strong></td>
+        <td>${e.filiere||'—'}</td><td>${badge}</td>
+        <td><span class="badge ${e.statut==='actif'?'green':'amber'}">${e.statut}</span></td>
+        <td style="display:flex;gap:4px">
+          <button class="btn-sm btn-blue" onclick="voirEtudiant('${e.id}')">👁️</button>
+          <button class="btn-sm btn-secondary" onclick="ouvrirModifierEtudiant('${e.id}')">✏️</button>
+          <button class="btn-sm btn-red" onclick="supprimerEtudiant('${e.id}','${e.nom} ${e.prenom}')">✕</button>
+        </td></tr>`;
+    }).join('')
+    :'<tr><td colspan="6" class="loading">Aucun étudiant.</td></tr>';
 }
 function filtrerEtudiants() {
-  const q = document.getElementById('search-etudiants').value.toLowerCase();
-  afficherEtudiants(tousLesEtudiants.filter(e => e.nom.toLowerCase().includes(q) || e.prenom.toLowerCase().includes(q) || e.matricule.toLowerCase().includes(q)));
+  const q=(document.getElementById('search-etudiants')?.value||'').toLowerCase();
+  const ff=document.getElementById('filter-etu-filiere')?.value||'';
+  const fs=document.getElementById('filter-etu-statut')?.value||'';
+  const fc=document.getElementById('filter-etu-classe')?.value||'';
+  let liste=tousLesEtudiants;
+  if(q)  liste=liste.filter(e=>(e.nom+e.prenom+e.matricule).toLowerCase().includes(q));
+  if(ff) liste=liste.filter(e=>e.filiere===ff);
+  if(fs) liste=liste.filter(e=>e.statut===fs);
+  if(fc) liste=liste.filter(e=>e.classe_id===fc);
+  afficherEtudiants(liste);
+}
+function resetFiltresEtudiants(){
+  ['filter-etu-classe','filter-etu-filiere','filter-etu-statut','search-etudiants'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  afficherEtudiants(tousLesEtudiants);
+}
+async function peuplerFiltresEtudiants(){
+  const sc=document.getElementById('filter-etu-classe');if(!sc)return;
+  if(!toutesLesClasses?.length)await chargerClasses();
+  sc.innerHTML='<option value="">Toutes les classes</option>'+(toutesLesClasses||[]).filter(c=>c.statut!=='archive').map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+}
+async function remplirSelectClassesEtudiant(){
+  const sel=document.getElementById('input-classe-etudiant');if(!sel)return;
+  if(!toutesLesClasses?.length)await chargerClasses();
+  const actives=(toutesLesClasses||[]).filter(c=>c.statut!=='archive');
+  sel.innerHTML='<option value="">— Sélectionner (optionnel) —</option>'+actives.map(c=>`<option value="${c.id}" data-filiere="${c.filiere||''}" data-niveau="${c.niveau||''}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+}
+function syncFiliereNiveauEtudiant(sel){
+  const opt=sel.options[sel.selectedIndex];if(!opt||!opt.value)return;
+  const fi=document.getElementById('input-filiere');const nv=document.getElementById('input-niveau');
+  if(fi&&opt.dataset.filiere)fi.value=opt.dataset.filiere;
+  if(nv&&opt.dataset.niveau)Array.from(nv.options).forEach(o=>{o.selected=o.value===opt.dataset.niveau;});
+}
+async function supprimerEtudiant(id,nom){
+  if(!confirm(`Supprimer l'étudiant ${nom} ?\nSes notes, absences et factures seront aussi supprimées.`))return;
+  await Promise.all([db.from('notes').delete().eq('etudiant_id',id),db.from('absences').delete().eq('etudiant_id',id),db.from('factures').delete().eq('etudiant_id',id)]);
+  await db.from('etudiants').delete().eq('id',id);
+  showToast('Étudiant supprimé.','success');chargerEtudiants();chargerDashboard();
+}
+async function ouvrirModifierEtudiant(id){
+  const e=tousLesEtudiants.find(x=>x.id===id);if(!e)return;
+  await remplirSelectClassesEtudiant();
+  document.getElementById('input-nom').value=e.nom;
+  document.getElementById('input-prenom').value=e.prenom;
+  document.getElementById('input-matricule').value=e.matricule;
+  document.getElementById('input-sexe').value=e.sexe||'M';
+  const fi=document.getElementById('input-filiere');if(fi)fi.value=e.filiere||'';
+  document.getElementById('input-email').value=e.email||'';
+  document.getElementById('input-parent-email').value=e.parent_email||'';
+  document.getElementById('input-parent-tel').value=e.parent_tel||'';
+  const sc=document.getElementById('input-classe-etudiant');if(sc)sc.value=e.classe_id||'';
+  const nv=document.getElementById('input-niveau');if(nv)Array.from(nv.options).forEach(o=>{o.selected=o.value===e.niveau;});
+  const modal=document.getElementById('modal-etudiant');if(modal)modal.dataset.editId=id;
+  const h3=document.querySelector('#modal-etudiant h3');if(h3)h3.textContent="✏️ Modifier l'étudiant";
+  document.getElementById('modal-etudiant').classList.add('open');
 }
 async function voirEtudiant(id) {
-  const etudiant = tousLesEtudiants.find(e => e.id === id);
-  if (!etudiant) return;
-  // Remplir le header
-  const initiales = (etudiant.prenom?.[0]||'') + (etudiant.nom?.[0]||'');
-  document.getElementById('fiche-avatar').textContent = initiales.toUpperCase();
-  document.getElementById('fiche-nom-complet').textContent = etudiant.nom + ' ' + etudiant.prenom;
-  document.getElementById('fiche-meta').textContent = etudiant.filiere + ' · ' + etudiant.niveau + ' · ' + etudiant.matricule;
-  // Charger les stats
-  const [{ count: nbN }, { count: nbA }, { count: nbF }] = await Promise.all([
-    db.from('notes').select('*',{count:'exact',head:true}).eq('etudiant_id', id),
-    db.from('absences').select('*',{count:'exact',head:true}).eq('etudiant_id', id),
-    db.from('factures').select('*',{count:'exact',head:true}).eq('etudiant_id', id),
+  const etudiant=tousLesEtudiants.find(e=>e.id===id);if(!etudiant)return;
+  const initiales=(etudiant.prenom?.[0]||'')+(etudiant.nom?.[0]||'');
+  document.getElementById('fiche-avatar').textContent=initiales.toUpperCase();
+  document.getElementById('fiche-nom-complet').textContent=etudiant.nom+' '+etudiant.prenom;
+  const cls=etudiant.classes;
+  const classeLabel=cls?(cls.nom||cls.filiere+' '+cls.niveau):(etudiant.filiere||'—');
+  document.getElementById('fiche-meta').textContent=classeLabel+' · '+etudiant.niveau+' · '+etudiant.matricule;
+  const [{count:nbN},{count:nbA},{count:nbF}]=await Promise.all([
+    db.from('notes').select('*',{count:'exact',head:true}).eq('etudiant_id',id),
+    db.from('absences').select('*',{count:'exact',head:true}).eq('etudiant_id',id),
+    db.from('factures').select('*',{count:'exact',head:true}).eq('etudiant_id',id),
   ]);
-  document.getElementById('fiche-stats').innerHTML = `
+  document.getElementById('fiche-stats').innerHTML=`
     <div class="fiche-stat"><div class="fs-val" style="color:#1e3a5f">${nbN||0}</div><div class="fs-lbl">Notes</div></div>
     <div class="fiche-stat"><div class="fs-val" style="color:#dc2626">${nbA||0}</div><div class="fs-lbl">Absences</div></div>
     <div class="fiche-stat"><div class="fs-val" style="color:#c97c1a">${nbF||0}</div><div class="fs-lbl">Factures</div></div>`;
-  document.getElementById('fiche-infos').innerHTML = `
+  document.getElementById('fiche-infos').innerHTML=`
     <div class="info-grid">
       <div class="info-item"><div class="ii-label">Matricule</div><div class="ii-val">${etudiant.matricule||'—'}</div></div>
       <div class="info-item"><div class="ii-label">Sexe</div><div class="ii-val">${etudiant.sexe==='M'?'Masculin':'Féminin'}</div></div>
       <div class="info-item"><div class="ii-label">Filière</div><div class="ii-val">${etudiant.filiere||'—'}</div></div>
       <div class="info-item"><div class="ii-label">Niveau</div><div class="ii-val">${etudiant.niveau||'—'}</div></div>
-      <div class="info-item"><div class="ii-label">Email étudiant</div><div class="ii-val">${etudiant.email||'—'}</div></div>
+      <div class="info-item"><div class="ii-label">Classe</div><div class="ii-val">${cls?`<span class="badge blue">${cls.nom||cls.filiere+' '+cls.niveau}</span>`:'<span style="color:#9ca3af">Non affecté</span>'}</div></div>
+      <div class="info-item"><div class="ii-label">Email</div><div class="ii-val">${etudiant.email||'—'}</div></div>
       <div class="info-item"><div class="ii-label">Statut</div><div class="ii-val"><span class="badge ${etudiant.statut==='actif'?'green':'amber'}">${etudiant.statut}</span></div></div>
     </div>
-    ${etudiant.parent_email ? `
-    <div style="margin-top:1rem">
-      <div class="section-label" style="margin-top:0">👨‍👩‍👧 Liaison Parent — Portail Famille</div>
-      <div class="parent-badge">
-        <span>📧</span>
-        <span class="pb-email">${etudiant.parent_email}</span>
-        ${etudiant.parent_tel ? `<span style="color:#6b7280;margin-left:8px">📞 ${etudiant.parent_tel}</span>` : ''}
-        <span class="badge green" style="margin-left:auto">✓ Lié</span>
-      </div>
-    </div>` : `
-    <div style="margin-top:1rem">
-      <div style="background:#fff8e6;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:12px;color:#d97706">
-        ⚠️ Aucun parent lié — Le portail famille ne montrera pas cet étudiant.
-      </div>
-    </div>`}`;
+    ${etudiant.parent_email?`
+    <div style="margin-top:1rem"><div class="section-label" style="margin-top:0">👨‍👩‍👧 Liaison Parent</div>
+      <div class="parent-badge"><span>📧</span><span class="pb-email">${etudiant.parent_email}</span>${etudiant.parent_tel?`<span style="color:#6b7280;margin-left:8px">📞 ${etudiant.parent_tel}</span>`:''}<span class="badge green" style="margin-left:auto">✓ Lié</span></div>
+    </div>`:`<div style="margin-top:1rem"><div style="background:#fff8e6;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:12px;color:#d97706">⚠️ Aucun parent lié.</div></div>`}
+    <div style="margin-top:1rem;display:flex;gap:8px">
+      <button class="btn-sm btn-secondary" onclick="fermerModal('modal-fiche-etudiant');ouvrirModifierEtudiant('${id}')">✏️ Modifier</button>
+      <button class="btn-sm btn-red" onclick="fermerModal('modal-fiche-etudiant');supprimerEtudiant('${id}','${etudiant.nom} ${etudiant.prenom}')">🗑️ Supprimer</button>
+    </div>`;
   document.getElementById('modal-fiche-etudiant').classList.add('open');
 }
 async function ajouterEtudiant() {
-  const nom=document.getElementById('input-nom').value.trim(), prenom=document.getElementById('input-prenom').value.trim(), matricule=document.getElementById('input-matricule').value.trim();
-  if (!nom||!prenom||!matricule) { showToast('Remplissez les champs obligatoires', 'error'); return; }
-  const payload = { ecole_id:currentEcoleId, nom, prenom, matricule, sexe:document.getElementById('input-sexe').value, filiere:document.getElementById('input-filiere').value, niveau:document.getElementById('input-niveau').value, email:document.getElementById('input-email').value.trim(), statut:'actif' };
-  const parentEmail = document.getElementById('input-parent-email').value.trim();
-  const parentTel   = document.getElementById('input-parent-tel').value.trim();
-  if (parentEmail) payload.parent_email = parentEmail;
-  if (parentTel)   payload.parent_tel   = parentTel;
-  const { error } = await db.from('etudiants').insert([payload]);
-  if (error) { showToast('Erreur : '+(error.message.includes('unique')?'Matricule déjà utilisé.':error.message),'error'); return; }
+  const nom=document.getElementById('input-nom').value.trim();
+  const prenom=document.getElementById('input-prenom').value.trim();
+  const matricule=document.getElementById('input-matricule').value.trim();
+  if (!nom||!prenom||!matricule) { showToast('Remplissez les champs obligatoires','error'); return; }
+  const modal = document.getElementById('modal-etudiant');
+  const editId = modal?.dataset?.editId;
+  const classeId = document.getElementById('input-classe-etudiant')?.value||null;
+  const payload = { nom, prenom, matricule,
+    sexe:    document.getElementById('input-sexe').value,
+    filiere: document.getElementById('input-filiere')?.value?.trim()||'',
+    niveau:  document.getElementById('input-niveau').value,
+    email:   document.getElementById('input-email').value.trim() };
+  const pe = document.getElementById('input-parent-email').value.trim();
+  const pt = document.getElementById('input-parent-tel').value.trim();
+  if (pe) payload.parent_email=pe;
+  if (pt) payload.parent_tel=pt;
+  let etudiantId = editId;
+  if (editId) {
+    const {error} = await db.from('etudiants').update(payload).eq('id',editId);
+    if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  } else {
+    const {data:ins,error} = await db.from('etudiants').insert([{...payload,ecole_id:currentEcoleId,statut:'actif'}]).select('id').single();
+    if (error) { showToast('Erreur : '+(error.message.includes('unique')?'Matricule déjà utilisé.':error.message),'error'); return; }
+    etudiantId = ins?.id;
+  }
+  if (etudiantId) await db.from('etudiants').update({classe_id:classeId||null}).eq('id',etudiantId);
   fermerModal('modal-etudiant');
-  ['input-nom','input-prenom','input-matricule','input-email','input-parent-email','input-parent-tel'].forEach(id=>document.getElementById(id).value='');
-  showToast('Étudiant ajouté !','success'); chargerEtudiants(); chargerDashboard();
+  if (modal) delete modal.dataset.editId;
+  const h3m = document.querySelector('#modal-etudiant h3'); if(h3m) h3m.textContent='👥 Ajouter un étudiant';
+  ['input-nom','input-prenom','input-matricule','input-email','input-parent-email','input-parent-tel'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const fi=document.getElementById('input-filiere'); if(fi)fi.value='';
+  const sc=document.getElementById('input-classe-etudiant'); if(sc)sc.value='';
+  showToast(editId?'✅ Étudiant modifié !':'✅ Étudiant ajouté !','success');
+  chargerEtudiants(); chargerDashboard();
+  if(classeId) chargerClasses();
 }
 
 // ══ ABSENCES ══════════════════════════════════
@@ -8057,83 +8169,61 @@ async function chargerAbsences() {
   document.getElementById('tbody-presences').innerHTML = '<tr><td colspan="7" class="loading">Chargement...</td></tr>';
   let q = db.from('absences').select('*, etudiants(nom,prenom)').order('date_absence',{ascending:false}).order('created_at',{ascending:false});
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const fs = document.getElementById('filter-absence-statut')?.value;
-  const fd = document.getElementById('filter-absence-date')?.value;
-  const fe = document.getElementById('filter-absence-etudiant')?.value;
-  if (fs) q = q.eq('statut', fs);
-  if (fd) q = q.eq('date_absence', fd);
-  if (fe) q = q.eq('etudiant_id', fe);
-  const { data } = await q;
-  const absences = data || [];
+  const fs=document.getElementById('filter-absence-statut')?.value;
+  const fd=document.getElementById('filter-absence-date')?.value;
+  const fe=document.getElementById('filter-absence-etudiant')?.value;
+  if (fs) q=q.eq('statut',fs);
+  if (fd) q=q.eq('date_absence',fd);
+  if (fe) q=q.eq('etudiant_id',fe);
+  const {data} = await q;
+  const abs = data||[];
   const today = new Date().toISOString().split('T')[0];
-  // Stats
-  const stTotal = document.getElementById('stat-abs-total');
-  const stToday = document.getElementById('stat-abs-today');
-  const stNonEx = document.getElementById('stat-abs-nonexcuses');
-  const stNotif = document.getElementById('stat-abs-notifies');
-  if (stTotal) stTotal.textContent = absences.length;
-  if (stToday) stToday.textContent = absences.filter(a=>a.date_absence===today).length;
-  if (stNonEx) stNonEx.textContent = absences.filter(a=>a.statut==='absent').length;
-  if (stNotif) stNotif.textContent = absences.filter(a=>a.parent_notifie).length;
-
-  document.getElementById('tbody-presences').innerHTML = absences.length
-    ? absences.map(a => `<tr>
+  const st=document.getElementById('stat-abs-total');     if(st) st.textContent=abs.length;
+  const sd=document.getElementById('stat-abs-today');     if(sd) sd.textContent=abs.filter(a=>a.date_absence===today).length;
+  const sn=document.getElementById('stat-abs-nonexcuses');if(sn) sn.textContent=abs.filter(a=>a.statut==='absent').length;
+  const sp=document.getElementById('stat-abs-notifies');  if(sp) sp.textContent=abs.filter(a=>a.parent_notifie).length;
+  document.getElementById('tbody-presences').innerHTML = abs.length
+    ? abs.map(a=>`<tr>
         <td>${a.etudiants?a.etudiants.nom+' '+a.etudiants.prenom:'N/A'}</td>
-        <td>${a.matiere||'—'}</td>
-        <td>${fmtDate(a.date_absence)}</td>
+        <td>${a.matiere||'—'}</td><td>${fmtDate(a.date_absence)}</td>
         <td><span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span></td>
         <td>${a.justification||'—'}</td>
         <td><span class="badge ${a.parent_notifie?'green':'amber'}" style="cursor:pointer" onclick="toggleNotifParent('${a.id}',${!a.parent_notifie})" title="Cliquer pour basculer">${a.parent_notifie?'✓ Notifié':'En attente'}</span></td>
         <td style="display:flex;gap:4px">
           <button class="btn-sm btn-blue" onclick="ouvrirModifierAbsence('${a.id}','${a.etudiant_id}','${a.matiere||''}','${a.date_absence}','${a.statut}','${(a.justification||'').replace(/'/g,'&apos;')}')">✏️</button>
           <button class="btn-sm btn-red" onclick="supprimerAbsence('${a.id}')">✕</button>
-        </td>
-      </tr>`).join('')
+        </td></tr>`).join('')
     : '<tr><td colspan="7" class="loading">Aucune absence.</td></tr>';
 }
-
 async function filtrerAbsencesParClasse() {
-  const classeId = document.getElementById('filter-absence-classe')?.value;
-  const selEtu = document.getElementById('filter-absence-etudiant');
+  const cls=document.getElementById('filter-absence-classe')?.value;
+  const sel=document.getElementById('filter-absence-etudiant');
   if (!tousLesEtudiants.length) {
-    let q = db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-    const { data } = await q; tousLesEtudiants = data || [];
+    let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');
+    if(currentEcoleId) q=q.eq('ecole_id',currentEcoleId);
+    const {data}=await q; tousLesEtudiants=data||[];
   }
-  const etus = classeId ? tousLesEtudiants.filter(e=>e.classe_id===classeId) : tousLesEtudiants;
-  selEtu.innerHTML = '<option value="">Tous les étudiants</option>'
-    + etus.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
-  selEtu.value = ''; chargerAbsences();
+  const etus=cls?tousLesEtudiants.filter(e=>e.classe_id===cls):tousLesEtudiants;
+  sel.innerHTML='<option value="">Tous les étudiants</option>'+etus.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  sel.value=''; chargerAbsences();
 }
-
 function resetFiltresAbsences() {
   ['filter-absence-classe','filter-absence-etudiant','filter-absence-statut','filter-absence-date']
     .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   chargerAbsences();
 }
-
 async function peuplerFiltresAbsences() {
-  const selCls = document.getElementById('filter-absence-classe');
-  if (!selCls) return;
-  if (!toutesLesClasses?.length) await chargerClasses();
-  selCls.innerHTML = '<option value="">Toutes les classes</option>'
-    + (toutesLesClasses||[]).filter(c=>c.statut!=='archive')
-        .map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
-  if (!tousLesEtudiants.length) {
-    let q = db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-    const { data } = await q; tousLesEtudiants = data || [];
-  }
-  document.getElementById('filter-absence-etudiant').innerHTML = '<option value="">Tous les étudiants</option>'
-    + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  const sc=document.getElementById('filter-absence-classe'); if(!sc) return;
+  if(!toutesLesClasses?.length) await chargerClasses();
+  sc.innerHTML='<option value="">Toutes les classes</option>'+(toutesLesClasses||[]).filter(c=>c.statut!=='archive').map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+  if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const{data}=await q;tousLesEtudiants=data||[];}
+  document.getElementById('filter-absence-etudiant').innerHTML='<option value="">Tous les étudiants</option>'+tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
 }
-
 async function remplirSelect(selectId, withEmpty=false) {
   if (tousLesEtudiants.length === 0) {
     let q = db.from('etudiants').select('id, nom, prenom').order('nom');
     if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-    const { data } = await q;
-    tousLesEtudiants = data || [];
+    const { data } = await q; tousLesEtudiants = data || [];
   }
   const sel = document.getElementById(selectId);
   const emptyOpt = withEmpty ? '<option value="">— Aucun (général) —</option>' : '';
@@ -8141,56 +8231,41 @@ async function remplirSelect(selectId, withEmpty=false) {
   if (selectId === 'input-absence-etudiant')
     document.getElementById('input-absence-date').value = new Date().toISOString().split('T')[0];
 }
-
 async function enregistrerAbsence() {
-  const matiere = document.getElementById('input-absence-matiere').value.trim();
+  const matiere=document.getElementById('input-absence-matiere').value.trim();
   if (!matiere) { showToast('Entrez la matière.','error'); return; }
-  const modal = document.getElementById('modal-absence');
-  const editId = modal?.dataset?.editId;
-  const payload = {
-    etudiant_id:  document.getElementById('input-absence-etudiant').value,
-    matiere,
-    date_absence: document.getElementById('input-absence-date').value,
-    statut:       document.getElementById('input-absence-statut').value,
-    justification:document.getElementById('input-absence-justification').value.trim()
-  };
+  const modal=document.getElementById('modal-absence');
+  const editId=modal?.dataset?.editId;
+  const payload={etudiant_id:document.getElementById('input-absence-etudiant').value,matiere,date_absence:document.getElementById('input-absence-date').value,statut:document.getElementById('input-absence-statut').value,justification:document.getElementById('input-absence-justification').value.trim()};
   let error;
-  if (editId) {
-    ({ error } = await db.from('absences').update(payload).eq('id', editId));
-  } else {
-    ({ error } = await db.from('absences').insert([{ ...payload, ecole_id: currentEcoleId }]));
-  }
-  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  if(editId){({error}=await db.from('absences').update(payload).eq('id',editId));}
+  else{({error}=await db.from('absences').insert([{...payload,ecole_id:currentEcoleId}]));}
+  if(error){showToast('Erreur : '+error.message,'error');return;}
   fermerModal('modal-absence');
-  if (modal) { delete modal.dataset.editId; }
-  const h3 = document.querySelector('#modal-absence h3');
-  if (h3) h3.textContent = '🔴 Enregistrer une absence';
-  document.getElementById('input-absence-matiere').value = '';
+  if(modal)delete modal.dataset.editId;
+  const h3=document.querySelector('#modal-absence h3');if(h3)h3.textContent='🔴 Enregistrer une absence';
+  document.getElementById('input-absence-matiere').value='';
   showToast(editId?'✅ Absence modifiée !':'Absence enregistrée !','success');
   chargerAbsences(); chargerDashboard();
 }
-
-function ouvrirModifierAbsence(id, etudiantId, matiere, date, statut, justification) {
-  document.getElementById('input-absence-etudiant').value      = etudiantId;
-  document.getElementById('input-absence-matiere').value       = matiere;
-  document.getElementById('input-absence-date').value          = date;
-  document.getElementById('input-absence-statut').value        = statut;
-  document.getElementById('input-absence-justification').value = justification.replace(/&apos;/g,"'");
-  const modal = document.getElementById('modal-absence');
-  if (modal) modal.dataset.editId = id;
-  const h3 = document.querySelector('#modal-absence h3');
-  if (h3) h3.textContent = "✏️ Modifier l'absence";
+function ouvrirModifierAbsence(id,etudiantId,matiere,date,statut,justification){
+  document.getElementById('input-absence-etudiant').value=etudiantId;
+  document.getElementById('input-absence-matiere').value=matiere;
+  document.getElementById('input-absence-date').value=date;
+  document.getElementById('input-absence-statut').value=statut;
+  document.getElementById('input-absence-justification').value=justification.replace(/&apos;/g,"'");
+  const modal=document.getElementById('modal-absence');
+  if(modal)modal.dataset.editId=id;
+  const h3=document.querySelector('#modal-absence h3');if(h3)h3.textContent="✏️ Modifier l'absence";
   ouvrirModal('modal-absence');
 }
-
-async function supprimerAbsence(id) {
-  if (!confirm('Supprimer cette absence ?')) return;
-  await db.from('absences').delete().eq('id', id);
-  showToast('Absence supprimée.','success'); chargerAbsences(); chargerDashboard();
+async function supprimerAbsence(id){
+  if(!confirm('Supprimer cette absence ?'))return;
+  await db.from('absences').delete().eq('id',id);
+  showToast('Absence supprimée.','success');chargerAbsences();chargerDashboard();
 }
-
-async function toggleNotifParent(id, newVal) {
-  await db.from('absences').update({ parent_notifie: newVal }).eq('id', id);
+async function toggleNotifParent(id,newVal){
+  await db.from('absences').update({parent_notifie:newVal}).eq('id',id);
   showToast(newVal?'✅ Parent marqué notifié':'Notification annulée','success');
   chargerAbsences();
 }
@@ -8198,32 +8273,83 @@ async function toggleNotifParent(id, newVal) {
 // ══ NOTES & BULLETINS ════════════════════════
 async function chargerNotes() {
   document.getElementById('tbody-notes').innerHTML = '<tr><td colspan="7" class="loading">Chargement...</td></tr>';
-  let q = db.from('notes').select('*, etudiants(nom, prenom)').order('created_at',{ascending:false});
+  let q = db.from('notes').select('*, etudiants(nom,prenom,classe_id)').order('created_at',{ascending:false});
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const fp = document.getElementById('filter-notes-periode')?.value;
-  const fm = document.getElementById('filter-notes-matiere')?.value;
-  if (fp) q = q.eq('periode', fp);
-  if (fm) q = q.eq('matiere', fm);
-  const { data } = await q;
-  toutesLesNotes = data || [];
-  const matieres = [...new Set(toutesLesNotes.map(n => n.matiere))].sort();
-  const filtMat = document.getElementById('filter-notes-matiere');
-  const cur = filtMat.value;
-  filtMat.innerHTML = '<option value="">Toutes les matières</option>' + matieres.map(m => `<option value="${m}" ${cur===m?'selected':''}>${m}</option>`).join('');
+  const fp=document.getElementById('filter-notes-periode')?.value;
+  const fm=document.getElementById('filter-notes-matiere')?.value;
+  const fe=document.getElementById('filter-notes-etudiant')?.value;
+  if (fp) q=q.eq('periode',fp);
+  if (fm) q=q.eq('matiere',fm);
+  if (fe) q=q.eq('etudiant_id',fe);
+  const {data} = await q;
+  toutesLesNotes = data||[];
+  const matieres=[...new Set(toutesLesNotes.map(n=>n.matiere))].sort();
+  const filtMat=document.getElementById('filter-notes-matiere');
+  const cur=filtMat.value;
+  filtMat.innerHTML='<option value="">Toutes les matières</option>'+matieres.map(m=>`<option value="${m}" ${cur===m?'selected':''}>${m}</option>`).join('');
   document.getElementById('tbody-notes').innerHTML = toutesLesNotes.length
-    ? toutesLesNotes.map(n => { const a=getApp(n.note); return `<tr><td>${n.etudiants?n.etudiants.nom+' '+n.etudiants.prenom:'N/A'}</td><td>${n.matiere}</td><td><span class="note-badge ${a.cls}">${n.note}/20</span></td><td>${n.coefficient||1}</td><td><span class="badge gray">${n.periode}</span></td><td><span class="badge ${a.cls}">${a.label}</span></td><td><button class="btn-sm btn-red" onclick="supprimerNote('${n.id}')">✕</button></td></tr>`; }).join('')
+    ? toutesLesNotes.map(n=>{const a=getApp(n.note);return`<tr>
+        <td>${n.etudiants?n.etudiants.nom+' '+n.etudiants.prenom:'N/A'}</td>
+        <td>${n.matiere}</td>
+        <td><span class="note-badge ${a.cls}">${n.note}/20</span></td>
+        <td>${n.coefficient||1}</td>
+        <td><span class="badge gray">${n.periode}</span></td>
+        <td><span class="badge ${a.cls}">${a.label}</span></td>
+        <td style="display:flex;gap:4px">
+          <button class="btn-sm btn-blue" onclick="ouvrirModifierNote('${n.id}','${n.etudiant_id}','${n.matiere}',${n.note},${n.coefficient||1},'${n.periode}','${(n.commentaire||'').replace(/'/g,'&apos;')}')">✏️</button>
+          <button class="btn-sm btn-red" onclick="supprimerNote('${n.id}')">✕</button>
+        </td></tr>`;}).join('')
     : '<tr><td colspan="7" class="loading">Aucune note.</td></tr>';
 }
-async function enregistrerNote() {
-  const matiere=document.getElementById('input-note-matiere').value.trim(), note=parseFloat(document.getElementById('input-note-valeur').value);
-  if (!matiere||isNaN(note)) { showToast('Remplissez matière et note.','error'); return; }
-  if (note<0||note>20) { showToast('Note entre 0 et 20.','error'); return; }
-  const { error } = await db.from('notes').insert([{ ecole_id:currentEcoleId, etudiant_id:document.getElementById('input-note-etudiant').value, matiere, note, coefficient:parseInt(document.getElementById('input-note-coeff').value)||2, periode:document.getElementById('input-note-periode').value, commentaire:document.getElementById('input-note-commentaire').value.trim() }]);
-  if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  fermerModal('modal-note'); ['input-note-matiere','input-note-valeur','input-note-commentaire'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('input-note-coeff').value='2';
-  showToast('Note enregistrée !','success'); chargerNotes(); chargerDashboard();
+async function filtrerNotesParClasse(){
+  const cls=document.getElementById('filter-notes-classe')?.value;
+  const sel=document.getElementById('filter-notes-etudiant');
+  if(!sel)return;
+  if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const{data}=await q;tousLesEtudiants=data||[];}
+  const etus=cls?tousLesEtudiants.filter(e=>e.classe_id===cls):tousLesEtudiants;
+  sel.innerHTML='<option value="">Tous les étudiants</option>'+etus.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  sel.value=''; chargerNotes();
 }
+async function peuplerFiltresNotes(){
+  const sc=document.getElementById('filter-notes-classe');if(!sc)return;
+  if(!toutesLesClasses?.length)await chargerClasses();
+  sc.innerHTML='<option value="">Toutes les classes</option>'+(toutesLesClasses||[]).filter(c=>c.statut!=='archive').map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+  if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const{data}=await q;tousLesEtudiants=data||[];}
+  const se=document.getElementById('filter-notes-etudiant');
+  if(se)se.innerHTML='<option value="">Tous les étudiants</option>'+tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+}
+function ouvrirModifierNote(id,etudiantId,matiere,note,coeff,periode,commentaire){
+  document.getElementById('input-note-etudiant').value=etudiantId;
+  document.getElementById('input-note-matiere').value=matiere;
+  document.getElementById('input-note-valeur').value=note;
+  document.getElementById('input-note-coeff').value=coeff;
+  document.getElementById('input-note-periode').value=periode;
+  const ic=document.getElementById('input-note-commentaire');if(ic)ic.value=commentaire.replace(/&apos;/g,"'");
+  const modal=document.getElementById('modal-note');if(modal)modal.dataset.editId=id;
+  const h3=document.querySelector('#modal-note h3');if(h3)h3.textContent='✏️ Modifier la note';
+  ouvrirModal('modal-note');
+}
+async function enregistrerOuModifierNote(){
+  const modal=document.getElementById('modal-note');
+  const editId=modal?.dataset?.editId;
+  const matiere=document.getElementById('input-note-matiere').value.trim();
+  const note=parseFloat(document.getElementById('input-note-valeur').value);
+  if(!matiere||isNaN(note)){showToast('Remplissez matière et note.','error');return;}
+  if(note<0||note>20){showToast('Note entre 0 et 20.','error');return;}
+  const payload={matiere,note,coefficient:parseInt(document.getElementById('input-note-coeff').value)||2,periode:document.getElementById('input-note-periode').value,commentaire:document.getElementById('input-note-commentaire')?.value.trim()||''};
+  let error;
+  if(editId){({error}=await db.from('notes').update(payload).eq('id',editId));}
+  else{({error}=await db.from('notes').insert([{...payload,ecole_id:currentEcoleId,etudiant_id:document.getElementById('input-note-etudiant').value}]));}
+  if(error){showToast('Erreur : '+error.message,'error');return;}
+  fermerModal('modal-note');
+  if(modal)delete modal.dataset.editId;
+  const h3=document.querySelector('#modal-note h3');if(h3)h3.textContent='📝 Saisir une note';
+  ['input-note-matiere','input-note-valeur','input-note-commentaire'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('input-note-coeff').value='2';
+  showToast(editId?'✅ Note modifiée !':'Note enregistrée !','success');
+  chargerNotes();chargerDashboard();
+}
+async function enregistrerNote(){return enregistrerOuModifierNote();}
 async function supprimerNote(id) {
   if (!confirm('Supprimer cette note ?')) return;
   await db.from('notes').delete().eq('id',id);
