@@ -2891,9 +2891,9 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Suivi des frais scolaires et des paiements</p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="showTab('pay','tab-pay-historique')">📋 Historique</button>
+      <button class="btn-outline" onclick="exporterPaiementsCSV()">⬇️ Export CSV</button>
+      <button class="btn-secondary btn-sm" onclick="envoyerRappelsPaiement()" style="background:#fef9c3;color:#d97706;border:1px solid #fde68a">📧 Rappels email</button>
       <button onclick="ouvrirModal('modal-facture')">+ Nouvelle facture</button>
-      <button class="btn-secondary btn-sm" onclick="envoyerRappelsPaiement()" style="background:#fef9c3;color:#d97706;border:1px solid #fde68a" title="Envoyer rappels email aux parents">📧 Rappels email</button>
     </div>
   </div>
 
@@ -2905,17 +2905,40 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div class="pay-stat"><div class="ps-ico">🚨</div><div class="ps-val" id="ps-retard" style="color:#dc2626">0</div><div class="ps-lbl">En retard</div></div>
   </div>
 
+  <!-- Stats financières -->
+  <div class="cards" style="margin-bottom:1rem">
+    <div class="card" style="text-align:center">
+      <div style="font-size:20px;font-weight:800;color:#1e3a5f" id="ps-montant-total">—</div>
+      <div style="font-size:12px;color:#6b7280">Montant total dû</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:20px;font-weight:800;color:#059669" id="ps-montant-encaisse">—</div>
+      <div style="font-size:12px;color:#6b7280">Total encaissé</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:20px;font-weight:800;color:#dc2626" id="ps-montant-restant">—</div>
+      <div style="font-size:12px;color:#6b7280">Reste à percevoir</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:20px;font-weight:800;color:#7c3aed" id="ps-taux">—</div>
+      <div style="font-size:12px;color:#6b7280">Taux de recouvrement</div>
+    </div>
+  </div>
+
   <div class="tabs">
     <button class="tab active" id="tab-pay-liste-btn" onclick="showTab('pay','tab-pay-liste')">📋 Factures</button>
-    <button class="tab" id="tab-pay-historique-btn" onclick="showTab('pay','tab-pay-historique')">💰 Paiements reçus</button>
+    <button class="tab" id="tab-pay-historique-btn" onclick="showTab('pay','tab-pay-historique');chargerHistoriquePaiements()">💰 Paiements reçus</button>
   </div>
 
   <!-- Tab : Factures -->
   <div id="tab-pay-liste">
     <div class="filters">
-      <span class="filter-label">Statut :</span>
+      <span class="filter-label">Filtrer :</span>
+      <select id="filter-pay-etudiant" onchange="chargerFactures()">
+        <option value="">Tous les étudiants</option>
+      </select>
       <select id="filter-pay-statut" onchange="chargerFactures()">
-        <option value="">Tous</option>
+        <option value="">Tous statuts</option>
         <option value="payée">Payée</option>
         <option value="en_attente">En attente</option>
         <option value="retard">En retard</option>
@@ -2928,6 +2951,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <option value="examen">Examen</option>
         <option value="autre">Autre</option>
       </select>
+      <button class="btn-sm btn-secondary" onclick="resetFiltresPaiements()">🔄 Réinitialiser</button>
     </div>
     <table>
       <tr><th>Référence</th><th>Étudiant</th><th>Objet</th><th>Montant</th><th>Payé</th><th>Progression</th><th>Statut</th><th>Échéance</th><th>Actions</th></tr>
@@ -2937,6 +2961,20 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
   <!-- Tab : Paiements reçus -->
   <div id="tab-pay-historique" style="display:none">
+    <div class="filters">
+      <span class="filter-label">Filtrer :</span>
+      <select id="filter-hist-etudiant" onchange="chargerHistoriquePaiements()">
+        <option value="">Tous les étudiants</option>
+      </select>
+      <select id="filter-hist-mode" onchange="chargerHistoriquePaiements()">
+        <option value="">Tous les modes</option>
+        <option value="espèces">Espèces</option>
+        <option value="mobile_money">Mobile Money</option>
+        <option value="virement">Virement</option>
+        <option value="chèque">Chèque</option>
+      </select>
+      <button class="btn-sm btn-outline" onclick="exporterHistoriqueCSV()">⬇️ Export CSV</button>
+    </div>
     <table>
       <tr><th>Date</th><th>Référence facture</th><th>Étudiant</th><th>Montant payé</th><th>Mode</th><th>Référence</th></tr>
       <tbody id="tbody-paiements"><tr><td colspan="6" class="loading">Chargement...</td></tr></tbody>
@@ -7947,7 +7985,7 @@ function showPage(p) {
     notes:        () => { chargerNotes(); remplirSelectBulletin(); peuplerFiltresNotes(); },
     messages:     () => { chargerMessages(); },
     emploi:       () => { peuplerClassesEDT().then(chargerEmploiDuTemps); },
-    paiements:    chargerPaiements,
+    paiements:    () => { chargerPaiements(); },
     discipline:   () => { chargerIncidents(); peuplerFiltresDisc(); },
     documents:    chargerDocuments,
     rapports:     () => afficherRapport('effectifs'),
@@ -8068,6 +8106,11 @@ function ouvrirModal(id) {
 function fermerModal(id) {
   document.getElementById(id).classList.remove('open');
   if (id === 'modal-examen') { const el=document.getElementById('input-exam-id'); if(el) el.value=''; }
+  if (id === 'modal-facture') {
+    const modal=document.getElementById('modal-facture');
+    if(modal) delete modal.dataset.editId;
+    const h3=document.querySelector('#modal-facture h3'); if(h3) h3.textContent='💳 Nouvelle facture';
+  }
 }
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
@@ -8981,8 +9024,8 @@ async function envoyerReponse() {
 // ══ PAIEMENTS  ★ JOUR 3 ══════════════════════
 async function chargerPaiements() {
   await chargerFactures();
-  // Stats
-  let q = db.from('factures').select('statut');
+  // Stats comptage
+  let q = db.from('factures').select('statut,montant_total,montant_paye');
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
   const { data:facs } = await q;
   const all = facs||[];
@@ -8990,58 +9033,148 @@ async function chargerPaiements() {
   document.getElementById('ps-payees').textContent  = all.filter(f=>f.statut==='payée').length;
   document.getElementById('ps-attente').textContent = all.filter(f=>f.statut==='en_attente').length;
   document.getElementById('ps-retard').textContent  = all.filter(f=>f.statut==='retard').length;
+  // Stats financières
+  const totalDu      = all.reduce((s,f)=>s+(f.montant_total||0),0);
+  const totalEncaisse= all.reduce((s,f)=>s+(f.montant_paye||0),0);
+  const restant      = totalDu - totalEncaisse;
+  const taux         = totalDu > 0 ? Math.round(totalEncaisse/totalDu*100) : 0;
+  const smt = document.getElementById('ps-montant-total');    if(smt) smt.textContent = fmtMontant(totalDu);
+  const sme = document.getElementById('ps-montant-encaisse'); if(sme) sme.textContent = fmtMontant(totalEncaisse);
+  const smr = document.getElementById('ps-montant-restant');  if(smr) smr.textContent = fmtMontant(restant);
+  const stt = document.getElementById('ps-taux');              if(stt) stt.textContent = taux + '%';
+  // Peupler filtre étudiant
+  await peuplerFiltreEtudiantPay();
+}
+
+async function peuplerFiltreEtudiantPay() {
+  const selF = document.getElementById('filter-pay-etudiant');
+  const selH = document.getElementById('filter-hist-etudiant');
+  if (!tousLesEtudiants.length) {
+    let q = db.from('etudiants').select('id,nom,prenom').order('nom');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q; tousLesEtudiants = data||[];
+  }
+  const opts = '<option value="">Tous les étudiants</option>'
+    + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  if (selF) selF.innerHTML = opts;
+  if (selH) selH.innerHTML = opts;
+}
+
+function resetFiltresPaiements() {
+  ['filter-pay-etudiant','filter-pay-statut','filter-pay-type'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  chargerFactures();
 }
 
 async function chargerFactures() {
   document.getElementById('tbody-factures').innerHTML='<tr><td colspan="9" class="loading">Chargement...</td></tr>';
   let q = db.from('factures').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const fs = document.getElementById('filter-pay-statut')?.value;
-  const ft = document.getElementById('filter-pay-type')?.value;
+  const fs  = document.getElementById('filter-pay-statut')?.value;
+  const ft  = document.getElementById('filter-pay-type')?.value;
+  const fe  = document.getElementById('filter-pay-etudiant')?.value;
   if (fs) q = q.eq('statut', fs);
   if (ft) q = q.eq('type_frais', ft);
+  if (fe) q = q.eq('etudiant_id', fe);
   const { data } = await q;
   toutesLesFactures = data || [];
   document.getElementById('tbody-factures').innerHTML = toutesLesFactures.length
     ? toutesLesFactures.map(f => {
-        const pct = f.montant_total > 0 ? Math.min(100, Math.round(f.montant_paye / f.montant_total * 100)) : 0;
+        const pct = f.montant_total > 0 ? Math.min(100, Math.round((f.montant_paye||0) / f.montant_total * 100)) : 0;
         const sClass = f.statut==='payée'?'green':f.statut==='retard'?'red':f.statut==='partiellement_payée'?'amber':'amber';
-        return `<tr>
+        const retard = f.statut!=='payée' && f.date_echeance && new Date(f.date_echeance) < new Date();
+        return `<tr${retard?' style="background:#fff5f5"':''}>
           <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${f.reference||'—'}</code></td>
           <td>${f.etudiants?f.etudiants.nom+' '+f.etudiants.prenom:'N/A'}</td>
           <td>${f.description||f.type_frais||'—'}</td>
           <td><strong>${fmtMontant(f.montant_total)}</strong></td>
           <td>${fmtMontant(f.montant_paye||0)}</td>
-          <td><div style="font-size:11px;color:#6b7280">${pct}%</div><div class="pay-prog-bar"><div class="pay-prog-fill" style="width:${pct}%;background:${pct===100?'#059669':'#c97c1a'}"></div></div></td>
-          <td><span class="badge ${sClass}">${f.statut}</span></td>
-          <td>${fmtDate(f.date_echeance)}</td>
           <td>
-            ${f.statut!=='payée'?`<button class="btn-sm btn-green" onclick="ouvrirPaiement('${f.id}','${f.reference}',${f.montant_total-(f.montant_paye||0)})">💰 Payer</button>`:''}
+            <div style="font-size:11px;color:#6b7280">${pct}%</div>
+            <div class="pay-prog-bar"><div class="pay-prog-fill" style="width:${pct}%;background:${pct===100?'#059669':'#c97c1a'}"></div></div>
+          </td>
+          <td><span class="badge ${sClass}">${f.statut}</span>${retard?'<span class="badge red" style="font-size:9px;margin-left:2px">⚠ retard</span>':''}</td>
+          <td>${fmtDate(f.date_echeance)}</td>
+          <td style="display:flex;gap:4px;flex-wrap:wrap">
+            ${f.statut!=='payée'?`<button class="btn-sm btn-green" onclick="ouvrirPaiement('${f.id}','${f.reference||''}',${f.montant_total-(f.montant_paye||0)})">💰</button>`:''}
+            <button class="btn-sm btn-secondary" onclick="ouvrirModifierFacture('${f.id}')">✏️</button>
             <button class="btn-sm btn-red" onclick="supprimerFacture('${f.id}')">✕</button>
           </td>
         </tr>`;
       }).join('')
-    : '<tr><td colspan="9" class="empty-state" style="padding:2rem">Aucune facture. Créez la première !</td></tr>';
+    : '<tr><td colspan="9" class="empty-state" style="padding:2rem">Aucune facture.</td></tr>';
+}
+
+function ouvrirModifierFacture(id) {
+  const f = toutesLesFactures.find(x=>x.id===id);
+  if (!f) return;
+  document.getElementById('input-fac-etudiant').value  = f.etudiant_id||'';
+  document.getElementById('input-fac-type').value      = f.type_frais||'scolarite';
+  document.getElementById('input-fac-montant').value   = f.montant_total||'';
+  document.getElementById('input-fac-echeance').value  = f.date_echeance||'';
+  document.getElementById('input-fac-desc').value      = f.description||'';
+  const modal = document.getElementById('modal-facture');
+  if (modal) modal.dataset.editId = id;
+  document.querySelector('#modal-facture h3').textContent = '✏️ Modifier la facture';
+  ouvrirModal('modal-facture');
 }
 
 async function creerFacture() {
   const montant = parseFloat(document.getElementById('input-fac-montant').value);
   if (!montant || montant<=0) { showToast('Entrez un montant valide.','error'); return; }
-  const { error } = await db.from('factures').insert([{
-    ecole_id: currentEcoleId,
-    etudiant_id: document.getElementById('input-fac-etudiant').value,
-    reference: genRef('FAC'),
-    type_frais: document.getElementById('input-fac-type').value,
-    description: document.getElementById('input-fac-desc').value.trim(),
+  const modal = document.getElementById('modal-facture');
+  const editId = modal?.dataset?.editId;
+  const payload = {
+    etudiant_id:   document.getElementById('input-fac-etudiant').value,
+    type_frais:    document.getElementById('input-fac-type').value,
+    description:   document.getElementById('input-fac-desc').value.trim(),
     montant_total: montant,
-    montant_paye: 0,
     date_echeance: document.getElementById('input-fac-echeance').value,
-    statut: 'en_attente'
-  }]);
+  };
+  let error;
+  if (editId) {
+    ({ error } = await db.from('factures').update(payload).eq('id', editId));
+  } else {
+    ({ error } = await db.from('factures').insert([{
+      ...payload, ecole_id: currentEcoleId,
+      reference: genRef('FAC'), montant_paye: 0, statut: 'en_attente'
+    }]));
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  fermerModal('modal-facture'); document.getElementById('input-fac-montant').value=''; document.getElementById('input-fac-desc').value='';
-  showToast('Facture créée !','success'); chargerPaiements(); chargerDashboard();
+  fermerModal('modal-facture');
+  if (modal) delete modal.dataset.editId;
+  document.querySelector('#modal-facture h3').textContent = '💳 Nouvelle facture';
+  document.getElementById('input-fac-montant').value='';
+  document.getElementById('input-fac-desc').value='';
+  showToast(editId?'✅ Facture modifiée !':'Facture créée !','success');
+  chargerPaiements(); chargerDashboard();
 }
+
+function exporterPaiementsCSV() {
+  if (!toutesLesFactures.length) { showToast('Aucune facture à exporter','error'); return; }
+  const header = ['reference','etudiant','type','montant_total','montant_paye','statut','echeance'];
+  const rows = toutesLesFactures.map(f=>[
+    f.reference||'', f.etudiants?f.etudiants.nom+' '+f.etudiants.prenom:'N/A',
+    f.type_frais||'', f.montant_total||0, f.montant_paye||0,
+    f.statut||'', fmtDate(f.date_echeance)
+  ]);
+  csvDownload('factures.csv', header, rows);
+}
+
+async function exporterHistoriqueCSV() {
+  let q = db.from('paiements').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
+  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  const { data } = await q;
+  if (!data?.length) { showToast('Aucun paiement à exporter','error'); return; }
+  const header = ['date','reference_facture','etudiant','montant','mode','reference_transaction'];
+  const rows = data.map(p=>[
+    fmtDate(p.created_at), p.reference_facture||'',
+    p.etudiants?p.etudiants.nom+' '+p.etudiants.prenom:'N/A',
+    p.montant_paye||0, p.mode_paiement||'', p.reference_transaction||''
+  ]);
+  csvDownload('historique_paiements.csv', header, rows);
+}
+
+
 
 function ouvrirPaiement(facId, facRef, restant) {
   document.getElementById('input-pay-fac-id').value = facId;
@@ -9080,9 +9213,20 @@ async function supprimerFacture(id) {
 async function chargerHistoriquePaiements() {
   let q = db.from('paiements').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  const fe = document.getElementById('filter-hist-etudiant')?.value;
+  const fm = document.getElementById('filter-hist-mode')?.value;
+  if (fe) q = q.eq('etudiant_id', fe);
+  if (fm) q = q.eq('mode_paiement', fm);
   const { data } = await q;
   document.getElementById('tbody-paiements').innerHTML = data?.length
-    ? data.map(p=>`<tr><td>${fmtDateTime(p.created_at)}</td><td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${p.reference_facture||'—'}</code></td><td>${p.etudiants?p.etudiants.nom+' '+p.etudiants.prenom:'N/A'}</td><td><strong style="color:#059669">${fmtMontant(p.montant_paye)}</strong></td><td><span class="badge teal">${p.mode_paiement}</span></td><td>${p.reference_transaction||'—'}</td></tr>`).join('')
+    ? data.map(p=>`<tr>
+        <td>${fmtDateTime(p.created_at)}</td>
+        <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${p.reference_facture||'—'}</code></td>
+        <td>${p.etudiants?p.etudiants.nom+' '+p.etudiants.prenom:'N/A'}</td>
+        <td><strong style="color:#059669">${fmtMontant(p.montant_paye)}</strong></td>
+        <td><span class="badge teal">${p.mode_paiement||'—'}</span></td>
+        <td>${p.reference_transaction||'—'}</td>
+      </tr>`).join('')
     : '<tr><td colspan="6" class="loading">Aucun paiement enregistré.</td></tr>';
 }
 
