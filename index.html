@@ -13411,10 +13411,11 @@ async function chargerKPIsAnalytics() {
   const totalPay = (facs||[]).reduce((s,f)=>s+(f.montant_paye||0),0);
   const tauxRec  = totalDu > 0 ? Math.round(totalPay/totalDu*100) : 0;
 
-  // Incidents ouverts
-  let qI = db.from('incidents').select('*',{count:'exact',head:true}).neq('statut','résolu');
-  if (currentEcoleId) qI = qI.eq('ecole_id',currentEcoleId);
-  const { count: nbInc } = await qI;
+  // Incidents ouverts (gère les variantes résolu/resolu)
+  let qI2 = db.from('incidents').select('statut');
+  if (currentEcoleId) qI2 = qI2.eq('ecole_id',currentEcoleId);
+  const { data: incData2 } = await qI2;
+  const nbInc = (incData2||[]).filter(i=>i.statut!=='résolu'&&i.statut!=='resolu'&&i.statut!=='Résolu').length;
 
   // Taux de présence (approx)
   const tauxPres = nbEtu > 0 ? Math.max(0, Math.round(100-(nbAbsMois/(nbEtu*20)*100))).toString()+'%' : '—';
@@ -13524,9 +13525,10 @@ async function calculerScoreSante() {
   const totalPay = (facs||[]).reduce((s,f)=>s+(f.montant_paye||0),0);
   const tauxRec  = totalDu > 0 ? totalPay/totalDu : 0;
 
-  let qI = db.from('incidents').select('*',{count:'exact',head:true}).neq('statut','résolu');
-  if (currentEcoleId) qI = qI.eq('ecole_id',currentEcoleId);
-  const { count: nbInc } = await qI;
+  let qI3 = db.from('incidents').select('statut');
+  if (currentEcoleId) qI3 = qI3.eq('ecole_id',currentEcoleId);
+  const { data: incDataS } = await qI3;
+  const nbInc = (incDataS||[]).filter(i=>i.statut!=='résolu'&&i.statut!=='resolu'&&i.statut!=='Résolu').length;
 
   // Score par dimension (0-100)
   const scorePresence   = Math.max(0,Math.min(100,100-((nbAbs||0)/(Math.max(nbEtu,1)*20))*100));
@@ -13577,10 +13579,11 @@ async function genererAlertesIntelligentes() {
   const { count: nbAbsToday } = await db.from('absences').select('*',{count:'exact',head:true}).eq('date_absence',today);
   if (nbAbsToday > 0) alertes.push({ type:'warning', ico:'🚫', titre:`${nbAbsToday} absence(s) aujourd'hui`, msg:'Des absences ont été enregistrées. Vérifiez si les parents ont été notifiés.', time:"Aujourd'hui" });
 
-  // Alerte incidents non résolus
-  let qI = db.from('incidents').select('*',{count:'exact',head:true}).neq('statut','résolu');
+  // Alerte incidents non résolus (gère les variantes résolu/resolu)
+  let qI = db.from('incidents').select('statut');
   if (currentEcoleId) qI = qI.eq('ecole_id',currentEcoleId);
-  const { count: nbInc } = await qI;
+  const { data: incData } = await qI;
+  const nbInc = (incData||[]).filter(i=>i.statut!=='résolu'&&i.statut!=='resolu'&&i.statut!=='Résolu').length;
   if (nbInc >= 3) alertes.push({ type:'danger', ico:'⚠️', titre:`${nbInc} incident(s) non résolus`, msg:'Plusieurs incidents disciplinaires sont en attente de traitement.', time:'En cours' });
   else if (nbInc > 0) alertes.push({ type:'warning', ico:'⚠️', titre:`${nbInc} incident(s) ouvert(s)`, msg:'Traitez les incidents en attente.', time:'En cours' });
 
@@ -13682,6 +13685,7 @@ async function analyserRisqueDécrochage() {
   if (currentEcoleId) qN = qN.eq('ecole_id',currentEcoleId);
   const { data: notes } = await qN;
   let qA = db.from('absences').select('etudiant_id, etudiants(nom,prenom)');
+  if (currentEcoleId) qA = qA.eq('ecole_id', currentEcoleId);
   const { data: absences } = await qA;
 
   if (!notes?.length) { container.innerHTML='<div class="empty-state" style="padding:1rem;font-size:12px">Données insuffisantes.</div>'; return; }
@@ -13724,15 +13728,23 @@ async function chargerChartActivite() {
   const ctx = document.getElementById('analytics-chart-activite');
   if (!ctx) return;
   const labels = [], absData = [], notesData = [];
+  const today  = new Date();
+  const depuis = new Date(Date.now()-6*864e5).toISOString().split('T')[0];
+
+  // 2 requêtes groupées au lieu de 14 requêtes séquentielles
+  const [{ data: absRaw }, { data: notesRaw }] = await Promise.all([
+    db.from('absences').select('date_absence').gte('date_absence', depuis),
+    db.from('notes').select('created_at').gte('created_at', depuis+'T00:00:00'),
+  ]);
+
   for (let i = 6; i >= 0; i--) {
     const d = new Date(Date.now()-i*864e5);
     const dStr = d.toISOString().split('T')[0];
     labels.push(d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric'}));
-    const { count: na } = await db.from('absences').select('*',{count:'exact',head:true}).eq('date_absence',dStr);
-    const { count: nn } = await db.from('notes').select('*',{count:'exact',head:true}).gte('created_at',dStr+'T00:00:00').lte('created_at',dStr+'T23:59:59');
-    absData.push(na||0);
-    notesData.push(nn||0);
+    absData.push((absRaw||[]).filter(a=>a.date_absence===dStr).length);
+    notesData.push((notesRaw||[]).filter(n=>(n.created_at||'').startsWith(dStr)).length);
   }
+
   if (analyticsCharts.activite) analyticsCharts.activite.destroy();
   analyticsCharts.activite = new Chart(ctx, {
     type:'line',
