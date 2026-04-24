@@ -9766,7 +9766,7 @@ function initModalExamen() {
 function editerExamen(examId) {
   const ex = tousLesExamens.find(e => e.id === examId);
   if (!ex) return;
-  document.getElementById('modal-examen-titre').textContent = '✏️ Modifier l'examen';
+  document.getElementById('modal-examen-titre').textContent = "✏️ Modifier l'examen";
   document.getElementById('input-exam-id').value = ex.id;
   document.getElementById('input-exam-matiere').value = ex.matiere||'';
   document.getElementById('input-exam-type').value = ex.type_examen||'controle';
@@ -10059,7 +10059,7 @@ function initModalEnseignant() {
 function editerEnseignant(id) {
   const ens = tousLesEnseignants.find(e=>e.id===id);
   if (!ens) return;
-  document.getElementById('modal-ens-titre').textContent = '✏️ Modifier l\'enseignant';
+  document.getElementById("modal-ens-titre").textContent = "✏️ Modifier l'enseignant";
   document.getElementById('input-ens-id').value        = ens.id;
   document.getElementById('input-ens-nom').value       = ens.nom||'';
   document.getElementById('input-ens-prenom').value    = ens.prenom||'';
