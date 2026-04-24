@@ -15834,22 +15834,6 @@ function ouvrirModalAddLivre() {
   ouvrirModal('modal-add-livre');
 }
 
-function ajouterLivre() {
-  const titre = document.getElementById('livre-titre').value.trim();
-  const auteur = document.getElementById('livre-auteur').value.trim();
-  if (!titre||!auteur) { showToast('Titre et auteur requis','error'); return; }
-  const nb = parseInt(document.getElementById('livre-exemplaires').value)||1;
-  const cats = ['bleu','vert','rouge','violet','or','gris'];
-  const cat = document.getElementById('livre-cat').value;
-  const couleurs = {Mathématiques:'bleu',Sciences:'vert',Littérature:'or',Philosophie:'violet',Informatique:'bleu','Histoire-Géographie':'or',Langues:'vert',Autres:'gris'};
-  const emojis = {Mathématiques:'📐',Sciences:'⚗️',Littérature:'📖',Philosophie:'🧠',Informatique:'💻','Histoire-Géographie':'🌍',Langues:'🗣️',Autres:'📄'};
-  const newLivre = { id:Date.now(), titre, auteur, categorie:cat, isbn:document.getElementById('livre-isbn').value, exemplaires:nb, disponibles:nb, annee:parseInt(document.getElementById('livre-annee').value)||new Date().getFullYear(), emoji:emojis[cat]||'📄', couleur:couleurs[cat]||'gris' };
-  bib8Livres.unshift(newLivre);
-  fermerModal('modal-add-livre');
-  renderLivres(bib8Livres);
-  peuplerSelectLivres();
-  showToast('📚 Livre ajouté au catalogue !','success');
-}
 
 function ouvrirModalEmprunt() {
   const today = new Date().toISOString().split('T')[0];
