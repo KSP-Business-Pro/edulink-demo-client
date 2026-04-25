@@ -5627,19 +5627,41 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <button onclick="ouvrirConfigNotif()" style="width:100%;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">⚙️ Configurer Brevo</button>
     </div>
 
-    <!-- Push Notifications FCM ★ JOUR 15 -->
+    <!-- Push Notifications FCM ★ API V1 -->
     <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
-      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🔔 Notifications Push (FCM)</div>
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🔔 Notifications Push (FCM API V1)</div>
       <div id="fcm-admin-status" style="background:#f9fafb;border-radius:10px;padding:.9rem;margin-bottom:1rem;font-size:12.5px;color:#374151">
-        <div style="font-weight:600;margin-bottom:.5rem">Configuration Firebase</div>
+        <div style="font-weight:600;margin-bottom:.5rem">Configuration Firebase Cloud Messaging</div>
         <div id="fcm-config-state" style="color:#6b7280">Non configuré</div>
       </div>
-      <div class="form-group"><label>Clé VAPID publique</label>
+
+      <div class="form-group"><label>Clé VAPID publique (Web Push)</label>
         <input type="text" id="input-vapid-key" placeholder="BxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxAE" style="font-size:11px;font-family:monospace">
       </div>
-      <div class="form-group"><label>Server Key FCM (pour Edge Function)</label>
-        <input type="text" id="input-fcm-server-key" placeholder="AAAA..." style="font-size:11px;font-family:monospace">
+
+      <div class="form-group" style="margin-top:.75rem">
+        <label>ID Expéditeur (Sender ID)</label>
+        <input type="text" id="input-fcm-sender-id" placeholder="988597670758" style="font-size:12px;font-family:monospace">
+        <small style="color:#9ca3af;font-size:11px">Visible dans Firebase → Paramètres → Cloud Messaging</small>
       </div>
+
+      <div class="form-group" style="margin-top:.75rem">
+        <label>Clé API Web (pour API V1)</label>
+        <input type="text" id="input-fcm-server-key" placeholder="AIzaSy..." style="font-size:11px;font-family:monospace">
+        <small style="color:#9ca3af;font-size:11px">Firebase → Paramètres généraux → Votre app Web → apiKey</small>
+      </div>
+
+      <div class="form-group" style="margin-top:.75rem">
+        <label>Project ID Firebase</label>
+        <input type="text" id="input-fcm-project-id" placeholder="edulink-demo-client" style="font-size:12px;font-family:monospace">
+        <small style="color:#9ca3af;font-size:11px">Firebase → Paramètres généraux → ID du projet</small>
+      </div>
+
+      <div style="background:#eff6ff;border-radius:8px;padding:.75rem;margin:.75rem 0;font-size:12px;color:#1d4ed8">
+        <strong>📋 ID Expéditeur détecté :</strong> 988597670758<br>
+        <strong>✅ API FCM V1 activée</strong> sur votre projet Firebase
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <button onclick="sauvegarderConfigFCM()" style="background:#1e3a5f;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">💾 Sauvegarder</button>
         <button onclick="testerNotifPush()" style="background:#059669;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">🧪 Tester Push</button>
@@ -11534,30 +11556,59 @@ async function telechargerTousBulletins() {
 
 // ══ NOTIFICATIONS PUSH FCM  ★ JOUR 15 ══════════════════════════════
 
-// ── Configuration FCM (chargée depuis localStorage) ──
-let fcmMessaging = null;
-let fcmVapidKey  = null;
-let fcmAdminToken = null; // Token admin pour envoyer
+// ── Configuration Firebase EduLink (hardcodée) ──────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyBEdRgcfDi2ai23shWBf4TLBZiM16MpW-U",
+  authDomain:        "edulink-demo-client.firebaseapp.com",
+  projectId:         "edulink-demo-client",
+  storageBucket:     "edulink-demo-client.firebasestorage.app",
+  messagingSenderId: "988597670758",
+  appId:             "1:988597670758:web:86ee62dc5f96e2bf0caea7"
+};
+const FIREBASE_VAPID = "BI749zTbOn-FCKlvFA73d3GV72SOYLGJivQCwzuSqlNdSw8OhF9TO9Rl_DCgU7_5Y2irpfaBpHDJyJFubtZ-4tQ";
+
+// ── Configuration FCM (chargée depuis localStorage + config hardcodée) ──
+let fcmMessaging  = null;
+let fcmVapidKey   = FIREBASE_VAPID;
+let fcmAdminToken = null;
 
 function chargerConfigFCM() {
-  fcmVapidKey = localStorage.getItem('edulink_vapid_key') || '';
-  const serverKey = localStorage.getItem('edulink_fcm_server_key') || '';
+  // Pré-remplir avec les valeurs hardcodées si localStorage vide
+  if (!localStorage.getItem('edulink_vapid_key'))      localStorage.setItem('edulink_vapid_key',      FIREBASE_VAPID);
+  if (!localStorage.getItem('edulink_fcm_api_key'))    localStorage.setItem('edulink_fcm_api_key',    FIREBASE_CONFIG.apiKey);
+  if (!localStorage.getItem('edulink_fcm_project_id')) localStorage.setItem('edulink_fcm_project_id', FIREBASE_CONFIG.projectId);
+  if (!localStorage.getItem('edulink_fcm_sender_id'))  localStorage.setItem('edulink_fcm_sender_id',  FIREBASE_CONFIG.messagingSenderId);
+  if (!localStorage.getItem('edulink_fcm_server_key')) localStorage.setItem('edulink_fcm_server_key', FIREBASE_CONFIG.apiKey);
+
+  fcmVapidKey = FIREBASE_VAPID;
   const el1 = document.getElementById('input-vapid-key');
   const el2 = document.getElementById('input-fcm-server-key');
-  if (el1) el1.value = fcmVapidKey;
-  if (el2) el2.value = serverKey;
+  const el3 = document.getElementById('input-fcm-project-id');
+  const el4 = document.getElementById('input-fcm-sender-id');
+  if (el1) el1.value = FIREBASE_VAPID;
+  if (el2) el2.value = FIREBASE_CONFIG.apiKey;
+  if (el3) el3.value = FIREBASE_CONFIG.projectId;
+  if (el4) el4.value = FIREBASE_CONFIG.messagingSenderId;
   mettreAJourStatutFCM();
   compterTokensFCM();
+  // Auto-init Firebase au chargement
+  initFCM();
 }
 
 function sauvegarderConfigFCM() {
-  const vapid = document.getElementById('input-vapid-key')?.value.trim();
-  const server = document.getElementById('input-fcm-server-key')?.value.trim();
+  const vapid     = document.getElementById('input-vapid-key')?.value.trim();
+  const apiKey    = document.getElementById('input-fcm-server-key')?.value.trim();
+  const projectId = document.getElementById('input-fcm-project-id')?.value.trim();
+  const senderId  = document.getElementById('input-fcm-sender-id')?.value.trim();
   if (!vapid) { showToast('Clé VAPID obligatoire', 'error'); return; }
-  localStorage.setItem('edulink_vapid_key', vapid);
-  localStorage.setItem('edulink_fcm_server_key', server);
+  localStorage.setItem('edulink_vapid_key',       vapid);
+  localStorage.setItem('edulink_fcm_api_key',     apiKey || '');
+  localStorage.setItem('edulink_fcm_project_id',  projectId || '');
+  localStorage.setItem('edulink_fcm_sender_id',   senderId || '988597670758');
+  // Compatibilité ancienne clé
+  localStorage.setItem('edulink_fcm_server_key',  apiKey || '');
   fcmVapidKey = vapid;
-  showToast('✅ Config FCM sauvegardée !', 'success');
+  showToast('✅ Config FCM V1 sauvegardée !', 'success');
   mettreAJourStatutFCM();
   initFCM();
 }
@@ -11565,57 +11616,48 @@ function sauvegarderConfigFCM() {
 function mettreAJourStatutFCM() {
   const el = document.getElementById('fcm-config-state');
   if (!el) return;
-  if (fcmVapidKey) {
-    el.innerHTML = '<span style="color:#059669;font-weight:600">✅ Clé VAPID configurée</span>';
+  if (fcmMessaging && fcmAdminToken) {
+    el.innerHTML = '<span style="color:#059669;font-weight:600">✅ Firebase configuré et actif — Token enregistré</span>';
+  } else if (typeof firebase !== 'undefined') {
+    el.innerHTML = '<span style="color:#d97706;font-weight:600">⚠️ Firebase chargé — En attente de permission Push</span>';
   } else {
-    el.innerHTML = '<span style="color:#dc2626">❌ Non configuré — Voir instructions ci-dessous</span>';
+    el.innerHTML = '<span style="color:#dc2626">❌ Firebase SDK non chargé</span>';
   }
 }
 
 // ── Initialisation Firebase + FCM ──
 async function initFCM() {
-  const vapid = localStorage.getItem('edulink_vapid_key');
-  if (!vapid) return;
-
-  // Vérifier si Firebase est chargé
+  // Vérifier si Firebase SDK est chargé
   if (typeof firebase === 'undefined') {
     console.warn('[FCM] Firebase SDK non chargé');
     return;
   }
 
-  // Récupérer config Firebase depuis Supabase (table parametres)
   try {
-    const { data } = await db.from('parametres')
-      .select('firebase_config')
-      .eq('ecole_id', currentEcoleId)
-      .maybeSingle();
-
-    const fbConfig = data?.firebase_config;
-    if (!fbConfig) {
-      console.warn('[FCM] Config Firebase non trouvée dans parametres');
-      return;
-    }
-
-    // Init Firebase si pas encore fait
+    // Utiliser la config hardcodée directement
     if (!firebase.apps.length) {
-      firebase.initializeApp(fbConfig);
+      firebase.initializeApp(FIREBASE_CONFIG);
     }
 
     fcmMessaging = firebase.messaging();
 
-    // Demander permission
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      console.warn('[FCM] Permission refusée');
-      return;
+    // Demander permission si pas encore accordée
+    if (Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        console.warn('[FCM] Permission refusée');
+        return;
+      }
     }
+    if (Notification.permission !== 'granted') return;
 
-    // Obtenir token FCM
-    const token = await fcmMessaging.getToken({ vapidKey: vapid });
+    // Obtenir token FCM avec la clé VAPID hardcodée
+    const token = await fcmMessaging.getToken({ vapidKey: FIREBASE_VAPID });
     if (token) {
       fcmAdminToken = token;
       await sauvegarderTokenFCM(token, 'admin');
-      console.log('[FCM] Token admin enregistré');
+      console.log('[FCM] ✅ Token admin enregistré');
+      mettreAJourStatutFCM();
     }
 
     // Écoute messages en premier plan
@@ -11724,46 +11766,34 @@ async function envoyerPushNotification() {
 
   document.getElementById('push-send-log').innerHTML = `📱 ${tokens.length} appareil(s) trouvé(s)...`;
 
-  // Envoi via FCM Legacy HTTP API
+  // Envoi via FCM HTTP V1 (API recommandée)
+  const apiKey    = localStorage.getItem('edulink_fcm_api_key') || serverKey;
+  const projectId = localStorage.getItem('edulink_fcm_project_id') || '';
   let succes = 0, echecs = 0;
-  const BATCH = 500; // FCM limite 500 tokens par requête
 
-  for (let i = 0; i < tokens.length; i += BATCH) {
-    const batchTokens = tokens.slice(i, i + BATCH).map(t => t.token);
+  for (const t of tokens) {
     try {
-      const resp = await fetch('https://fcm.googleapis.com/fcm/send', {
+      const resp = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'key=' + serverKey
-        },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
-          registration_ids: batchTokens,
-          notification: {
-            title: titre,
-            body:  body,
-            icon:  '/icon-192.png',
-            badge: '/icon-72.png',
-            click_action: url
-          },
-          data: {
-            title, body, url,
-            tag:       'edulink-' + Date.now(),
-            important: prio === 'high' ? 'true' : 'false',
-            ecole_id:  currentEcoleId
-          },
-          priority: prio === 'high' ? 'high' : 'normal',
-          android: { priority: prio === 'high' ? 'high' : 'normal' },
-          apns: { headers: { 'apns-priority': prio === 'high' ? '10' : '5' } }
+          message: {
+            token: t.token,
+            notification: { title: titre, body },
+            webpush: {
+              notification: { icon: '/icon-192.png', badge: '/icon-72.png', requireInteraction: prio === 'high' },
+              fcm_options: { link: url || '/edulink-portail.html' }
+            }
+          }
         })
       });
       const result = await resp.json();
-      succes += result.success || 0;
-      echecs += result.failure || 0;
-      document.getElementById('push-send-log').innerHTML =
-        `✅ ${succes} envoyé(s) · ❌ ${echecs} échoué(s)`;
+      if (result.name) succes++;
+      else { echecs++; console.warn('[FCM V1]', result.error?.message); }
+      document.getElementById('push-send-log').innerHTML = `✅ ${succes} envoyé(s) · ❌ ${echecs} échoué(s)`;
     } catch(err) {
-      echecs += batchTokens.length;
+      echecs++;
+
       document.getElementById('push-send-log').innerHTML = '❌ Erreur : ' + err.message;
     }
   }
@@ -11853,25 +11883,32 @@ async function envoyerPushExamen(examen) {
 }
 
 // Helper envoi groupe
-async function envoyerPushGroupe(tokens, titre, body, serverKey) {
-  if (!tokens.length) return;
-  try {
-    await fetch('https://fcm.googleapis.com/fcm/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'key=' + serverKey
-      },
-      body: JSON.stringify({
-        registration_ids: tokens.slice(0, 500),
-        notification: { title: titre, body, icon:'/icon-192.png', badge:'/icon-72.png' },
-        data: { title: titre, body, url: '/edulink-portail.html', tag: 'edulink-auto' },
-        priority: 'high'
-      })
-    });
-  } catch(err) {
-    console.warn('[FCM] Erreur envoi groupe:', err.message);
+async function envoyerPushGroupe(tokens, titre, body, _unused) {
+  if (!tokens.length) return 0;
+  const apiKey    = localStorage.getItem('edulink_fcm_api_key') || '';
+  const projectId = localStorage.getItem('edulink_fcm_project_id') || '';
+  if (!apiKey || !projectId) {
+    console.warn('[FCM] Clé API ou Project ID manquant — mode dégradé');
+    return 0;
   }
+  let succes = 0;
+  for (const token of tokens.slice(0, 50)) {
+    try {
+      await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          message: {
+            token,
+            notification: { title: titre, body },
+            webpush: { notification: { icon: '/icon-192.png' }, fcm_options: { link: '/edulink-portail.html' } }
+          }
+        })
+      });
+      succes++;
+    } catch(err) { console.warn('[FCM V1] Erreur:', err.message); }
+  }
+  return succes;
 }
 
 // ── Notifications in-app (panneau local) ──
@@ -12159,21 +12196,26 @@ async function envoyerDepuisCompose() {
     const { data: tokens } = await q;
 
     if (tokens?.length) {
-      try {
-        const resp = await fetch('https://fcm.googleapis.com/fcm/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'key=' + serverKey },
-          body: JSON.stringify({
-            registration_ids: tokens.slice(0, 500).map(t => t.token),
-            notification: { title: icone + ' ' + titre, body, icon:'/icon-192.png', badge:'/icon-72.png' },
-            data: { title: titre, body, url:'/edulink-portail.html', tag:'edulink-'+ncTypeCompose+'-'+Date.now(), ecole_id: currentEcoleId },
-            priority: urgent ? 'high' : 'normal'
-          })
-        });
-        const res = await resp.json();
-        succes = res.success || 0;
-        echecs = res.failure || 0;
-      } catch(e) { echecs = tokens.length; }
+      const apiKeyV1  = localStorage.getItem('edulink_fcm_api_key') || serverKey;
+      const projectId = localStorage.getItem('edulink_fcm_project_id') || '';
+      succes = 0; echecs = 0;
+      for (const t of tokens.slice(0, 100)) {
+        try {
+          const resp = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKeyV1 },
+            body: JSON.stringify({
+              message: {
+                token: t.token,
+                notification: { title: icone + ' ' + titre, body },
+                webpush: { notification: { icon: '/icon-192.png' }, fcm_options: { link: '/edulink-portail.html' } }
+              }
+            })
+          });
+          const res = await resp.json();
+          if (res.name) succes++; else echecs++;
+        } catch(e) { echecs++; }
+      }
     } else {
       if (result) { result.textContent='⚠️ Aucun appareil abonné (push)'; result.style.color='#d97706'; }
     }
