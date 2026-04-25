@@ -3137,6 +3137,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>📚 Bibliothèque Numérique</h2><p class="page-subtitle">Gestion du catalogue, emprunts et ressources digitales</p></div>
     <div class="top-actions">
+      <button class="btn-outline" style="color:#dc2626;border-color:#dc2626" onclick="reinitialiserBibliotheque()">🗑️ Vider le catalogue</button>
       <button class="btn-outline" onclick="exportCatalogueBibNum()">📥 Export CSV</button>
       <button class="btn-purple" onclick="ouvrirModalAddLivre()">+ Ajouter un livre</button>
       <button class="btn-blue" onclick="ouvrirModalEmprunt()">📖 Nouvel emprunt</button>
@@ -3225,7 +3226,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <!-- TAB Historique retours -->
   <div id="bib-tab-retours" style="display:none">
     <div class="bib-block">
-      <div class="bib-block-header"><span>✅ Historique des retours</span></div>
+      <div class="bib-block-header">
+        <span>✅ Historique des retours</span>
+        <button class="btn-sm btn-red" onclick="viderHistoriqueRetours()" style="margin-left:auto">🗑️ Vider l'historique</button>
+      </div>
       <div style="overflow-x:auto">
         <table id="bib-retours-table">
           <thead><tr><th>Livre</th><th>Étudiant</th><th>Emprunté le</th><th>Retourné le</th><th>Durée</th><th>Amende</th><th>État</th></tr></thead>
@@ -15230,6 +15234,19 @@ function bib8Restaurer() {
   } catch(e) { return false; }
 }
 
+function reinitialiserBibliotheque() {
+  const nb = bib8Livres.length;
+  if (!nb && !bib8Emprunts.length) { showToast('Le catalogue est déjà vide.','info'); return; }
+  if (!confirm(`Vider définitivement le catalogue (${nb} livre${nb>1?'s':''}) et tous les emprunts ? Cette action est irréversible.`)) return;
+  bib8Livres = [];
+  bib8Emprunts = [];
+  bib8Reservations = [];
+  localStorage.removeItem(BIB_STORE_KEY);
+  bib8Initialized = true; // garder le flag pour ne pas réinjecter des démos
+  chargerBibliothequeNum();
+  showToast('🗑️ Catalogue vidé.','success');
+}
+
 function chargerBibliothequeNum() {
   if (!bib8Initialized) {
     bib8Restaurer(); // restaure depuis localStorage — vide si rien en storage
@@ -15315,20 +15332,37 @@ function renderEmprunts(emprunts) {
 
 function renderRetoursHistorique() {
   const tbody = document.getElementById('bib-retours-body');
-  const hist = [
-    { livre:'Mathématiques Terminale', etudiant:'Sonia Ahoton', date_emp:'2026-02-01', date_ret:'2026-02-22', duree:21, amende:0 },
-    { livre:'Philosophie Terminale', etudiant:'Fabrice Agbo', date_emp:'2026-02-10', date_ret:'2026-03-05', duree:23, amende:500 },
-    { livre:'SVT Terminale D', etudiant:'Nadège Hounsa', date_emp:'2026-01-15', date_ret:'2026-02-01', duree:17, amende:0 },
-  ];
-  tbody.innerHTML = hist.map(h=>`<tr>
-    <td><strong>${h.livre}</strong></td>
-    <td>${h.etudiant}</td>
-    <td>${h.date_emp}</td>
-    <td>${h.date_ret}</td>
-    <td>${h.duree} jours</td>
-    <td>${h.amende>0?'<span class="badge red">'+h.amende+' F</span>':'<span class="badge green">Aucune</span>'}</td>
-    <td><span class="badge green">Retourné</span></td>
-  </tr>`).join('');
+  if (!tbody) return;
+  const hist = bib8Emprunts.filter(e=>e.retourne);
+  if (!hist.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucun retour enregistré.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = hist.map(h=>{
+    const duree = h.date_retour_reel && h.date_emprunt
+      ? Math.round((new Date(h.date_retour_reel)-new Date(h.date_emprunt))/(86400000))
+      : (h.duree||'—');
+    const amende = h.amende||0;
+    return `<tr>
+      <td><strong>${h.livre}</strong></td>
+      <td>${h.etudiant}</td>
+      <td>${h.date_emprunt||'—'}</td>
+      <td>${h.date_retour_reel||h.date_retour_prevue||'—'}</td>
+      <td>${duree} jours</td>
+      <td>${amende>0?'<span class="badge red">'+amende+' F</span>':'<span class="badge green">Aucune</span>'}</td>
+      <td><span class="badge green">Retourné</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function viderHistoriqueRetours() {
+  const nb = bib8Emprunts.filter(e=>e.retourne).length;
+  if (!nb) { showToast("L'historique est déjà vide.",'info'); return; }
+  if (!confirm(`Supprimer définitivement ${nb} entrée${nb>1?'s':''} de l'historique des retours ?`)) return;
+  bib8Emprunts = bib8Emprunts.filter(e=>!e.retourne);
+  bib8Sauvegarder();
+  renderRetoursHistorique();
+  showToast('🗑️ Historique des retours vidé.','success');
 }
 
 function renderReservations() {
@@ -15493,6 +15527,7 @@ function retournerLivre(empId) {
   const emp = bib8Emprunts.find(e=>e.id===empId);
   if (!emp) return;
   emp.retourne = true;
+  emp.date_retour_reel = new Date().toISOString().split('T')[0];
   const livre = bib8Livres.find(l=>l.id===emp.livre_id);
   if (livre) livre.disponibles++;
   bib8Sauvegarder();
