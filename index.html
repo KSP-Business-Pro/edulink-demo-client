@@ -15199,21 +15199,37 @@ async function ajouterPersonnel() {
   if (!nom||!prenom||!poste) { showToast('Nom, prénom et poste obligatoires.','error'); return; }
   const modal  = document.getElementById('modal-personnel');
   const editId = modal?.dataset?.editId;
+  // Payload minimal confirmé dans le schema Supabase
+  const salaireVal = parseFloat(document.getElementById('input-rh-salaire')?.value)||0;
   const payload = {
     nom, prenom,
-    email:           document.getElementById('input-rh-email').value.trim(),
-    telephone:       document.getElementById('input-rh-tel').value.trim(),
+    email:        document.getElementById('input-rh-email').value.trim()||null,
+    telephone:    document.getElementById('input-rh-tel').value.trim()||null,
     poste,
-    departement:     document.getElementById('input-rh-dept').value,
-    type_contrat:    document.getElementById('input-rh-contrat').value,
-    date_embauche:   document.getElementById('input-rh-embauche').value,
-    salaire_brut:    parseFloat(document.getElementById('input-rh-salaire').value)||0,
+    departement:  document.getElementById('input-rh-dept').value||null,
+    type_contrat: document.getElementById('input-rh-contrat').value||null,
+    date_embauche:document.getElementById('input-rh-embauche').value||null,
+    ...(salaireVal > 0 ? {salaire_brut: salaireVal} : {}),
   };
   let error;
-  if (editId) {
-    ({ error } = await db.from('personnel').update(payload).eq('id', editId));
-  } else {
-    ({ error } = await db.from('personnel').insert([{ ...payload, ecole_id:currentEcoleId, statut:'actif' }]));
+  // Colonnes optionnelles à retirer si absent du schema
+  const optionalCols = ['salaire_brut','date_fin_contrat','observations','type_contrat','telephone'];
+  const tryUpsert = async (p, isEdit) => {
+    if (isEdit) return db.from('personnel').update(p).eq('id', editId);
+    return db.from('personnel').insert([{ ...p, ecole_id:currentEcoleId, statut:'actif' }]);
+  };
+  let result = await tryUpsert(payload, !!editId);
+  error = result.error;
+  // Si erreur de colonne inconnue, retirer la colonne et réessayer
+  while (error && error.message.includes("column of 'personnel'")) {
+    const match = error.message.match(/find the '([^']+)' column/);
+    if (!match) break;
+    const badCol = match[1];
+    console.warn('[RH] Colonne absente du schema:', badCol);
+    delete payload[badCol];
+    result = await tryUpsert(payload, !!editId);
+    error = result.error;
+    if (!optionalCols.includes(badCol)) break; // sécurité anti-boucle
   }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-personnel');
