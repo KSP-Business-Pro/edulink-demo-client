@@ -3214,6 +3214,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>📚 Bibliothèque Numérique</h2><p class="page-subtitle">Gestion du catalogue, emprunts et ressources digitales</p></div>
     <div class="top-actions">
+      <button class="btn-outline" onclick="exportCatalogueBibNum()">📥 Export CSV</button>
       <button class="btn-purple" onclick="ouvrirModalAddLivre()">+ Ajouter un livre</button>
       <button class="btn-blue" onclick="ouvrirModalEmprunt()">📖 Nouvel emprunt</button>
     </div>
@@ -3263,8 +3264,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <!-- TAB Catalogue -->
   <div id="bib-tab-catalogue">
     <div class="search-bar" style="margin-bottom:1rem">
-      <input id="bib-search" placeholder="🔍 Rechercher titre, auteur, ISBN..." oninput="filtrerLivres()" />
-      <select id="bib-filter-cat" onchange="filtrerLivres()" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;background:#fff">
+      <input id="bib-search" placeholder="🔍 Rechercher titre, auteur, ISBN..." oninput="filtrerLivresBibNum()" />
+      <select id="bib-filter-cat" onchange="filtrerLivresBibNum()" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;background:#fff">
         <option value="">Toutes catégories</option>
         <option>Mathématiques</option>
         <option>Sciences</option>
@@ -3275,7 +3276,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <option>Langues</option>
         <option>Autres</option>
       </select>
-      <select id="bib-filter-dispo" onchange="filtrerLivres()" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;background:#fff">
+      <select id="bib-filter-dispo" onchange="filtrerLivresBibNum()" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;background:#fff">
         <option value="">Tous états</option>
         <option value="disponible">Disponibles</option>
         <option value="emprunte">Empruntés</option>
@@ -3325,10 +3326,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
 </div>
 
-<!-- Modal Ajouter Livre -->
+<!-- Modal Ajouter Livre (Bibliothèque Numérique) -->
 <div class="modal-overlay" id="modal-add-livre">
   <div class="modal">
-    <h3>📚 Ajouter un livre au catalogue</h3>
+    <h3 id="modal-add-livre-titre">📚 Ajouter un livre au catalogue</h3>
     <div class="form-grid">
       <div class="form-group"><label>Titre *</label><input id="livre-titre" placeholder="Titre du livre" /></div>
       <div class="form-group"><label>Auteur *</label><input id="livre-auteur" placeholder="Nom de l'auteur" /></div>
@@ -3346,13 +3347,13 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div class="form-group"><label>Description</label><textarea id="livre-desc" rows="2" placeholder="Résumé ou description courte..."></textarea></div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="fermerModal('modal-add-livre')">Annuler</button>
-      <button class="btn-purple" onclick="ajouterLivre()">📚 Ajouter</button>
+      <button class="btn-purple" onclick="ajouterLivreBibNum()">📚 Enregistrer</button>
     </div>
   </div>
 </div>
 
-<!-- Modal Emprunt -->
-<div class="modal-overlay" id="modal-emprunt">
+<!-- Modal Emprunt (Bibliothèque Numérique) — id renommé pour éviter conflit avec modal-emprunt (module 14 Bibliothèque) -->
+<div class="modal-overlay" id="modal-emprunt-bibnum">
   <div class="modal">
     <h3>📖 Enregistrer un emprunt</h3>
     <div class="form-grid">
@@ -3367,8 +3368,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     </div>
     <div class="form-group"><label>Notes</label><input id="emprunt-notes" placeholder="Notes optionnelles..." /></div>
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="fermerModal('modal-emprunt')">Annuler</button>
-      <button class="btn-blue" onclick="enregistrerEmprunt()">📖 Enregistrer</button>
+      <button class="btn-secondary" onclick="fermerModal('modal-emprunt-bibnum')">Annuler</button>
+      <button class="btn-blue" onclick="enregistrerEmpruntBibNum()">📖 Enregistrer</button>
     </div>
   </div>
 </div>
@@ -4110,10 +4111,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
 </div>
 
-<!-- Modal Candidature -->
-<div class="modal-overlay" id="modal-candidature">
+<!-- Modal Candidature Stage (Orientation) — renommé pour éviter conflit avec modal-candidature (Admissions) -->
+<div class="modal-overlay" id="modal-candidature-stage">
   <div class="modal">
-    <h3>🎓 Soumettre une candidature</h3>
+    <h3>🎓 Soumettre une candidature de stage</h3>
     <div class="form-grid">
       <div class="form-group"><label>Élève *</label>
         <select id="cand-etudiant-id"><option value="">Sélectionner...</option></select>
@@ -4126,7 +4127,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <textarea id="cand-lettre" rows="4" placeholder="Résumé de la lettre de motivation ou notes de l'élève..."></textarea>
     </div>
     <div class="modal-footer">
-      <button class="btn-secondary" onclick="fermerModal('modal-candidature')">Annuler</button>
+      <button class="btn-secondary" onclick="fermerModal('modal-candidature-stage')">Annuler</button>
       <button class="btn-purple" onclick="soumettreCandidat()">📤 Soumettre</button>
     </div>
   </div>
@@ -6665,6 +6666,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>🎓 Admissions & Inscriptions</h2><p class="page-subtitle">Gestion des candidatures, workflow d'admission et lettres officielles</p></div>
     <div class="top-actions">
+      <button class="btn-outline" onclick="exporterCandidaturesCSV()">📥 Export CSV</button>
       <button class="btn-outline" onclick="exporterRapportAdmissions()">📄 Rapport PDF</button>
       <button class="btn-secondary" onclick="ouvrirModal('modal-campagne')">⚙️ Campagne</button>
       <button onclick="ouvrirModal('modal-candidature')">+ Nouvelle candidature</button>
@@ -8234,6 +8236,16 @@ function fermerModal(id) {
     const modal=document.getElementById('modal-personnel');
     if(modal) delete modal.dataset.editId;
     const h3=document.querySelector('#modal-personnel h3'); if(h3) h3.textContent='🧑‍💼 Ajouter un agent au personnel';
+  }
+  if (id === 'modal-candidature') {
+    const modal=document.getElementById('modal-candidature');
+    if(modal) delete modal.dataset.editId;
+    const h3=document.querySelector('#modal-candidature h3'); if(h3) h3.textContent='🎓 Nouvelle candidature';
+  }
+  if (id === 'modal-add-livre') {
+    const modal=document.getElementById('modal-add-livre');
+    if(modal) delete modal.dataset.editId;
+    const h3=document.getElementById('modal-add-livre-titre'); if(h3) h3.textContent='📚 Ajouter un livre au catalogue';
   }
 }
 document.querySelectorAll('.modal-overlay').forEach(o => {
@@ -15600,8 +15612,13 @@ async function chargerAdmissions() {
 // ── Kanban ────────────────────────────────────────────────────────────────
 function chargerKanban() {
   const filtreF = document.getElementById('filter-adm-filiere')?.value||'';
+  const filtreA = document.getElementById('filter-adm-annee')?.value||'';
   let liste = toutesLesCandidatures;
   if (filtreF) liste = liste.filter(c=>c.filiere_souhaitee===filtreF);
+  if (filtreA) {
+    const idsCamp = toutesLesCampagnes.filter(c=>c.annee_academique===filtreA).map(c=>c.id);
+    liste = liste.filter(c=>idsCamp.includes(c.campagne_id));
+  }
 
   const cols = { soumis:'soumis', en_examen:'examen', accepte:'accepte', refuse:'refuse' };
   const countIds = { soumis:'kanban-count-soumis', en_examen:'kanban-count-examen', accepte:'kanban-count-accepte', refuse:'kanban-count-refuse' };
@@ -15623,6 +15640,10 @@ function chargerKanban() {
             <span class="badge ${c.mention==='tres_bien'?'green':c.mention==='bien'?'blue':c.mention==='assez_bien'?'teal':'gray'}" style="font-size:10px">${c.mention||'—'}</span>
             <span class="kc-date">${fmtDate(c.created_at)}</span>
           </div>
+          <div style="display:flex;gap:4px;margin-top:6px;border-top:1px solid #f3f4f6;padding-top:6px" onclick="event.stopPropagation()">
+            <button class="btn-sm btn-secondary" style="flex:1;padding:3px 6px;font-size:10px" onclick="ouvrirModificationCandidature('${c.id}')">${"✏️ Modifier"}</button>
+            <button class="btn-sm btn-red" style="flex:1;padding:3px 6px;font-size:10px" onclick="supprimerCandidature('${c.id}')">${"🗑️ Suppr"}</button>
+          </div>
         </div>`).join('');
     }
   });
@@ -15637,7 +15658,7 @@ function filtrerCandidatures() {
   const q  = (document.getElementById('search-candidatures')?.value||'').toLowerCase();
   const st = document.getElementById('filter-adm-statut-liste')?.value||'';
   let liste = toutesLesCandidatures;
-  if (q)  liste = liste.filter(c=>(c.nom+c.prenom+c.filiere_souhaitee+c.reference).toLowerCase().includes(q));
+  if (q)  liste = liste.filter(c=>((c.nom||'')+(c.prenom||'')+(c.filiere_souhaitee||'')+(c.reference||'')).toLowerCase().includes(q));
   if (st) liste = liste.filter(c=>c.statut===st);
   const statutBadge = { soumis:'blue', en_examen:'amber', accepte:'green', refuse:'red', inscrit:'purple' };
   const statutLabel = { soumis:'📬 Soumis', en_examen:'🔍 En examen', accepte:'✅ Accepté', refuse:'❌ Refusé', inscrit:'🎓 Inscrit' };
@@ -15650,12 +15671,62 @@ function filtrerCandidatures() {
         <td>${fmtDate(c.created_at)}</td>
         <td><span class="badge ${statutBadge[c.statut]||'gray'}">${statutLabel[c.statut]||c.statut}</span></td>
         <td>
-          <button class="btn-sm btn-blue" onclick="ouvrirDecision('${c.id}')">✏️ Traiter</button>
+          <button class="btn-sm btn-blue" onclick="ouvrirDecision('${c.id}')">📋 Traiter</button>
+          <button class="btn-sm btn-secondary" onclick="ouvrirModificationCandidature('${c.id}')">${"✏️ Modifier"}</button>
+          <button class="btn-sm btn-red" onclick="supprimerCandidature('${c.id}')">🗑️</button>
           ${c.statut==='accepte'||c.statut==='inscrit'?`<button class="btn-sm btn-green" onclick="genererLettreAdmission('${c.id}')">✉️ Lettre</button>`:''}
           ${c.statut==='refuse'?`<button class="btn-sm btn-red" onclick="genererLettreRefus('${c.id}')">✉️ Refus</button>`:''}
         </td>
       </tr>`).join('')
     : '<tr><td colspan="7" class="loading">Aucune candidature.</td></tr>';
+}
+
+// ── Modifier candidature ──────────────────────────────────────────────────
+async function ouvrirModificationCandidature(id) {
+  const cand = toutesLesCandidatures.find(c=>c.id===id);
+  if (!cand) { showToast('Candidature introuvable.','error'); return; }
+  await remplirSelectCampagnes();
+  document.getElementById('input-cand-nom').value       = cand.nom||'';
+  document.getElementById('input-cand-prenom').value    = cand.prenom||'';
+  document.getElementById('input-cand-naissance').value = cand.date_naissance||'';
+  document.getElementById('input-cand-sexe').value      = cand.sexe||'M';
+  document.getElementById('input-cand-email').value     = cand.email||'';
+  document.getElementById('input-cand-tel').value       = cand.telephone||'';
+  document.getElementById('input-cand-filiere').value   = cand.filiere_souhaitee||'';
+  document.getElementById('input-cand-niveau').value    = cand.niveau_entree||'L1';
+  document.getElementById('input-cand-origine').value   = cand.etablissement_origine||'';
+  document.getElementById('input-cand-moyenne').value   = cand.moyenne_generale||'';
+  document.getElementById('input-cand-diplome').value   = cand.diplome||'baccalaureat';
+  document.getElementById('input-cand-mention').value   = cand.mention||'passable';
+  document.getElementById('input-cand-motivation').value= cand.motivation||'';
+  if (cand.campagne_id) document.getElementById('input-cand-campagne').value = cand.campagne_id;
+  const modal = document.getElementById('modal-candidature');
+  modal.dataset.editId = id;
+  const h3 = document.querySelector('#modal-candidature h3'); if(h3) h3.textContent = "✏️ Modifier la candidature";
+  ouvrirModal('modal-candidature');
+}
+
+async function supprimerCandidature(id) {
+  const cand = toutesLesCandidatures.find(c=>c.id===id);
+  if (!cand) return;
+  if (!confirm(`Supprimer définitivement la candidature de ${cand.prenom} ${cand.nom} ?`)) return;
+  const { error } = await db.from('candidatures').delete().eq('id',id);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast('🗑️ Candidature supprimée.','success');
+  chargerAdmissions();
+}
+
+// ── Export CSV des candidatures ───────────────────────────────────────────
+function exporterCandidaturesCSV() {
+  if (!toutesLesCandidatures.length) { showToast('Aucune candidature à exporter.','error'); return; }
+  const header = ['Référence','Nom','Prénom','Email','Téléphone','Filière','Niveau','Diplôme','Mention','Moyenne','Score','Statut','Date'];
+  const rows = toutesLesCandidatures.map(c=>[
+    c.reference||'',c.nom||'',c.prenom||'',c.email||'',c.telephone||'',
+    c.filiere_souhaitee||'',c.niveau_entree||'',c.diplome||'',c.mention||'',
+    c.moyenne_generale||'',c.score||0,c.statut||'',fmtDate(c.created_at)
+  ]);
+  csvDownload('EduLink-Candidatures.csv', header, rows);
+  showToast('📥 Export CSV terminé !','success');
 }
 
 // ── Soumettre candidature ─────────────────────────────────────────────────
@@ -15687,10 +15758,12 @@ async function soumettreCandidature() {
   if (!nom||!prenom||!filiere||!email) { showToast('Remplissez les champs obligatoires.','error'); return; }
   const mention = document.getElementById('input-cand-mention').value;
   const score   = calculerScore(moyenne, mention);
-  const { error } = await db.from('candidatures').insert([{
+  const modal   = document.getElementById('modal-candidature');
+  const editId  = modal?.dataset?.editId || '';
+
+  const payload = {
     ecole_id:         currentEcoleId,
     campagne_id:      document.getElementById('input-cand-campagne').value||null,
-    reference:        genRef('CAND'),
     nom, prenom, email,
     telephone:        document.getElementById('input-cand-tel').value.trim(),
     sexe:             document.getElementById('input-cand-sexe').value,
@@ -15702,14 +15775,22 @@ async function soumettreCandidature() {
     diplome:          document.getElementById('input-cand-diplome').value,
     mention,
     score,
-    motivation:       document.getElementById('input-cand-motivation').value.trim(),
-    statut: 'soumis'
-  }]);
+    motivation:       document.getElementById('input-cand-motivation').value.trim()
+  };
+
+  let error;
+  if (editId) {
+    ({ error } = await db.from('candidatures').update(payload).eq('id', editId));
+  } else {
+    payload.reference = genRef('CAND');
+    payload.statut    = 'soumis';
+    ({ error } = await db.from('candidatures').insert([payload]));
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-candidature');
   ['input-cand-nom','input-cand-prenom','input-cand-email','input-cand-tel','input-cand-filiere','input-cand-origine','input-cand-motivation'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('input-cand-moyenne').value='';
-  showToast(`🎓 Candidature soumise ! Score : ${score}/20`,'success');
+  showToast(editId ? '✅ Candidature mise à jour !' : `🎓 Candidature soumise ! Score : ${score}/20`, 'success');
   chargerAdmissions();
 }
 
@@ -16037,6 +16118,11 @@ async function exporterRapportAdmissions() {
 ══════════════════════════════════════════════════════════════════ */
 let bib8Livres = [];
 let bib8Emprunts = [];
+let bib8Reservations = [
+  { id:1, livre_id:3, livre:'Physique-Chimie Tle', etudiant:'Ghislain Aguessy', date_demande:'2026-03-20', dispo_le:'2026-03-26' },
+  { id:2, livre_id:10, livre:'Géographie Physique', etudiant:'Odette Tossou', date_demande:'2026-03-22', dispo_le:'2026-03-28' },
+  { id:3, livre_id:8, livre:'Anglais Langue Vivante', etudiant:'Yves Akpaca', date_demande:'2026-03-25', dispo_le:'2026-04-08' },
+];
 
 const LIVRES_DEMO = [
   { id:1, titre:'Mathématiques Terminale', auteur:'Paul Koudjo', categorie:'Mathématiques', isbn:'978-2-07-040850-4', exemplaires:4, disponibles:2, annee:2022, emoji:'📐', couleur:'bleu' },
@@ -16060,13 +16146,13 @@ const EMPRUNTS_DEMO = [
 ];
 
 function chargerBibliothequeNum() {
-  bib8Livres = [...LIVRES_DEMO];
-  bib8Emprunts = [...EMPRUNTS_DEMO];
+  if (!bib8Livres.length) bib8Livres = [...LIVRES_DEMO];
+  if (!bib8Emprunts.length) bib8Emprunts = [...EMPRUNTS_DEMO];
 
   const total = bib8Livres.length;
   const emprunts = bib8Emprunts.filter(e=>!e.retourne).length;
   const retards = bib8Emprunts.filter(e=>!e.retourne && e.retard_jours>0).length;
-  const reserves = 3;
+  const reserves = (bib8Reservations||[]).length;
 
   document.getElementById('bib-total-livres').textContent = total;
   document.getElementById('bib-total-emprunts').textContent = emprunts;
@@ -16076,25 +16162,43 @@ function chargerBibliothequeNum() {
   document.getElementById('bib-kpi-retards').textContent = retards;
   document.getElementById('bib-kpi-reserves').textContent = reserves;
 
-  renderLivres(bib8Livres);
+  filtrerLivresBibNum();
   renderEmprunts(bib8Emprunts.filter(e=>!e.retourne));
   renderRetoursHistorique();
   renderReservations();
   peuplerSelectLivres();
 }
 
+// Filtre dédié Bib Num (l'autre filtrerLivres() appartient au module 14 Bibliothèque Supabase)
+function filtrerLivresBibNum() {
+  const q   = (document.getElementById('bib-search')?.value||'').toLowerCase();
+  const cat = document.getElementById('bib-filter-cat')?.value||'';
+  const dispo = document.getElementById('bib-filter-dispo')?.value||'';
+  let liste = bib8Livres;
+  if (q)   liste = liste.filter(l=>((l.titre||'')+(l.auteur||'')+(l.isbn||'')).toLowerCase().includes(q));
+  if (cat) liste = liste.filter(l=>l.categorie===cat);
+  if (dispo==='disponible') liste = liste.filter(l=>l.disponibles>0);
+  if (dispo==='emprunte')   liste = liste.filter(l=>l.disponibles===0);
+  if (dispo==='reserve')    liste = liste.filter(l=>(bib8Reservations||[]).some(r=>r.livre_id===l.id));
+  renderLivres(liste);
+}
+
 function renderLivres(livres) {
   const grid = document.getElementById('bib-book-grid');
   if (!livres.length) { grid.innerHTML='<div class="empty-state">📚<br>Aucun livre trouvé</div>'; return; }
   grid.innerHTML = livres.map(l=>{
-    const dispo = l.disponibles>0 ? (l.disponibles===l.exemplaires?'disponible':'disponible') : (l.disponibles===0?'emprunte':'reserve');
     const dispoTxt = l.disponibles>0 ? `✅ ${l.disponibles}/${l.exemplaires} dispo` : '🔴 Indisponible';
-    return `<div class="book-card" onclick="voirLivreDetail(${l.id})">
-      <div class="book-cover ${l.couleur}">${l.emoji}</div>
+    return `<div class="book-card">
+      <div class="book-cover ${l.couleur}" onclick="voirLivreDetail(${l.id})" style="cursor:pointer">${l.emoji||'📚'}</div>
       <div class="book-info">
         <div class="book-titre" title="${l.titre}">${l.titre}</div>
         <div class="book-auteur">${l.auteur}</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">${l.categorie||''} · ${l.annee||''}</div>
         <span class="badge ${l.disponibles>0?'green':'red'}" style="font-size:10px">${dispoTxt}</span>
+        <div style="display:flex;gap:4px;margin-top:6px">
+          <button class="btn-sm btn-secondary" style="flex:1;padding:3px 6px;font-size:10px" onclick="ouvrirModificationLivreBibNum(${l.id})">${"✏️ Modifier"}</button>
+          <button class="btn-sm btn-red" style="flex:1;padding:3px 6px;font-size:10px" onclick="supprimerLivreBibNum(${l.id})">${"🗑️ Suppr"}</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -16142,12 +16246,12 @@ function renderRetoursHistorique() {
 
 function renderReservations() {
   const tbody = document.getElementById('bib-reserves-body');
-  const reservs = [
-    { livre:'Physique-Chimie Tle', etudiant:'Ghislain Aguessy', date_demande:'2026-03-20', dispo_le:'2026-03-26' },
-    { livre:'Géographie Physique', etudiant:'Odette Tossou', date_demande:'2026-03-22', dispo_le:'2026-03-28' },
-    { livre:'Anglais Langue Vivante', etudiant:'Yves Akpaca', date_demande:'2026-03-25', dispo_le:'2026-04-08' },
-  ];
-  tbody.innerHTML = reservs.map(r=>`<tr>
+  if (!tbody) return;
+  if (!bib8Reservations.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">Aucune réservation en attente.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = bib8Reservations.map(r=>`<tr>
     <td><strong>${r.livre}</strong></td>
     <td>${r.etudiant}</td>
     <td>${r.date_demande}</td>
@@ -16174,6 +16278,9 @@ function bibSwitchTab(tab, btn) {
 }
 
 function ouvrirModalAddLivre() {
+  const modal = document.getElementById('modal-add-livre');
+  if (modal) delete modal.dataset.editId;
+  const h3 = document.getElementById('modal-add-livre-titre'); if(h3) h3.textContent = '📚 Ajouter un livre au catalogue';
   document.getElementById('livre-titre').value='';
   document.getElementById('livre-auteur').value='';
   document.getElementById('livre-isbn').value='';
@@ -16181,6 +16288,81 @@ function ouvrirModalAddLivre() {
   document.getElementById('livre-annee').value='';
   document.getElementById('livre-desc').value='';
   ouvrirModal('modal-add-livre');
+}
+
+function ouvrirModificationLivreBibNum(id) {
+  const l = bib8Livres.find(b=>b.id===id);
+  if (!l) return;
+  document.getElementById('livre-titre').value = l.titre||'';
+  document.getElementById('livre-auteur').value = l.auteur||'';
+  document.getElementById('livre-isbn').value = l.isbn||'';
+  document.getElementById('livre-cat').value = l.categorie||'Autres';
+  document.getElementById('livre-exemplaires').value = l.exemplaires||1;
+  document.getElementById('livre-annee').value = l.annee||'';
+  document.getElementById('livre-desc').value = l.description||'';
+  const modal = document.getElementById('modal-add-livre');
+  modal.dataset.editId = String(id);
+  const h3 = document.getElementById('modal-add-livre-titre'); if(h3) h3.textContent = "✏️ Modifier le livre";
+  ouvrirModal('modal-add-livre');
+}
+
+function ajouterLivreBibNum() {
+  const titre = document.getElementById('livre-titre').value.trim();
+  const auteur = document.getElementById('livre-auteur').value.trim();
+  if (!titre || !auteur) { showToast('Titre et auteur obligatoires.','error'); return; }
+  const exemplaires = parseInt(document.getElementById('livre-exemplaires').value)||1;
+  const modal = document.getElementById('modal-add-livre');
+  const editId = modal?.dataset?.editId ? parseInt(modal.dataset.editId) : 0;
+  const cat = document.getElementById('livre-cat').value;
+  const emojis = { 'Mathématiques':'📐','Sciences':'⚗️','Littérature':'📖','Histoire-Géographie':'🗺️','Philosophie':'🧠','Informatique':'💻','Langues':'🗣️','Autres':'📚' };
+  const couleurs = { 'Mathématiques':'bleu','Sciences':'rouge','Littérature':'vert','Histoire-Géographie':'or','Philosophie':'violet','Informatique':'bleu','Langues':'or','Autres':'gris' };
+
+  if (editId) {
+    const l = bib8Livres.find(b=>b.id===editId);
+    if (!l) { showToast('Livre introuvable.','error'); return; }
+    const ancienExemplaires = l.exemplaires;
+    const empruntes = ancienExemplaires - l.disponibles;
+    l.titre = titre;
+    l.auteur = auteur;
+    l.isbn = document.getElementById('livre-isbn').value.trim();
+    l.categorie = cat;
+    l.exemplaires = exemplaires;
+    l.disponibles = Math.max(0, exemplaires - empruntes);
+    l.annee = parseInt(document.getElementById('livre-annee').value)||l.annee;
+    l.description = document.getElementById('livre-desc').value.trim();
+    l.emoji = emojis[cat]||'📚';
+    l.couleur = couleurs[cat]||'gris';
+    showToast('✅ Livre mis à jour !','success');
+  } else {
+    const newId = (bib8Livres.length ? Math.max(...bib8Livres.map(b=>b.id)) : 0) + 1;
+    bib8Livres.unshift({
+      id: newId, titre, auteur,
+      isbn: document.getElementById('livre-isbn').value.trim(),
+      categorie: cat,
+      exemplaires, disponibles: exemplaires,
+      annee: parseInt(document.getElementById('livre-annee').value)||new Date().getFullYear(),
+      description: document.getElementById('livre-desc').value.trim(),
+      emoji: emojis[cat]||'📚',
+      couleur: couleurs[cat]||'gris',
+    });
+    showToast('📚 Livre ajouté au catalogue !','success');
+  }
+  fermerModal('modal-add-livre');
+  chargerBibliothequeNum();
+}
+
+function supprimerLivreBibNum(id) {
+  const l = bib8Livres.find(b=>b.id===id);
+  if (!l) return;
+  const empruntsActifs = bib8Emprunts.filter(e=>e.livre_id===id && !e.retourne).length;
+  if (empruntsActifs > 0) {
+    showToast(`Impossible : ${empruntsActifs} emprunt(s) en cours sur ce livre.`,'error');
+    return;
+  }
+  if (!confirm(`Supprimer définitivement "${l.titre}" du catalogue ?`)) return;
+  bib8Livres = bib8Livres.filter(b=>b.id!==id);
+  showToast('🗑️ Livre supprimé.','success');
+  chargerBibliothequeNum();
 }
 
 
@@ -16193,23 +16375,23 @@ function ouvrirModalEmprunt() {
   // Peupler étudiants
   const sel = document.getElementById('emprunt-etudiant-id');
   if (sel) sel.innerHTML = '<option value="">Sélectionner...</option><option value="1">Kofi Mensah — Tle D</option><option value="2">Afi Dossou — 1ère A</option><option value="3">Brice Gbedo — Tle C</option><option value="4">Flore Akpo — 2nde B</option>';
-  ouvrirModal('modal-emprunt');
+  ouvrirModal('modal-emprunt-bibnum');
 }
 
-function enregistrerEmprunt() {
+function enregistrerEmpruntBibNum() {
   const livreId = parseInt(document.getElementById('emprunt-livre-id').value);
   const etId = document.getElementById('emprunt-etudiant-id').value;
   const dateEmp = document.getElementById('emprunt-date').value;
   const dateRet = document.getElementById('emprunt-retour').value;
   if (!livreId||!etId||!dateEmp||!dateRet) { showToast('Tous les champs requis sont obligatoires','error'); return; }
   const livre = bib8Livres.find(l=>l.id===livreId);
-  if (!livre||livre.disponibles<=0) { showToast('Ce livre n\'est plus disponible','error'); return; }
+  if (!livre||livre.disponibles<=0) { showToast("Ce livre n'est plus disponible",'error'); return; }
   livre.disponibles--;
   const etOpt = document.getElementById('emprunt-etudiant-id').options;
   const etTxt = etOpt[etOpt.selectedIndex].text;
   const newEmp = { id:Date.now(), livre_id:livreId, livre:livre.titre, etudiant:etTxt.split(' — ')[0], classe:etTxt.split(' — ')[1]||'', date_emprunt:dateEmp, date_retour_prevue:dateRet, retourne:false, retard_jours:0 };
   bib8Emprunts.unshift(newEmp);
-  fermerModal('modal-emprunt');
+  fermerModal('modal-emprunt-bibnum');
   renderLivres(bib8Livres);
   renderEmprunts(bib8Emprunts.filter(e=>!e.retourne));
   peuplerSelectLivres();
@@ -16236,9 +16418,37 @@ function voirLivreDetail(id) {
   showToast(`📚 ${l.titre} — ${l.disponibles}/${l.exemplaires} disponible(s)`,'info');
 }
 
-function exportEmprunts() { showToast('📥 Export des emprunts (CSV) en préparation...','info'); }
-function confirmerReservation(et) { showToast(`✅ Réservation confirmée pour ${et}`,'success'); }
-function annulerReservation(et) { showToast(`❌ Réservation annulée pour ${et}`,'error'); }
+function exportEmprunts() {
+  const liste = bib8Emprunts.filter(e=>!e.retourne);
+  if (!liste.length) { showToast('Aucun emprunt actif à exporter.','error'); return; }
+  const header = ['Livre','Étudiant','Classe','Date emprunt','Retour prévu','Retard (jours)'];
+  const rows = liste.map(e=>[e.livre, e.etudiant, e.classe, e.date_emprunt, e.date_retour_prevue, e.retard_jours||0]);
+  csvDownload('EduLink-BibNum-Emprunts.csv', header, rows);
+  showToast('📥 Export emprunts terminé !','success');
+}
+
+function exportCatalogueBibNum() {
+  if (!bib8Livres.length) { showToast('Aucun livre à exporter.','error'); return; }
+  const header = ['Titre','Auteur','ISBN','Catégorie','Exemplaires','Disponibles','Année'];
+  const rows = bib8Livres.map(l=>[l.titre, l.auteur, l.isbn||'', l.categorie||'', l.exemplaires, l.disponibles, l.annee||'']);
+  csvDownload('EduLink-BibNum-Catalogue.csv', header, rows);
+  showToast('📥 Export catalogue terminé !','success');
+}
+
+function confirmerReservation(et) {
+  const r = bib8Reservations.find(x=>x.etudiant===et);
+  if (r) bib8Reservations = bib8Reservations.filter(x=>x.etudiant!==et);
+  showToast(`✅ Réservation confirmée pour ${et}`,'success');
+  renderReservations();
+  document.getElementById('bib-kpi-reserves').textContent = bib8Reservations.length;
+}
+
+function annulerReservation(et) {
+  bib8Reservations = bib8Reservations.filter(x=>x.etudiant!==et);
+  showToast(`❌ Réservation annulée pour ${et}`,'error');
+  renderReservations();
+  document.getElementById('bib-kpi-reserves').textContent = bib8Reservations.length;
+}
 
 /* ══════════════════════════════════════════════════════════════════
    SUITE 8 — CANTINE & RESTAURATION ★ JOUR 27
@@ -17134,7 +17344,7 @@ function ajouterStage() {
   showToast('📋 Offre de stage publiée !','success');
 }
 
-function ouvrirModalCandidature() { peuplerSelectsOrientation(); ouvrirModal('modal-candidature'); }
+function ouvrirModalCandidature() { peuplerSelectsOrientation(); ouvrirModal('modal-candidature-stage'); }
 
 function soumettreCandidat() {
   const et=document.getElementById('cand-etudiant-id');
@@ -17145,14 +17355,14 @@ function soumettreCandidat() {
   const offre=toutesLesOffres.find(o=>o.id===parseInt(st.value));
   if(offre) offre.postules++;
   toutesLesCandidaturesStage.unshift({id:Date.now(),etudiant:etTxt.split(' — ')[0],classe:etTxt.split(' — ')[1]||'',stage:offre?.titre||'—',entreprise:offre?.entreprise||'—',statut:'en_cours',date:new Date().toISOString().split('T')[0],color:'#7c3aed'});
-  fermerModal('modal-candidature'); renderCandidaturesStage(toutesLesCandidaturesStage);
+  fermerModal('modal-candidature-stage'); renderCandidaturesStage(toutesLesCandidaturesStage);
   showToast('📤 Candidature soumise !','success');
 }
 
 function candidaterStage(id) {
   const st=document.getElementById('cand-stage-id'); if(!st)return;
   st.value=id; orientSwitchTab('candidatures',document.querySelectorAll('#page-orientation .tab')[1]);
-  ouvrirModal('modal-candidature');
+  ouvrirModal('modal-candidature-stage');
 }
 
 function voirCandidatsStage(id) {
