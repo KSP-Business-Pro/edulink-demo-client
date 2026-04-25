@@ -4514,9 +4514,12 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div class="portail-block">
           <div class="portail-block-header">
             <span>📊 Notes du semestre</span>
-            <select style="padding:5px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
-              <option>1er Semestre</option><option>2ème Semestre</option>
-            </select>
+            <div style="display:flex;gap:6px;align-items:center">
+              <select style="padding:5px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:'Poppins',sans-serif;outline:none">
+                <option>1er Semestre</option><option>2ème Semestre</option>
+              </select>
+              <button class="btn-sm btn-red" onclick="supprimerToutesNotesPortail()">🗑️ Tout supprimer</button>
+            </div>
           </div>
           <div class="bulletin-mini" id="portail-notes-list"></div>
         </div>
@@ -4525,7 +4528,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <!-- Absences -->
       <div id="portail-tab-absences" style="display:none">
         <div class="portail-block">
-          <div class="portail-block-header"><span>📅 Historique des absences</span></div>
+          <div class="portail-block-header">
+            <span>📅 Historique des absences</span>
+            <button class="btn-sm btn-red" onclick="supprimerToutesAbsencesPortail()">🗑️ Tout supprimer</button>
+          </div>
           <div id="portail-absences-list"></div>
         </div>
       </div>
@@ -4543,7 +4549,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div class="portail-block">
           <div class="portail-block-header">
             <span>✉️ Messagerie</span>
-            <button class="btn-sm btn-blue" onclick="showToast('✉️ Nouveau message — Sélectionnez un destinataire','info')">+ Nouveau</button>
+            <div style="display:flex;gap:6px">
+              <button class="btn-sm btn-blue" onclick="showToast('✉️ Nouveau message — Sélectionnez un destinataire','info')">+ Nouveau</button>
+              <button class="btn-sm btn-red" onclick="supprimerTousMessagesPortail()">🗑️ Tout supprimer</button>
+            </div>
           </div>
           <div id="portail-messages-list"></div>
         </div>
@@ -4552,10 +4561,13 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <!-- Paiements -->
       <div id="portail-tab-paiements" style="display:none">
         <div class="portail-block">
-          <div class="portail-block-header"><span>💳 Suivi des paiements</span></div>
+          <div class="portail-block-header">
+            <span>💳 Suivi des paiements</span>
+            <button class="btn-sm btn-red" onclick="supprimerTousPaiementsPortail()">🗑️ Tout supprimer</button>
+          </div>
           <div style="overflow-x:auto">
             <table>
-              <thead><tr><th>Libellé</th><th>Montant</th><th>Échéance</th><th>Statut</th></tr></thead>
+              <thead><tr><th>Libellé</th><th>Montant</th><th>Échéance</th><th>Statut</th><th>Action</th></tr></thead>
               <tbody id="portail-paiements-tbody"></tbody>
             </table>
           </div>
@@ -17032,11 +17044,12 @@ async function chargerPortailEtudiant(id) {
     ? notesOk.map(n=>{
         const v = parseFloat(n.note)||0;
         const cls = v>=16?'excellent':v>=13?'bien':v>=10?'passable':'insuffisant';
-        return `<div class="bm-matiere-row">
-          <div class="bm-mat-nom">${n.matiere||'—'}</div>
+        return `<div class="bm-matiere-row" style="display:flex;align-items:center;gap:8px">
+          <div class="bm-mat-nom" style="flex:1">${n.matiere||'—'}</div>
           <div class="bm-coef">Coef. ${n.coefficient||1}</div>
           <div class="bm-note ${cls}">${v}/20</div>
           <div class="bm-trend">${n.appreciation?'📝':'➡️'}</div>
+          <button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px" onclick="supprimerNotePortail('${n.id}')">🗑️</button>
         </div>`;
       }).join('')
     : '<div class="empty-state" style="padding:1.5rem">📊 Aucune note enregistrée</div>';
@@ -17074,12 +17087,13 @@ async function chargerPortailEtudiant(id) {
 
   const absList = document.getElementById('portail-absences-list');
   if (absList) absList.innerHTML = absOk.length
-    ? absOk.map(a=>`<div class="absence-mini-item">
+    ? absOk.map(a=>`<div class="absence-mini-item" style="display:flex;align-items:center;gap:8px">
         <div class="abs-dot ${a.justifiee?'justifiee':'injustifiee'}"></div>
-        <div class="abs-info">
+        <div class="abs-info" style="flex:1">
           <div class="abs-date">${fmtDate(a.date)}</div>
           <div class="abs-cours">${a.matiere||a.cours||'—'} · <span class="badge ${a.justifiee?'green':'red'}" style="font-size:10px">${a.justifiee?'justifiée':'injustifiée'}</span></div>
         </div>
+        <button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px;flex-shrink:0" onclick="supprimerAbsencePortail('${a.id}')">🗑️</button>
       </div>`).join('')
     : '<div class="empty-state" style="padding:2rem">✅ Aucune absence enregistrée</div>';
 
@@ -17097,8 +17111,9 @@ async function chargerPortailEtudiant(id) {
         <td><strong style="color:#1e3a5f">${(p.montant||0).toLocaleString('fr-FR')} F</strong></td>
         <td>${p.date_echeance ? fmtDate(p.date_echeance) : '—'}</td>
         <td><span class="badge ${p.statut==='payé'||p.statut==='Payé'?'green':'amber'}">${p.statut||'—'}</span></td>
+        <td><button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px" onclick="supprimerPaiementPortail('${p.id}')">🗑️</button></td>
       </tr>`).join('')
-    : '<tr><td colspan="4" class="loading">Aucun paiement enregistré</td></tr>';
+    : '<tr><td colspan="5" class="loading">Aucun paiement enregistré</td></tr>';
 
   // ── Examens à venir sidebar ────────────────────────────────────────────
   const { data: examens } = await db.from('examens').select('*').eq('ecole_id', currentEcoleId).order('date').limit(5);
@@ -17127,14 +17142,17 @@ async function chargerPortailEtudiant(id) {
   if (msgList) {
     const msgsOk = msgs||[];
     msgList.innerHTML = msgsOk.length
-      ? msgsOk.map(m=>`<div class="msg-mini-item">
-          <div class="mmi-ico" style="background:#1e3a5f40">${(m.expediteur||m.from||'?')[0]}</div>
-          <div class="mmi-body">
+      ? msgsOk.map(m=>`<div class="msg-mini-item" style="display:flex;align-items:flex-start;gap:8px">
+          <div class="mmi-ico" style="background:#1e3a5f40;flex-shrink:0">${(m.expediteur||m.from||'?')[0]}</div>
+          <div class="mmi-body" style="flex:1">
             <div class="mmi-from">${m.expediteur||m.from||'—'}</div>
             <div>${m.sujet||'—'}</div>
             <div class="mmi-preview">${(m.corps||m.contenu||'').substring(0,60)}...</div>
           </div>
-          <div class="mmi-date">${fmtDate(m.created_at)}</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+            <div class="mmi-date">${fmtDate(m.created_at)}</div>
+            <button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px" onclick="supprimerMessagePortail('${m.id}')">🗑️</button>
+          </div>
         </div>`).join('')
       : '<div class="empty-state" style="padding:1.5rem">💬 Aucun message</div>';
   }
@@ -17174,6 +17192,79 @@ function portailSwitchTab(tab, btn) {
   });
   document.querySelectorAll('#page-portail-etudiant .tab').forEach(b=>b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+}
+
+// ── Suppression par ligne ─────────────────────────────────────────────────
+function getPortailEtudiantId() {
+  return document.getElementById('portail-etudiant-selector')?.value || '';
+}
+
+async function supprimerNotePortail(noteId) {
+  if (!confirm('Supprimer cette note ?')) return;
+  const { error } = await db.from('notes').delete().eq('id', noteId);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast('🗑️ Note supprimée.','success');
+  chargerPortailEtudiant(getPortailEtudiantId());
+}
+
+async function supprimerAbsencePortail(absId) {
+  if (!confirm('Supprimer cette absence ?')) return;
+  const { error } = await db.from('absences').delete().eq('id', absId);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast('🗑️ Absence supprimée.','success');
+  chargerPortailEtudiant(getPortailEtudiantId());
+}
+
+async function supprimerPaiementPortail(paiId) {
+  if (!confirm('Supprimer ce paiement ?')) return;
+  const { error } = await db.from('paiements').delete().eq('id', paiId);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast('🗑️ Paiement supprimé.','success');
+  chargerPortailEtudiant(getPortailEtudiantId());
+}
+
+async function supprimerMessagePortail(msgId) {
+  if (!confirm('Supprimer ce message ?')) return;
+  const { error } = await db.from('messages').delete().eq('id', msgId);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast('🗑️ Message supprimé.','success');
+  chargerPortailEtudiant(getPortailEtudiantId());
+}
+
+// ── Suppression globale ───────────────────────────────────────────────────
+async function supprimerToutesNotesPortail() {
+  const etId = getPortailEtudiantId(); if (!etId) return;
+  if (!confirm('Supprimer TOUTES les notes de cet étudiant ? Action irréversible.')) return;
+  const { error } = await db.from('notes').delete().eq('etudiant_id', etId).eq('ecole_id', currentEcoleId);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast('🗑️ Toutes les notes supprimées.','success');
+  chargerPortailEtudiant(etId);
+}
+
+async function supprimerToutesAbsencesPortail() {
+  const etId = getPortailEtudiantId(); if (!etId) return;
+  if (!confirm('Supprimer TOUTES les absences de cet étudiant ? Action irréversible.')) return;
+  const { error } = await db.from('absences').delete().eq('etudiant_id', etId).eq('ecole_id', currentEcoleId);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast('🗑️ Toutes les absences supprimées.','success');
+  chargerPortailEtudiant(etId);
+}
+
+async function supprimerTousPaiementsPortail() {
+  const etId = getPortailEtudiantId(); if (!etId) return;
+  if (!confirm('Supprimer TOUS les paiements de cet étudiant ? Action irréversible.')) return;
+  const { error } = await db.from('paiements').delete().eq('etudiant_id', etId).eq('ecole_id', currentEcoleId);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast('🗑️ Tous les paiements supprimés.','success');
+  chargerPortailEtudiant(etId);
+}
+
+async function supprimerTousMessagesPortail() {
+  if (!confirm('Supprimer TOUS les messages ? Action irréversible.')) return;
+  const { error } = await db.from('messages').delete().eq('ecole_id', currentEcoleId);
+  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  showToast('🗑️ Tous les messages supprimés.','success');
+  chargerPortailEtudiant(getPortailEtudiantId());
 }
 
 function genererBulletinPortail() {
