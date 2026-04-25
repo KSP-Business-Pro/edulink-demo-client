@@ -4070,6 +4070,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>🌐 Réseau Multi-Établissements</h2><p class="page-subtitle">Tableau de bord consolidé — Tous les établissements du réseau EduLink</p></div>
     <div class="top-actions">
+      <button class="btn-outline" onclick="forcerSyncReseau()">🔄 Synchroniser</button>
       <button class="btn-outline" onclick="exporterRapportReseau()">📥 Export CSV</button>
       <button onclick="ouvrirModalAddEtablissement()">+ Établissement</button>
     </div>
@@ -9961,6 +9962,8 @@ async function sauvegarderParametres() {
     if (opt) opt.textContent = data.nom;
   }
   showToast('Paramètres enregistrés !', 'success');
+  // Synchroniser le Réseau Écoles si initialisé
+  if (reseauInitialized) forcerSyncReseau();
 }
 
 function copierLienPortail() {
@@ -16611,9 +16614,90 @@ function reseauRestaurer() {
   } catch(e) { return false; }
 }
 
-function chargerReseau() {
+// Force la re-synchronisation de l'école courante (utile après modif Paramètres)
+async function forcerSyncReseau() {
+  const idx = tousLesEtablissements.findIndex(e => e.id === currentEcoleId);
+  if (idx >= 0) {
+    const [{ count: nbEt }, { count: nbEns }] = await Promise.all([
+      db.from('etudiants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
+      db.from('enseignants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
+    ]);
+    const prefix = 'edulink_param_' + currentEcoleId;
+    const saved  = JSON.parse(localStorage.getItem(prefix) || '{}');
+    const { data: ecole } = await db.from('ecoles').select('nom, type').eq('id', currentEcoleId).single();
+    tousLesEtablissements[idx].nom         = saved.nom   || ecole?.nom   || tousLesEtablissements[idx].nom;
+    tousLesEtablissements[idx].ville       = saved.ville || tousLesEtablissements[idx].ville;
+    tousLesEtablissements[idx].eleves      = nbEt  || 0;
+    tousLesEtablissements[idx].enseignants = nbEns || 0;
+  } else {
+    await syncEcoleCouranteVersReseau();
+  }
+  reseauSauvegarder();
+  chargerReseau();
+  showToast("🔄 Réseau synchronisé avec les données de l'école !", 'success');
+}
+
+// ── Synchronisation école courante → Réseau Écoles ───────────────────────
+// Appelée au premier chargement si le réseau est vide.
+// Lit les données de l'école depuis Supabase + localStorage Paramètres.
+async function syncEcoleCouranteVersReseau() {
+  try {
+    // 1) Lire depuis Supabase (table ecoles + etudiants + enseignants)
+    const { data: ecole } = await db.from('ecoles').select('*').eq('id', currentEcoleId).single();
+    if (!ecole) return;
+
+    // Compter les étudiants et enseignants réels
+    const [{ count: nbEtudiants }, { count: nbEnseignants }] = await Promise.all([
+      db.from('etudiants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
+      db.from('enseignants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
+    ]);
+
+    // 2) Compléter avec localStorage Paramètres si disponible
+    const prefix = 'edulink_param_' + currentEcoleId;
+    const saved  = JSON.parse(localStorage.getItem(prefix) || '{}');
+
+    const typeEcole = (saved.type || ecole.type || 'universite').toLowerCase()
+      .replace('université','universite').replace('lycée','lycee')
+      .replace('collège','college').replace('école primaire','primaire')
+      .replace('ecole primaire','primaire');
+
+    const typeIcos   = {lycee:'🏫', college:'🏛️', primaire:'⭐', universite:'🎓'};
+    const typeColors = {lycee:'#1e3a5f', college:'#059669', primaire:'#d97706', universite:'#7c3aed'};
+
+    const ecoleSynced = {
+      id:            currentEcoleId,
+      nom:           saved.nom   || ecole.nom   || 'Mon École',
+      type:          typeEcole,
+      ville:         saved.ville || ecole.ville || '—',
+      directeur:     saved.directeur || '—',
+      telephone:     saved.tel   || ecole.telephone || '',
+      email:         saved.email || ecole.email || '',
+      eleves:        nbEtudiants  || 0,
+      enseignants:   nbEnseignants || 0,
+      classes:       0,
+      taux_reussite: 0,
+      absences_taux: 0,
+      recette_mois:  0,
+      moy_notes:     0,
+      statut:        'actif',
+      ico:           typeIcos[typeEcole]   || '🎓',
+      color:         typeColors[typeEcole] || '#7c3aed',
+    };
+
+    tousLesEtablissements = [ecoleSynced];
+    reseauSauvegarder();
+  } catch(e) {
+    console.warn('syncEcoleCouranteVersReseau:', e);
+  }
+}
+
+async function chargerReseau() {
   if (!reseauInitialized) {
     reseauRestaurer();
+    // Si réseau vide → pré-peupler avec l'école courante depuis Supabase
+    if (!tousLesEtablissements.length && currentEcoleId) {
+      await syncEcoleCouranteVersReseau();
+    }
     reseauInitialized = true;
   }
 
