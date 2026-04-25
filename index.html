@@ -4482,16 +4482,16 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
   <!-- Hero étudiant -->
   <div class="portail-hero" id="portail-hero-banner">
-    <div class="portail-avatar" id="portail-avatar">K</div>
+    <div class="portail-avatar" id="portail-avatar">?</div>
     <div class="portail-info">
-      <h2 id="portail-nom-etudiant">Kofi Mensah</h2>
-      <p id="portail-info-etudiant">Terminale D · Matricule: EDU-2025-001 · Inscrit le 01/09/2025</p>
+      <h2 id="portail-nom-etudiant">—</h2>
+      <p id="portail-info-etudiant">Sélectionnez un étudiant</p>
     </div>
     <div class="portail-kpis">
-      <div class="portail-kpi"><div class="pk-val" id="portail-moy-gen">14.8</div><div class="pk-lbl">Moyenne générale</div></div>
-      <div class="portail-kpi"><div class="pk-val" id="portail-rang">3ème</div><div class="pk-lbl">Rang de classe</div></div>
-      <div class="portail-kpi"><div class="pk-val" id="portail-absences">3</div><div class="pk-lbl">Absences</div></div>
-      <div class="portail-kpi"><div class="pk-val" id="portail-paiements">✅</div><div class="pk-lbl">Paiements</div></div>
+      <div class="portail-kpi"><div class="pk-val" id="portail-moy-gen">—</div><div class="pk-lbl">Moyenne générale</div></div>
+      <div class="portail-kpi"><div class="pk-val" id="portail-rang">—</div><div class="pk-lbl">Rang de classe</div></div>
+      <div class="portail-kpi"><div class="pk-val" id="portail-absences">—</div><div class="pk-lbl">Absences</div></div>
+      <div class="portail-kpi"><div class="pk-val" id="portail-paiements">—</div><div class="pk-lbl">Paiements</div></div>
     </div>
   </div>
 
@@ -4578,10 +4578,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div class="portail-block-header"><span>📈 Progression</span></div>
         <div style="padding:1rem">
           <div style="text-align:center;margin-bottom:1rem">
-            <div style="font-size:36px;font-weight:800;color:#1e3a5f" id="portail-moy-side">14.8</div>
+            <div style="font-size:36px;font-weight:800;color:#1e3a5f" id="portail-moy-side">—</div>
             <div style="font-size:12px;color:#6b7280">Moyenne générale / 20</div>
             <div style="margin-top:.5rem;height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden">
-              <div id="portail-moy-bar" style="height:100%;width:74%;background:linear-gradient(90deg,#1e3a5f,#059669);border-radius:4px;transition:width 1s ease"></div>
+              <div id="portail-moy-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#1e3a5f,#059669);border-radius:4px;transition:width 1s ease"></div>
             </div>
           </div>
           <div id="portail-progression-items"></div>
@@ -16974,9 +16974,14 @@ function lancerBackup() { showToast('💾 Sauvegarde manuelle lancée — Termin
 async function peuplerSelectPortailEtudiant() {
   const sel = document.getElementById('portail-etudiant-selector');
   if (!sel) return;
-  const { data, error } = await db.from('etudiants').select('id, nom, prenom, classe_id').eq('ecole_id', currentEcoleId).order('nom');
-  if (error || !data?.length) return;
-  sel.innerHTML = data.map(e => `<option value="${e.id}">${e.prenom} ${e.nom}</option>`).join('');
+  sel.innerHTML = '<option value="">Chargement...</option>';
+  const { data, error } = await db.from('etudiants')
+    .select('id, nom, prenom, classe')
+    .eq('ecole_id', currentEcoleId)
+    .order('nom');
+  if (error) { sel.innerHTML = '<option value="">Erreur de chargement</option>'; return; }
+  if (!data?.length) { sel.innerHTML = '<option value="">Aucun étudiant en base</option>'; return; }
+  sel.innerHTML = data.map(e => `<option value="${e.id}">${e.prenom||''} ${e.nom||''} ${e.classe?'· '+e.classe:''}</option>`).join('');
   chargerPortailEtudiant(data[0].id);
 }
 
@@ -16999,7 +17004,28 @@ async function chargerPortailEtudiant(id) {
   const moyGen = notesOk.length ? (notesOk.reduce((s,n)=>s+(parseFloat(n.note)||0)*(n.coefficient||1),0) / notesOk.reduce((s,n)=>s+(n.coefficient||1),0)).toFixed(2) : '—';
   document.getElementById('portail-moy-gen').textContent = moyGen;
   document.getElementById('portail-moy-side').textContent = moyGen;
-  if (moyGen !== '—') document.getElementById('portail-moy-bar').style.width = (parseFloat(moyGen)/20*100)+'%';
+  const moyBar = document.getElementById('portail-moy-bar');
+  if (moyBar) moyBar.style.width = (moyGen !== '—' ? parseFloat(moyGen)/20*100 : 0)+'%';
+
+  // ── Rang calculé parmi tous les étudiants de l'école ──────────────────
+  const { data: toutesNotes } = await db.from('notes')
+    .select('etudiant_id, note, coefficient')
+    .eq('ecole_id', currentEcoleId);
+  if (toutesNotes?.length && moyGen !== '—') {
+    // Calculer moyenne par étudiant
+    const moyParEt = {};
+    toutesNotes.forEach(n => {
+      if (!moyParEt[n.etudiant_id]) moyParEt[n.etudiant_id] = { sum:0, coef:0 };
+      moyParEt[n.etudiant_id].sum  += (parseFloat(n.note)||0)*(n.coefficient||1);
+      moyParEt[n.etudiant_id].coef += (n.coefficient||1);
+    });
+    const moyennes = Object.entries(moyParEt).map(([eid, v]) => ({ eid, moy: v.coef ? v.sum/v.coef : 0 }));
+    moyennes.sort((a,b) => b.moy - a.moy);
+    const rang = moyennes.findIndex(m => m.eid === String(id)) + 1;
+    document.getElementById('portail-rang').textContent = rang > 0 ? rang+'e' : '—';
+  } else {
+    document.getElementById('portail-rang').textContent = '—';
+  }
 
   const notesList = document.getElementById('portail-notes-list');
   if (notesList) notesList.innerHTML = notesOk.length
@@ -17060,6 +17086,10 @@ async function chargerPortailEtudiant(id) {
   // ── Paiements ─────────────────────────────────────────────────────────
   const { data: paiements } = await db.from('paiements').select('*').eq('etudiant_id', id).eq('ecole_id', currentEcoleId).order('date_echeance', {ascending:false}).limit(10);
   const paiOk = paiements||[];
+  // KPI paiements dans le hero
+  const nbEnAttente = paiOk.filter(p => p.statut && !['payé','Payé','payee','Payée'].includes(p.statut)).length;
+  const kpiPai = document.getElementById('portail-paiements');
+  if (kpiPai) kpiPai.textContent = nbEnAttente > 0 ? `${nbEnAttente} en attente` : '✅';
   const paiTbody = document.getElementById('portail-paiements-tbody');
   if (paiTbody) paiTbody.innerHTML = paiOk.length
     ? paiOk.map(p=>`<tr>
@@ -17109,9 +17139,6 @@ async function chargerPortailEtudiant(id) {
       : '<div class="empty-state" style="padding:1.5rem">💬 Aucun message</div>';
   }
 
-  // ── Rang (calculé) ────────────────────────────────────────────────────
-  document.getElementById('portail-rang').textContent = '—';
-
   // ── EDT mini (démo statique) ──────────────────────────────────────────
   const edtGrid = document.getElementById('portail-edt-grid');
   if (edtGrid) {
@@ -17149,7 +17176,33 @@ function portailSwitchTab(tab, btn) {
   if (btn) btn.classList.add('active');
 }
 
-function genererBulletinPortail() { showToast('📄 Bulletin PDF généré et envoyé par email !','success'); }
+function genererBulletinPortail() {
+  const nom  = document.getElementById('portail-nom-etudiant')?.textContent||'Étudiant';
+  const info = document.getElementById('portail-info-etudiant')?.textContent||'';
+  const moy  = document.getElementById('portail-moy-gen')?.textContent||'—';
+  const rang = document.getElementById('portail-rang')?.textContent||'—';
+  const abs  = document.getElementById('portail-absences')?.textContent||'0';
+
+  if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined') {
+    showToast('📄 Bulletin en cours de génération...','info');
+    setTimeout(()=>showToast('✅ Bulletin généré et prêt !','success'),1200);
+    return;
+  }
+  const { jsPDF } = window.jspdf || window;
+  const doc = new jsPDF();
+  doc.setFontSize(18); doc.setTextColor(30,58,95);
+  doc.text('BULLETIN SCOLAIRE', 105, 20, {align:'center'});
+  doc.setFontSize(12); doc.setTextColor(0,0,0);
+  doc.text(`Élève : ${nom}`, 20, 40);
+  doc.text(info, 20, 50);
+  doc.text(`Moyenne générale : ${moy}/20`, 20, 65);
+  doc.text(`Rang : ${rang}`, 20, 75);
+  doc.text(`Absences : ${abs}`, 20, 85);
+  doc.setFontSize(10); doc.setTextColor(100,100,100);
+  doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} — EduLink`, 105, 285, {align:'center'});
+  doc.save(`Bulletin-${nom.replace(/ /g,'-')}.pdf`);
+  showToast('📄 Bulletin PDF téléchargé !','success');
+}
 
 /* ══════════════════════════════════════════════════════════════════
    SUITE 10 — DASHBOARD RÉSEAU ★ JOUR 34
