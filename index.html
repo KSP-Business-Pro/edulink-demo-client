@@ -5658,14 +5658,14 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
       <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#1e3a5f" id="sys-ecoles">—</div><div style="font-size:11px;color:#6b7280">Établissements</div></div>
       <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#059669" id="sys-etudiants">—</div><div style="font-size:11px;color:#6b7280">Étudiants</div></div>
+      <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#7c3aed" id="sys-enseignants">—</div><div style="font-size:11px;color:#6b7280">Enseignants</div></div>
       <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#c97c1a" id="sys-users">—</div><div style="font-size:11px;color:#6b7280">Utilisateurs</div></div>
-      <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:13px;font-weight:700;color:#1e3a5f">Jour 17</div><div style="font-size:11px;color:#6b7280">Version EduLink</div></div>
     </div>
   </div>
 
   <!-- ★ JOUR 17 — Branding Établissement -->
   <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem;margin-top:1.2rem">
-    <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🎨 Branding & Identité visuelle ★ Jour 17</div>
+    <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🎨 Branding & Identité visuelle</div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
 
@@ -7827,7 +7827,7 @@ function showPage(p) {
     documents:    chargerDocuments,
     rapports:     () => { peuplerFiltresRapports(); afficherRapport('effectifs'); },
     utilisateurs: () => { chargerUtilisateurs(); },
-    parametres:   () => { chargerParametres(); chargerConfigFCM(); },
+    parametres:   () => { chargerParametres(); chargerConfigFCM(); chargerBranding(); },
     examens:      () => { chargerExamens(); peuplerFiltresExamens(); },
     enseignants:     () => { chargerEnseignants(); },
     notifications:   chargerNotifications,
@@ -7854,7 +7854,6 @@ function showPage(p) {
     'portail-public':    chargerPortailPublic,
     'controle-acces':    chargerControleAcces,
   };
-  if (p === 'parametres') { chargerBranding(); }
   if (p === 'certificats') { chargerBranding(); }
   if (loaders[p]) loaders[p]();
 }
@@ -9903,25 +9902,35 @@ async function chargerDashboardCharts() {
 }
 
 // ══ PARAMÈTRES  ★ JOUR 6 ══════════════════════
-function chargerParametres() {
+async function chargerParametres() {
   const prefix = 'edulink_param_' + (currentEcoleId || 'global');
   const saved  = JSON.parse(localStorage.getItem(prefix) || '{}');
-  const ecole  = tousLesEcoles.find(e => e.id === currentEcoleId);
-  const f = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
-  f('param-nom',      saved.nom      || ecole?.nom  || '');
-  f('param-type',     saved.type     || ecole?.type || '');
-  f('param-ville',    saved.ville    || '');
-  f('param-pays',     saved.pays     || 'Bénin');
-  f('param-tel',      saved.tel      || '');
-  f('param-email',    saved.email    || '');
-  f('param-annee',    saved.annee    || '');
-  f('param-notation', saved.notation || '');
-  f('param-debut',    saved.debut    || '');
-  f('param-fin',      saved.fin      || '');
-  f('param-devise',   saved.devise   || 'FCFA');
+
+  // Lire les données complètes depuis Supabase
+  let ecoleDb = null;
+  if (currentEcoleId) {
+    const { data } = await db.from('ecoles').select('*').eq('id', currentEcoleId).single();
+    ecoleDb = data;
+  }
+
+  const f = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = val; };
+  // Priorité : localStorage > Supabase > vide
+  f('param-nom',      saved.nom       || ecoleDb?.nom       || '');
+  f('param-type',     saved.type      || ecoleDb?.type      || '');
+  f('param-ville',    saved.ville     || ecoleDb?.ville     || '');
+  f('param-pays',     saved.pays      || ecoleDb?.pays      || 'Bénin');
+  f('param-tel',      saved.tel       || ecoleDb?.telephone || '');
+  f('param-email',    saved.email     || ecoleDb?.email     || '');
+  f('param-annee',    saved.annee     || ecoleDb?.annee_scolaire || '');
+  f('param-notation', saved.notation  || '');
+  f('param-debut',    saved.debut     || '');
+  f('param-fin',      saved.fin       || '');
+  f('param-devise',   saved.devise    || 'FCFA');
+
   // URL portail
   const el = document.getElementById('portail-url');
   if (el) el.textContent = window.location.origin + '/edulink-portail.html';
+
   // Statut Brevo
   const brevo = document.getElementById('brevo-status');
   if (brevo) {
@@ -9930,17 +9939,26 @@ function chargerParametres() {
       ? '<span style="color:#059669;font-weight:700">✅ Brevo configuré</span><br><span style="font-size:11px;color:#6b7280">Emails automatiques actifs</span>'
       : '<span style="color:#d97706;font-weight:700">⚠️ Brevo non configuré</span><br><span style="font-size:11px;color:#6b7280">Configurez votre clé API pour activer les emails.</span>';
   }
-  // Stats système
-  Promise.all([
-    db.from('ecoles').select('*',{count:'exact',head:true}),
-    db.from('etudiants').select('*',{count:'exact',head:true}),
-    db.from('profiles').select('*',{count:'exact',head:true}),
-  ]).then(([r1,r2,r3]) => {
-    const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
-    s('sys-ecoles',    r1.count);
-    s('sys-etudiants', r2.count);
-    s('sys-users',     r3.count);
-  });
+
+  // FCM tokens count
+  const fcmCount = document.getElementById('fcm-tokens-count');
+  if (fcmCount && currentEcoleId) {
+    const { count } = await db.from('push_tokens').select('*', {count:'exact', head:true});
+    fcmCount.textContent = count ?? 0;
+  }
+
+  // Stats système depuis Supabase
+  const [r1, r2, r3, r4] = await Promise.all([
+    db.from('ecoles').select('*', {count:'exact', head:true}),
+    db.from('etudiants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
+    db.from('utilisateurs').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
+    db.from('enseignants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
+  ]);
+  const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
+  s('sys-ecoles',    r1.count);
+  s('sys-etudiants', r2.count);
+  s('sys-users',     r3.count);
+  s('sys-enseignants', r4.count);
 }
 
 async function sauvegarderParametres() {
@@ -9951,17 +9969,42 @@ async function sauvegarderParametres() {
     const el = document.getElementById('param-' + f);
     if (el) data[f] = el.value;
   });
+
+  // Sauvegarder en localStorage (fallback immédiat)
   const prefix = 'edulink_param_' + (currentEcoleId || 'global');
   localStorage.setItem(prefix, JSON.stringify(data));
+
   if (currentEcoleId) {
-    await db.from('ecoles').update({ nom: data.nom, type: data.type }).eq('id', currentEcoleId);
+    // Payload Supabase complet
+    const payload = {
+      nom:             data.nom,
+      type:            data.type,
+      ville:           data.ville,
+      pays:            data.pays,
+      telephone:       data.tel,
+      email:           data.email,
+      annee_scolaire:  data.annee,
+    };
+    // Auto-retry : retirer les colonnes absentes du schéma
+    let { error } = await db.from('ecoles').update(payload).eq('id', currentEcoleId);
+    let guard = 0;
+    while (error && guard < 10) {
+      const m = /Could not find the '([^']+)' column/.exec(error.message||'');
+      if (!m || !(m[1] in payload)) break;
+      delete payload[m[1]];
+      ({ error } = await db.from('ecoles').update(payload).eq('id', currentEcoleId));
+      guard++;
+    }
+    if (error) { showToast('Paramètres sauvés localement — Erreur Supabase : '+error.message, 'error'); return; }
+
+    // Mettre à jour en mémoire
     const ecole = tousLesEcoles.find(e => e.id === currentEcoleId);
-    if (ecole) { ecole.nom = data.nom; ecole.type = data.type; }
+    if (ecole) { ecole.nom = data.nom; ecole.type = data.type; ecole.ville = data.ville; }
     mettreAJourBadgeEcole({ nom: data.nom, type: data.type });
     const opt = [...document.getElementById('ecole-selector').options].find(o => o.value === currentEcoleId);
     if (opt) opt.textContent = data.nom;
   }
-  showToast('Paramètres enregistrés !', 'success');
+  showToast('✅ Paramètres enregistrés !', 'success');
   // Synchroniser le Réseau Écoles si initialisé
   if (reseauInitialized) forcerSyncReseau();
 }
