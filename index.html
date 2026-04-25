@@ -15203,37 +15203,36 @@ async function exporterRHPDF() {
 let bib8Livres = [];
 let bib8Emprunts = [];
 let bib8Initialized = false;
-let bib8Reservations = [
-  { id:1, livre_id:3, livre:'Physique-Chimie Tle', etudiant:'Ghislain Aguessy', date_demande:'2026-03-20', dispo_le:'2026-03-26' },
-  { id:2, livre_id:10, livre:'Géographie Physique', etudiant:'Odette Tossou', date_demande:'2026-03-22', dispo_le:'2026-03-28' },
-  { id:3, livre_id:8, livre:'Anglais Langue Vivante', etudiant:'Yves Akpaca', date_demande:'2026-03-25', dispo_le:'2026-04-08' },
-];
+let bib8Reservations = [];
 
-const LIVRES_DEMO = [
-  { id:1, titre:'Mathématiques Terminale', auteur:'Paul Koudjo', categorie:'Mathématiques', isbn:'978-2-07-040850-4', exemplaires:4, disponibles:2, annee:2022, emoji:'📐', couleur:'bleu' },
-  { id:2, titre:'Histoire de l\'Afrique', auteur:'Cheikh Anta Diop', categorie:'Histoire-Géographie', isbn:'978-2-7028-0245-0', exemplaires:3, disponibles:3, annee:2020, emoji:'🌍', couleur:'or' },
-  { id:3, titre:'Physique-Chimie Tle', auteur:'Bernard Tissier', categorie:'Sciences', isbn:'978-2-01-135892-1', exemplaires:6, disponibles:0, annee:2021, emoji:'⚗️', couleur:'rouge' },
-  { id:4, titre:'Anthologie Littéraire', auteur:'Collectif CEDA', categorie:'Littérature', isbn:'978-2-909133-01-5', exemplaires:2, disponibles:1, annee:2019, emoji:'📖', couleur:'vert' },
-  { id:5, titre:'Philosophie Terminale', auteur:'Ambroise Kom', categorie:'Philosophie', isbn:'978-2-07-041033-0', exemplaires:5, disponibles:4, annee:2023, emoji:'🧠', couleur:'violet' },
-  { id:6, titre:'Informatique Appliquée', auteur:'Jean-Marc Savi', categorie:'Informatique', isbn:'978-2-01-000123-4', exemplaires:3, disponibles:3, annee:2024, emoji:'💻', couleur:'bleu' },
-  { id:7, titre:'SVT Terminale D', auteur:'Didier Kpossou', categorie:'Sciences', isbn:'978-2-01-140001-2', exemplaires:4, disponibles:2, annee:2022, emoji:'🔬', couleur:'vert' },
-  { id:8, titre:'Anglais Langue Vivante', auteur:'Rachel Adoun', categorie:'Langues', isbn:'978-0-19-000111-5', exemplaires:5, disponibles:1, annee:2021, emoji:'🗣️', couleur:'or' },
-  { id:9, titre:'Économie Générale', auteur:'Félix Sodro', categorie:'Autres', isbn:'978-2-09-188421-0', exemplaires:3, disponibles:3, annee:2020, emoji:'📊', couleur:'violet' },
-  { id:10, titre:'Géographie Physique', auteur:'Gaston Menou', categorie:'Histoire-Géographie', isbn:'978-2-07-000999-9', exemplaires:2, disponibles:0, annee:2019, emoji:'🗺️', couleur:'gris' },
-];
+// ── Persistance localStorage ──────────────────────────────────────────────
+const BIB_STORE_KEY = 'edulink_bib8_data';
 
-const EMPRUNTS_DEMO = [
-  { id:1, livre_id:3, livre:'Physique-Chimie Tle', etudiant:'Kofi Mensah', classe:'Tle D', date_emprunt:'2026-03-01', date_retour_prevue:'2026-03-22', retourne:false, retard_jours:4 },
-  { id:2, livre_id:10, livre:'Géographie Physique', etudiant:'Afi Dossou', classe:'1ère A', date_emprunt:'2026-03-10', date_retour_prevue:'2026-03-24', retourne:false, retard_jours:2 },
-  { id:3, livre_id:1, livre:'Mathématiques Terminale', etudiant:'Brice Gbedo', classe:'Tle C', date_emprunt:'2026-03-15', date_retour_prevue:'2026-04-05', retourne:false, retard_jours:0 },
-  { id:4, livre_id:8, livre:'Anglais Langue Vivante', etudiant:'Flore Akpo', classe:'2nde B', date_emprunt:'2026-03-18', date_retour_prevue:'2026-04-08', retourne:false, retard_jours:0 },
-  { id:5, livre_id:7, livre:'SVT Terminale D', etudiant:'Marius Sime', classe:'Tle D', date_emprunt:'2026-03-20', date_retour_prevue:'2026-04-10', retourne:false, retard_jours:0 },
-];
+function bib8Sauvegarder() {
+  try {
+    localStorage.setItem(BIB_STORE_KEY, JSON.stringify({
+      livres:       bib8Livres,
+      emprunts:     bib8Emprunts,
+      reservations: bib8Reservations
+    }));
+  } catch(e) { /* quota ou privé — silencieux */ }
+}
+
+function bib8Restaurer() {
+  try {
+    const raw = localStorage.getItem(BIB_STORE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    bib8Livres       = data.livres       || [];
+    bib8Emprunts     = data.emprunts     || [];
+    bib8Reservations = data.reservations || [];
+    return true;
+  } catch(e) { return false; }
+}
 
 function chargerBibliothequeNum() {
   if (!bib8Initialized) {
-    bib8Livres = [...LIVRES_DEMO];
-    bib8Emprunts = [...EMPRUNTS_DEMO];
+    bib8Restaurer(); // restaure depuis localStorage — vide si rien en storage
     bib8Initialized = true;
   }
 
@@ -15436,6 +15435,7 @@ function ajouterLivreBibNum() {
     showToast('📚 Livre ajouté au catalogue !','success');
   }
   fermerModal('modal-add-livre');
+  bib8Sauvegarder();
   chargerBibliothequeNum();
 }
 
@@ -15449,6 +15449,7 @@ function supprimerLivreBibNum(id) {
   }
   if (!confirm(`Supprimer définitivement "${l.titre}" du catalogue ?`)) return;
   bib8Livres = bib8Livres.filter(b=>b.id!==id);
+  bib8Sauvegarder();
   showToast('🗑️ Livre supprimé.','success');
   chargerBibliothequeNum();
 }
@@ -15479,6 +15480,7 @@ function enregistrerEmpruntBibNum() {
   const etTxt = etOpt[etOpt.selectedIndex].text;
   const newEmp = { id:Date.now(), livre_id:livreId, livre:livre.titre, etudiant:etTxt.split(' — ')[0], classe:etTxt.split(' — ')[1]||'', date_emprunt:dateEmp, date_retour_prevue:dateRet, retourne:false, retard_jours:0 };
   bib8Emprunts.unshift(newEmp);
+  bib8Sauvegarder();
   fermerModal('modal-emprunt-bibnum');
   renderLivres(bib8Livres);
   renderEmprunts(bib8Emprunts.filter(e=>!e.retourne));
@@ -15493,6 +15495,7 @@ function retournerLivre(empId) {
   emp.retourne = true;
   const livre = bib8Livres.find(l=>l.id===emp.livre_id);
   if (livre) livre.disponibles++;
+  bib8Sauvegarder();
   renderEmprunts(bib8Emprunts.filter(e=>!e.retourne));
   renderLivres(bib8Livres);
   peuplerSelectLivres();
@@ -15526,6 +15529,7 @@ function exportCatalogueBibNum() {
 function confirmerReservation(et) {
   const r = bib8Reservations.find(x=>x.etudiant===et);
   if (r) bib8Reservations = bib8Reservations.filter(x=>x.etudiant!==et);
+  bib8Sauvegarder();
   showToast(`✅ Réservation confirmée pour ${et}`,'success');
   renderReservations();
   document.getElementById('bib-kpi-reserves').textContent = bib8Reservations.length;
@@ -15533,6 +15537,7 @@ function confirmerReservation(et) {
 
 function annulerReservation(et) {
   bib8Reservations = bib8Reservations.filter(x=>x.etudiant!==et);
+  bib8Sauvegarder();
   showToast(`❌ Réservation annulée pour ${et}`,'error');
   renderReservations();
   document.getElementById('bib-kpi-reserves').textContent = bib8Reservations.length;
