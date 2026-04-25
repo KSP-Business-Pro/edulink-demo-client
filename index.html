@@ -15208,7 +15208,6 @@ async function ajouterPersonnel() {
     type_contrat:    document.getElementById('input-rh-contrat').value,
     date_embauche:   document.getElementById('input-rh-embauche').value,
     salaire_brut:    parseFloat(document.getElementById('input-rh-salaire').value)||0,
-    observations:    document.getElementById('input-rh-obs')?.value.trim()||'',
   };
   let error;
   if (editId) {
@@ -15238,7 +15237,7 @@ function ouvrirModifierPersonnel(id) {
   document.getElementById('input-rh-embauche').value     = p.date_embauche||'';
   document.getElementById('input-rh-salaire').value      = p.salaire_brut||'';
   // date_fin_contrat non supporté par Supabase schema
-  if (document.getElementById('input-rh-obs')) document.getElementById('input-rh-obs').value = p.observations||'';
+  // observations non supporté par Supabase schema
   const modal = document.getElementById('modal-personnel');
   if (modal) modal.dataset.editId = id;
   document.querySelector('#modal-personnel h3').textContent = "✏️ Modifier l'agent";
