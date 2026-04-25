@@ -7268,8 +7268,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div class="form-group"><label>Destinataires</label>
       <select id="input-push-dest">
         <option value="tous">Tous les appareils abonnés</option>
+        <option value="admin">Administrateurs uniquement</option>
         <option value="parents">Parents uniquement</option>
         <option value="etudiants">Étudiants uniquement</option>
+        <option value="enseignant">Enseignants uniquement</option>
       </select>
     </div>
     <div class="form-group"><label>Lien (optionnel)</label>
@@ -11752,14 +11754,17 @@ async function envoyerPushNotification() {
 
   // ── MODE FCM : clé configurée → envoi direct ────────────────────────────
 
-  // Récupérer tokens
+  // Récupérer tokens selon destinataires
   let q = db.from('push_tokens').select('token, role').eq('ecole_id', currentEcoleId);
-  if (dest === 'parents')   q = q.eq('role', 'parent');
-  if (dest === 'etudiants') q = q.eq('role', 'etudiant');
+  if (dest === 'parents')    q = q.eq('role', 'parent');
+  if (dest === 'etudiants')  q = q.eq('role', 'etudiant');
+  if (dest === 'admin')      q = q.eq('role', 'admin');
+  if (dest === 'enseignant') q = q.eq('role', 'enseignant');
   const { data: tokens } = await q;
 
   if (!tokens?.length) {
-    document.getElementById('push-send-log').innerHTML = '⚠️ Aucun appareil abonné.';
+    const roleLabel = {tous:'aucun appareil abonné', parents:'aucun parent abonné', etudiants:'aucun étudiant abonné', admin:'aucun admin abonné', enseignant:'aucun enseignant abonné'};
+    document.getElementById('push-send-log').innerHTML = `⚠️ ${roleLabel[dest]||'Aucun appareil'} — Les utilisateurs doivent ouvrir l'app et autoriser les notifications.`;
     btn.disabled = false; btn.textContent = '🔔 Envoyer';
     return;
   }
@@ -12191,8 +12196,10 @@ async function envoyerDepuisCompose() {
   if (serverKey) {
     // Mode FCM push si clé configurée
     let q = db.from('push_tokens').select('token, role').eq('ecole_id', currentEcoleId);
-    if (dest === 'parents')   q = q.eq('role', 'parent');
-    if (dest === 'etudiants') q = q.eq('role', 'etudiant');
+    if (dest === 'parents')    q = q.eq('role', 'parent');
+    if (dest === 'etudiants')  q = q.eq('role', 'etudiant');
+    if (dest === 'admin')      q = q.eq('role', 'admin');
+    if (dest === 'enseignant') q = q.eq('role', 'enseignant');
     const { data: tokens } = await q;
 
     if (tokens?.length) {
