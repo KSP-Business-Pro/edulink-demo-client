@@ -4631,7 +4631,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="mdb-hero">
     <div>
       <h2>🌍 EduLink Réseau — Vue Consolidée</h2>
-      <p>Données en temps réel · <span id="mdb-last-update">Mise à jour : 31/03/2026 11:09</span></p>
+      <p>Données en temps réel · <span id="mdb-last-update">—</span></p>
     </div>
     <div class="mdb-hero-kpis" id="mdb-hero-kpis"></div>
   </div>
@@ -4655,7 +4655,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div class="mdb-block">
           <div class="mdb-block-header">
             <span>🏫 État en temps réel des établissements</span>
-            <span id="mdb-ecoles-count" class="badge green">6 actives</span>
+            <span id="mdb-ecoles-count" class="badge green">—</span>
           </div>
           <div id="mdb-ecoles-list"></div>
         </div>
@@ -17483,8 +17483,10 @@ function genererBulletinPortail() {
 function getMdbEcoles() {
   return tousLesEtablissements.map(e=>({
     ...e,
-    recette: e.recette_mois || e.recette || 0,
-    actifs_maintenant: e.actifs_maintenant || Math.round((e.eleves||0)*0.4),
+    recette:          e.recette_mois || e.recette || 0,
+    absences_taux:    e.absences_taux || 0,
+    taux_reussite:    e.taux_reussite || 0,
+    actifs_maintenant:e.actifs_maintenant || Math.round((e.eleves||0)*0.4),
   }));
 }
 
@@ -17498,21 +17500,31 @@ const MDB_ACTIVITE = [
   {ico:'📝',txt:'Inscription: 3 nouveaux élèves — École Les Étoiles',temps:'Il y a 45 min',color:'#ede9fe'},
 ];
 
-function chargerDashReseau() {
-  // S'assurer que tousLesEtablissements est initialisé
-  if (!reseauInitialized) { chargerReseau(); }
+async function chargerDashReseau() {
+  // S'assurer que le réseau est initialisé (async)
+  if (!reseauInitialized) { await chargerReseau(); }
   const ecoles = getMdbEcoles();
+
+  // Mettre à jour la date de mise à jour
+  const lastUpdate = document.getElementById('mdb-last-update');
+  if (lastUpdate) lastUpdate.textContent = 'Mise à jour : ' + new Date().toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  // Mettre à jour le badge count
+  const countBadge = document.getElementById('mdb-ecoles-count');
+  if (countBadge) countBadge.textContent = ecoles.filter(e=>e.statut==='actif').length + ' actives';
+
   if (!ecoles.length) {
     ['mdb-hero-kpis','mdb-kpi-grid','mdb-ecoles-list','mdb-chart-reussite','mdb-chart-absences','mdb-chart-recettes','mdb-top-ecoles','mdb-alertes-critiques'].forEach(id=>{
-      const el=document.getElementById(id); if(el) el.innerHTML='<div class="empty-state" style="padding:1rem">Aucun établissement — ajoutez-en dans le module Réseau Écoles</div>';
+      const el=document.getElementById(id); if(el) el.innerHTML='<div class="empty-state" style="padding:1rem;text-align:center;color:#9ca3af">🏫 Aucun établissement — ajoutez-en dans le module Réseau Écoles</div>';
     });
     return;
   }
   const totalEleves   = ecoles.reduce((s,e)=>s+e.eleves,0);
   const totalEns      = ecoles.reduce((s,e)=>s+e.enseignants,0);
   const tauxMoy       = ecoles.length ? Math.round(ecoles.reduce((s,e)=>s+e.taux_reussite,0)/ecoles.length) : 0;
-  const totalRecette  = ecoles.reduce((s,e)=>s+e.recette,0);
-  const alertes       = ecoles.filter(e=>e.statut==='alerte').length;
+  const totalRecette  = ecoles.reduce((s,e)=>s+(e.recette||e.recette_mois||0),0);
+  const alertes       = reseauAlertes.filter(a=>!a.traite).length;
+  const maxReussite   = Math.max(...ecoles.map(e=>e.taux_reussite))||1;
 
   // Hero KPIs
   const heroKpis = document.getElementById('mdb-hero-kpis');
@@ -17527,9 +17539,9 @@ function chargerDashReseau() {
   const kpiGrid = document.getElementById('mdb-kpi-grid');
   if (kpiGrid) kpiGrid.innerHTML = [
     {ico:'🎓',val:totalEleves.toLocaleString('fr-FR'),lbl:'Élèves inscrits',trend:`${ecoles.length} établissement(s)`,up:true,color:'#dbeafe'},
-    {ico:'💳',val:(totalRecette/1000000).toFixed(2)+' M F',lbl:'Recette consolidée',trend:'Toutes écoles confondues',up:true,color:'#dcfce7'},
-    {ico:'📊',val:tauxMoy+'%',lbl:'Taux de réussite moy.',trend:`Max : ${Math.max(...ecoles.map(e=>e.taux_reussite))}%`,up:true,color:'#fef9c3'},
-    {ico:'⚠️',val:alertes,lbl:'Établissements en alerte',trend:alertes>0?'Attention requise':'Tout va bien',up:alertes===0,color:'#fee2e2'},
+    {ico:'💳',val:totalRecette?(totalRecette/1000000).toFixed(2)+' M F':'—',lbl:'Recette consolidée',trend:'Toutes écoles confondues',up:true,color:'#dcfce7'},
+    {ico:'📊',val:tauxMoy+'%',lbl:'Taux de réussite moy.',trend:`Max : ${maxReussite}%`,up:true,color:'#fef9c3'},
+    {ico:'⚠️',val:alertes,lbl:'Alertes réseau',trend:alertes>0?'Attention requise':'Tout va bien',up:alertes===0,color:'#fee2e2'},
   ].map(k=>`<div class="mdb-kpi-card" style="border-left:4px solid ${k.color}">
     <div class="mk-ico">${k.ico}</div>
     <div class="mk-val2" style="color:#111827">${k.val}</div>
@@ -17571,8 +17583,8 @@ function renderChartsReseau() {
   const ecoles = getMdbEcoles();
   if (!ecoles.length) return;
   const colors = ['#1e3a5f','#059669','#d97706','#7c3aed','#1d4ed8','#0d9488'];
-  const maxReussite = Math.max(...ecoles.map(e=>e.taux_reussite));
-  const maxRecette  = Math.max(...ecoles.map(e=>e.recette));
+  const maxReussite = Math.max(...ecoles.map(e=>e.taux_reussite))||1;
+  const maxRecette  = Math.max(...ecoles.map(e=>e.recette||0))||1;
   const maxAbs      = Math.max(...ecoles.map(e=>e.absences_taux||0))||1;
 
   const chartR = document.getElementById('mdb-chart-reussite');
@@ -17647,22 +17659,28 @@ function renderActiviteLive() {
     </div>`).join('');
 }
 
-function renderEventsReseau() {
+async function renderEventsReseau() {
   const cont = document.getElementById('mdb-events-reseau');
   if (!cont) return;
-  const events = [
-    {ico:'📅',titre:'Conseil de discipline',ecole:'Lycée Mathieu Bouké',date:'03/04/2026'},
-    {ico:'🎓',titre:'Remise des bulletins T2',ecole:'Réseau EduLink',date:'05/04/2026'},
-    {ico:'💳',titre:'Échéance paiements T3',ecole:'Tous établissements',date:'30/04/2026'},
-  ];
-  cont.innerHTML = events.map(e=>`
+  // Lire les prochains examens depuis Supabase
+  const { data: examens } = await db.from('examens')
+    .select('titre, matiere, date, classe, type')
+    .eq('ecole_id', currentEcoleId)
+    .gte('date', new Date().toISOString().split('T')[0])
+    .order('date').limit(5);
+  const evOk = examens || [];
+  if (!evOk.length) {
+    cont.innerHTML = '<div style="color:#9ca3af;font-size:12px;padding:.75rem 1.2rem;text-align:center">Aucun événement à venir</div>';
+    return;
+  }
+  cont.innerHTML = evOk.map(e=>`
     <div style="display:flex;gap:.75rem;align-items:center;padding:.7rem 1.2rem;border-bottom:1px solid #f3f4f6">
-      <span style="font-size:18px">${e.ico}</span>
+      <span style="font-size:18px">📝</span>
       <div style="flex:1">
-        <div style="font-size:12.5px;font-weight:700;color:#111827">${e.titre}</div>
-        <div style="font-size:11px;color:#6b7280">${e.ecole}</div>
+        <div style="font-size:12.5px;font-weight:700;color:#111827">${e.titre||e.matiere||'Examen'}</div>
+        <div style="font-size:11px;color:#6b7280">${e.classe||''} · ${e.type||'Examen'}</div>
       </div>
-      <span class="badge amber" style="font-size:10px">${e.date}</span>
+      <span class="badge amber" style="font-size:10px">${e.date ? new Date(e.date).toLocaleDateString('fr-FR') : '—'}</span>
     </div>`).join('');
 }
 
@@ -17712,10 +17730,9 @@ function mdbSwitchTab(tab, btn) {
   if (btn) btn.classList.add('active');
 }
 
-function actualiserDashReseau() {
-  document.getElementById('mdb-last-update').textContent = 'Mise à jour : ' + new Date().toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  chargerDashReseau();
-  showToast('🔄 Données actualisées !','success');
+async function actualiserDashReseau() {
+  await chargerDashReseau();
+  showToast('🔄 Dashboard actualisé !','success');
 }
 
 
