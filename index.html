@@ -15778,15 +15778,27 @@ async function soumettreCandidature() {
     motivation:       document.getElementById('input-cand-motivation').value.trim()
   };
 
-  let error;
-  if (editId) {
-    ({ error } = await db.from('candidatures').update(payload).eq('id', editId));
-  } else {
+  if (!editId) {
     payload.reference = genRef('CAND');
     payload.statut    = 'soumis';
-    ({ error } = await db.from('candidatures').insert([payload]));
+  }
+
+  // Auto-retry : si Supabase rejette une colonne absente du schéma, on la retire et on relance
+  async function tenter(p) {
+    if (editId) return db.from('candidatures').update(p).eq('id', editId);
+    return db.from('candidatures').insert([p]);
+  }
+  let { error } = await tenter(payload);
+  let guard = 0;
+  while (error && guard < 15) {
+    const m = /Could not find the '([^']+)' column/.exec(error.message||'');
+    if (!m || !(m[1] in payload)) break;
+    delete payload[m[1]];
+    ({ error } = await tenter(payload));
+    guard++;
   }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
+
   fermerModal('modal-candidature');
   ['input-cand-nom','input-cand-prenom','input-cand-email','input-cand-tel','input-cand-filiere','input-cand-origine','input-cand-motivation'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('input-cand-moyenne').value='';
@@ -15798,7 +15810,7 @@ async function soumettreCandidature() {
 async function creerCampagne() {
   const nom = document.getElementById('input-camp-nom').value.trim();
   if (!nom) { showToast('Entrez un nom de campagne.','error'); return; }
-  const { error } = await db.from('campagnes_admission').insert([{
+  const payload = {
     ecole_id:        currentEcoleId,
     nom,
     date_ouverture:  document.getElementById('input-camp-debut').value,
@@ -15807,7 +15819,16 @@ async function creerCampagne() {
     places:          parseInt(document.getElementById('input-camp-places').value)||0,
     description:     document.getElementById('input-camp-desc').value.trim(),
     statut: 'active'
-  }]);
+  };
+  let { error } = await db.from('campagnes_admission').insert([payload]);
+  let guard = 0;
+  while (error && guard < 10) {
+    const m = /Could not find the '([^']+)' column/.exec(error.message||'');
+    if (!m || !(m[1] in payload)) break;
+    delete payload[m[1]];
+    ({ error } = await db.from('campagnes_admission').insert([payload]));
+    guard++;
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-campagne');
   ['input-camp-nom','input-camp-annee','input-camp-places','input-camp-desc'].forEach(id=>document.getElementById(id).value='');
@@ -15841,7 +15862,16 @@ async function enregistrerDecision() {
   const id       = document.getElementById('decision-cand-id').value;
   const statut   = document.getElementById('input-decision-statut').value;
   const comment  = document.getElementById('input-decision-commentaire').value.trim();
-  const { error } = await db.from('candidatures').update({ statut, commentaire_jury:comment, date_decision:new Date().toISOString() }).eq('id',id);
+  const payload  = { statut, commentaire_jury:comment, date_decision:new Date().toISOString() };
+  let { error } = await db.from('candidatures').update(payload).eq('id',id);
+  let guard = 0;
+  while (error && guard < 5) {
+    const m = /Could not find the '([^']+)' column/.exec(error.message||'');
+    if (!m || !(m[1] in payload)) break;
+    delete payload[m[1]];
+    ({ error } = await db.from('candidatures').update(payload).eq('id',id));
+    guard++;
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-decision');
   showToast('✅ Décision enregistrée !','success');
