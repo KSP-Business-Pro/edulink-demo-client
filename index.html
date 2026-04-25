@@ -7699,7 +7699,9 @@ window.addEventListener('load', async () => {
 // ══ ÉTAT GLOBAL ═══════════════════════════════
 let currentEcoleId   = null;
 let currentRole      = 'admin';
-let realtimeChannels = [];        // déclaré ici pour éviter TDZ dans initialiserRealtime
+let currentPage      = 'dashboard';   // page active courante
+let realtimeChannels = [];
+
 let tousLesEcoles    = [];
 let tousLesEtudiants = [];
 let toutesLesNotes   = [];
@@ -7714,6 +7716,42 @@ let planningOffset   = 0;
 let tousLesEnseignants = [];
 let toutesMatieres     = [];
 let ficheEnsActif      = null;
+
+// ── Bus d'événements data ─────────────────────────────────────────────────
+// Quand un module modifie des données Supabase, il appelle invalidateData(table)
+// pour forcer le rechargement de tous les modules qui consomment cette table.
+const DATA_CONSUMERS = {
+  notes:     ['notes','portail-etudiant','rapports','analytics','dashboard'],
+  absences:  ['presences','portail-etudiant','rapports','analytics','dashboard'],
+  paiements: ['paiements','portail-etudiant','comptabilite','dashboard'],
+  messages:  ['messages','portail-etudiant'],
+  etudiants: ['etudiants','portail-etudiant','presences','notes','paiements','certificats','documents','discipline'],
+  examens:   ['examens','portail-etudiant'],
+  incidents: ['discipline'],
+};
+
+function invalidateData(table) {
+  const consumers = DATA_CONSUMERS[table] || [];
+  if (!consumers.includes(currentPage)) return; // page inactive → pas de refresh
+  // Recharger le loader de la page courante
+  const loaders = {
+    notes:           () => { chargerNotes && chargerNotes(); },
+    presences:       () => { chargerAbsences && chargerAbsences(); },
+    paiements:       () => { chargerPaiements && chargerPaiements(); },
+    messages:        () => { chargerMessages && chargerMessages(); },
+    etudiants:       () => { chargerEtudiants && chargerEtudiants(); },
+    examens:         () => { chargerExamens && chargerExamens(); },
+    discipline:      () => { chargerIncidents && chargerIncidents(); },
+    comptabilite:    () => { chargerComptabilite && chargerComptabilite(); },
+    certificats:     () => { chargerCertificats && chargerCertificats(); },
+    documents:       () => { chargerDocuments && chargerDocuments(); },
+    rapports:        () => { afficherRapport && afficherRapport('effectifs'); },
+    analytics:       () => { chargerAnalytics && chargerAnalytics(); },
+    dashboard:       () => { chargerDashboard && chargerDashboard(); },
+    'portail-etudiant': () => { chargerPortailEtudiant && chargerPortailEtudiant(getPortailEtudiantId()); },
+  };
+  if (loaders[currentPage]) loaders[currentPage]();
+}
 
 // Modules désactivés — visibles admin uniquement
 const MODULES_INACTIFS = ['cantine','transport','infirmerie','orientation'];
@@ -7768,6 +7806,7 @@ function showPage(p) {
     showToast('Ce module est désactivé.','error');
     return;
   }
+  currentPage = p;   // ← tracker la page active pour invalidateData
   document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
   document.querySelectorAll('nav a').forEach(x => x.classList.remove('on'));
   const pageEl = document.getElementById('page-' + p);
@@ -8268,6 +8307,7 @@ async function enregistrerAbsence() {
   const h3=document.querySelector('#modal-absence h3');if(h3)h3.textContent='🔴 Enregistrer une absence';
   document.getElementById('input-absence-matiere').value='';
   showToast(editId?'✅ Absence modifiée !':'Absence enregistrée !','success');
+  invalidateData('absences');
   chargerAbsences(); chargerDashboard();
 }
 function ouvrirModifierAbsence(id,etudiantId,matiere,date,statut,justification){
@@ -8284,7 +8324,9 @@ function ouvrirModifierAbsence(id,etudiantId,matiere,date,statut,justification){
 async function supprimerAbsence(id){
   if(!confirm('Supprimer cette absence ?'))return;
   await db.from('absences').delete().eq('id',id);
-  showToast('Absence supprimée.','success');chargerAbsences();chargerDashboard();
+  showToast('Absence supprimée.','success');
+  invalidateData('absences');
+  chargerAbsences(); chargerDashboard();
 }
 async function toggleNotifParent(id,newVal){
   await db.from('absences').update({parent_notifie:newVal}).eq('id',id);
@@ -8369,13 +8411,16 @@ async function enregistrerOuModifierNote(){
   ['input-note-matiere','input-note-valeur','input-note-commentaire'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('input-note-coeff').value='2';
   showToast(editId?'✅ Note modifiée !':'Note enregistrée !','success');
+  invalidateData('notes');
   chargerNotes();chargerDashboard();
 }
 async function enregistrerNote(){return enregistrerOuModifierNote();}
 async function supprimerNote(id) {
   if (!confirm('Supprimer cette note ?')) return;
   await db.from('notes').delete().eq('id',id);
-  showToast('Note supprimée.','success'); chargerNotes(); chargerDashboard();
+  showToast('Note supprimée.','success');
+  invalidateData('notes');
+  chargerNotes(); chargerDashboard();
 }
 function labelPeriodeBulletin(p) {
   if (!p) return 'Toutes periodes';
@@ -9028,13 +9073,16 @@ async function enregistrerPaiement() {
   if (e2) { showToast('Erreur enregistrement paiement : '+e2.message,'error'); return; }
   fermerModal('modal-paiement'); document.getElementById('input-pay-montant').value=''; document.getElementById('input-pay-ref').value='';
   showToast(nouveauStatut==='payée'?'✅ Facture entièrement payée !':'💰 Paiement partiel enregistré !','success');
+  invalidateData('paiements');
   chargerPaiements(); chargerDashboard();
 }
 
 async function supprimerFacture(id) {
   if (!confirm('Supprimer cette facture ?')) return;
   await db.from('factures').delete().eq('id',id);
-  showToast('Facture supprimée.','success'); chargerPaiements(); chargerDashboard();
+  showToast('Facture supprimée.','success');
+  invalidateData('paiements');
+  chargerPaiements(); chargerDashboard();
 }
 
 async function chargerHistoriquePaiements() {
@@ -17204,6 +17252,7 @@ async function supprimerNotePortail(noteId) {
   const { error } = await db.from('notes').delete().eq('id', noteId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast('🗑️ Note supprimée.','success');
+  invalidateData('notes');
   chargerPortailEtudiant(getPortailEtudiantId());
 }
 
@@ -17212,6 +17261,7 @@ async function supprimerAbsencePortail(absId) {
   const { error } = await db.from('absences').delete().eq('id', absId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast('🗑️ Absence supprimée.','success');
+  invalidateData('absences');
   chargerPortailEtudiant(getPortailEtudiantId());
 }
 
@@ -17220,6 +17270,7 @@ async function supprimerPaiementPortail(paiId) {
   const { error } = await db.from('paiements').delete().eq('id', paiId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast('🗑️ Paiement supprimé.','success');
+  invalidateData('paiements');
   chargerPortailEtudiant(getPortailEtudiantId());
 }
 
@@ -17228,6 +17279,7 @@ async function supprimerMessagePortail(msgId) {
   const { error } = await db.from('messages').delete().eq('id', msgId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast('🗑️ Message supprimé.','success');
+  invalidateData('messages');
   chargerPortailEtudiant(getPortailEtudiantId());
 }
 
@@ -17238,6 +17290,7 @@ async function supprimerToutesNotesPortail() {
   const { error } = await db.from('notes').delete().eq('etudiant_id', etId).eq('ecole_id', currentEcoleId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast('🗑️ Toutes les notes supprimées.','success');
+  invalidateData('notes');
   chargerPortailEtudiant(etId);
 }
 
@@ -17247,6 +17300,7 @@ async function supprimerToutesAbsencesPortail() {
   const { error } = await db.from('absences').delete().eq('etudiant_id', etId).eq('ecole_id', currentEcoleId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast('🗑️ Toutes les absences supprimées.','success');
+  invalidateData('absences');
   chargerPortailEtudiant(etId);
 }
 
@@ -17256,6 +17310,7 @@ async function supprimerTousPaiementsPortail() {
   const { error } = await db.from('paiements').delete().eq('etudiant_id', etId).eq('ecole_id', currentEcoleId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast('🗑️ Tous les paiements supprimés.','success');
+  invalidateData('paiements');
   chargerPortailEtudiant(etId);
 }
 
@@ -17264,6 +17319,7 @@ async function supprimerTousMessagesPortail() {
   const { error } = await db.from('messages').delete().eq('ecole_id', currentEcoleId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast('🗑️ Tous les messages supprimés.','success');
+  invalidateData('messages');
   chargerPortailEtudiant(getPortailEtudiantId());
 }
 
@@ -17298,14 +17354,15 @@ function genererBulletinPortail() {
 /* ══════════════════════════════════════════════════════════════════
    SUITE 10 — DASHBOARD RÉSEAU ★ JOUR 34
 ══════════════════════════════════════════════════════════════════ */
-const MDB_ECOLES = [
-  { id:1, nom:'Lycée Technique Cotonou', ville:'Cotonou', type:'lycee', ico:'🏫', color:'#1e3a5f', eleves:842, enseignants:64, taux_reussite:78, absences_taux:8, recette:4200000, statut:'actif', actifs_maintenant:312 },
-  { id:2, nom:'Collège Notre-Dame', ville:'Porto-Novo', type:'college', ico:'✝️', color:'#059669', eleves:612, enseignants:45, taux_reussite:85, absences_taux:5, recette:3100000, statut:'actif', actifs_maintenant:198 },
-  { id:3, nom:'Lycée Mathieu Bouké', ville:'Abomey-Calavi', type:'lycee', ico:'🎓', color:'#d97706', eleves:710, enseignants:52, taux_reussite:72, absences_taux:12, recette:2800000, statut:'alerte', actifs_maintenant:241 },
-  { id:4, nom:'École Les Étoiles', ville:'Parakou', type:'primaire', ico:'⭐', color:'#7c3aed', eleves:380, enseignants:28, taux_reussite:91, absences_taux:4, recette:1500000, statut:'actif', actifs_maintenant:142 },
-  { id:5, nom:'Collège Charles de Gaulle', ville:'Cotonou', type:'college', ico:'🏛️', color:'#1d4ed8', eleves:525, enseignants:38, taux_reussite:80, absences_taux:7, recette:2600000, statut:'actif', actifs_maintenant:187 },
-  { id:6, nom:'Lycée EduLink Bénin', ville:'Cotonou', type:'lycee', ico:'🔗', color:'#059669', eleves:198, enseignants:22, taux_reussite:88, absences_taux:6, recette:1200000, statut:'actif', actifs_maintenant:76 },
-];
+// MDB_ECOLES est maintenant un alias live vers tousLesEtablissements (module Réseau Écoles)
+// Adapte les champs recette→recette_mois pour compatibilité
+function getMdbEcoles() {
+  return tousLesEtablissements.map(e=>({
+    ...e,
+    recette: e.recette_mois || e.recette || 0,
+    actifs_maintenant: e.actifs_maintenant || Math.round((e.eleves||0)*0.4),
+  }));
+}
 
 const MDB_ACTIVITE = [
   {ico:'👤',txt:'Connexion: Prof. Ahouandjinou — Lycée Technique',temps:'Il y a 2 min',color:'#dbeafe'},
@@ -17318,16 +17375,25 @@ const MDB_ACTIVITE = [
 ];
 
 function chargerDashReseau() {
-  const totalEleves = MDB_ECOLES.reduce((s,e)=>s+e.eleves,0);
-  const totalEns = MDB_ECOLES.reduce((s,e)=>s+e.enseignants,0);
-  const tauxMoy = Math.round(MDB_ECOLES.reduce((s,e)=>s+e.taux_reussite,0)/MDB_ECOLES.length);
-  const totalRecette = MDB_ECOLES.reduce((s,e)=>s+e.recette,0);
-  const alertes = MDB_ECOLES.filter(e=>e.statut==='alerte').length;
+  // S'assurer que tousLesEtablissements est initialisé
+  if (!reseauInitialized) { chargerReseau(); }
+  const ecoles = getMdbEcoles();
+  if (!ecoles.length) {
+    ['mdb-hero-kpis','mdb-kpi-grid','mdb-ecoles-list','mdb-chart-reussite','mdb-chart-absences','mdb-chart-recettes','mdb-top-ecoles','mdb-alertes-critiques'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.innerHTML='<div class="empty-state" style="padding:1rem">Aucun établissement — ajoutez-en dans le module Réseau Écoles</div>';
+    });
+    return;
+  }
+  const totalEleves   = ecoles.reduce((s,e)=>s+e.eleves,0);
+  const totalEns      = ecoles.reduce((s,e)=>s+e.enseignants,0);
+  const tauxMoy       = ecoles.length ? Math.round(ecoles.reduce((s,e)=>s+e.taux_reussite,0)/ecoles.length) : 0;
+  const totalRecette  = ecoles.reduce((s,e)=>s+e.recette,0);
+  const alertes       = ecoles.filter(e=>e.statut==='alerte').length;
 
   // Hero KPIs
   const heroKpis = document.getElementById('mdb-hero-kpis');
   if (heroKpis) heroKpis.innerHTML = [
-    {v:MDB_ECOLES.length, l:'Établissements'},
+    {v:ecoles.length, l:'Établissements'},
     {v:totalEleves.toLocaleString('fr-FR'), l:'Élèves total'},
     {v:totalEns, l:'Enseignants'},
     {v:tauxMoy+'%', l:'Taux réussite moy.'},
@@ -17336,10 +17402,10 @@ function chargerDashReseau() {
   // KPI grid
   const kpiGrid = document.getElementById('mdb-kpi-grid');
   if (kpiGrid) kpiGrid.innerHTML = [
-    {ico:'🎓',val:totalEleves.toLocaleString('fr-FR'),lbl:'Élèves inscrits',trend:'+127 ce mois',up:true,color:'#dbeafe'},
-    {ico:'💳',val:(totalRecette/1000000).toFixed(1)+' M F',lbl:'Recette consolidée',trend:'+8.3% vs mois dernier',up:true,color:'#dcfce7'},
-    {ico:'📊',val:tauxMoy+'%',lbl:'Taux de réussite moy.',trend:'+2.1% vs trimestre',up:true,color:'#fef9c3'},
-    {ico:'⚠️',val:alertes,lbl:'Alertes actives',trend:'1 critique en cours',up:false,color:'#fee2e2'},
+    {ico:'🎓',val:totalEleves.toLocaleString('fr-FR'),lbl:'Élèves inscrits',trend:`${ecoles.length} établissement(s)`,up:true,color:'#dbeafe'},
+    {ico:'💳',val:(totalRecette/1000000).toFixed(2)+' M F',lbl:'Recette consolidée',trend:'Toutes écoles confondues',up:true,color:'#dcfce7'},
+    {ico:'📊',val:tauxMoy+'%',lbl:'Taux de réussite moy.',trend:`Max : ${Math.max(...ecoles.map(e=>e.taux_reussite))}%`,up:true,color:'#fef9c3'},
+    {ico:'⚠️',val:alertes,lbl:'Établissements en alerte',trend:alertes>0?'Attention requise':'Tout va bien',up:alertes===0,color:'#fee2e2'},
   ].map(k=>`<div class="mdb-kpi-card" style="border-left:4px solid ${k.color}">
     <div class="mk-ico">${k.ico}</div>
     <div class="mk-val2" style="color:#111827">${k.val}</div>
@@ -17358,13 +17424,15 @@ function chargerDashReseau() {
 function renderEcolesLive() {
   const list = document.getElementById('mdb-ecoles-list');
   if (!list) return;
-  list.innerHTML = MDB_ECOLES.map(e=>`
+  const ecoles = getMdbEcoles();
+  if (!ecoles.length) { list.innerHTML='<div class="empty-state" style="padding:1rem">Aucun établissement</div>'; return; }
+  list.innerHTML = ecoles.map(e=>`
     <div class="mdb-ecole-row" onclick="showToast('🏫 ${e.nom} — ${e.eleves} élèves · ${e.taux_reussite}% réussite','info')">
       <div class="mdb-ecole-statut ${e.statut}"></div>
-      <div class="mdb-ecole-ico" style="background:${e.color}15;border:1px solid ${e.color}25">${e.ico}</div>
+      <div class="mdb-ecole-ico" style="background:${e.color}15;border:1px solid ${e.color}25">${e.ico||'🏫'}</div>
       <div class="mdb-ecole-body">
         <div class="mdb-ecole-nom">${e.nom}</div>
-        <div class="mdb-ecole-ville">📍 ${e.ville} · ${e.actifs_maintenant} utilisateurs actifs maintenant</div>
+        <div class="mdb-ecole-ville">📍 ${e.ville} · ${e.actifs_maintenant} utilisateurs actifs</div>
       </div>
       <div class="mdb-ecole-stats">
         <div class="mes"><span class="mv">${e.eleves}</span>élèves</div>
@@ -17376,13 +17444,16 @@ function renderEcolesLive() {
 }
 
 function renderChartsReseau() {
+  const ecoles = getMdbEcoles();
+  if (!ecoles.length) return;
   const colors = ['#1e3a5f','#059669','#d97706','#7c3aed','#1d4ed8','#0d9488'];
-  const maxReussite = Math.max(...MDB_ECOLES.map(e=>e.taux_reussite));
-  const maxRecette = Math.max(...MDB_ECOLES.map(e=>e.recette));
+  const maxReussite = Math.max(...ecoles.map(e=>e.taux_reussite));
+  const maxRecette  = Math.max(...ecoles.map(e=>e.recette));
+  const maxAbs      = Math.max(...ecoles.map(e=>e.absences_taux||0))||1;
 
   const chartR = document.getElementById('mdb-chart-reussite');
   if (chartR) {
-    chartR.innerHTML = MDB_ECOLES.map((e,i)=>`
+    chartR.innerHTML = ecoles.map((e,i)=>`
       <div class="compare-bar-item">
         <div class="compare-nom" title="${e.nom}">${e.nom.split(' ').slice(0,2).join(' ')}</div>
         <div class="compare-track"><div class="compare-fill" style="width:${Math.round(e.taux_reussite/maxReussite*100)}%;background:${colors[i]}">${e.taux_reussite}%</div></div>
@@ -17392,8 +17463,7 @@ function renderChartsReseau() {
 
   const chartAbs = document.getElementById('mdb-chart-absences');
   if (chartAbs) {
-    const maxAbs = Math.max(...MDB_ECOLES.map(e=>e.absences_taux));
-    chartAbs.innerHTML = MDB_ECOLES.map((e,i)=>`
+    chartAbs.innerHTML = ecoles.map((e,i)=>`
       <div class="compare-bar-item">
         <div class="compare-nom" title="${e.nom}">${e.nom.split(' ').slice(0,2).join(' ')}</div>
         <div class="compare-track"><div class="compare-fill" style="width:${Math.round(e.absences_taux/maxAbs*100)}%;background:${e.absences_taux<=6?'#059669':e.absences_taux<=10?'#d97706':'#dc2626'}">${e.absences_taux}%</div></div>
@@ -17403,7 +17473,7 @@ function renderChartsReseau() {
 
   const chartRec = document.getElementById('mdb-chart-recettes');
   if (chartRec) {
-    chartRec.innerHTML = MDB_ECOLES.map((e,i)=>`
+    chartRec.innerHTML = ecoles.map((e,i)=>`
       <div class="compare-bar-item">
         <div class="compare-nom" title="${e.nom}">${e.nom.split(' ').slice(0,2).join(' ')}</div>
         <div class="compare-track"><div class="compare-fill" style="width:${Math.round(e.recette/maxRecette*100)}%;background:${colors[i]}">${(e.recette/1000000).toFixed(1)}M</div></div>
@@ -17414,12 +17484,12 @@ function renderChartsReseau() {
   // Finances
   const recusCont = document.getElementById('mdb-finance-recus');
   const attenteCont = document.getElementById('mdb-finance-attente');
-  if (recusCont) recusCont.innerHTML = MDB_ECOLES.slice(0,3).map(e=>`
+  if (recusCont) recusCont.innerHTML = ecoles.slice(0,4).map(e=>`
     <div style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #f3f4f6;font-size:13px">
       <span>${e.nom.split(' ').slice(0,2).join(' ')}</span>
       <strong style="color:#059669">${(e.recette*.75/1000).toFixed(0)}K F</strong>
     </div>`).join('');
-  if (attenteCont) attenteCont.innerHTML = MDB_ECOLES.slice(0,3).map(e=>`
+  if (attenteCont) attenteCont.innerHTML = ecoles.slice(0,4).map(e=>`
     <div style="display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #f3f4f6;font-size:13px">
       <span>${e.nom.split(' ').slice(0,2).join(' ')}</span>
       <strong style="color:#d97706">${(e.recette*.25/1000).toFixed(0)}K F</strong>
@@ -17427,7 +17497,9 @@ function renderChartsReseau() {
 }
 
 function renderTopEcoles() {
-  const sorted = [...MDB_ECOLES].sort((a,b)=>b.taux_reussite-a.taux_reussite);
+  const ecoles = getMdbEcoles();
+  if (!ecoles.length) { const top=document.getElementById('mdb-top-ecoles'); if(top) top.innerHTML=''; return; }
+  const sorted = [...ecoles].sort((a,b)=>b.taux_reussite-a.taux_reussite);
   const top = document.getElementById('mdb-top-ecoles');
   if (!top) return;
   top.innerHTML = sorted.map((e,i)=>`
@@ -17473,21 +17545,38 @@ function renderEventsReseau() {
 function renderAlertesCritiques() {
   const cont = document.getElementById('mdb-alertes-critiques');
   if (!cont) return;
-  const alertes = [
-    {ico:'⚠️',titre:'Taux d\'absentéisme critique',detail:'12% d\'absences — Seuil toléré : 10%',ecole:'Lycée Mathieu Bouké',color:'#fef9c3'},
-    {ico:'💸',titre:'Retards de paiement importants',detail:'23% des frais T3 non réglés à J+15',ecole:'Lycée Mathieu Bouké',color:'#fee2e2'},
-    {ico:'🔑',titre:'Renouvellement licence à venir',detail:'Licence expire le 30 avril 2026',ecole:'3 établissements',color:'#dbeafe'},
-  ];
-  cont.innerHTML = alertes.map(a=>`
-    <div class="mdb-alerte-critique" style="background:${a.color}40">
-      <div class="mac-ico">${a.ico}</div>
-      <div class="mac-body">
-        <div class="mac-titre">${a.titre}</div>
-        <div class="mac-detail">${a.detail}</div>
-        <div class="mac-ecole">📍 ${a.ecole}</div>
-      </div>
-      <button class="btn-sm btn-secondary" onclick="showToast('✅ Alerte traitée','success')">Traiter</button>
-    </div>`).join('');
+  const ecoles = getMdbEcoles();
+  // Générer alertes dynamiquement depuis les données réelles
+  const alertes = [];
+  ecoles.forEach(e => {
+    if ((e.absences_taux||0) > 10) alertes.push({ico:'⚠️', titre:"Taux d'absentéisme critique", detail:`${e.absences_taux}% — Seuil toléré : 10%`, ecole:e.nom, color:'#fef9c3'});
+    if (e.statut === 'alerte') alertes.push({ico:'🚨', titre:'Établissement en alerte', detail:`Statut : ${e.statut} — Vérification requise`, ecole:e.nom, color:'#fee2e2'});
+  });
+  // Alertes réseau existantes
+  reseauAlertes.filter(a=>!a.traite).forEach(a => {
+    const niveauColor = {warning:'#fef9c3', danger:'#fee2e2', info:'#dbeafe'};
+    alertes.push({ico:a.niveau==='danger'?'🔴':a.niveau==='warning'?'🟡':'🔵', titre:a.type, detail:a.detail, ecole:a.etab, color:niveauColor[a.niveau]||'#f3f4f6'});
+  });
+  cont.innerHTML = alertes.length
+    ? alertes.map(a=>`<div class="mdb-alerte-critique" style="background:${a.color}40">
+        <div class="mac-ico">${a.ico}</div>
+        <div class="mac-body">
+          <div class="mac-titre">${a.titre}</div>
+          <div class="mac-detail">${a.detail}</div>
+          <div class="mac-ecole">📍 ${a.ecole}</div>
+        </div>
+        <button class="btn-sm btn-secondary" onclick="showToast('✅ Alerte traitée','success')">Traiter</button>
+      </div>`).join('')
+    : '<div class="empty-state" style="padding:1rem">✅ Aucune alerte critique</div>';
+}
+
+function exporterRapportComplet() {
+  const ecoles = getMdbEcoles();
+  if (!ecoles.length) { showToast('Aucun établissement à exporter','error'); return; }
+  const header = ['Établissement','Ville','Type','Élèves','Enseignants','Taux réussite (%)','Recette (F)','Statut'];
+  const rows = ecoles.map(e=>[e.nom, e.ville, e.type, e.eleves, e.enseignants, e.taux_reussite, e.recette, e.statut]);
+  csvDownload('EduLink-Dashboard-Reseau.csv', header, rows);
+  showToast('📥 Rapport réseau exporté !','success');
 }
 
 function mdbSwitchTab(tab, btn) {
@@ -17505,7 +17594,7 @@ function actualiserDashReseau() {
   showToast('🔄 Données actualisées !','success');
 }
 
-function exporterRapportComplet() { showToast('📥 Rapport réseau complet en cours de génération...','info'); }
+
 
 /* — Hook showPage Suite 10 — */
 (function() {
