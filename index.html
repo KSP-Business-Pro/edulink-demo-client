@@ -11758,14 +11758,19 @@ async function envoyerPushNotification() {
   }
 
   // ── MODE FCM : clé configurée → envoi direct ────────────────────────────
-
-  // Récupérer tokens selon destinataires
+  // Récupérer tokens avec fallback sans ecole_id si nécessaire
   let q = db.from('push_tokens').select('token, role').eq('ecole_id', currentEcoleId);
   if (dest === 'parents')    q = q.eq('role', 'parent');
   if (dest === 'etudiants')  q = q.eq('role', 'etudiant');
   if (dest === 'admin')      q = q.eq('role', 'admin');
   if (dest === 'enseignant') q = q.eq('role', 'enseignant');
-  const { data: tokens } = await q;
+  let { data: tokens } = await q;
+
+  // Fallback : si 0 tokens avec ecole_id, essayer sans filtre ecole_id
+  if (!tokens?.length && dest === 'tous') {
+    const { data: all } = await db.from('push_tokens').select('token, role');
+    tokens = all;
+  }
 
   if (!tokens?.length) {
     const roleLabel = {tous:'aucun appareil abonné', parents:'aucun parent abonné', etudiants:'aucun étudiant abonné', admin:'aucun admin abonné', enseignant:'aucun enseignant abonné'};
@@ -11775,8 +11780,6 @@ async function envoyerPushNotification() {
   }
 
   document.getElementById('push-send-log').innerHTML = `📱 ${tokens.length} appareil(s) trouvé(s)...`;
-
-  // Envoi via FCM HTTP V1 (API recommandée)
   const apiKey    = localStorage.getItem('edulink_fcm_api_key') || serverKey;
   const projectId = localStorage.getItem('edulink_fcm_project_id') || '';
   let succes = 0, echecs = 0;
@@ -12208,13 +12211,19 @@ async function envoyerDepuisCompose() {
   const serverKey = localStorage.getItem('edulink_fcm_server_key');
 
   if (serverKey) {
-    // Mode FCM push si clé configurée
+    // Mode FCM push — récupérer tokens avec fallback sans filtre ecole_id
     let q = db.from('push_tokens').select('token, role').eq('ecole_id', currentEcoleId);
     if (dest === 'parents')    q = q.eq('role', 'parent');
     if (dest === 'etudiants')  q = q.eq('role', 'etudiant');
     if (dest === 'admin')      q = q.eq('role', 'admin');
     if (dest === 'enseignant') q = q.eq('role', 'enseignant');
-    const { data: tokens } = await q;
+    let { data: tokens } = await q;
+
+    // Fallback : si 0 tokens avec ecole_id, essayer sans filtre
+    if (!tokens?.length && dest === 'tous') {
+      const { data: all } = await db.from('push_tokens').select('token, role');
+      tokens = all;
+    }
 
     if (tokens?.length) {
       const apiKeyV1  = localStorage.getItem('edulink_fcm_api_key') || serverKey;
