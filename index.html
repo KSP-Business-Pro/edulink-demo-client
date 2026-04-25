@@ -8020,6 +8020,8 @@ async function chargerEcoles() {
     sel.innerHTML = '<option value="">Aucun établissement</option>';
   }
   chargerDashboard();
+  // Auto-init FCM après chargement de l'école
+  setTimeout(() => initFCM(), 1500);
 }
 function changerEcole() {
   currentEcoleId = document.getElementById('ecole-selector').value;
@@ -8231,11 +8233,28 @@ async function ajouterEtudiant() {
   if (pt) payload.parent_tel=pt;
   let etudiantId = editId;
   if (editId) {
-    const {error} = await db.from('etudiants').update(payload).eq('id',editId);
-    if (error) { showToast('Erreur : '+error.message,'error'); return; }
+    let { error } = await db.from('etudiants').update(payload).eq('id', editId);
+    let guard = 0;
+    while (error && guard < 8) {
+      const m = /Could not find the '([^']+)' column/.exec(error.message || '');
+      if (!m || !(m[1] in payload)) break;
+      delete payload[m[1]];
+      ({ error } = await db.from('etudiants').update(payload).eq('id', editId));
+      guard++;
+    }
+    if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
   } else {
-    const {data:ins,error} = await db.from('etudiants').insert([{...payload,ecole_id:currentEcoleId,statut:'actif'}]).select('id').single();
-    if (error) { showToast('Erreur : '+(error.message.includes('unique')?'Matricule déjà utilisé.':error.message),'error'); return; }
+    const insertPayload = { ...payload, ecole_id: currentEcoleId, statut: 'actif' };
+    let { data: ins, error } = await db.from('etudiants').insert([insertPayload]).select('id').single();
+    let guard = 0;
+    while (error && guard < 8) {
+      const m = /Could not find the '([^']+)' column/.exec(error.message || '');
+      if (!m || !(m[1] in insertPayload)) break;
+      delete insertPayload[m[1]];
+      ({ data: ins, error } = await db.from('etudiants').insert([insertPayload]).select('id').single());
+      guard++;
+    }
+    if (error) { showToast('Erreur : ' + (error.message.includes('unique') ? 'Matricule déjà utilisé.' : error.message), 'error'); return; }
     etudiantId = ins?.id;
   }
   if (etudiantId) await db.from('etudiants').update({classe_id:classeId||null}).eq('id',etudiantId);
