@@ -39,6 +39,9 @@ nav .ecole-selector-wrap select option { background:#1e3a5f; }
 nav .nav-section { font-size:9px; font-weight:600; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.08em; padding:6px 12px 2px; margin-top:4px; }
 nav a { display:flex; align-items:center; gap:8px; color:rgba(255,255,255,.7); padding:8px 12px; border-radius:6px; text-decoration:none; font-size:12.5px; margin-bottom:2px; cursor:pointer; transition:all .15s; }
 nav a:hover, nav a.on { background:rgba(255,255,255,.15); color:#fff; }
+nav a[data-inactive="true"] { opacity:.4; font-style:italic; }
+nav a[data-inactive="true"]:hover { background:rgba(255,255,255,.05); }
+nav a[data-inactive-hidden="true"] { display:none !important; }
 nav a .ico { font-size:14px; width:18px; text-align:center; }
 nav .nav-bottom { margin-top:auto; padding-top:1rem; border-top:1px solid rgba(255,255,255,.1); }
 nav .nav-bottom a { font-size:11px; color:rgba(255,255,255,.5); }
@@ -2290,10 +2293,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <a onclick="showPage('portail-ens')" id="nav-portail-ens"><span class="ico">👨‍🏫</span> Portail Enseignant <span class="badge blue" style="margin-left:auto;font-size:9px;padding:1px 5px">NEW</span></a>
   <a onclick="showPage('rh')" id="nav-rh"><span class="ico">🧑‍💼</span> RH & Personnel <span id="badge-rh" style="margin-left:auto;background:#7c3aed;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;display:none"></span></a>
   <a onclick="showPage('bibliotheque-num')" id="nav-bibliotheque-num"><span class="ico">📚</span> Bibliothèque Num. <span class="badge purple" style="margin-left:auto;font-size:9px;padding:1px 5px">J26</span></a>
-  <a onclick="showPage('cantine')" id="nav-cantine"><span class="ico">🍽️</span> Cantine <span class="badge amber" style="margin-left:auto;font-size:9px;padding:1px 5px">J27</span></a>
-  <a onclick="showPage('transport')" id="nav-transport"><span class="ico">🚌</span> Transport <span class="badge green" style="margin-left:auto;font-size:9px;padding:1px 5px">J28</span></a>
-  <a onclick="showPage('infirmerie')" id="nav-infirmerie"><span class="ico">🏥</span> Infirmerie <span class="badge red" style="margin-left:auto;font-size:9px;padding:1px 5px">J29</span></a>
-  <a onclick="showPage('orientation')" id="nav-orientation"><span class="ico">🎯</span> Orientation <span class="badge amber" style="margin-left:auto;font-size:9px;padding:1px 5px">J30</span></a>
+  <a onclick="showPage('cantine')" id="nav-cantine" data-inactive="true"><span class="ico">🍽️</span> Cantine <span style="margin-left:auto;font-size:9px;opacity:.5">🔒</span></a>
+  <a onclick="showPage('transport')" id="nav-transport" data-inactive="true"><span class="ico">🚌</span> Transport <span style="margin-left:auto;font-size:9px;opacity:.5">🔒</span></a>
+  <a onclick="showPage('infirmerie')" id="nav-infirmerie" data-inactive="true"><span class="ico">🏥</span> Infirmerie <span style="margin-left:auto;font-size:9px;opacity:.5">🔒</span></a>
+  <a onclick="showPage('orientation')" id="nav-orientation" data-inactive="true"><span class="ico">🎯</span> Orientation <span style="margin-left:auto;font-size:9px;opacity:.5">🔒</span></a>
   <a onclick="showPage('reseau')" id="nav-reseau"><span class="ico">🌐</span> Réseau Écoles <span class="badge blue" style="margin-left:auto;font-size:9px;padding:1px 5px">J31</span></a>
   <a onclick="showPage('portail-etudiant')" id="nav-portail-etudiant"><span class="ico">🎓</span> Portail Étudiant <span class="badge green" style="margin-left:auto;font-size:9px;padding:1px 5px">J33</span></a>
   <a onclick="showPage('dashboard-reseau')" id="nav-dashboard-reseau"><span class="ico">📊</span> Dashboard Réseau <span class="badge purple" style="margin-left:auto;font-size:9px;padding:1px 5px">J34</span></a>
@@ -7734,6 +7737,11 @@ function getDocIcon(nom) {
 
 // ══ NAVIGATION ════════════════════════════════
 function showPage(p) {
+  // Bloquer l'accès aux modules inactifs pour les non-admins
+  if (MODULES_INACTIFS && MODULES_INACTIFS.includes(p) && currentRole !== 'admin') {
+    showToast('Ce module est désactivé.','error');
+    return;
+  }
   document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
   document.querySelectorAll('nav a').forEach(x => x.classList.remove('on'));
   const pageEl = document.getElementById('page-' + p);
@@ -18516,6 +18524,8 @@ const ROLE_PERMISSIONS = {
   surveillance:['dashboard','presences','discipline','messages','controle-acces'],
 };
 
+const MODULES_INACTIFS = ['cantine','transport','infirmerie','orientation'];
+
 function appliquerPermissions(role) {
   currentRole = role;
   const perms = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.admin;
@@ -18523,6 +18533,20 @@ function appliquerPermissions(role) {
   // Cacher les modules non autorisés dans la nav
   document.querySelectorAll('nav a[id^="nav-"]').forEach(link => {
     const moduleId = link.id.replace('nav-','');
+    const inactif = MODULES_INACTIFS.includes(moduleId);
+
+    if (inactif) {
+      if (role === 'admin') {
+        // Admin : visible mais grisé avec 🔒
+        link.removeAttribute('data-inactive-hidden');
+        link.setAttribute('data-inactive','true');
+      } else {
+        // Tous les autres : complètement invisible
+        link.setAttribute('data-inactive-hidden','true');
+      }
+      return;
+    }
+
     const allowed = perms.includes(moduleId) || role === 'admin';
     link.style.display = allowed ? '' : 'none';
   });
