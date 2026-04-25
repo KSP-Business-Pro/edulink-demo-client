@@ -15202,6 +15202,7 @@ async function exporterRHPDF() {
 ══════════════════════════════════════════════════════════════════ */
 let bib8Livres = [];
 let bib8Emprunts = [];
+let bib8Initialized = false;
 let bib8Reservations = [
   { id:1, livre_id:3, livre:'Physique-Chimie Tle', etudiant:'Ghislain Aguessy', date_demande:'2026-03-20', dispo_le:'2026-03-26' },
   { id:2, livre_id:10, livre:'Géographie Physique', etudiant:'Odette Tossou', date_demande:'2026-03-22', dispo_le:'2026-03-28' },
@@ -15230,8 +15231,11 @@ const EMPRUNTS_DEMO = [
 ];
 
 function chargerBibliothequeNum() {
-  if (!bib8Livres.length) bib8Livres = [...LIVRES_DEMO];
-  if (!bib8Emprunts.length) bib8Emprunts = [...EMPRUNTS_DEMO];
+  if (!bib8Initialized) {
+    bib8Livres = [...LIVRES_DEMO];
+    bib8Emprunts = [...EMPRUNTS_DEMO];
+    bib8Initialized = true;
+  }
 
   const total = bib8Livres.length;
   const emprunts = bib8Emprunts.filter(e=>!e.retourne).length;
@@ -15996,7 +16000,7 @@ function initSuite8() {
       const _real = window.showPage;
       window.showPage = function(id) {
         _real(id);
-        if (id==='bibliotheque-num') setTimeout(chargerBibliothequeNum,50);
+        // Bib Num est déjà chargée via le map des loaders dans showPage; pas de re-call ici
         if (id==='cantine') setTimeout(chargerCantine,50);
         if (id==='transport') setTimeout(chargerTransport,50);
       };
