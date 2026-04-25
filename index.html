@@ -11718,16 +11718,19 @@ async function initFCM() {
 
 // ── Sauvegarde token en base ──
 async function sauvegarderTokenFCM(token, role = 'parent') {
-  if (!token || !currentEcoleId) return;
-  // Upsert du token
-  const { error } = await db.from('push_tokens').upsert({
-    ecole_id:   currentEcoleId,
-    token:      token,
-    role:       role,
-    user_agent: navigator.userAgent.slice(0, 200),
-    updated_at: new Date().toISOString()
-  }, { onConflict: 'token' });
+  if (!token) return;
+  // Colonnes réelles de push_tokens : id, utilisateur_id, token, plateforme, actif, created_at, ecole_id, role
+  const payload = {
+    token,
+    role,
+    actif:      true,
+    plateforme: /Android/i.test(navigator.userAgent) ? 'android' : /iPhone|iPad/i.test(navigator.userAgent) ? 'ios' : 'web',
+  };
+  if (currentEcoleId) payload.ecole_id = currentEcoleId;
+
+  const { error } = await db.from('push_tokens').upsert(payload, { onConflict: 'token' });
   if (error) console.warn('[FCM] Erreur save token:', error.message);
+  else console.log('[FCM] ✅ Token sauvegardé — rôle:', role, '— plateforme:', payload.plateforme);
 }
 
 async function compterTokensFCM() {
@@ -12127,17 +12130,17 @@ async function chargerAppareilsAbonnes() {
   const cnt = document.getElementById('nc-devices-count');
   if (!el) return;
   try {
-    // Requête avec filtre ecole_id
+    // Colonnes réelles : id, token, plateforme, actif, created_at, ecole_id, role
     let { data } = await db.from('push_tokens')
-      .select('role, user_agent, updated_at, plateforme, ecole_id')
+      .select('role, plateforme, actif, created_at, ecole_id')
       .eq('ecole_id', currentEcoleId)
-      .order('updated_at', {ascending: false}).limit(20);
+      .order('created_at', {ascending: false}).limit(20);
 
-    // Si 0 résultats avec filtre, essayer sans (tokens anciens sans ecole_id)
+    // Fallback sans filtre ecole_id
     if (!data?.length) {
       const { data: all } = await db.from('push_tokens')
-        .select('role, user_agent, updated_at, plateforme, ecole_id')
-        .order('updated_at', {ascending: false}).limit(20);
+        .select('role, plateforme, actif, created_at, ecole_id')
+        .order('created_at', {ascending: false}).limit(20);
       data = all;
     }
 
@@ -12148,22 +12151,24 @@ async function chargerAppareilsAbonnes() {
       return;
     }
     const ROLE_ICO = { parent:'👨‍👩‍👧', etudiant:'🎓', admin:'👨‍💼', enseignant:'👨‍🏫' };
+    const PLAT_ICO = { android:'🤖 Android', ios:'🍎 iOS', web:'💻 Web' };
     el.innerHTML = tokens.map(t => {
-      const ico = ROLE_ICO[t.role] || '📱';
-      const ua  = t.user_agent || '—';
-      const plateforme = ua.includes('Android') ? '🤖 Android' : ua.includes('iPhone')||ua.includes('iPad') ? '🍎 iOS' : '💻 Desktop';
+      const ico  = ROLE_ICO[t.role] || '📱';
+      const plat = PLAT_ICO[t.plateforme] || '💻 Web';
+      const date = t.created_at ? new Date(t.created_at).toLocaleDateString('fr-FR') : '—';
       return `
       <div class="nc-device-row">
         <div class="nc-device-ico">${ico}</div>
         <div class="nc-device-info">
-          <div class="nc-device-role">${t.role||'Inconnu'} · ${plateforme}</div>
-          <div class="nc-device-ua">${ua.slice(0,70)}...</div>
+          <div class="nc-device-role">${t.role||'Inconnu'} · ${plat}</div>
+          <div class="nc-device-ua">Inscrit le ${date} · <span class="badge ${t.actif?'green':'red'}">${t.actif?'actif':'inactif'}</span></div>
         </div>
-        <div class="nc-device-date">${fmtDateHeure(t.updated_at)}</div>
+        <div class="nc-device-date">${date}</div>
       </div>`;
     }).join('');
   } catch(e) {
     el.innerHTML = '<div class="loading">Erreur de chargement</div>';
+    console.warn('[Appareils]', e.message);
   }
 }
 
@@ -20247,12 +20252,12 @@ function initOfflineMode() {
   }
 }
 
-// PWA Service Worker
+// PWA + FCM Service Worker — utilise firebase-messaging-sw.js (déjà déployé)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
-    navigator.serviceWorker.register('./service-worker.js')
-      .then(function(r) { console.log('[SW] OK'); })
-      .catch(function(e) { console.warn('[SW]', e.message); });
+    navigator.serviceWorker.register('./firebase-messaging-sw.js')
+      .then(function(r) { console.log('[SW] ✅ Service Worker enregistré'); })
+      .catch(function(e) { console.warn('[SW] Enregistrement échoué:', e.message); });
   });
 }
 
