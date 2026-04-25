@@ -17205,19 +17205,41 @@ async function chargerPortailEtudiant(id) {
       : '<div class="empty-state" style="padding:1.5rem">💬 Aucun message</div>';
   }
 
-  // ── EDT mini (démo statique) ──────────────────────────────────────────
+  // ── EDT depuis Supabase (filtre par classe de l'étudiant) ────────────
   const edtGrid = document.getElementById('portail-edt-grid');
   if (edtGrid) {
-    const jours = ['Lun','Mar','Mer','Jeu','Ven'];
-    const slots = [
-      [{mat:'Maths',ico:'📐',cls:'plan-partiel'},{mat:'SVT',ico:'🔬',cls:'plan-controle'},{mat:'',ico:'',cls:''},{mat:'Philo',ico:'🧠',cls:'plan-soutenance'},{mat:'Ang.',ico:'🗣️',cls:'plan-controle'}],
-      [{mat:'Français',ico:'📝',cls:'plan-controle'},{mat:'',ico:'',cls:''},{mat:'Phys.',ico:'⚗️',cls:'plan-partiel'},{mat:'Hist.',ico:'🌍',cls:'plan-controle'},{mat:'',ico:'',cls:''}],
-      [{mat:'Info.',ico:'💻',cls:'plan-controle'},{mat:'Maths',ico:'📐',cls:'plan-partiel'},{mat:'',ico:'',cls:''},{mat:'',ico:'',cls:''},{mat:'SVT',ico:'🔬',cls:'plan-controle'}],
-    ];
-    edtGrid.innerHTML = jours.map((j,i)=>`<div class="edt-day-col">
-      <div class="edt-day-header">${j}</div>
-      ${slots.map(s=>s[i].mat?`<div class="edt-slot-mini ${s[i].cls}">${s[i].ico} ${s[i].mat}</div>`:'<div style="height:36px"></div>').join('')}
-    </div>`).join('');
+    const classeEt = et.classe || et.classe_nom || null;
+    let edtQuery = db.from('emploi_du_temps').select('*').eq('ecole_id', currentEcoleId).order('heure_debut');
+    if (classeEt) edtQuery = edtQuery.eq('classe', classeEt);
+    const { data: creneaux } = await edtQuery;
+    const creneauxOk = creneaux || [];
+
+    if (!creneauxOk.length) {
+      edtGrid.innerHTML = '<div class="empty-state" style="padding:1.5rem;text-align:center;color:#6b7280">📅 Aucun créneau enregistré pour cette classe</div>';
+    } else {
+      const JOURS_EDT = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+      const JOURS_COURT = ['Lun','Mar','Mer','Jeu','Ven','Sam'];
+      // Construire index jour → liste créneaux
+      const parJour = {};
+      creneauxOk.forEach(c => {
+        const j = (c.jour||'').toLowerCase();
+        const jIdx = JOURS_EDT.findIndex(x=>x.toLowerCase()===j||x.toLowerCase().startsWith(j.substring(0,3)));
+        if (jIdx < 0) return;
+        if (!parJour[jIdx]) parJour[jIdx] = [];
+        parJour[jIdx].push(c);
+      });
+      const joursPresents = Object.keys(parJour).map(Number).sort((a,b)=>a-b);
+      const typeColor = { cours:'plan-partiel', td:'plan-controle', tp:'plan-soutenance', examen:'plan-examen' };
+      edtGrid.innerHTML = joursPresents.map(i => `
+        <div class="edt-day-col">
+          <div class="edt-day-header">${JOURS_COURT[i]||JOURS_EDT[i]}</div>
+          ${parJour[i].map(c=>`
+            <div class="edt-slot-mini ${typeColor[c.type]||'plan-partiel'}" title="${c.professeur||''} · ${c.salle||''}">
+              ${c.matiere||'—'}
+              <div style="font-size:9px;opacity:.7;margin-top:1px">${c.heure_debut||''}</div>
+            </div>`).join('')}
+        </div>`).join('');
+    }
   }
 
   // ── Ressources (démo statique) ────────────────────────────────────────
