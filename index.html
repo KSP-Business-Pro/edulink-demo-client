@@ -7686,6 +7686,7 @@ window.addEventListener('load', async () => {
 
 // ══ ÉTAT GLOBAL ═══════════════════════════════
 let currentEcoleId   = null;
+let currentRole      = 'admin';   // déclaré ici pour éviter TDZ dans showPage
 let tousLesEcoles    = [];
 let tousLesEtudiants = [];
 let toutesLesNotes   = [];
@@ -7700,6 +7701,19 @@ let planningOffset   = 0;
 let tousLesEnseignants = [];
 let toutesMatieres     = [];
 let ficheEnsActif      = null;
+
+// Modules désactivés — visibles admin uniquement
+const MODULES_INACTIFS = ['cantine','transport','infirmerie','orientation'];
+
+// Permissions par rôle
+const ROLE_PERMISSIONS = {
+  admin:      ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','documents','certificats','rapports','analytics','messages','rh','bibliotheque','bibliotheque-num','cantine','transport','infirmerie','orientation','reseau','portail-etudiant','dashboard-reseau','parametres-avances','assistant-ia','sms-parents','pwa-avancee','exec-dashboard','portail-public','controle-acces','parametres','utilisateurs','calendrier'],
+  directeur:  ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','rapports','analytics','messages','exec-dashboard','dashboard-reseau','portail-public','parametres'],
+  enseignant: ['dashboard','etudiants','notes','presences','emploi','examens','messages','assistant-ia','portail-etudiant'],
+  comptable:  ['dashboard','paiements','comptabilite','rapports','messages','etudiants'],
+  secretaire: ['dashboard','etudiants','documents','certificats','messages','classes'],
+  surveillance:['dashboard','presences','discipline','messages','controle-acces'],
+};
 // tousLesEnseignants déclaré plus haut (Jour 13)
 
 // ══ UTILS ══════════════════════════════════════
@@ -18630,7 +18644,6 @@ function exporterJournal() { showToast('📥 Export du journal en cours (CSV)...
 /* ══════════════════════════════════════════════════════════════════
    SUITE 13 — RECHERCHE GLOBALE ★ J41
 ══════════════════════════════════════════════════════════════════ */
-let currentRole = 'admin';
 let searchIndex = -1;
 
 // Modules navigables
@@ -18741,16 +18754,7 @@ document.addEventListener('keydown', e => {
 /* ══════════════════════════════════════════════════════════════════
    SUITE 13 — PERMISSIONS PAR RÔLE ★ J41
 ══════════════════════════════════════════════════════════════════ */
-const ROLE_PERMISSIONS = {
-  admin:      ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','documents','certificats','rapports','analytics','messages','rh','bibliotheque','bibliotheque-num','cantine','transport','infirmerie','orientation','reseau','portail-etudiant','dashboard-reseau','parametres-avances','assistant-ia','sms-parents','pwa-avancee','exec-dashboard','portail-public','controle-acces','parametres','utilisateurs','calendrier'],
-  directeur:  ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','rapports','analytics','messages','exec-dashboard','dashboard-reseau','portail-public','parametres'],
-  enseignant: ['dashboard','etudiants','notes','presences','emploi','examens','messages','assistant-ia','portail-etudiant'],
-  comptable:  ['dashboard','paiements','comptabilite','rapports','messages','etudiants'],
-  secretaire: ['dashboard','etudiants','documents','certificats','messages','classes'],
-  surveillance:['dashboard','presences','discipline','messages','controle-acces'],
-};
-
-const MODULES_INACTIFS = ['cantine','transport','infirmerie','orientation'];
+// ROLE_PERMISSIONS et MODULES_INACTIFS déclarés en tête de fichier (ÉTAT GLOBAL)
 
 function appliquerPermissions(role) {
   currentRole = role;
