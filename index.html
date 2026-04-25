@@ -4126,6 +4126,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <option value="lycee">Lycée</option>
         <option value="college">Collège</option>
         <option value="primaire">Primaire</option>
+        <option value="universite">Université</option>
       </select>
     </div>
     <div class="reseau-grid" id="reseau-grid-etablissements">
@@ -4186,7 +4187,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div class="form-group"><label>Nom de l'établissement *</label><input id="etab-nom" placeholder="Lycée Technique de Cotonou" /></div>
       <div class="form-group"><label>Type</label>
         <select id="etab-type">
-          <option value="lycee">Lycée</option><option value="college">Collège</option><option value="primaire">École Primaire</option>
+          <option value="lycee">Lycée</option><option value="college">Collège</option><option value="primaire">École Primaire</option><option value="universite">Université</option>
         </select>
       </div>
       <div class="form-group"><label>Ville *</label><input id="etab-ville" placeholder="Cotonou, Porto-Novo..." /></div>
@@ -16612,28 +16613,28 @@ function reseauRestaurer() {
 
 function chargerReseau() {
   if (!reseauInitialized) {
-    reseauRestaurer(); // vide si rien en localStorage — jamais de fallback démo
+    reseauRestaurer();
     reseauInitialized = true;
   }
-  if (!tousLesEtablissements.length) { document.getElementById('reseau-nb-ecoles').textContent='0'; return; }
 
-  const totalEleves     = tousLesEtablissements.reduce((s,e)=>s+e.eleves,0);
-  const totalEnseignants= tousLesEtablissements.reduce((s,e)=>s+e.enseignants,0);
-  const tauxMoy         = Math.round(tousLesEtablissements.reduce((s,e)=>s+e.taux_reussite,0)/tousLesEtablissements.length);
-  const totalRecette    = tousLesEtablissements.reduce((s,e)=>s+e.recette_mois,0);
-  const alertes         = reseauAlertes.filter(a=>!a.traite).length;
-  const moyNotes        = (tousLesEtablissements.reduce((s,e)=>s+(e.moy_notes||13.5),0)/tousLesEtablissements.length).toFixed(1);
+  const ecoles = tousLesEtablissements;
+  const totalEleves      = ecoles.reduce((s,e)=>s+e.eleves,0);
+  const totalEnseignants = ecoles.reduce((s,e)=>s+e.enseignants,0);
+  const tauxMoy          = ecoles.length ? Math.round(ecoles.reduce((s,e)=>s+e.taux_reussite,0)/ecoles.length) : 0;
+  const totalRecette     = ecoles.reduce((s,e)=>s+(e.recette_mois||0),0);
+  const alertes          = reseauAlertes.filter(a=>!a.traite).length;
+  const moyNotes         = ecoles.length ? (ecoles.reduce((s,e)=>s+(e.moy_notes||0),0)/ecoles.length).toFixed(1) : '—';
 
-  document.getElementById('reseau-nb-ecoles').textContent      = tousLesEtablissements.length;
+  document.getElementById('reseau-nb-ecoles').textContent      = ecoles.length;
   document.getElementById('reseau-nb-eleves').textContent      = totalEleves.toLocaleString('fr-FR');
   document.getElementById('reseau-nb-enseignants').textContent = totalEnseignants;
-  document.getElementById('reseau-taux-reussite').textContent  = tauxMoy+'%';
-  document.getElementById('reseau-kpi-actifs').textContent     = tousLesEtablissements.filter(e=>e.statut==='actif').length;
-  document.getElementById('reseau-kpi-recette').textContent    = (totalRecette/1000000).toFixed(1)+' M F';
-  document.getElementById('reseau-kpi-moy-notes').textContent  = moyNotes+'/20';
+  document.getElementById('reseau-taux-reussite').textContent  = tauxMoy ? tauxMoy+'%' : '—';
+  document.getElementById('reseau-kpi-actifs').textContent     = ecoles.filter(e=>e.statut==='actif').length;
+  document.getElementById('reseau-kpi-recette').textContent    = totalRecette ? (totalRecette/1000000).toFixed(1)+' M F' : '—';
+  document.getElementById('reseau-kpi-moy-notes').textContent  = moyNotes !== '—' ? moyNotes+'/20' : '—';
   document.getElementById('reseau-kpi-alertes').textContent    = alertes;
 
-  renderEtablissements(tousLesEtablissements);
+  renderEtablissements(ecoles);
   renderComparaison();
   renderClassement();
   renderAlertesReseau();
@@ -16647,7 +16648,7 @@ function renderEtablissements(etabs) {
       <div class="reseau-card-ico" style="background:${e.color}15;border:2px solid ${e.color}30">${e.ico}</div>
       <div style="flex:1">
         <div class="reseau-card-nom">${e.nom}</div>
-        <div class="reseau-card-ville">📍 ${e.ville} · ${e.type==='lycee'?'Lycée':e.type==='college'?'Collège':'Primaire'}</div>
+        <div class="reseau-card-ville">📍 ${e.ville} · ${e.type==='lycee'?'Lycée':e.type==='college'?'Collège':e.type==='universite'?'Université':'Primaire'}</div>
       </div>
       <div style="display:flex;align-items:center;gap:5px">
         <div class="status-dot ${e.statut}"></div>
@@ -16677,41 +16678,55 @@ function filtrerEtablissements() {
 }
 
 function renderComparaison() {
-  const maxReussite=Math.max(...tousLesEtablissements.map(e=>e.taux_reussite));
-  const maxRecette=Math.max(...tousLesEtablissements.map(e=>e.recette_mois));
-  const maxEleves=Math.max(...tousLesEtablissements.map(e=>e.eleves));
-  const maxAbs=Math.max(...tousLesEtablissements.map(e=>e.absences_taux));
+  const ecoles = tousLesEtablissements;
+  const empty = '<div class="empty-state" style="padding:1.5rem;text-align:center;color:#9ca3af">Aucun établissement à comparer</div>';
+  ['reseau-compare-reussite','reseau-compare-recettes','reseau-compare-effectifs','reseau-compare-absences'].forEach(id=>{
+    const el=document.getElementById(id); if(el&&!ecoles.length) el.innerHTML=empty;
+  });
+  if (!ecoles.length) return;
 
+  const maxReussite = Math.max(...ecoles.map(e=>e.taux_reussite))||1;
+  const maxRecette  = Math.max(...ecoles.map(e=>e.recette_mois||0))||1;
+  const maxEleves   = Math.max(...ecoles.map(e=>e.eleves))||1;
+  const maxAbs      = Math.max(...ecoles.map(e=>e.absences_taux||0))||1;
   const colorR=['#1d4ed8','#059669','#d97706','#7c3aed','#dc2626','#0d9488'];
 
-  document.getElementById('reseau-compare-reussite').innerHTML = tousLesEtablissements.map((e,i)=>`<div class="compare-bar-item">
+  document.getElementById('reseau-compare-reussite').innerHTML = ecoles.map((e,i)=>`<div class="compare-bar-item">
     <div class="compare-nom" title="${e.nom}">${e.nom.split(' ').slice(0,2).join(' ')}</div>
     <div class="compare-track"><div class="compare-fill" style="width:${Math.round(e.taux_reussite/maxReussite*100)}%;background:${colorR[i%colorR.length]}">${e.taux_reussite}%</div></div>
     <div class="compare-val">${e.taux_reussite}%</div>
   </div>`).join('');
 
-  document.getElementById('reseau-compare-recettes').innerHTML = tousLesEtablissements.map((e,i)=>`<div class="compare-bar-item">
+  document.getElementById('reseau-compare-recettes').innerHTML = ecoles.map((e,i)=>`<div class="compare-bar-item">
     <div class="compare-nom" title="${e.nom}">${e.nom.split(' ').slice(0,2).join(' ')}</div>
-    <div class="compare-track"><div class="compare-fill" style="width:${Math.round(e.recette_mois/maxRecette*100)}%;background:${colorR[i%colorR.length]}">${(e.recette_mois/1000000).toFixed(1)}M</div></div>
-    <div class="compare-val">${(e.recette_mois/1000).toFixed(0)}K</div>
+    <div class="compare-track"><div class="compare-fill" style="width:${Math.round((e.recette_mois||0)/maxRecette*100)}%;background:${colorR[i%colorR.length]}">${((e.recette_mois||0)/1000000).toFixed(1)}M</div></div>
+    <div class="compare-val">${((e.recette_mois||0)/1000).toFixed(0)}K</div>
   </div>`).join('');
 
-  document.getElementById('reseau-compare-effectifs').innerHTML = tousLesEtablissements.map((e,i)=>`<div class="compare-bar-item">
+  document.getElementById('reseau-compare-effectifs').innerHTML = ecoles.map((e,i)=>`<div class="compare-bar-item">
     <div class="compare-nom" title="${e.nom}">${e.nom.split(' ').slice(0,2).join(' ')}</div>
     <div class="compare-track"><div class="compare-fill" style="width:${Math.round(e.eleves/maxEleves*100)}%;background:${colorR[i%colorR.length]}">${e.eleves}</div></div>
     <div class="compare-val">${e.eleves}</div>
   </div>`).join('');
 
-  document.getElementById('reseau-compare-absences').innerHTML = tousLesEtablissements.map((e,i)=>`<div class="compare-bar-item">
+  document.getElementById('reseau-compare-absences').innerHTML = ecoles.map((e,i)=>`<div class="compare-bar-item">
     <div class="compare-nom" title="${e.nom}">${e.nom.split(' ').slice(0,2).join(' ')}</div>
-    <div class="compare-track"><div class="compare-fill" style="width:${Math.round(e.absences_taux/maxAbs*100)}%;background:${e.absences_taux<=6?'#059669':e.absences_taux<=10?'#d97706':'#dc2626'}">${e.absences_taux}%</div></div>
-    <div class="compare-val">${e.absences_taux}%</div>
+    <div class="compare-track"><div class="compare-fill" style="width:${Math.round((e.absences_taux||0)/maxAbs*100)}%;background:${(e.absences_taux||0)<=6?'#059669':(e.absences_taux||0)<=10?'#d97706':'#dc2626'}">${e.absences_taux||0}%</div></div>
+    <div class="compare-val">${e.absences_taux||0}%</div>
   </div>`).join('');
 }
 
 function renderClassement() {
-  const byReussite=[...tousLesEtablissements].sort((a,b)=>b.taux_reussite-a.taux_reussite);
-  const byRecette=[...tousLesEtablissements].sort((a,b)=>b.recette_mois-a.recette_mois);
+  const ecoles = tousLesEtablissements;
+  const empty = '<div class="empty-state" style="padding:1rem;text-align:center;color:#9ca3af">Aucun établissement</div>';
+  if (!ecoles.length) {
+    ['reseau-classement-reussite','reseau-classement-recettes'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.innerHTML=empty;
+    });
+    return;
+  }
+  const byReussite=[...ecoles].sort((a,b)=>b.taux_reussite-a.taux_reussite);
+  const byRecette =[...ecoles].sort((a,b)=>(b.recette_mois||0)-(a.recette_mois||0));
   const rangCls=(i)=>i===0?'rang-1':i===1?'rang-2':i===2?'rang-3':'rang-n';
   const rangIco=(i)=>i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'';
   document.getElementById('reseau-classement-reussite').innerHTML = byReussite.map((e,i)=>`<div class="classement-item">
@@ -16722,7 +16737,7 @@ function renderClassement() {
   document.getElementById('reseau-classement-recettes').innerHTML = byRecette.map((e,i)=>`<div class="classement-item">
     <div class="classement-rang ${rangCls(i)}">${rangIco(i)}</div>
     <div class="classement-nom">${e.nom}</div>
-    <div class="classement-score">${(e.recette_mois/1000000).toFixed(2)} M F</div>
+    <div class="classement-score">${((e.recette_mois||0)/1000000).toFixed(2)} M F</div>
   </div>`).join('');
 }
 
@@ -16802,8 +16817,8 @@ function ajouterEtablissement() {
   if(!nom||!ville){showToast('Nom et ville requis','error');return;}
   const type   = document.getElementById('etab-type').value;
   const statut = document.getElementById('etab-statut').value;
-  const icos   = {lycee:'🏫',college:'🏛️',primaire:'⭐'};
-  const colors = {lycee:'#1e3a5f',college:'#059669',primaire:'#d97706'};
+  const icos   = {lycee:'🏫',college:'🏛️',primaire:'⭐',universite:'🎓'};
+  const colors = {lycee:'#1e3a5f',college:'#059669',primaire:'#d97706',universite:'#7c3aed'};
   const modal  = document.getElementById('modal-add-etab');
   const editId = modal?.dataset?.editId ? parseInt(modal.dataset.editId) : 0;
 
@@ -16844,7 +16859,7 @@ function exporterRapportReseau() {
   if(!tousLesEtablissements.length){showToast('Aucun établissement à exporter','error');return;}
   const header = ['Nom','Type','Ville','Directeur','Élèves','Enseignants','Taux réussite (%)','Recette/mois (F)','Statut'];
   const rows = tousLesEtablissements.map(e=>[
-    e.nom, e.type==='lycee'?'Lycée':e.type==='college'?'Collège':'Primaire',
+    e.nom, e.type==='lycee'?'Lycée':e.type==='college'?'Collège':e.type==='universite'?'Université':'Primaire',
     e.ville, e.directeur, e.eleves, e.enseignants, e.taux_reussite, e.recette_mois, e.statut
   ]);
   csvDownload('EduLink-Reseau-Ecoles.csv', header, rows);
