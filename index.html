@@ -17242,18 +17242,36 @@ async function chargerPortailEtudiant(id) {
     }
   }
 
-  // ── Ressources (démo statique) ────────────────────────────────────────
+  // ── Ressources depuis la table documents Supabase ────────────────────
   const ressList = document.getElementById('portail-ressources-list');
-  if (ressList) ressList.innerHTML = [
-    {ico:'📐',titre:'Cours de Maths - Dérivées',type:'PDF',taille:'2.4 MB'},
-    {ico:'⚗️',titre:'TP Physique - Oscillations',type:'PDF',taille:'1.8 MB'},
-    {ico:'🔬',titre:'Révisions SVT - Génétique',type:'DOC',taille:'950 KB'},
-    {ico:'📝',titre:'Baccalauréats corrigés 2024',type:'PDF',taille:'5.1 MB'},
-  ].map(r=>`<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:.85rem;cursor:pointer;transition:all .15s" onmouseenter="this.style.borderColor='#1e3a5f'" onmouseleave="this.style.borderColor='#e5e7eb'" onclick="showToast('📥 Téléchargement de ${r.titre}...','info')">
-    <div style="font-size:24px;margin-bottom:.4rem">${r.ico}</div>
-    <div style="font-size:12.5px;font-weight:700;color:#111827;margin-bottom:2px">${r.titre}</div>
-    <div style="font-size:11px;color:#9ca3af">${r.type} · ${r.taille}</div>
-  </div>`).join('');
+  if (ressList) {
+    const { data: docs } = await db.from('documents')
+      .select('id, titre, type_fichier, categorie, url_fichier, taille_fichier, created_at')
+      .eq('ecole_id', currentEcoleId)
+      .order('created_at', {ascending: false})
+      .limit(20);
+    const docsOk = docs || [];
+    if (!docsOk.length) {
+      ressList.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem;color:#9ca3af">
+        📂 Aucune ressource disponible.<br>
+        <span style="font-size:11px">Les documents ajoutés dans le module Documents apparaîtront ici.</span>
+      </div>`;
+    } else {
+      const typeIco = { pdf:'📄', docx:'📝', xlsx:'📊', pptx:'📊', image:'🖼️', doc:'📝' };
+      ressList.innerHTML = docsOk.map(d => {
+        const ext = (d.type_fichier||'').toLowerCase().replace('application/','').replace('vnd.openxmlformats-officedocument.wordprocessingml.document','docx').replace('vnd.ms-excel','xlsx').split('/').pop().substring(0,4);
+        const ico = typeIco[ext] || '📎';
+        const taille = d.taille_fichier ? (d.taille_fichier > 1048576 ? (d.taille_fichier/1048576).toFixed(1)+' MB' : Math.round(d.taille_fichier/1024)+' KB') : '';
+        return `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:.85rem;cursor:pointer;transition:all .15s"
+          onmouseenter="this.style.borderColor='#1e3a5f'" onmouseleave="this.style.borderColor='#e5e7eb'"
+          onclick="${d.url_fichier ? `window.open('${d.url_fichier}','_blank')` : `showToast('📂 ${d.titre} — Pas de lien disponible','info')`}">
+          <div style="font-size:24px;margin-bottom:.4rem">${ico}</div>
+          <div style="font-size:12.5px;font-weight:700;color:#111827;margin-bottom:2px">${d.titre||'—'}</div>
+          <div style="font-size:11px;color:#9ca3af">${d.categorie||ext.toUpperCase()||'Fichier'}${taille?' · '+taille:''}</div>
+        </div>`;
+      }).join('');
+    }
+  }
 }
 function portailSwitchTab(tab, btn) {
   ['notes','absences','emploi','messages','paiements','ressources'].forEach(t=>{
