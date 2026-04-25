@@ -7686,7 +7686,8 @@ window.addEventListener('load', async () => {
 
 // ══ ÉTAT GLOBAL ═══════════════════════════════
 let currentEcoleId   = null;
-let currentRole      = 'admin';   // déclaré ici pour éviter TDZ dans showPage
+let currentRole      = 'admin';
+let realtimeChannels = [];        // déclaré ici pour éviter TDZ dans initialiserRealtime
 let tousLesEcoles    = [];
 let tousLesEtudiants = [];
 let toutesLesNotes   = [];
@@ -17139,123 +17140,6 @@ async function chargerPortailEtudiant(id) {
     <div style="font-size:11px;color:#9ca3af">${r.type} · ${r.taille}</div>
   </div>`).join('');
 }
-  document.getElementById('portail-avatar').textContent = et.nom[0];
-  document.getElementById('portail-avatar').style.background = et.color+'40';
-  document.getElementById('portail-nom-etudiant').textContent = et.nom;
-  document.getElementById('portail-info-etudiant').textContent = `${et.classe} · Matricule: ${et.mat} · Inscrit le 01/09/2025`;
-  document.getElementById('portail-moy-gen').textContent = et.moy;
-  document.getElementById('portail-rang').textContent = et.rang;
-  document.getElementById('portail-absences').textContent = et.absences;
-  document.getElementById('portail-moy-side').textContent = et.moy;
-  document.getElementById('portail-moy-bar').style.width = (et.moy/20*100)+'%';
-
-  // Notes
-  const notesList = document.getElementById('portail-notes-list');
-  if (notesList) notesList.innerHTML = et.notes.map(n=>{
-    const cls = n.note>=16?'excellent':n.note>=13?'bien':n.note>=10?'passable':'insuffisant';
-    return `<div class="bm-matiere-row">
-      <div class="bm-mat-nom">${n.matiere}</div>
-      <div class="bm-coef">Coef. ${n.coef}</div>
-      <div class="bm-note ${cls}">${n.note}/20</div>
-      <div class="bm-trend">${n.trend==='↑'?'📈':n.trend==='↓'?'📉':'➡️'}</div>
-    </div>`;
-  }).join('');
-
-  // Absences
-  const absList = document.getElementById('portail-absences-list');
-  if (absList) absList.innerHTML = et.absencesList.length ? et.absencesList.map(a=>`
-    <div class="absence-mini-item">
-      <div class="abs-dot ${a.type}"></div>
-      <div class="abs-info">
-        <div class="abs-date">${a.date}</div>
-        <div class="abs-cours">${a.cours} · <span class="badge ${a.type==='justifiee'?'green':'red'}" style="font-size:10px">${a.type}</span></div>
-      </div>
-    </div>`).join('') : '<div class="empty-state" style="padding:2rem">✅ Aucune absence enregistrée</div>';
-
-  // Emploi du temps mini
-  const edtGrid = document.getElementById('portail-edt-grid');
-  if (edtGrid) {
-    const jours = ['Lun','Mar','Mer','Jeu','Ven'];
-    const slots = [
-      [{mat:'Maths',ico:'📐',cls:'plan-partiel'},{mat:'SVT',ico:'🔬',cls:'plan-controle'},{mat:'',ico:'',cls:''},{mat:'Philo',ico:'🧠',cls:'plan-soutenance'},{mat:'Ang.',ico:'🗣️',cls:'plan-controle'}],
-      [{mat:'Français',ico:'📝',cls:'plan-controle'},{mat:'',ico:'',cls:''},{mat:'Phys.',ico:'⚗️',cls:'plan-partiel'},{mat:'Hist.',ico:'🌍',cls:'plan-controle'},{mat:'',ico:'',cls:''}],
-      [{mat:'Info.',ico:'💻',cls:'plan-controle'},{mat:'Maths',ico:'📐',cls:'plan-partiel'},{mat:'',ico:'',cls:''},{mat:'',ico:'',cls:''},{mat:'SVT',ico:'🔬',cls:'plan-controle'}],
-    ];
-    edtGrid.innerHTML = jours.map((j,i)=>`
-      <div class="edt-day-col">
-        <div class="edt-day-header">${j}</div>
-        ${slots.map(s=>s[i].mat?`<div class="edt-slot-mini ${s[i].cls}">${s[i].ico} ${s[i].mat}</div>`:'<div style="height:36px"></div>').join('')}
-      </div>`).join('');
-  }
-
-  // Messages
-  const msgList = document.getElementById('portail-messages-list');
-  if (msgList) msgList.innerHTML = et.messages.map(m=>`
-    <div class="msg-mini-item ${m.unread?'unread':''}">
-      <div class="mmi-ico" style="background:${m.color}">${m.from[0]}</div>
-      <div class="mmi-body">
-        <div class="mmi-from">${m.from} ${m.unread?'<span class="badge blue" style="font-size:9px">Nouveau</span>':''}</div>
-        <div>${m.sujet}</div>
-        <div class="mmi-preview">${m.preview}</div>
-      </div>
-      <div class="mmi-date">${m.date}</div>
-    </div>`).join('');
-
-  // Paiements
-  const paiTbody = document.getElementById('portail-paiements-tbody');
-  if (paiTbody) paiTbody.innerHTML = et.paiements.map(p=>`<tr>
-    <td>${p.libelle}</td>
-    <td><strong style="color:#1e3a5f">${p.montant.toLocaleString('fr-FR')} F</strong></td>
-    <td>${p.echeance}</td>
-    <td><span class="badge ${p.statut==='Payé'?'green':'amber'}">${p.statut}</span></td>
-  </tr>`).join('');
-
-  // Ressources
-  const ressList = document.getElementById('portail-ressources-list');
-  const ressources = [
-    {ico:'📐',titre:'Cours de Maths - Dérivées',type:'PDF',taille:'2.4 MB'},
-    {ico:'⚗️',titre:'TP Physique - Oscillations',type:'PDF',taille:'1.8 MB'},
-    {ico:'🔬',titre:'Révisions SVT - Génétique',type:'DOC',taille:'950 KB'},
-    {ico:'📝',titre:'Baccalauréats corrigés 2024',type:'PDF',taille:'5.1 MB'},
-  ];
-  if (ressList) ressList.innerHTML = ressources.map(r=>`
-    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:.85rem;cursor:pointer;transition:all .15s" onmouseenter="this.style.borderColor='#1e3a5f'" onmouseleave="this.style.borderColor='#e5e7eb'" onclick="showToast('📥 Téléchargement de ${r.titre}...','info')">
-      <div style="font-size:24px;margin-bottom:.4rem">${r.ico}</div>
-      <div style="font-size:12.5px;font-weight:700;color:#111827;margin-bottom:2px">${r.titre}</div>
-      <div style="font-size:11px;color:#9ca3af">${r.type} · ${r.taille}</div>
-    </div>`).join('');
-
-  // Sidebar - progression par matière
-  const progItems = document.getElementById('portail-progression-items');
-  if (progItems) progItems.innerHTML = et.notes.slice(0,4).map(n=>`
-    <div style="margin-bottom:.6rem">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-        <span style="color:#374151;font-weight:500">${n.matiere}</span>
-        <span style="font-weight:700;color:${n.note>=16?'#059669':n.note>=13?'#1d4ed8':'#d97706'}">${n.note}/20</span>
-      </div>
-      <div style="height:5px;background:#f3f4f6;border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${n.note/20*100}%;background:${n.note>=16?'#059669':n.note>=13?'#1d4ed8':'#d97706'};border-radius:3px"></div>
-      </div>
-    </div>`).join('');
-
-  // Prochains examens
-  const examsSide = document.getElementById('portail-examens-side');
-  const examens = [
-    {mat:'Mathématiques',date:'08/04/2026',type:'Partiel'},
-    {mat:'Physique-Chimie',date:'10/04/2026',type:'Contrôle'},
-    {mat:'Philosophie',date:'15/04/2026',type:'Devoir'},
-  ];
-  if (examsSide) examsSide.innerHTML = examens.map(e=>`
-    <div style="display:flex;align-items:center;gap:.75rem;padding:.65rem 1.2rem;border-bottom:1px solid #f3f4f6">
-      <div style="background:#eff6ff;border-radius:8px;padding:4px 8px;text-align:center;flex-shrink:0">
-        <div style="font-size:14px;font-weight:800;color:#1e3a5f">${e.date.split('/')[0]}</div>
-        <div style="font-size:9px;color:#6b7280">${e.date.split('/')[1]}</div>
-      </div>
-      <div><div style="font-size:12.5px;font-weight:600;color:#111827">${e.mat}</div>
-      <div style="font-size:11px;color:#6b7280">${e.type}</div></div>
-    </div>`).join('');
-
-
 function portailSwitchTab(tab, btn) {
   ['notes','absences','emploi','messages','paiements','ressources'].forEach(t=>{
     const el = document.getElementById('portail-tab-'+t);
@@ -18824,7 +18708,7 @@ if (typeof _showPageOrig === 'function') {
 /* ══════════════════════════════════════════════════════════════════
    SUITE 13 — DASHBOARD TEMPS RÉEL ★ J42
 ══════════════════════════════════════════════════════════════════ */
-let realtimeChannels = [];
+// realtimeChannels déclaré en tête de fichier (ÉTAT GLOBAL)
 let realtimeFeedData = [];
 
 function initialiserRealtime() {
