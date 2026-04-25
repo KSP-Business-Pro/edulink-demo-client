@@ -11695,11 +11695,16 @@ async function sauvegarderTokenFCM(token, role = 'parent') {
 
 async function compterTokensFCM() {
   if (!currentEcoleId) return;
-  const { count } = await db.from('push_tokens')
+  // Compter d'abord sans filtre ecole_id (compatibilité tokens sans ecole_id)
+  const { count: countTotal } = await db.from('push_tokens')
+    .select('*', { count: 'exact', head: true });
+  // Puis avec filtre
+  const { count: countEcole } = await db.from('push_tokens')
     .select('*', { count: 'exact', head: true })
     .eq('ecole_id', currentEcoleId);
   const el = document.getElementById('fcm-tokens-count');
-  if (el) el.textContent = count || 0;
+  // Afficher le plus grand des deux (cas où ecole_id null sur anciens tokens)
+  if (el) el.textContent = Math.max(countTotal||0, countEcole||0);
 }
 
 // ── Envoi notification depuis back-office ──
@@ -12077,23 +12082,32 @@ function fmtDateHeure(d) {
          date.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
 }
 
-// ── Appareils abonnés ──────────────────────────────────────────────────
 async function chargerAppareilsAbonnes() {
-  const el = document.getElementById('nc-devices-list');
+  const el  = document.getElementById('nc-devices-list');
   const cnt = document.getElementById('nc-devices-count');
   if (!el) return;
   try {
-    const { data } = await db.from('push_tokens')
-      .select('role, user_agent, updated_at, plateforme')
+    // Requête avec filtre ecole_id
+    let { data } = await db.from('push_tokens')
+      .select('role, user_agent, updated_at, plateforme, ecole_id')
       .eq('ecole_id', currentEcoleId)
       .order('updated_at', {ascending: false}).limit(20);
+
+    // Si 0 résultats avec filtre, essayer sans (tokens anciens sans ecole_id)
+    if (!data?.length) {
+      const { data: all } = await db.from('push_tokens')
+        .select('role, user_agent, updated_at, plateforme, ecole_id')
+        .order('updated_at', {ascending: false}).limit(20);
+      data = all;
+    }
+
     const tokens = data || [];
     if (cnt) cnt.textContent = tokens.length + ' appareil(s)';
     if (!tokens.length) {
       el.innerHTML = '<div class="empty-state" style="padding:1.5rem"><div class="icon" style="font-size:28px">📱</div><h3>Aucun appareil abonné</h3><p>Les appareils s\'afficheront ici après activation des push sur le portail.</p></div>';
       return;
     }
-    const ROLE_ICO = { parent:'👨‍👩‍👧', etudiant:'🎓', admin:'👨‍💼' };
+    const ROLE_ICO = { parent:'👨‍👩‍👧', etudiant:'🎓', admin:'👨‍💼', enseignant:'👨‍🏫' };
     el.innerHTML = tokens.map(t => {
       const ico = ROLE_ICO[t.role] || '📱';
       const ua  = t.user_agent || '—';
@@ -12109,7 +12123,7 @@ async function chargerAppareilsAbonnes() {
       </div>`;
     }).join('');
   } catch(e) {
-    el.innerHTML = '<div class="loading">Erreur</div>';
+    el.innerHTML = '<div class="loading">Erreur de chargement</div>';
   }
 }
 
