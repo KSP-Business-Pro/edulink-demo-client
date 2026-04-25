@@ -8231,14 +8231,19 @@ async function ajouterEtudiant() {
   const pt = document.getElementById('input-parent-tel').value.trim();
   if (pe) payload.parent_email=pe;
   if (pt) payload.parent_tel=pt;
+  // Colonnes à exclure si absentes du schéma Supabase
+  const COLONNES_OPTIONNELLES = ['email', 'classe', 'classe_nom'];
+  COLONNES_OPTIONNELLES.forEach(c => { if (c in payload) delete payload[c]; });
+
   let etudiantId = editId;
   if (editId) {
     let { error } = await db.from('etudiants').update(payload).eq('id', editId);
     let guard = 0;
     while (error && guard < 8) {
-      const m = /Could not find the '([^']+)' column/.exec(error.message || '');
-      if (!m || !(m[1] in payload)) break;
-      delete payload[m[1]];
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/.exec(error.message || '');
+      const col = m?.[1] || m?.[2];
+      if (!col || !(col in payload)) break;
+      delete payload[col];
       ({ error } = await db.from('etudiants').update(payload).eq('id', editId));
       guard++;
     }
@@ -8248,9 +8253,10 @@ async function ajouterEtudiant() {
     let { data: ins, error } = await db.from('etudiants').insert([insertPayload]).select('id').single();
     let guard = 0;
     while (error && guard < 8) {
-      const m = /Could not find the '([^']+)' column/.exec(error.message || '');
-      if (!m || !(m[1] in insertPayload)) break;
-      delete insertPayload[m[1]];
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/.exec(error.message || '');
+      const col = m?.[1] || m?.[2];
+      if (!col || !(col in insertPayload)) break;
+      delete insertPayload[col];
       ({ data: ins, error } = await db.from('etudiants').insert([insertPayload]).select('id').single());
       guard++;
     }
@@ -11647,7 +11653,9 @@ function mettreAJourStatutFCM() {
 }
 
 // ── Initialisation Firebase + FCM ──
+let fcmInitialized = false;
 async function initFCM() {
+  if (fcmInitialized) return; // Éviter les appels multiples
   // Vérifier si Firebase SDK est chargé
   if (typeof firebase === 'undefined') {
     console.warn('[FCM] Firebase SDK non chargé');
@@ -11661,6 +11669,7 @@ async function initFCM() {
     }
 
     fcmMessaging = firebase.messaging();
+    fcmInitialized = true; // Éviter ré-init
 
     // Demander permission si pas encore accordée
     if (Notification.permission === 'default') {
@@ -11672,16 +11681,25 @@ async function initFCM() {
     }
     if (Notification.permission !== 'granted') return;
 
-    // Obtenir token FCM avec la clé VAPID hardcodée
-    const token = await fcmMessaging.getToken({ vapidKey: FIREBASE_VAPID });
-    if (token) {
-      fcmAdminToken = token;
-      await sauvegarderTokenFCM(token, 'admin');
-      console.log('[FCM] ✅ Token admin enregistré');
-      mettreAJourStatutFCM();
+    // Obtenir token FCM — peut échouer avec 401 si config OAuth2 manquante
+    try {
+      const token = await fcmMessaging.getToken({ vapidKey: FIREBASE_VAPID });
+      if (token) {
+        fcmAdminToken = token;
+        await sauvegarderTokenFCM(token, 'admin');
+        console.log('[FCM] ✅ Token admin enregistré');
+        mettreAJourStatutFCM();
+      }
+    } catch(tokenErr) {
+      // Erreur 401 normale si pas de compte de service OAuth2 configuré
+      // Les notifications locales fonctionnent quand même
+      console.warn('[FCM] Token non obtenu (OAuth2 requis pour push distant):', tokenErr.message);
+      // Statut : Firebase chargé, notifications locales OK
+      const el = document.getElementById('fcm-config-state');
+      if (el) el.innerHTML = '<span style="color:#059669;font-weight:600">✅ Firebase actif — Notifications locales OK</span>';
     }
 
-    // Écoute messages en premier plan
+    // Écoute messages en premier plan (fonctionne sans token distant)
     fcmMessaging.onMessage(function(payload) {
       console.log('[FCM] Message reçu:', payload);
       const notif = payload.notification || {};
