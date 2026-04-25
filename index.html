@@ -4070,8 +4070,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>🌐 Réseau Multi-Établissements</h2><p class="page-subtitle">Tableau de bord consolidé — Tous les établissements du réseau EduLink</p></div>
     <div class="top-actions">
+      <button class="btn-outline" onclick="exporterRapportReseau()">📥 Export CSV</button>
       <button onclick="ouvrirModalAddEtablissement()">+ Établissement</button>
-      <button class="btn-blue" onclick="exporterRapportReseau()">📥 Rapport réseau</button>
     </div>
   </div>
 
@@ -4181,7 +4181,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 <!-- Modal Ajout établissement -->
 <div class="modal-overlay" id="modal-add-etab">
   <div class="modal modal-lg">
-    <h3>🏫 Ajouter un établissement au réseau</h3>
+    <h3 id="modal-add-etab-titre">🏫 Ajouter un établissement au réseau</h3>
     <div class="form-grid">
       <div class="form-group"><label>Nom de l'établissement *</label><input id="etab-nom" placeholder="Lycée Technique de Cotonou" /></div>
       <div class="form-group"><label>Type</label>
@@ -4191,9 +4191,11 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       </div>
       <div class="form-group"><label>Ville *</label><input id="etab-ville" placeholder="Cotonou, Porto-Novo..." /></div>
       <div class="form-group"><label>Directeur / Responsable</label><input id="etab-directeur" placeholder="Nom du directeur" /></div>
+      <div class="form-group"><label>Nombre d'élèves</label><input type="number" id="etab-eleves" placeholder="0" min="0" /></div>
+      <div class="form-group"><label>Nombre d'enseignants</label><input type="number" id="etab-enseignants" placeholder="0" min="0" /></div>
+      <div class="form-group"><label>Taux de réussite (%)</label><input type="number" id="etab-reussite" placeholder="80" min="0" max="100" /></div>
+      <div class="form-group"><label>Recette mensuelle (F CFA)</label><input type="number" id="etab-recette" placeholder="2000000" min="0" /></div>
       <div class="form-group"><label>Email</label><input id="etab-email" placeholder="contact@ecole.bj" /></div>
-      <div class="form-group"><label>Téléphone</label><input id="etab-tel" placeholder="21 XX XX XX" /></div>
-      <div class="form-group"><label>Capacité d'accueil</label><input type="number" id="etab-capacite" placeholder="500" /></div>
       <div class="form-group"><label>Statut</label>
         <select id="etab-statut">
           <option value="actif">Actif</option><option value="alerte">En alerte</option><option value="inactif">Inactif</option>
@@ -4202,7 +4204,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="fermerModal('modal-add-etab')">Annuler</button>
-      <button class="btn-blue" onclick="ajouterEtablissement()">🏫 Ajouter</button>
+      <button class="btn-blue" onclick="ajouterEtablissement()">🏫 Enregistrer</button>
     </div>
   </div>
 </div>
@@ -4471,11 +4473,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>🎓 Portail Étudiant</h2><p class="page-subtitle">Espace personnel de l'élève — notes, absences, messagerie et ressources</p></div>
     <div class="top-actions">
-      <select id="portail-etudiant-selector" onchange="chargerPortailEtudiant(this.value)" style="padding:8px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none">
-        <option value="1">Kofi Mensah — Tle D</option>
-        <option value="2">Afi Dossou — 1ère A</option>
-        <option value="3">Brice Gbedo — Tle C</option>
-        <option value="4">Flore Akpo — 2nde B</option>
+      <select id="portail-etudiant-selector" onchange="chargerPortailEtudiant(this.value)" style="padding:8px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;min-width:200px">
+        <option value="">Chargement...</option>
       </select>
       <button class="btn-blue" onclick="genererBulletinPortail()">📄 Bulletin PDF</button>
     </div>
@@ -7777,7 +7776,7 @@ function showPage(p) {
     infirmerie:      chargerInfirmerie,
     orientation:     chargerOrientation,
     reseau:          chargerReseau,
-    'portail-etudiant':  () => chargerPortailEtudiant(1),
+    'portail-etudiant':  () => peuplerSelectPortailEtudiant(),
     'dashboard-reseau':  chargerDashReseau,
     'parametres-avances': chargerParamAvances,
     'assistant-ia':      chargerAssistantIA,
@@ -7906,6 +7905,11 @@ function fermerModal(id) {
     const modal=document.getElementById('modal-add-livre');
     if(modal) delete modal.dataset.editId;
     const h3=document.getElementById('modal-add-livre-titre'); if(h3) h3.textContent='📚 Ajouter un livre au catalogue';
+  }
+  if (id === 'modal-add-etab') {
+    const modal=document.getElementById('modal-add-etab');
+    if(modal) delete modal.dataset.editId;
+    const h3=document.getElementById('modal-add-etab-titre'); if(h3) h3.textContent='🏫 Ajouter un établissement au réseau';
   }
 }
 document.querySelectorAll('.modal-overlay').forEach(o => {
@@ -16512,7 +16516,8 @@ function ajouterEntreprise() { showToast('🏢 Ajout partenaire — Fonctionnali
 /* ══════════════════════════════════════════════════════════════════
    SUITE 9 — RÉSEAU MULTI-ÉTABLISSEMENTS  ★ JOUR 31
 ══════════════════════════════════════════════════════════════════ */
-let tousLesEtablissements = [
+const RESEAU_STORE_KEY = 'edulink_reseau_data';
+const RESEAU_ETABS_DEMO = [
   { id:1, nom:'Lycée Technique de Cotonou', type:'lycee', ville:'Cotonou', directeur:'Dr. Alphonse Kpako', eleves:842, enseignants:64, classes:22, taux_reussite:78, absences_taux:8, recette_mois:4200000, statut:'actif', ico:'🏫', color:'#1e3a5f' },
   { id:2, nom:'Collège Notre-Dame de Porto-Novo', type:'college', ville:'Porto-Novo', directeur:'Sœur Élisabeth', eleves:612, enseignants:45, classes:18, taux_reussite:85, absences_taux:5, recette_mois:3100000, statut:'actif', ico:'✝️', color:'#059669' },
   { id:3, nom:'Lycée Mathieu Bouké', type:'lycee', ville:'Abomey-Calavi', directeur:'M. Théodore Vigan', eleves:710, enseignants:52, classes:20, taux_reussite:72, absences_taux:12, recette_mois:2800000, statut:'alerte', ico:'🎓', color:'#d97706' },
@@ -16520,22 +16525,53 @@ let tousLesEtablissements = [
   { id:5, nom:'Collège Charles de Gaulle', type:'college', ville:'Cotonou', directeur:'M. Pierre Adanmasso', eleves:525, enseignants:38, classes:16, taux_reussite:80, absences_taux:7, recette_mois:2600000, statut:'actif', ico:'🏛️', color:'#1d4ed8' },
   { id:6, nom:'Lycée EduLink Bénin', type:'lycee', ville:'Cotonou', directeur:'Directrice Adjointe', eleves:198, enseignants:22, classes:6, taux_reussite:88, absences_taux:6, recette_mois:1200000, statut:'actif', ico:'🔗', color:'#059669' },
 ];
+let tousLesEtablissements = [];
+let reseauInitialized = false;
+let reseauAlertes = [];
+
+function reseauSauvegarder() {
+  try { localStorage.setItem(RESEAU_STORE_KEY, JSON.stringify({ etabs: tousLesEtablissements, alertes: reseauAlertes })); } catch(e) {}
+}
+function reseauRestaurer() {
+  try {
+    const raw = localStorage.getItem(RESEAU_STORE_KEY);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    tousLesEtablissements = d.etabs || [...RESEAU_ETABS_DEMO];
+    reseauAlertes = d.alertes || [];
+    return true;
+  } catch(e) { return false; }
+}
 
 function chargerReseau() {
-  const totalEleves = tousLesEtablissements.reduce((s,e)=>s+e.eleves,0);
-  const totalEnseignants = tousLesEtablissements.reduce((s,e)=>s+e.enseignants,0);
-  const tauxMoy = Math.round(tousLesEtablissements.reduce((s,e)=>s+e.taux_reussite,0)/tousLesEtablissements.length);
-  const totalRecette = tousLesEtablissements.reduce((s,e)=>s+e.recette_mois,0);
-  const alertes = tousLesEtablissements.filter(e=>e.statut==='alerte').length;
+  if (!reseauInitialized) {
+    if (!reseauRestaurer()) {
+      tousLesEtablissements = [...RESEAU_ETABS_DEMO];
+      reseauAlertes = [
+        { id:1, etab:'Lycée Mathieu Bouké', type:"Taux d'absentéisme", detail:'12% — Au-dessus du seuil toléré (10%)', niveau:'warning', traite:false },
+        { id:2, etab:'Lycée Mathieu Bouké', type:'Paiements en retard', detail:'23% de frais de scolarité non réglés', niveau:'danger', traite:false },
+        { id:3, etab:'Réseau EduLink', type:'Renouvellement licences', detail:'3 établissements — Licence expire le 30 avril', niveau:'info', traite:false },
+      ];
+    }
+    reseauInitialized = true;
+  }
+  if (!tousLesEtablissements.length) { document.getElementById('reseau-nb-ecoles').textContent='0'; return; }
 
-  document.getElementById('reseau-nb-ecoles').textContent = tousLesEtablissements.length;
-  document.getElementById('reseau-nb-eleves').textContent = totalEleves.toLocaleString('fr-FR');
+  const totalEleves     = tousLesEtablissements.reduce((s,e)=>s+e.eleves,0);
+  const totalEnseignants= tousLesEtablissements.reduce((s,e)=>s+e.enseignants,0);
+  const tauxMoy         = Math.round(tousLesEtablissements.reduce((s,e)=>s+e.taux_reussite,0)/tousLesEtablissements.length);
+  const totalRecette    = tousLesEtablissements.reduce((s,e)=>s+e.recette_mois,0);
+  const alertes         = reseauAlertes.filter(a=>!a.traite).length;
+  const moyNotes        = (tousLesEtablissements.reduce((s,e)=>s+(e.moy_notes||13.5),0)/tousLesEtablissements.length).toFixed(1);
+
+  document.getElementById('reseau-nb-ecoles').textContent      = tousLesEtablissements.length;
+  document.getElementById('reseau-nb-eleves').textContent      = totalEleves.toLocaleString('fr-FR');
   document.getElementById('reseau-nb-enseignants').textContent = totalEnseignants;
-  document.getElementById('reseau-taux-reussite').textContent = tauxMoy+'%';
-  document.getElementById('reseau-kpi-actifs').textContent = tousLesEtablissements.filter(e=>e.statut==='actif').length;
-  document.getElementById('reseau-kpi-recette').textContent = (totalRecette/1000000).toFixed(1)+' M F';
-  document.getElementById('reseau-kpi-moy-notes').textContent = '13.8/20';
-  document.getElementById('reseau-kpi-alertes').textContent = alertes;
+  document.getElementById('reseau-taux-reussite').textContent  = tauxMoy+'%';
+  document.getElementById('reseau-kpi-actifs').textContent     = tousLesEtablissements.filter(e=>e.statut==='actif').length;
+  document.getElementById('reseau-kpi-recette').textContent    = (totalRecette/1000000).toFixed(1)+' M F';
+  document.getElementById('reseau-kpi-moy-notes').textContent  = moyNotes+'/20';
+  document.getElementById('reseau-kpi-alertes').textContent    = alertes;
 
   renderEtablissements(tousLesEtablissements);
   renderComparaison();
@@ -16546,8 +16582,8 @@ function chargerReseau() {
 function renderEtablissements(etabs) {
   const grid = document.getElementById('reseau-grid-etablissements');
   if(!etabs.length){grid.innerHTML='<div class="empty-state">🏫 Aucun établissement</div>';return;}
-  grid.innerHTML = etabs.map(e=>`<div class="reseau-card ${e.type}" onclick="voirDetailEtablissement(${e.id})">
-    <div class="reseau-card-header">
+  grid.innerHTML = etabs.map(e=>`<div class="reseau-card ${e.type}">
+    <div class="reseau-card-header" onclick="voirDetailEtablissement(${e.id})" style="cursor:pointer">
       <div class="reseau-card-ico" style="background:${e.color}15;border:2px solid ${e.color}30">${e.ico}</div>
       <div style="flex:1">
         <div class="reseau-card-nom">${e.nom}</div>
@@ -16566,6 +16602,10 @@ function renderEtablissements(etabs) {
     <div class="reseau-card-footer">
       <span style="font-size:11.5px;color:#6b7280">👤 ${e.directeur}</span>
       <span style="font-size:12px;font-weight:700;color:#059669">${(e.recette_mois/1000).toFixed(0)}K F/mois</span>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px;border-top:1px solid #f3f4f6;padding-top:8px">
+      <button class="btn-sm btn-secondary" style="flex:1" onclick="ouvrirModificationEtablissement(${e.id})">${"✏️ Modifier"}</button>
+      <button class="btn-sm btn-red" style="flex:1" onclick="supprimerEtablissement(${e.id})">${"🗑️ Suppr"}</button>
     </div>
   </div>`).join('');
 }
@@ -16627,19 +16667,31 @@ function renderClassement() {
 }
 
 function renderAlertesReseau() {
-  const alertes = [
-    {etab:'Lycée Mathieu Bouké',type:'Taux d\'absentéisme',detail:'12% — Au-dessus du seuil toléré (10%)',color:'#fef9c3',ico:'🟡',icoColor:'#fef9c3'},
-    {etab:'Lycée Mathieu Bouké',type:'Paiements en retard',detail:'23% de frais de scolarité non réglés',color:'#fee2e2',ico:'🔴',icoColor:'#fee2e2'},
-    {etab:'Réseau EduLink',type:'Renouvellement licences',detail:'3 établissements — Licence expire le 30 avril',color:'#dbeafe',ico:'🔵',icoColor:'#dbeafe'},
-  ];
-  document.getElementById('reseau-alertes-list').innerHTML = alertes.map(a=>`<div class="reseau-alerte-item">
-    <div class="ra-ico" style="background:${a.icoColor}">${a.ico}</div>
-    <div class="ra-body">
-      <div class="ra-titre">${a.etab} — ${a.type}</div>
-      <div class="ra-detail">${a.detail}</div>
-    </div>
-    <button class="btn-sm btn-secondary" onclick="showToast('✅ Alerte marquée comme traitée','success')">Traiter</button>
-  </div>`).join('');
+  const niveauCfg = { warning:{ico:'🟡',color:'#fef9c3'}, danger:{ico:'🔴',color:'#fee2e2'}, info:{ico:'🔵',color:'#dbeafe'} };
+  const actives = reseauAlertes.filter(a=>!a.traite);
+  document.getElementById('reseau-alertes-list').innerHTML = actives.length
+    ? actives.map(a=>{
+        const cfg = niveauCfg[a.niveau]||niveauCfg.info;
+        return `<div class="reseau-alerte-item">
+          <div class="ra-ico" style="background:${cfg.color}">${cfg.ico}</div>
+          <div class="ra-body">
+            <div class="ra-titre">${a.etab} — ${a.type}</div>
+            <div class="ra-detail">${a.detail}</div>
+          </div>
+          <button class="btn-sm btn-secondary" onclick="traiterAlerteReseau(${a.id})">✅ Traiter</button>
+        </div>`;
+      }).join('')
+    : '<div class="empty-state" style="padding:1rem;text-align:center;color:#6b7280">✅ Aucune alerte active</div>';
+}
+
+function traiterAlerteReseau(id) {
+  const a = reseauAlertes.find(x=>x.id===id);
+  if (!a) return;
+  a.traite = true;
+  reseauSauvegarder();
+  renderAlertesReseau();
+  document.getElementById('reseau-kpi-alertes').textContent = reseauAlertes.filter(x=>!x.traite).length;
+  showToast('✅ Alerte marquée comme traitée','success');
 }
 
 function reseauSwitchTab(tab,btn) {
@@ -16651,27 +16703,93 @@ function reseauSwitchTab(tab,btn) {
 }
 
 function voirDetailEtablissement(id) {
-  const e=tousLesEtablissements.find(et=>et.id===id);
+  const e = tousLesEtablissements.find(et=>et.id===id);
   if(!e) return;
-  showToast(`🏫 ${e.nom} — ${e.eleves} élèves · ${e.taux_reussite}% réussite · ${(e.recette_mois/1000).toFixed(0)}K F/mois`,'info');
+  showToast(`🏫 ${e.nom} | ${e.eleves} élèves · ${e.enseignants} profs · ${e.taux_reussite}% réussite · ${(e.recette_mois/1000).toFixed(0)}K F/mois | 👤 ${e.directeur}`,'info');
 }
 
-function ouvrirModalAddEtablissement() { ouvrirModal('modal-add-etab'); }
+function ouvrirModalAddEtablissement() {
+  const modal = document.getElementById('modal-add-etab');
+  if (modal) delete modal.dataset.editId;
+  const h3 = document.getElementById('modal-add-etab-titre'); if(h3) h3.textContent = '🏫 Ajouter un établissement au réseau';
+  ['etab-nom','etab-ville','etab-directeur','etab-eleves','etab-enseignants','etab-reussite','etab-recette'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  ouvrirModal('modal-add-etab');
+}
+
+function ouvrirModificationEtablissement(id) {
+  const e = tousLesEtablissements.find(et=>et.id===id);
+  if(!e) return;
+  document.getElementById('etab-nom').value        = e.nom||'';
+  document.getElementById('etab-ville').value      = e.ville||'';
+  document.getElementById('etab-type').value       = e.type||'lycee';
+  document.getElementById('etab-directeur').value  = e.directeur||'';
+  document.getElementById('etab-statut').value     = e.statut||'actif';
+  const elv=document.getElementById('etab-eleves');       if(elv) elv.value=e.eleves||0;
+  const ens=document.getElementById('etab-enseignants');  if(ens) ens.value=e.enseignants||0;
+  const rus=document.getElementById('etab-reussite');     if(rus) rus.value=e.taux_reussite||0;
+  const rec=document.getElementById('etab-recette');      if(rec) rec.value=e.recette_mois||0;
+  const modal = document.getElementById('modal-add-etab');
+  modal.dataset.editId = String(id);
+  const h3 = document.getElementById('modal-add-etab-titre'); if(h3) h3.textContent = "✏️ Modifier l'établissement";
+  ouvrirModal('modal-add-etab');
+}
 
 function ajouterEtablissement() {
-  const nom=document.getElementById('etab-nom').value.trim();
-  const ville=document.getElementById('etab-ville').value.trim();
+  const nom   = document.getElementById('etab-nom').value.trim();
+  const ville = document.getElementById('etab-ville').value.trim();
   if(!nom||!ville){showToast('Nom et ville requis','error');return;}
-  const type=document.getElementById('etab-type').value;
-  const icos={lycee:'🏫',college:'🏛️',primaire:'⭐'};
-  const colors={lycee:'#1e3a5f',college:'#059669',primaire:'#d97706'};
-  tousLesEtablissements.push({id:Date.now(),nom,type,ville,directeur:document.getElementById('etab-directeur').value||'—',eleves:0,enseignants:0,classes:0,taux_reussite:0,absences_taux:0,recette_mois:0,statut:document.getElementById('etab-statut').value,ico:icos[type]||'🏫',color:colors[type]||'#6b7280'});
+  const type   = document.getElementById('etab-type').value;
+  const statut = document.getElementById('etab-statut').value;
+  const icos   = {lycee:'🏫',college:'🏛️',primaire:'⭐'};
+  const colors = {lycee:'#1e3a5f',college:'#059669',primaire:'#d97706'};
+  const modal  = document.getElementById('modal-add-etab');
+  const editId = modal?.dataset?.editId ? parseInt(modal.dataset.editId) : 0;
+
+  const vals = {
+    nom, ville, type, statut,
+    directeur:    document.getElementById('etab-directeur').value.trim()||'—',
+    eleves:       parseInt(document.getElementById('etab-eleves')?.value)||0,
+    enseignants:  parseInt(document.getElementById('etab-enseignants')?.value)||0,
+    taux_reussite:parseInt(document.getElementById('etab-reussite')?.value)||0,
+    recette_mois: parseInt(document.getElementById('etab-recette')?.value)||0,
+  };
+
+  if (editId) {
+    const idx = tousLesEtablissements.findIndex(e=>e.id===editId);
+    if(idx<0){showToast("Établissement introuvable",'error');return;}
+    tousLesEtablissements[idx] = { ...tousLesEtablissements[idx], ...vals };
+    showToast(`✅ ${nom} mis à jour !`,'success');
+  } else {
+    tousLesEtablissements.push({ id:Date.now(), ...vals, classes:0, absences_taux:0, moy_notes:13.5, ico:icos[type]||'🏫', color:colors[type]||'#6b7280' });
+    showToast(`🏫 ${nom} ajouté au réseau !`,'success');
+  }
   fermerModal('modal-add-etab');
+  reseauSauvegarder();
   chargerReseau();
-  showToast(`🏫 ${nom} ajouté au réseau !`,'success');
 }
 
-function exporterRapportReseau() { showToast('📥 Rapport réseau PDF en cours de génération...','info'); }
+function supprimerEtablissement(id) {
+  const e = tousLesEtablissements.find(et=>et.id===id);
+  if(!e) return;
+  if(!confirm(`Retirer "${e.nom}" du réseau ? Cette action est irréversible.`)) return;
+  tousLesEtablissements = tousLesEtablissements.filter(et=>et.id!==id);
+  reseauSauvegarder();
+  chargerReseau();
+  showToast('🗑️ Établissement retiré du réseau.','success');
+}
+
+function exporterRapportReseau() {
+  if(!tousLesEtablissements.length){showToast('Aucun établissement à exporter','error');return;}
+  const header = ['Nom','Type','Ville','Directeur','Élèves','Enseignants','Taux réussite (%)','Recette/mois (F)','Statut'];
+  const rows = tousLesEtablissements.map(e=>[
+    e.nom, e.type==='lycee'?'Lycée':e.type==='college'?'Collège':'Primaire',
+    e.ville, e.directeur, e.eleves, e.enseignants, e.taux_reussite, e.recette_mois, e.statut
+  ]);
+  csvDownload('EduLink-Reseau-Ecoles.csv', header, rows);
+  showToast('📥 Export réseau terminé !','success');
+}
 
 /* — Chargement des pages Suite 9 — */
 (function() {
@@ -16837,59 +16955,176 @@ function paramSwitchTab(tab, btn) {
 function sauvegarderParamAvances() { showToast('✅ Paramètres sauvegardés avec succès !','success'); }
 function lancerBackup() { showToast('💾 Sauvegarde manuelle lancée — Terminée dans quelques instants','info'); setTimeout(()=>showToast('✅ Sauvegarde terminée avec succès !','success'),2500); }
 
-/* ══════════════════════════════════════════════════════════════════
-   SUITE 10 — PORTAIL ÉTUDIANT ★ JOUR 33
-══════════════════════════════════════════════════════════════════ */
-const ETUDIANTS_PORTAIL = {
-  1: { nom:'Kofi Mensah', classe:'Terminale D', mat:'EDU-2025-001', moy:14.8, rang:'3ème', absences:3, paiement:'✅', color:'#1e3a5f',
-    notes:[
-      {matiere:'Mathématiques', note:16.5, coef:4, trend:'↑'},
-      {matiere:'Physique-Chimie', note:14.0, coef:3, trend:'→'},
-      {matiere:'SVT', note:15.5, coef:3, trend:'↑'},
-      {matiere:'Philosophie', note:13.0, coef:2, trend:'↓'},
-      {matiere:'Français', note:12.5, coef:3, trend:'→'},
-      {matiere:'Histoire-Géo', note:14.5, coef:2, trend:'↑'},
-      {matiere:'Anglais', note:16.0, coef:2, trend:'↑'},
-      {matiere:'Informatique', note:18.0, coef:2, trend:'↑'},
-    ],
-    absencesList:[
-      {date:'12/03/2026', cours:'Mathématiques', type:'injustifiee'},
-      {date:'18/03/2026', cours:'Philosophie', type:'justifiee'},
-      {date:'25/03/2026', cours:'Histoire-Géo', type:'justifiee'},
-    ],
-    messages:[
-      {from:'Prof. Ahouandjinou', sujet:'Résultats du devoir de Maths', preview:'Bravo Kofi, excellent résultat...', date:'29/03', unread:true, color:'#1e3a5f'},
-      {from:'Administration', sujet:'Convocation réunion parents', preview:'Vous êtes invité le 05/04...', date:'27/03', unread:false, color:'#d97706'},
-      {from:'Prof. Tossou', sujet:'Travaux pratiques SVT', preview:'Le TP de demain est maintenu...', date:'25/03', unread:false, color:'#059669'},
-    ],
-    paiements:[
-      {libelle:'Frais de scolarité T1', montant:75000, echeance:'30/09/2025', statut:'Payé'},
-      {libelle:'Frais de scolarité T2', montant:75000, echeance:'31/01/2026', statut:'Payé'},
-      {libelle:'Frais de scolarité T3', montant:75000, echeance:'30/04/2026', statut:'En attente'},
-      {libelle:'Frais d\'examen', montant:15000, echeance:'15/04/2026', statut:'En attente'},
-    ]
-  },
-  2: { nom:'Afi Dossou', classe:'1ère A', mat:'EDU-2025-042', moy:17.1, rang:'1er', absences:1, paiement:'✅', color:'#059669',
-    notes:[
-      {matiere:'Mathématiques', note:18.5, coef:4, trend:'↑'},
-      {matiere:'Physique-Chimie', note:17.0, coef:3, trend:'↑'},
-      {matiere:'SVT', note:16.5, coef:3, trend:'→'},
-      {matiere:'Français', note:15.0, coef:3, trend:'↑'},
-      {matiere:'Philosophie', note:17.5, coef:2, trend:'↑'},
-      {matiere:'Anglais', note:18.0, coef:2, trend:'↑'},
-    ],
-    absencesList:[{date:'20/03/2026', cours:'Français', type:'justifiee'}],
-    messages:[{from:'Administration', sujet:'Félicitations rang 1', preview:'Vous êtes première de votre classe...', date:'28/03', unread:true, color:'#059669'}],
-    paiements:[
-      {libelle:'Frais de scolarité T1', montant:70000, echeance:'30/09/2025', statut:'Payé'},
-      {libelle:'Frais de scolarité T2', montant:70000, echeance:'31/01/2026', statut:'Payé'},
-      {libelle:'Frais de scolarité T3', montant:70000, echeance:'30/04/2026', statut:'En attente'},
-    ]
-  },
-};
+// ── Portail Étudiant ─────────────────────────────────────────────────────
+async function peuplerSelectPortailEtudiant() {
+  const sel = document.getElementById('portail-etudiant-selector');
+  if (!sel) return;
+  const { data, error } = await db.from('etudiants').select('id, nom, prenom, classe_id').eq('ecole_id', currentEcoleId).order('nom');
+  if (error || !data?.length) return;
+  sel.innerHTML = data.map(e => `<option value="${e.id}">${e.prenom} ${e.nom}</option>`).join('');
+  chargerPortailEtudiant(data[0].id);
+}
 
-function chargerPortailEtudiant(id=1) {
-  const et = ETUDIANTS_PORTAIL[id] || ETUDIANTS_PORTAIL[1];
+async function chargerPortailEtudiant(id) {
+  if (!id) return;
+  // ── Étudiant ──────────────────────────────────────────────────────────
+  const { data: et } = await db.from('etudiants').select('*').eq('id', id).single();
+  if (!et) { showToast('Étudiant introuvable.','error'); return; }
+
+  const nom = `${et.prenom||''} ${et.nom||''}`.trim();
+  const classeLabel = et.classe || et.classe_nom || '—';
+  document.getElementById('portail-avatar').textContent = (et.prenom||et.nom||'?')[0].toUpperCase();
+  document.getElementById('portail-avatar').style.background = '#1e3a5f40';
+  document.getElementById('portail-nom-etudiant').textContent = nom;
+  document.getElementById('portail-info-etudiant').textContent = `${classeLabel} · Matricule: ${et.matricule||et.id} · Inscrit le ${et.date_inscription ? fmtDate(et.date_inscription) : '—'}`;
+
+  // ── Notes ─────────────────────────────────────────────────────────────
+  const { data: notes } = await db.from('notes').select('*').eq('etudiant_id', id).eq('ecole_id', currentEcoleId).order('matiere');
+  const notesOk = notes||[];
+  const moyGen = notesOk.length ? (notesOk.reduce((s,n)=>s+(parseFloat(n.note)||0)*(n.coefficient||1),0) / notesOk.reduce((s,n)=>s+(n.coefficient||1),0)).toFixed(2) : '—';
+  document.getElementById('portail-moy-gen').textContent = moyGen;
+  document.getElementById('portail-moy-side').textContent = moyGen;
+  if (moyGen !== '—') document.getElementById('portail-moy-bar').style.width = (parseFloat(moyGen)/20*100)+'%';
+
+  const notesList = document.getElementById('portail-notes-list');
+  if (notesList) notesList.innerHTML = notesOk.length
+    ? notesOk.map(n=>{
+        const v = parseFloat(n.note)||0;
+        const cls = v>=16?'excellent':v>=13?'bien':v>=10?'passable':'insuffisant';
+        return `<div class="bm-matiere-row">
+          <div class="bm-mat-nom">${n.matiere||'—'}</div>
+          <div class="bm-coef">Coef. ${n.coefficient||1}</div>
+          <div class="bm-note ${cls}">${v}/20</div>
+          <div class="bm-trend">${n.appreciation?'📝':'➡️'}</div>
+        </div>`;
+      }).join('')
+    : '<div class="empty-state" style="padding:1.5rem">📊 Aucune note enregistrée</div>';
+
+  // Progression sidebar
+  const progItems = document.getElementById('portail-progression-items');
+  if (progItems) progItems.innerHTML = notesOk.slice(0,4).map(n=>{
+    const v = parseFloat(n.note)||0;
+    return `<div style="margin-bottom:.6rem">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span style="color:#374151;font-weight:500">${n.matiere||'—'}</span>
+        <span style="font-weight:700;color:${v>=16?'#059669':v>=13?'#1d4ed8':'#d97706'}">${v}/20</span>
+      </div>
+      <div style="height:5px;background:#f3f4f6;border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${v/20*100}%;background:${v>=16?'#059669':v>=13?'#1d4ed8':'#d97706'};border-radius:3px"></div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="color:#9ca3af;font-size:12px;padding:.5rem">Aucune note disponible</div>';
+
+  // Résultats récents sidebar
+  const resultsSide = document.getElementById('portail-resultats-side');
+  if (resultsSide) resultsSide.innerHTML = notesOk.slice(0,3).map(n=>{
+    const v = parseFloat(n.note)||0;
+    return `<div style="display:flex;align-items:center;gap:.75rem;padding:.65rem 1.2rem;border-bottom:1px solid #f3f4f6">
+      <span style="font-size:18px">${v>=16?'🏆':v>=13?'✅':'📊'}</span>
+      <div style="flex:1"><div style="font-size:12.5px;font-weight:600;color:#111827">${n.matiere||'—'}</div></div>
+      <span class="badge ${v>=16?'green':v>=13?'blue':'amber'}">${v}/20</span>
+    </div>`;
+  }).join('') || '<div style="color:#9ca3af;font-size:12px;padding:.75rem 1.2rem">Aucun résultat</div>';
+
+  // ── Absences ──────────────────────────────────────────────────────────
+  const { data: absences } = await db.from('absences').select('*').eq('etudiant_id', id).eq('ecole_id', currentEcoleId).order('date', {ascending:false}).limit(20);
+  const absOk = absences||[];
+  document.getElementById('portail-absences').textContent = absOk.filter(a=>!a.justifiee).length;
+
+  const absList = document.getElementById('portail-absences-list');
+  if (absList) absList.innerHTML = absOk.length
+    ? absOk.map(a=>`<div class="absence-mini-item">
+        <div class="abs-dot ${a.justifiee?'justifiee':'injustifiee'}"></div>
+        <div class="abs-info">
+          <div class="abs-date">${fmtDate(a.date)}</div>
+          <div class="abs-cours">${a.matiere||a.cours||'—'} · <span class="badge ${a.justifiee?'green':'red'}" style="font-size:10px">${a.justifiee?'justifiée':'injustifiée'}</span></div>
+        </div>
+      </div>`).join('')
+    : '<div class="empty-state" style="padding:2rem">✅ Aucune absence enregistrée</div>';
+
+  // ── Paiements ─────────────────────────────────────────────────────────
+  const { data: paiements } = await db.from('paiements').select('*').eq('etudiant_id', id).eq('ecole_id', currentEcoleId).order('date_echeance', {ascending:false}).limit(10);
+  const paiOk = paiements||[];
+  const paiTbody = document.getElementById('portail-paiements-tbody');
+  if (paiTbody) paiTbody.innerHTML = paiOk.length
+    ? paiOk.map(p=>`<tr>
+        <td>${p.libelle||p.type_paiement||'—'}</td>
+        <td><strong style="color:#1e3a5f">${(p.montant||0).toLocaleString('fr-FR')} F</strong></td>
+        <td>${p.date_echeance ? fmtDate(p.date_echeance) : '—'}</td>
+        <td><span class="badge ${p.statut==='payé'||p.statut==='Payé'?'green':'amber'}">${p.statut||'—'}</span></td>
+      </tr>`).join('')
+    : '<tr><td colspan="4" class="loading">Aucun paiement enregistré</td></tr>';
+
+  // ── Examens à venir sidebar ────────────────────────────────────────────
+  const { data: examens } = await db.from('examens').select('*').eq('ecole_id', currentEcoleId).order('date').limit(5);
+  const examsSide = document.getElementById('portail-examens-side');
+  if (examsSide) {
+    const examsOk = (examens||[]).filter(e=>e.date >= new Date().toISOString().split('T')[0]);
+    examsSide.innerHTML = examsOk.length
+      ? examsOk.slice(0,3).map(e=>{
+          const parts = (e.date||'').split('-');
+          const jour = parts[2]||'—'; const mois = parts[1]||'—';
+          return `<div style="display:flex;align-items:center;gap:.75rem;padding:.65rem 1.2rem;border-bottom:1px solid #f3f4f6">
+            <div style="background:#eff6ff;border-radius:8px;padding:4px 8px;text-align:center;flex-shrink:0">
+              <div style="font-size:14px;font-weight:800;color:#1e3a5f">${jour}</div>
+              <div style="font-size:9px;color:#6b7280">${mois}</div>
+            </div>
+            <div><div style="font-size:12.5px;font-weight:600;color:#111827">${e.matiere||e.titre||'—'}</div>
+            <div style="font-size:11px;color:#6b7280">${e.type||'Examen'}</div></div>
+          </div>`;
+        }).join('')
+      : '<div style="color:#9ca3af;font-size:12px;padding:.75rem 1.2rem">Aucun examen à venir</div>';
+  }
+
+  // ── Messages (depuis messages Supabase) ───────────────────────────────
+  const { data: msgs } = await db.from('messages').select('*').eq('ecole_id', currentEcoleId).order('created_at',{ascending:false}).limit(5);
+  const msgList = document.getElementById('portail-messages-list');
+  if (msgList) {
+    const msgsOk = msgs||[];
+    msgList.innerHTML = msgsOk.length
+      ? msgsOk.map(m=>`<div class="msg-mini-item">
+          <div class="mmi-ico" style="background:#1e3a5f40">${(m.expediteur||m.from||'?')[0]}</div>
+          <div class="mmi-body">
+            <div class="mmi-from">${m.expediteur||m.from||'—'}</div>
+            <div>${m.sujet||'—'}</div>
+            <div class="mmi-preview">${(m.corps||m.contenu||'').substring(0,60)}...</div>
+          </div>
+          <div class="mmi-date">${fmtDate(m.created_at)}</div>
+        </div>`).join('')
+      : '<div class="empty-state" style="padding:1.5rem">💬 Aucun message</div>';
+  }
+
+  // ── Rang (calculé) ────────────────────────────────────────────────────
+  document.getElementById('portail-rang').textContent = '—';
+
+  // ── EDT mini (démo statique) ──────────────────────────────────────────
+  const edtGrid = document.getElementById('portail-edt-grid');
+  if (edtGrid) {
+    const jours = ['Lun','Mar','Mer','Jeu','Ven'];
+    const slots = [
+      [{mat:'Maths',ico:'📐',cls:'plan-partiel'},{mat:'SVT',ico:'🔬',cls:'plan-controle'},{mat:'',ico:'',cls:''},{mat:'Philo',ico:'🧠',cls:'plan-soutenance'},{mat:'Ang.',ico:'🗣️',cls:'plan-controle'}],
+      [{mat:'Français',ico:'📝',cls:'plan-controle'},{mat:'',ico:'',cls:''},{mat:'Phys.',ico:'⚗️',cls:'plan-partiel'},{mat:'Hist.',ico:'🌍',cls:'plan-controle'},{mat:'',ico:'',cls:''}],
+      [{mat:'Info.',ico:'💻',cls:'plan-controle'},{mat:'Maths',ico:'📐',cls:'plan-partiel'},{mat:'',ico:'',cls:''},{mat:'',ico:'',cls:''},{mat:'SVT',ico:'🔬',cls:'plan-controle'}],
+    ];
+    edtGrid.innerHTML = jours.map((j,i)=>`<div class="edt-day-col">
+      <div class="edt-day-header">${j}</div>
+      ${slots.map(s=>s[i].mat?`<div class="edt-slot-mini ${s[i].cls}">${s[i].ico} ${s[i].mat}</div>`:'<div style="height:36px"></div>').join('')}
+    </div>`).join('');
+  }
+
+  // ── Ressources (démo statique) ────────────────────────────────────────
+  const ressList = document.getElementById('portail-ressources-list');
+  if (ressList) ressList.innerHTML = [
+    {ico:'📐',titre:'Cours de Maths - Dérivées',type:'PDF',taille:'2.4 MB'},
+    {ico:'⚗️',titre:'TP Physique - Oscillations',type:'PDF',taille:'1.8 MB'},
+    {ico:'🔬',titre:'Révisions SVT - Génétique',type:'DOC',taille:'950 KB'},
+    {ico:'📝',titre:'Baccalauréats corrigés 2024',type:'PDF',taille:'5.1 MB'},
+  ].map(r=>`<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:.85rem;cursor:pointer;transition:all .15s" onmouseenter="this.style.borderColor='#1e3a5f'" onmouseleave="this.style.borderColor='#e5e7eb'" onclick="showToast('📥 Téléchargement de ${r.titre}...','info')">
+    <div style="font-size:24px;margin-bottom:.4rem">${r.ico}</div>
+    <div style="font-size:12.5px;font-weight:700;color:#111827;margin-bottom:2px">${r.titre}</div>
+    <div style="font-size:11px;color:#9ca3af">${r.type} · ${r.taille}</div>
+  </div>`).join('');
+}
   document.getElementById('portail-avatar').textContent = et.nom[0];
   document.getElementById('portail-avatar').style.background = et.color+'40';
   document.getElementById('portail-nom-etudiant').textContent = et.nom;
@@ -17006,15 +17241,6 @@ function chargerPortailEtudiant(id=1) {
       <div style="font-size:11px;color:#6b7280">${e.type}</div></div>
     </div>`).join('');
 
-  // Résultats récents
-  const resultsSide = document.getElementById('portail-resultats-side');
-  if (resultsSide) resultsSide.innerHTML = et.notes.slice(0,3).map(n=>`
-    <div style="display:flex;align-items:center;gap:.75rem;padding:.65rem 1.2rem;border-bottom:1px solid #f3f4f6">
-      <span style="font-size:18px">${n.note>=16?'🏆':n.note>=13?'✅':'📊'}</span>
-      <div style="flex:1"><div style="font-size:12.5px;font-weight:600;color:#111827">${n.matiere}</div></div>
-      <span class="badge ${n.note>=16?'green':n.note>=13?'blue':'amber'}">${n.note}/20</span>
-    </div>`).join('');
-}
 
 function portailSwitchTab(tab, btn) {
   ['notes','absences','emploi','messages','paiements','ressources'].forEach(t=>{
@@ -17247,7 +17473,7 @@ function exporterRapportComplet() { showToast('📥 Rapport réseau complet en c
       window.showPage = function(id) {
         _base(id);
         if (id==='parametres-avances') setTimeout(chargerParamAvances, 50);
-        if (id==='portail-etudiant') setTimeout(()=>chargerPortailEtudiant(1), 50);
+        if (id==='portail-etudiant') setTimeout(()=>peuplerSelectPortailEtudiant(), 50);
         if (id==='dashboard-reseau') setTimeout(chargerDashReseau, 50);
       };
     }
