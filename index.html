@@ -4907,8 +4907,9 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>📧 Email & Communication Parents</h2><p class="page-subtitle">Emails groupés, alertes automatiques et suivi des envois</p></div>
     <div class="top-actions">
-      <button onclick="ouvrirComposerSMS()">+ Nouveau SMS</button>
+      <button onclick="ouvrirComposerSMS()">+ Nouveau message</button>
       <button class="btn-blue" onclick="envoyerAlertesAuto()">⚡ Alertes auto</button>
+      <button class="btn-secondary" onclick="exporterContactsParents()">📥 Export contacts</button>
     </div>
   </div>
 
@@ -4933,7 +4934,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <button class="tab active" onclick="smsSwitchTab('composer',this)">✍️ Composer</button>
     <button class="tab" onclick="smsSwitchTab('historique',this)">📋 Historique</button>
     <button class="tab" onclick="smsSwitchTab('contacts',this)">👥 Contacts parents</button>
-    <button class="tab" onclick="smsSwitchTab('automatique',this)">⚙️ SMS Automatiques</button>
+    <button class="tab" onclick="smsSwitchTab('automatique',this)">⚙️ Emails Automatiques</button>
   </div>
 
   <!-- Layout SMS -->
@@ -4943,7 +4944,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <!-- TAB Composer -->
       <div id="sms-tab-composer">
         <div class="sms-block">
-          <div class="sms-block-header"><span>✍️ Composer un SMS</span></div>
+          <div class="sms-block-header"><span>✍️ Composer un Email</span></div>
           <div class="sms-composer">
             <!-- Destinataires -->
             <div class="form-group">
@@ -4992,7 +4993,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div class="sms-block">
           <div class="sms-block-header">
             <span>📋 Historique des envois</span>
-            <button class="btn-sm btn-secondary" onclick="showToast('📥 Export CSV en cours...','info')">📥 Export</button>
+            <button class="btn-sm btn-secondary" onclick="exporterHistoriqueEmails()">📥 Export CSV</button>
           </div>
           <div id="sms-historique-list"></div>
         </div>
@@ -5012,7 +5013,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <!-- TAB Automatique -->
       <div id="sms-tab-automatique" style="display:none">
         <div class="sms-block">
-          <div class="sms-block-header"><span>⚙️ SMS Automatiques configurés</span></div>
+          <div class="sms-block-header"><span>⚙️ Emails Automatiques configurés</span></div>
           <div style="padding:1rem" id="sms-auto-list"></div>
         </div>
       </div>
@@ -7663,13 +7664,13 @@ let ficheEnsActif      = null;
 // Quand un module modifie des données Supabase, il appelle invalidateData(table)
 // pour forcer le rechargement de tous les modules qui consomment cette table.
 const DATA_CONSUMERS = {
-  notes:     ['notes','portail-etudiant','rapports','analytics','dashboard'],
-  absences:  ['presences','portail-etudiant','rapports','analytics','dashboard'],
-  paiements: ['paiements','portail-etudiant','comptabilite','dashboard'],
-  messages:  ['messages','portail-etudiant'],
-  etudiants: ['etudiants','portail-etudiant','presences','notes','paiements','certificats','documents','discipline'],
-  examens:   ['examens','portail-etudiant'],
-  incidents: ['discipline'],
+  notes:     ["notes","portail-etudiant","rapports","analytics","dashboard"],
+  absences:  ["presences","portail-etudiant","rapports","analytics","dashboard"],
+  paiements: ["paiements","portail-etudiant","comptabilite","dashboard"],
+  messages:  ["messages","portail-etudiant","sms-parents"],
+  etudiants: ["etudiants","portail-etudiant","presences","notes","paiements","certificats","documents","discipline","sms-parents"],
+  examens:   ["examens","portail-etudiant"],
+  incidents: ["discipline"],
 };
 
 function invalidateData(table) {
@@ -7687,12 +7688,40 @@ function invalidateData(table) {
     comptabilite:    () => { chargerComptabilite && chargerComptabilite(); },
     certificats:     () => { chargerCertificats && chargerCertificats(); },
     documents:       () => { chargerDocuments && chargerDocuments(); },
-    rapports:        () => { afficherRapport && afficherRapport('effectifs'); },
+    rapports:        () => { afficherRapport && afficherRapport("effectifs"); },
     analytics:       () => { chargerAnalytics && chargerAnalytics(); },
     dashboard:       () => { chargerDashboard && chargerDashboard(); },
-    'portail-etudiant': () => { chargerPortailEtudiant && chargerPortailEtudiant(getPortailEtudiantId()); },
+    "portail-etudiant": () => { chargerPortailEtudiant && chargerPortailEtudiant(getPortailEtudiantId()); },
+    "sms-parents":   () => { chargerSMSParents && chargerSMSParents(); },
   };
   if (loaders[currentPage]) loaders[currentPage]();
+}
+
+// ── Helper CSV global ────────────────────────────────────────────────────
+// csvDownload(filename, header, rows) — règle permanente du projet.
+// Génère et télécharge un CSV UTF-8 (avec BOM) à partir d'un tableau d'en-tête
+// et d'un tableau de lignes. Échappe les guillemets et les virgules.
+function csvDownload(filename, header, rows) {
+  const esc = v => {
+    if (v === null || v === undefined) return "";
+    const s = String(v);
+    if (s.includes('"') || s.includes(",") || s.includes("\n") || s.includes("\r") || s.includes(";")) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  };
+  const lines = [];
+  if (Array.isArray(header) && header.length) lines.push(header.map(esc).join(","));
+  (rows || []).forEach(r => lines.push((r || []).map(esc).join(",")));
+  const csv  = "\uFEFF" + lines.join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = filename || "export.csv";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
 }
 
 // Modules désactivés — visibles admin uniquement
@@ -17784,86 +17813,106 @@ function compterCaracteres() {
   el.textContent = ta.value.length + ' caractère(s)';
 }
 
-async function envoyerSMS() {
-  if (!smsDestSelectes.length) { showToast('⚠️ Ajoutez au moins un destinataire', 'error'); return; }
-  const msg = document.getElementById('sms-message')?.value.trim();
-  if (!msg) { showToast('⚠️ Rédigez un message', 'error'); return; }
-  const cfg = getBrevoConfig();
-  if (!cfg.apiKey) { showToast('⚠️ Configurez Brevo dans Paramètres Avancés → Intégrations', 'error'); return; }
+// Verrou anti double-clic pour l'envoi groupé
+let _smsEnvoiEnCours = false;
 
-  // Déterminer les destinataires
-  let contacts = [];
-  if (smsDestSelectes.includes('tous') || smsDestSelectes.includes('avec_email')) {
-    contacts = _smsContactsCache.filter(c => c.email_parent);
-  } else if (smsDestSelectes.includes('absences')) {
-    const today = new Date().toISOString().split('T')[0];
-    const { data: abs } = await db.from('absences')
-      .select('etudiant_id').eq('ecole_id', currentEcoleId).eq('date_absence', today);
+async function envoyerSMS() {
+  if (_smsEnvoiEnCours) { showToast("⏳ Envoi déjà en cours...", "info"); return; }
+  if (!smsDestSelectes.length) { showToast("⚠️ Ajoutez au moins un destinataire", "error"); return; }
+  const msg = document.getElementById("sms-message")?.value.trim();
+  if (!msg) { showToast("⚠️ Rédigez un message", "error"); return; }
+  const cfg = getBrevoConfig();
+  if (!cfg.apiKey) { showToast("⚠️ Configurez Brevo dans Paramètres Avancés → Intégrations", "error"); return; }
+
+  // Déterminer les destinataires (déduplication par id pour éviter les doublons)
+  const contactsMap = new Map();
+  const ajouter = (arr) => arr.forEach(c => { if (c && c.id && !contactsMap.has(c.id)) contactsMap.set(c.id, c); });
+
+  if (smsDestSelectes.includes("tous") || smsDestSelectes.includes("avec_email")) {
+    ajouter(_smsContactsCache.filter(c => c.email_parent));
+  } else if (smsDestSelectes.includes("absences")) {
+    const today = new Date().toISOString().split("T")[0];
+    const { data: abs } = await db.from("absences")
+      .select("etudiant_id").eq("ecole_id", currentEcoleId).eq("date_absence", today);
     const ids = (abs||[]).map(a => a.etudiant_id);
-    contacts = _smsContactsCache.filter(c => ids.includes(c.id) && c.email_parent);
-  } else if (smsDestSelectes.includes('impayes')) {
-    const { data: fac } = await db.from('factures')
-      .select('etudiant_id').eq('ecole_id', currentEcoleId).neq('statut','payée');
+    ajouter(_smsContactsCache.filter(c => ids.includes(c.id) && c.email_parent));
+  } else if (smsDestSelectes.includes("impayes")) {
+    const { data: fac } = await db.from("factures")
+      .select("etudiant_id").eq("ecole_id", currentEcoleId).neq("statut","payée");
     const ids = (fac||[]).map(f => f.etudiant_id);
-    contacts = _smsContactsCache.filter(c => ids.includes(c.id) && c.email_parent);
+    ajouter(_smsContactsCache.filter(c => ids.includes(c.id) && c.email_parent));
   } else {
     for (const dest of smsDestSelectes) {
-      if (dest.startsWith('classe_')) {
-        const cid = dest.replace('classe_','');
-        contacts.push(..._smsContactsCache.filter(c => c.classe_id === cid && c.email_parent));
+      if (dest.startsWith("classe_")) {
+        const cid = dest.replace("classe_","");
+        ajouter(_smsContactsCache.filter(c => c.classe_id === cid && c.email_parent));
       }
     }
   }
+
+  const contacts = Array.from(contactsMap.values());
 
   // Diagnostic si aucun email trouvé
   const sansEmail = _smsContactsCache.filter(c => !c.email_parent).length;
   if (!contacts.length) {
     if (sansEmail > 0) {
-      showToast(`⚠️ Aucun parent avec email dans cette sélection — ${sansEmail} étudiant(s) sans email parent dans la base`, 'error');
+      showToast(`⚠️ Aucun parent avec email dans cette sélection — ${sansEmail} étudiant(s) sans email parent dans la base`, "error");
     } else {
-      showToast('⚠️ Aucun destinataire trouvé', 'error');
+      showToast("⚠️ Aucun destinataire trouvé", "error");
     }
     return;
   }
 
-  showToast(`📧 Envoi à ${contacts.length} parent(s) avec email...`, 'info');
+  // Désactiver les boutons d'envoi pendant l'opération
+  _smsEnvoiEnCours = true;
+  const btns = document.querySelectorAll('#sms-tab-composer button[onclick*="envoyerSMS"], #sms-tab-composer button[onclick*="programmerSMS"]');
+  btns.forEach(b => { b.disabled = true; b.style.opacity = "0.6"; b.style.cursor = "not-allowed"; });
+
+  showToast(`📧 Envoi à ${contacts.length} parent(s) avec email...`, "info");
   let succes = 0, echecs = 0;
 
-  for (const etu of contacts) {
-    const msgP = msg
-      .replace(/{nom_parent}/g, etu.nom_parent || 'Parent')
-      .replace(/{nom_eleve}/g,  `${etu.prenom} ${etu.nom}`)
-      .replace(/{classe}/g,     etu.classe || '');
-    const result = await envoyerEmailBrevo({
-      to:      etu.email_parent,
-      toName:  etu.nom_parent || `Parent de ${etu.prenom}`,
-      subject: 'Message de votre établissement — EduLink',
-      html:    `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-        <div style="background:#1e3a5f;color:#fff;padding:16px;border-radius:8px 8px 0 0;text-align:center"><h3>📧 Message de l'établissement</h3></div>
-        <div style="padding:20px;background:#f9fafb;border-radius:0 0 8px 8px">
-          <p>${msgP.replace(/\n/g,'<br>')}</p>
-          <p style="color:#6b7280;font-size:12px;margin-top:16px">EduLink — Système de gestion scolaire</p>
-        </div></div>`
-    });
-    if (result.ok) succes++; else { echecs++; console.warn('[Email]', etu.email_parent, result.error); }
-    // Sauvegarder dans messagerie interne avec les vraies colonnes
-    await db.from('messages').insert([{
-      ecole_id:          currentEcoleId,
-      objet:             'Message groupé — Email Parents',
-      contenu:           msgP,
-      destinataire_nom:  etu.nom_parent || `Parent de ${etu.prenom} ${etu.nom}`,
-      destinataire_role: 'parent',
-      expediteur_nom:    'Administration',
-      expediteur_role:   'admin',
-      lu:                false,
-    }]).then(r => { if (r.error) console.warn('[Messages] Insert:', r.error.message); });
+  try {
+    for (const etu of contacts) {
+      const msgP = msg
+        .replace(/{nom_parent}/g, etu.nom_parent || "Parent")
+        .replace(/{nom_eleve}/g,  `${etu.prenom} ${etu.nom}`)
+        .replace(/{classe}/g,     etu.classe || "");
+      const result = await envoyerEmailBrevo({
+        to:      etu.email_parent,
+        toName:  etu.nom_parent || `Parent de ${etu.prenom}`,
+        subject: "Message de votre établissement — EduLink",
+        html:    `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <div style="background:#1e3a5f;color:#fff;padding:16px;border-radius:8px 8px 0 0;text-align:center"><h3>📧 Message de l'établissement</h3></div>
+          <div style="padding:20px;background:#f9fafb;border-radius:0 0 8px 8px">
+            <p>${msgP.replace(/\n/g,"<br>")}</p>
+            <p style="color:#6b7280;font-size:12px;margin-top:16px">EduLink — Système de gestion scolaire</p>
+          </div></div>`
+      });
+      if (result.ok) succes++; else { echecs++; console.warn("[Email]", etu.email_parent, result.error); }
+      // Sauvegarder dans messagerie interne avec les vraies colonnes
+      await db.from("messages").insert([{
+        ecole_id:          currentEcoleId,
+        objet:             "Message groupé — Email Parents",
+        contenu:           msgP,
+        destinataire_nom:  etu.nom_parent || `Parent de ${etu.prenom} ${etu.nom}`,
+        destinataire_role: "parent",
+        expediteur_nom:    "Administration",
+        expediteur_role:   "admin",
+        lu:                false,
+      }]).then(r => { if (r.error) console.warn("[Messages] Insert:", r.error.message); });
+    }
+  } finally {
+    _smsEnvoiEnCours = false;
+    btns.forEach(b => { b.disabled = false; b.style.opacity = ""; b.style.cursor = ""; });
   }
 
-  document.getElementById('sms-message').value = '';
+  document.getElementById("sms-message").value = "";
   smsDestSelectes = [];
-  document.getElementById('sms-dest-tags').innerHTML = '';
-  const msg_result = `✅ ${succes} email(s) envoyé(s)${echecs ? ' · ❌ '+echecs+' échoué(s)' : ''}${sansEmail ? ' · ⚠️ '+sansEmail+' sans email' : ''}`;
-  showToast(msg_result, succes > 0 ? 'success' : 'error');
+  document.getElementById("sms-dest-tags").innerHTML = "";
+  compterCaracteres();
+  const msg_result = `✅ ${succes} email(s) envoyé(s)${echecs ? " · ❌ "+echecs+" échoué(s)" : ""}${sansEmail ? " · ⚠️ "+sansEmail+" sans email" : ""}`;
+  showToast(msg_result, succes > 0 ? "success" : "error");
+  invalidateData("messages");
   await chargerHistoriqueMessagesTab();
   chargerQuotaBrevo();
 }
@@ -17985,7 +18034,7 @@ function renderSMSContacts(filtre='') {
         ${email ? `<div style="font-size:11px;color:#6b7280">📧 ${email}</div>` : `<div style="font-size:11px;color:#dc2626">⚠️ Pas d'email</div>`}
       </div>
       <div class="pc-tel">${tel||'—'}</div>
-      ${email ? `<button class="btn-sm btn-green" onclick="envoyerEmailParent('${c.id}','${parent.replace(/'/g,"\'")}','${email}')">📧</button>` : ''}
+      ${email ? `<button class="btn-sm btn-green" onclick="envoyerEmailParentParId('${c.id}')" title="Envoyer un email à ${parent.replace(/"/g,"&quot;")}">📧</button>` : ""}
     </div>`;
   }).join('');
 }
@@ -18034,25 +18083,91 @@ function retirerDestinataire(val, el) {
 }
 
 async function envoyerEmailParent(etudiantId, parentNom, parentEmail) {
-  const msg = document.getElementById('sms-message')?.value.trim();
-  if (!msg) { showToast("Rédigez d'abord un message dans l'onglet Composer", 'info'); return; }
+  const msg = document.getElementById("sms-message")?.value.trim();
+  if (!msg) { showToast("Rédigez d'abord un message dans l'onglet Composer", "info"); return; }
+  const cfg = getBrevoConfig();
+  if (!cfg.apiKey) { showToast("⚠️ Configurez Brevo dans Paramètres Avancés → Intégrations", "error"); return; }
   const etu = _smsContactsCache.find(c => c.id === etudiantId);
   const msgP = msg.replace(/{nom_parent}/g, parentNom)
-    .replace(/{nom_eleve}/g, etu ? `${etu.prenom} ${etu.nom}` : '')
-    .replace(/{classe}/g, etu?.classe || '');
-  showToast('📧 Envoi en cours...', 'info');
+    .replace(/{nom_eleve}/g, etu ? `${etu.prenom} ${etu.nom}` : "")
+    .replace(/{classe}/g, etu?.classe || "");
+  showToast("📧 Envoi en cours...", "info");
   const result = await envoyerEmailBrevo({
     to: parentEmail, toName: parentNom,
     subject: "Message de votre établissement — EduLink",
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
       <div style="background:#1e3a5f;color:#fff;padding:16px;border-radius:8px 8px 0 0;text-align:center"><h3>📧 Message de l'établissement</h3></div>
       <div style="padding:20px;background:#f9fafb;border-radius:0 0 8px 8px">
-        <p>${msgP.replace(/\n/g,'<br>')}</p>
+        <p>${msgP.replace(/\n/g,"<br>")}</p>
         <p style="color:#6b7280;font-size:12px;margin-top:16px">EduLink — Système de gestion scolaire</p>
       </div></div>`
   });
-  if (result.ok) showToast(`✅ Email envoyé à ${parentNom} !`, 'success');
-  else showToast('❌ Erreur : ' + result.error, 'error');
+  if (result.ok) {
+    // Trace dans messagerie interne
+    await db.from("messages").insert([{
+      ecole_id:          currentEcoleId,
+      objet:             "Email individuel — Email Parents",
+      contenu:           msgP,
+      destinataire_nom:  parentNom || `Parent de ${etu?.prenom||""} ${etu?.nom||""}`.trim(),
+      destinataire_role: "parent",
+      expediteur_nom:    "Administration",
+      expediteur_role:   "admin",
+      lu:                false,
+    }]).then(r => { if (r.error) console.warn("[Messages] Insert:", r.error.message); });
+    invalidateData("messages");
+    showToast(`✅ Email envoyé à ${parentNom} !`, "success");
+  } else {
+    showToast("❌ Erreur : " + result.error, "error");
+  }
+}
+
+// Wrapper sécurisé : appelé depuis le bouton 📧 de la liste des contacts.
+// Évite les problèmes d'échappement HTML/JS en passant uniquement l'id.
+async function envoyerEmailParentParId(etudiantId) {
+  const etu = _smsContactsCache.find(c => c.id === etudiantId);
+  if (!etu) { showToast("Contact introuvable", "error"); return; }
+  if (!etu.email_parent) { showToast("⚠️ Ce parent n'a pas d'email enregistré", "error"); return; }
+  const parentNom = etu.nom_parent || `Parent de ${etu.prenom} ${etu.nom}`;
+  return envoyerEmailParent(etudiantId, parentNom, etu.email_parent);
+}
+
+// Export CSV des contacts parents
+function exporterContactsParents() {
+  const contacts = _smsContactsCache || [];
+  if (!contacts.length) { showToast("Aucun contact à exporter", "error"); return; }
+  const header = ["Étudiant","Classe","Filière","Niveau","Nom parent","Email parent","Téléphone parent"];
+  const rows = contacts.map(c => [
+    `${c.prenom||""} ${c.nom||""}`.trim(),
+    c.classe || "",
+    c.filiere || "",
+    c.niveau || "",
+    c.nom_parent || "",
+    c.email_parent || "",
+    c.telephone_parent || "",
+  ]);
+  csvDownload(`EduLink-Contacts-Parents-${new Date().toISOString().split("T")[0]}.csv`, header, rows);
+  showToast(`📥 ${rows.length} contact(s) exporté(s)`, "success");
+}
+
+// Export CSV de l'historique des envois
+async function exporterHistoriqueEmails() {
+  const { data: msgs, error } = await db.from("messages")
+    .select("created_at,objet,contenu,destinataire_nom,expediteur_nom,lu")
+    .eq("ecole_id", currentEcoleId)
+    .order("created_at", { ascending: false }).limit(500);
+  if (error) { showToast("❌ Erreur chargement historique", "error"); return; }
+  if (!msgs?.length) { showToast("Aucun message à exporter", "error"); return; }
+  const header = ["Date","Objet","Destinataire","Expéditeur","Lu","Aperçu"];
+  const rows = msgs.map(m => [
+    m.created_at ? new Date(m.created_at).toLocaleString("fr-FR") : "",
+    m.objet || "",
+    m.destinataire_nom || "",
+    m.expediteur_nom || "",
+    m.lu ? "Oui" : "Non",
+    (m.contenu || "").substring(0, 200),
+  ]);
+  csvDownload(`EduLink-Historique-Emails-${new Date().toISOString().split("T")[0]}.csv`, header, rows);
+  showToast(`📥 ${rows.length} message(s) exporté(s)`, "success");
 }
 
 
