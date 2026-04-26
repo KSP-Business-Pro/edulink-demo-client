@@ -4428,7 +4428,9 @@ button:hover { background:#a86615; transform:translateY(-1px); }
               <small style="color:#9ca3af;font-size:11px">Obtenez votre clé sur <a href="https://app.brevo.com" target="_blank">app.brevo.com</a> → API Keys</small>
             </div>
             <div class="form-group" style="margin-top:.5rem"><label>Email expéditeur</label>
-              <input type="email" id="brevo-from-email" placeholder="kinnou1er@yahoo.fr" />
+              <input type="email" id="brevo-from-email" placeholder="contact@votre-domaine.com" />
+              <small id="brevo-dmarc-warn" style="display:none;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:8px 10px;margin-top:6px;font-size:11.5px;line-height:1.5"></small>
+              <small style="color:#9ca3af;font-size:11px;display:block;margin-top:6px">⚠️ Évitez les adresses <code>@yahoo.fr</code>, <code>@yahoo.com</code>, <code>@aol.com</code> : leur politique DMARC stricte fait rejeter ou marquer comme spam les emails envoyés via Brevo. Utilisez de préférence un domaine que vous possédez (ex. <code>noreply@votre-ecole.com</code>) et validez-le dans Brevo → Senders.</small>
             </div>
             <div style="display:flex;gap:8px;margin-top:.75rem">
               <button onclick="sauvegarderConfigBrevo()">💾 Sauvegarder</button>
@@ -4928,6 +4930,21 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
   <!-- KPI bar SMS -->
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem" id="sms-kpi-bar"></div>
+
+  <!-- Bannière DMARC (affichée si l'expéditeur Brevo est sur un domaine restrictif) -->
+  <div id="sms-dmarc-banner" style="display:none;background:#fef3c7;border:1px solid #fde68a;border-left:4px solid #d97706;border-radius:10px;padding:14px 18px;margin-bottom:1.2rem">
+    <div style="display:flex;align-items:start;gap:12px">
+      <div style="font-size:20px;flex-shrink:0">⚠️</div>
+      <div style="flex:1;font-size:13px;color:#78350f;line-height:1.55">
+        <div style="font-weight:700;margin-bottom:4px">Problème de livraison probable</div>
+        <div id="sms-dmarc-banner-text"></div>
+        <div style="margin-top:8px">
+          <a href="#" onclick="showPage('parametres-avances');return false" style="color:#b45309;font-weight:600;text-decoration:underline;font-size:12.5px">→ Paramètres Avancés → Intégrations → Brevo</a>
+        </div>
+      </div>
+      <button onclick="document.getElementById('sms-dmarc-banner').style.display='none'" style="background:none;border:none;font-size:16px;cursor:pointer;color:#92400e;padding:0;flex-shrink:0">✕</button>
+    </div>
+  </div>
 
   <!-- Onglets SMS -->
   <div class="tabs" style="margin-bottom:1.2rem">
@@ -16777,25 +16794,60 @@ function regenererCleAPI() {
 }
 
 // ── Intégrations — Brevo Email ────────────────────────────────────────────
+
+// Domaines à politique DMARC stricte qui rejettent les envois via serveurs tiers
+const DMARC_RESTRICTED_DOMAINS = ["yahoo.fr","yahoo.com","yahoo.co.uk","ymail.com","aol.com","aol.fr","gmx.com","gmx.fr","laposte.net"];
+
+function checkDmarcRisque(email) {
+  if (!email || !email.includes("@")) return null;
+  const domain = email.split("@")[1].toLowerCase().trim();
+  if (DMARC_RESTRICTED_DOMAINS.includes(domain)) {
+    return `⚠️ <b>Risque élevé DMARC :</b> le domaine <code>${domain}</code> applique une politique stricte qui fait rejeter les emails envoyés via Brevo. Vos emails risquent de tomber en spam ou d'être bloqués (notamment vers Gmail, Outlook, Yahoo). Utilisez un domaine que vous possédez et validez-le dans Brevo → Senders.`;
+  }
+  return null;
+}
+
+function brancherDmarcWatcher() {
+  const inp  = document.getElementById("brevo-from-email");
+  const warn = document.getElementById("brevo-dmarc-warn");
+  if (!inp || !warn || inp.dataset.dmarcWatched) return;
+  inp.dataset.dmarcWatched = "1";
+  const refresh = () => {
+    const r = checkDmarcRisque(inp.value.trim());
+    if (r) { warn.innerHTML = r; warn.style.display = "block"; }
+    else { warn.style.display = "none"; }
+  };
+  inp.addEventListener("input", refresh);
+  inp.addEventListener("blur",  refresh);
+  refresh();
+}
+
 function ouvrirConfigBrevo() {
-  const panel = document.getElementById('config-brevo-panel');
+  const panel = document.getElementById("config-brevo-panel");
   if (!panel) return;
   // Pré-remplir depuis localStorage
-  const saved = JSON.parse(localStorage.getItem('edulink_brevo_' + (currentEcoleId||'')) || '{}');
-  const keyEl   = document.getElementById('brevo-api-key');
-  const emailEl = document.getElementById('brevo-from-email');
+  const saved = JSON.parse(localStorage.getItem("edulink_brevo_" + (currentEcoleId||"")) || "{}");
+  const keyEl   = document.getElementById("brevo-api-key");
+  const emailEl = document.getElementById("brevo-from-email");
   if (keyEl   && saved.apiKey) keyEl.value   = saved.apiKey;
   if (emailEl && saved.fromEmail) emailEl.value = saved.fromEmail;
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  panel.style.display = panel.style.display === "none" ? "block" : "none";
+  if (panel.style.display === "block") brancherDmarcWatcher();
 }
 
 function sauvegarderConfigBrevo() {
-  const apiKey    = document.getElementById('brevo-api-key')?.value.trim();
-  const fromEmail = document.getElementById('brevo-from-email')?.value.trim();
-  if (!apiKey) { showToast('Clé API Brevo obligatoire', 'error'); return; }
-  localStorage.setItem('edulink_brevo_' + (currentEcoleId||''), JSON.stringify({ apiKey, fromEmail }));
-  showToast('✅ Configuration Brevo sauvegardée !', 'success');
-  document.getElementById('config-brevo-panel').style.display = 'none';
+  const apiKey    = document.getElementById("brevo-api-key")?.value.trim();
+  const fromEmail = document.getElementById("brevo-from-email")?.value.trim();
+  if (!apiKey) { showToast("Clé API Brevo obligatoire", "error"); return; }
+  // Avertissement DMARC mais on laisse sauvegarder (le client peut quand même vouloir essayer)
+  const risque = checkDmarcRisque(fromEmail);
+  if (risque) {
+    const ok = confirm("ATTENTION : le domaine de l'email expéditeur (" + fromEmail + ") applique une politique DMARC stricte. Les emails envoyés via Brevo risquent d'être rejetés ou marqués comme spam.\n\nNous recommandons FORTEMENT d'utiliser un email d'un domaine que vous possédez (ex. noreply@votre-ecole.com) validé dans Brevo.\n\nSauvegarder quand même ?");
+    if (!ok) return;
+  }
+  localStorage.setItem("edulink_brevo_" + (currentEcoleId||""), JSON.stringify({ apiKey, fromEmail }));
+  showToast("✅ Configuration Brevo sauvegardée !", "success");
+  document.getElementById("config-brevo-panel").style.display = "none";
   // Mettre à jour le statut dans la carte
   const card = document.querySelector('[data-integ="brevo"]');
   if (card) card.innerHTML = '<span class="badge green">✅ Configuré</span>';
@@ -16803,30 +16855,35 @@ function sauvegarderConfigBrevo() {
 
 async function testerBrevo() {
   const cfg = getBrevoConfig();
-  const apiKey    = document.getElementById('brevo-api-key')?.value.trim() || cfg.apiKey;
-  const fromEmail = document.getElementById('brevo-from-email')?.value.trim() || cfg.fromEmail;
-  if (!apiKey) { showToast('Configurez d\'abord la clé API Brevo', 'error'); return; }
-  if (!fromEmail) { showToast('Renseignez l\'email expéditeur', 'error'); return; }
-  showToast('📧 Envoi du test en cours...', 'info');
+  const apiKey    = document.getElementById("brevo-api-key")?.value.trim() || cfg.apiKey;
+  const fromEmail = document.getElementById("brevo-from-email")?.value.trim() || cfg.fromEmail;
+  if (!apiKey) { showToast("Configurez d'abord la clé API Brevo", "error"); return; }
+  if (!fromEmail) { showToast("Renseignez l'email expéditeur", "error"); return; }
+  showToast("📧 Envoi du test en cours...", "info");
   try {
-    const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+    const resp = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { "api-key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
-        sender:      { name: 'EduLink Test', email: fromEmail },
-        to:          [{ email: fromEmail, name: 'Admin EduLink' }],
-        subject:     '✅ Test EduLink — Configuration Brevo OK',
-        htmlContent: '<h2>🎉 Brevo fonctionne !</h2><p>Votre intégration email EduLink est configurée correctement.</p><p>Les emails d\'absence, de notes et de paiement seront envoyés automatiquement aux parents.</p>'
+        sender:      { name: "EduLink Test", email: fromEmail },
+        to:          [{ email: fromEmail, name: "Admin EduLink" }],
+        subject:     "✅ Test EduLink — Configuration Brevo OK",
+        htmlContent: "<h2>🎉 Brevo fonctionne !</h2><p>Votre intégration email EduLink est configurée correctement.</p><p>Les emails d'absence, de notes et de paiement seront envoyés automatiquement aux parents.</p>"
       })
     });
     const data = await resp.json();
     if (resp.ok) {
-      showToast('✅ Email de test envoyé à ' + fromEmail + ' !', 'success');
+      const risque = checkDmarcRisque(fromEmail);
+      if (risque) {
+        showToast("✅ Brevo a accepté l'envoi MAIS le domaine de " + fromEmail + " bloque la livraison réelle (DMARC). Vérifiez vos spams ou utilisez un autre domaine.", "info");
+      } else {
+        showToast("✅ Email de test envoyé à " + fromEmail + " ! Vérifiez votre boîte (et les spams).", "success");
+      }
     } else {
-      showToast('❌ Erreur Brevo : ' + (data.message || resp.status), 'error');
+      showToast("❌ Erreur Brevo : " + (data.message || resp.status), "error");
     }
   } catch(e) {
-    showToast('❌ Erreur réseau : ' + e.message, 'error');
+    showToast("❌ Erreur réseau : " + e.message, "error");
   }
 }
 
@@ -17846,6 +17903,9 @@ async function envoyerSMS() {
       if (dest.startsWith("classe_")) {
         const cid = dest.replace("classe_","");
         ajouter(_smsContactsCache.filter(c => c.classe_id === cid && c.email_parent));
+      } else if (dest.startsWith("parent_")) {
+        const eid = dest.replace("parent_","");
+        ajouter(_smsContactsCache.filter(c => c.id === eid && c.email_parent));
       }
     }
   }
@@ -17944,6 +18004,19 @@ async function chargerSMSParents() {
   sel('sms-stat-auto',    '4 actifs');
   await peuplerSelectDestinatairesSMS();
   chargerQuotaBrevo();
+  // Diagnostic DMARC : afficher bannière si l'expéditeur Brevo est sur un domaine à risque
+  const cfg = getBrevoConfig();
+  const banner   = document.getElementById("sms-dmarc-banner");
+  const bannerTx = document.getElementById("sms-dmarc-banner-text");
+  if (banner && bannerTx) {
+    const risque = checkDmarcRisque(cfg.fromEmail);
+    if (risque) {
+      bannerTx.innerHTML = `L'adresse expéditrice configurée (<b>${cfg.fromEmail}</b>) utilise un domaine à politique DMARC stricte (<code>${cfg.fromEmail.split("@")[1]}</code>). Les emails envoyés via Brevo sont probablement <b>rejetés ou marqués comme spam</b> par les fournisseurs (Gmail, Outlook, Yahoo). Configurez un domaine que vous possédez (ex. <code>noreply@votre-ecole.com</code>) et validez-le dans Brevo → Senders.`;
+      banner.style.display = "block";
+    } else {
+      banner.style.display = "none";
+    }
+  }
 }
 
 async function chargerContactsParents() {
@@ -17955,15 +18028,33 @@ async function chargerContactsParents() {
 }
 
 async function peuplerSelectDestinatairesSMS() {
-  const sel = document.getElementById('sms-dest-selector');
+  const sel = document.getElementById("sms-dest-selector");
   if (!sel) return;
-  const { data: classes } = await db.from('classes').select('id,nom,filiere,niveau').eq('ecole_id', currentEcoleId).order('nom');
+  const { data: classes } = await db.from("classes").select("id,nom,filiere,niveau").eq("ecole_id", currentEcoleId).order("nom");
+  // Helper : échappement HTML pour les attributs et le texte
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  // Parents avec email (depuis le cache déjà chargé par chargerContactsParents)
+  const parentsAvecEmail = (_smsContactsCache||[])
+    .filter(c => c.email_parent)
+    .sort((a,b) => (a.nom_parent||a.nom||"").localeCompare(b.nom_parent||b.nom||""));
   sel.innerHTML = `<option value="">Ajouter des destinataires...</option>
-    <option value="tous">👨‍👩‍👧 Tous les parents</option>
-    <option value="avec_email">📧 Parents avec email</option>
-    <option value="absences">🚫 Parents des absents du jour</option>
-    <option value="impayes">💳 Parents avec factures impayées</option>
-    ${(classes||[]).map(c=>`<option value="classe_${c.id}">📚 ${c.nom||c.filiere+" "+c.niveau} — Parents</option>`).join('')}`;
+    <optgroup label="── Groupes ──">
+      <option value="tous">👨‍👩‍👧 Tous les parents</option>
+      <option value="avec_email">📧 Parents avec email</option>
+      <option value="absences">🚫 Parents des absents du jour</option>
+      <option value="impayes">💳 Parents avec factures impayées</option>
+    </optgroup>
+    ${classes && classes.length ? `<optgroup label="── Par classe ──">
+      ${classes.map(c=>`<option value="classe_${c.id}">📚 ${esc(c.nom||c.filiere+" "+c.niveau)} — Parents</option>`).join("")}
+    </optgroup>` : ""}
+    ${parentsAvecEmail.length ? `<optgroup label="── Parents individuels (${parentsAvecEmail.length}) ──">
+      ${parentsAvecEmail.map(c => {
+        const parentNom = c.nom_parent || `Parent de ${c.prenom||""} ${c.nom||""}`.trim();
+        const enfant    = `${c.prenom||""} ${c.nom||""}`.trim();
+        const cls       = c.classe || c.filiere || "—";
+        return `<option value="parent_${c.id}">👤 ${esc(parentNom)} — ${esc(enfant)} (${esc(cls)}) · ${esc(c.email_parent)}</option>`;
+      }).join("")}
+    </optgroup>` : ""}`;
 }
 
 async function chargerHistoriqueMessagesTab() {
