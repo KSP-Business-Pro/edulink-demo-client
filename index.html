@@ -2302,7 +2302,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <a onclick="showPage('dashboard-reseau')" id="nav-dashboard-reseau"><span class="ico">📊</span> Dashboard Réseau <span class="badge purple" style="margin-left:auto;font-size:9px;padding:1px 5px">J34</span></a>
   <a onclick="showPage('parametres-avances')" id="nav-parametres-avances"><span class="ico">🔧</span> Paramètres Avancés <span class="badge amber" style="margin-left:auto;font-size:9px;padding:1px 5px">J32</span></a>
   <a onclick="showPage('assistant-ia')" id="nav-assistant-ia"><span class="ico">🤖</span> Assistant IA <span class="badge purple" style="margin-left:auto;font-size:9px;padding:1px 5px">J35</span></a>
-  <a onclick="showPage('sms-parents')" id="nav-sms-parents"><span class="ico">📞</span> SMS Parents <span class="badge green" style="margin-left:auto;font-size:9px;padding:1px 5px">J36</span></a>
+  <a onclick="showPage('sms-parents')" id="nav-sms-parents"><span class="ico">📧</span> Email Parents <span class="badge green" style="margin-left:auto;font-size:9px;padding:1px 5px">J36</span></a>
   <a onclick="showPage('pwa-avancee')" id="nav-pwa-avancee"><span class="ico">📱</span> PWA Avancée <span class="badge blue" style="margin-left:auto;font-size:9px;padding:1px 5px">J37</span></a>
   <a onclick="showPage('exec-dashboard')" id="nav-exec-dashboard"><span class="ico">📊</span> Dashboard Directeur <span class="badge blue" style="margin-left:auto;font-size:9px;padding:1px 5px">J38</span></a>
   <a onclick="showPage('portail-public')" id="nav-portail-public"><span class="ico">🌎</span> Portail Public <span class="badge green" style="margin-left:auto;font-size:9px;padding:1px 5px">J39</span></a>
@@ -4905,7 +4905,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 ═══════════════════════════════════════ -->
 <div class="page" id="page-sms-parents">
   <div class="top">
-    <div><h2>📞 SMS & Communication Parents</h2><p class="page-subtitle">Envois groupés, alertes automatiques et suivi des accusés</p></div>
+    <div><h2>📧 Email & Communication Parents</h2><p class="page-subtitle">Emails groupés, alertes automatiques et suivi des envois</p></div>
     <div class="top-actions">
       <button onclick="ouvrirComposerSMS()">+ Nouveau SMS</button>
       <button class="btn-blue" onclick="envoyerAlertesAuto()">⚡ Alertes auto</button>
@@ -4915,11 +4915,11 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <!-- Hero SMS -->
   <div class="sms-hero">
     <div>
-      <h2>📞 Centre de Communication</h2>
-      <p>Contactez tous les parents en quelques secondes</p>
+      <h2>📧 Centre de Communication Email</h2>
+      <p>Envoyez des emails à tous les parents via Brevo</p>
     </div>
     <div class="sms-hero-kpis">
-      <div class="sms-kpi"><div class="sk-val" id="sms-envoyes">0</div><div class="sk-lbl">SMS envoyés</div></div>
+      <div class="sms-kpi"><div class="sk-val" id="sms-envoyes">0</div><div class="sk-lbl">Emails envoyés</div></div>
       <div class="sms-kpi"><div class="sk-val" id="sms-taux">0%</div><div class="sk-lbl">Taux réception</div></div>
       <div class="sms-kpi"><div class="sk-val" id="sms-parents">0</div><div class="sk-lbl">Parents inscrits</div></div>
     </div>
@@ -5024,7 +5024,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div class="sms-block">
         <div class="sms-block-header"><span>📊 Stats du mois</span></div>
         <div style="padding:1rem">
-          <div class="kpi-row"><span class="kpi-label">SMS envoyés</span><span class="kpi-value" id="sms-stat-envoyes">—</span></div>
+          <div class="kpi-row"><span class="kpi-label">Emails envoyés</span><span class="kpi-value" id="sms-stat-envoyes">—</span></div>
           <div class="kpi-row"><span class="kpi-label">Taux de réception</span><span class="kpi-value" id="sms-stat-taux">—</span></div>
           <div class="kpi-row"><span class="kpi-label">Coût total</span><span class="kpi-value" id="sms-stat-cout">—</span></div>
           <div class="kpi-row"><span class="kpi-label">Alertes auto envoyées</span><span class="kpi-value" id="sms-stat-auto">—</span></div>
@@ -18081,7 +18081,7 @@ function smsSwitchTab(tab, btn) {
   document.querySelectorAll('#page-sms-parents .tab').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
 }
-function envoyerRappelPaiements() { showToast('💳 Utilisez le module SMS Parents → Envoyer maintenant', 'info'); }
+function envoyerRappelPaiements() { showToast('💳 Utilisez le module Email Parents → Envoyer maintenant', 'info'); }
 function envoyerConvocationParents() { showToast('📅 98 convocations envoyées aux parents','success'); }
 function envoyerResultatsBulletins() { showToast('📊 115 notifications bulletins envoyées','success'); }
 
@@ -18968,7 +18968,7 @@ const SEARCH_MODULES = [
   {ico:'🧠',bg:'#ede9fe',titre:'Analytics IA',module:'analytics',cat:'Navigation'},
   {ico:'✉️',bg:'#dbeafe',titre:'Messagerie',module:'messages',cat:'Navigation'},
   {ico:'🤖',bg:'#ede9fe',titre:'Assistant IA',module:'assistant-ia',cat:'Navigation'},
-  {ico:'📞',bg:'#dcfce7',titre:'SMS Parents',module:'sms-parents',cat:'Navigation'},
+  {ico:'📞',bg:'#dcfce7',titre:'Email Parents',module:'sms-parents',cat:'Navigation'},
   {ico:'📱',bg:'#dbeafe',titre:'PWA Avancée',module:'pwa-avancee',cat:'Navigation'},
   {ico:'🔒',bg:'#fee2e2',titre:'Contrôle Accès',module:'controle-acces',cat:'Navigation'},
   {ico:'🌎',bg:'#dcfce7',titre:'Portail Public',module:'portail-public',cat:'Navigation'},
