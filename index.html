@@ -20,8 +20,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <!-- Firebase SDK ★ JOUR 15 -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+
+
 <!-- Scripts auth et notif intégrés inline dans ce fichier -->
 <style>
 /* ══════════════════════════════════════════════
@@ -2289,7 +2289,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <a onclick="showPage('bibliotheque')" id="nav-bibliotheque"><span class="ico">📚</span> Bibliothèque <span id="badge-bib" style="margin-left:auto;background:#c97c1a;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;display:none"></span></a>
   <a onclick="showPage('analytics')" id="nav-analytics"><span class="ico">🧠</span> Analytics IA</a>
   <a onclick="showPage('utilisateurs')" id="nav-utilisateurs" style="display:none"><span class="ico">👥</span> Utilisateurs</a>
-  <a onclick="showPage('notifications')" id="nav-notifications"><span class="ico">🔔</span> Notifications <span id="badge-notifs" style="margin-left:auto;background:#dc2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;display:none"></span></a>
+
   <a onclick="showPage('portail-ens')" id="nav-portail-ens"><span class="ico">👨‍🏫</span> Portail Enseignant <span class="badge blue" style="margin-left:auto;font-size:9px;padding:1px 5px">NEW</span></a>
   <a onclick="showPage('rh')" id="nav-rh"><span class="ico">🧑‍💼</span> RH & Personnel <span id="badge-rh" style="margin-left:auto;background:#7c3aed;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;display:none"></span></a>
   <a onclick="showPage('bibliotheque-num')" id="nav-bibliotheque-num"><span class="ico">📚</span> Bibliothèque Num. <span class="badge purple" style="margin-left:auto;font-size:9px;padding:1px 5px">J26</span></a>
@@ -5627,8 +5627,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <button onclick="ouvrirConfigNotif()" style="width:100%;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">⚙️ Configurer Brevo</button>
     </div>
 
-    <!-- Push Notifications FCM ★ API V1 -->
-    <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+    <!-- Section FCM supprimée — Messagerie est le canal unique -->
+    <div style="display:none">
       <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🔔 Notifications Push (FCM API V1)</div>
       <div id="fcm-admin-status" style="background:#f9fafb;border-radius:10px;padding:.9rem;margin-bottom:1rem;font-size:12.5px;color:#374151">
         <div style="font-weight:600;margin-bottom:.5rem">Configuration Firebase Cloud Messaging</div>
@@ -5835,149 +5835,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </table>
 </div>
 
-<div class="page" id="page-notifications">
-  <div class="top">
-    <div><h2>🔔 Centre de Notifications</h2><p class="page-subtitle">Envoi, historique et configuration des alertes push</p></div>
-    <div class="top-actions">
-      <button class="btn-outline" onclick="actualiserNotifications()">↻ Actualiser</button>
-      <button onclick="ouvrirModal('modal-push-notif')">+ Nouvelle notification</button>
-    </div>
-  </div>
-
-  <!-- KPIs -->
-  <div class="notif-center-grid">
-    <div class="nc-stat"><div class="nc-stat-ico blue">📤</div><div><div class="nc-stat-val" style="color:#1e3a5f" id="nc-stat-envoyes">—</div><div class="nc-stat-lbl">Notifications envoyées</div></div></div>
-    <div class="nc-stat"><div class="nc-stat-ico green">👁️</div><div><div class="nc-stat-val" style="color:#059669" id="nc-stat-taux">—%</div><div class="nc-stat-lbl">Taux d'ouverture moyen</div></div></div>
-    <div class="nc-stat"><div class="nc-stat-ico amber">📱</div><div><div class="nc-stat-val" style="color:#d97706" id="nc-stat-appareils">—</div><div class="nc-stat-lbl">Appareils abonnés</div></div></div>
-    <div class="nc-stat"><div class="nc-stat-ico purple">⏳</div><div><div class="nc-stat-val" style="color:#7c3aed" id="nc-stat-24h">—</div><div class="nc-stat-lbl">Dernières 24h</div></div></div>
-  </div>
-
-  <!-- Layout 2 colonnes -->
-  <div class="nc-layout">
-
-    <!-- Colonne principale -->
-    <div class="nc-main">
-
-      <!-- Historique envois -->
-      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;overflow:hidden">
-        <div style="padding:.9rem 1.2rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between">
-          <div style="font-size:13px;font-weight:700;color:#374151">📋 Historique des envois</div>
-          <button class="btn-sm btn-outline" onclick="exporterHistoriqueNotifCSV()">⬇ Export CSV</button>
-        </div>
-        <div style="padding:.65rem 1.2rem;border-bottom:1px solid #f3f4f6">
-          <div class="nc-filter-bar">
-            <button class="nc-filter-btn active" onclick="filtrerHistorique('tous',this)">Tous</button>
-            <button class="nc-filter-btn" onclick="filtrerHistorique('annonce',this)">📢 Annonces</button>
-            <button class="nc-filter-btn" onclick="filtrerHistorique('absence',this)">🚫 Absences</button>
-            <button class="nc-filter-btn" onclick="filtrerHistorique('note',this)">📊 Notes</button>
-            <button class="nc-filter-btn" onclick="filtrerHistorique('examen',this)">📝 Examens</button>
-            <button class="nc-filter-btn" onclick="filtrerHistorique('paiement',this)">💳 Paiements</button>
-          </div>
-        </div>
-        <div id="nc-hist-list"><div class="loading">Chargement de l'historique...</div></div>
-      </div>
-
-      <!-- Appareils abonnés -->
-      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;overflow:hidden">
-        <div style="padding:.9rem 1.2rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between">
-          <div style="font-size:13px;font-weight:700;color:#374151">📱 Appareils abonnés aux Push</div>
-          <span style="font-size:11px;color:#6b7280" id="nc-devices-count"></span>
-        </div>
-        <div id="nc-devices-list"><div class="loading">Chargement...</div></div>
-      </div>
-    </div>
-
-    <!-- Colonne latérale -->
-    <div class="nc-side">
-
-      <!-- Composer rapide -->
-      <div class="nc-compose">
-        <div class="nc-compose-header">✏️ Composer une notification</div>
-        <div class="nc-compose-body">
-          <div style="margin-bottom:.75rem">
-            <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Type</div>
-            <div class="nc-type-grid">
-              <button class="nc-type-btn sel" onclick="selTypeNotif(this,'annonce')">📢 Annonce</button>
-              <button class="nc-type-btn" onclick="selTypeNotif(this,'absence')">🚫 Absence</button>
-              <button class="nc-type-btn" onclick="selTypeNotif(this,'note')">📊 Note</button>
-              <button class="nc-type-btn" onclick="selTypeNotif(this,'examen')">📝 Examen</button>
-              <button class="nc-type-btn" onclick="selTypeNotif(this,'paiement')">💳 Paiement</button>
-              <button class="nc-type-btn" onclick="selTypeNotif(this,'message')">✉️ Message</button>
-            </div>
-          </div>
-          <div class="form-group" style="margin-bottom:.75rem">
-            <label>Titre *</label>
-            <input type="text" id="nc-compose-titre" placeholder="Ex: Absence signalée aujourd'hui" maxlength="60">
-          </div>
-          <div class="form-group" style="margin-bottom:.75rem">
-            <label>Message *</label>
-            <textarea rows="3" id="nc-compose-body" style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12.5px;font-family:'Poppins',sans-serif;outline:none;resize:none" placeholder="Détails de la notification..."></textarea>
-          </div>
-          <div class="form-group" style="margin-bottom:.75rem">
-            <label>Destinataires</label>
-            <select id="nc-compose-dest" style="width:100%;padding:7px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12.5px;font-family:'Poppins',sans-serif;outline:none">
-              <option value="tous">Tous les abonnés</option>
-              <option value="parents">Parents uniquement</option>
-              <option value="etudiants">Étudiants uniquement</option>
-            </select>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#374151;cursor:pointer;flex-shrink:0">
-              <input type="checkbox" id="nc-compose-urgent" style="width:14px;height:14px"> Urgent
-            </label>
-            <button onclick="envoyerDepuisCompose()" style="flex:1;background:#1e3a5f;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Poppins',sans-serif">🔔 Envoyer</button>
-          </div>
-          <div id="nc-compose-result" style="margin-top:.6rem;font-size:11.5px;text-align:center;display:none"></div>
-        </div>
-      </div>
-
-      <!-- Config déclencheurs automatiques -->
-      <div class="nc-config-block">
-        <div class="nc-config-header">⚙️ Déclencheurs automatiques</div>
-        <div class="nc-toggle-row">
-          <div class="nc-toggle-info"><div class="nti-label">🚫 Absence enregistrée</div><div class="nti-sub">Notifie le parent immédiatement</div></div>
-          <label class="nc-switch"><input type="checkbox" id="cfg-absence" checked onchange="sauvegarderConfigNotif()"><span class="nc-slider"></span></label>
-        </div>
-        <div class="nc-toggle-row">
-          <div class="nc-toggle-info"><div class="nti-label">📊 Nouvelle note saisie</div><div class="nti-sub">Alerte la famille sur la note</div></div>
-          <label class="nc-switch"><input type="checkbox" id="cfg-note" checked onchange="sauvegarderConfigNotif()"><span class="nc-slider"></span></label>
-        </div>
-        <div class="nc-toggle-row">
-          <div class="nc-toggle-info"><div class="nti-label">📝 Examen planifié</div><div class="nti-sub">Rappel J-7 avant l'épreuve</div></div>
-          <label class="nc-switch"><input type="checkbox" id="cfg-examen" checked onchange="sauvegarderConfigNotif()"><span class="nc-slider"></span></label>
-        </div>
-        <div class="nc-toggle-row">
-          <div class="nc-toggle-info"><div class="nti-label">💳 Facture en retard</div><div class="nti-sub">Rappel de paiement auto</div></div>
-          <label class="nc-switch"><input type="checkbox" id="cfg-paiement" onchange="sauvegarderConfigNotif()"><span class="nc-slider"></span></label>
-        </div>
-        <div class="nc-toggle-row">
-          <div class="nc-toggle-info"><div class="nti-label">✉️ Nouveau message reçu</div><div class="nti-sub">Copie push des messages</div></div>
-          <label class="nc-switch"><input type="checkbox" id="cfg-message" checked onchange="sauvegarderConfigNotif()"><span class="nc-slider"></span></label>
-        </div>
-        <div style="padding:.75rem 1.2rem;background:#f9fafb;border-top:1px solid #f3f4f6">
-          <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:.4rem">Plage horaire d'envoi</div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input type="time" id="cfg-heure-debut" value="07:00" onchange="sauvegarderConfigNotif()" style="padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:'Poppins',sans-serif;outline:none;flex:1">
-            <span style="font-size:11px;color:#9ca3af">→</span>
-            <input type="time" id="cfg-heure-fin" value="21:00" onchange="sauvegarderConfigNotif()" style="padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:'Poppins',sans-serif;outline:none;flex:1">
-          </div>
-        </div>
-      </div>
-
-      <!-- Conseil -->
-      <div style="background:#eff6ff;border-radius:12px;padding:1rem;font-size:12px;color:#1d4ed8;line-height:1.6">
-        <div style="font-weight:700;margin-bottom:.4rem">💡 Conseils</div>
-        <div>— Envoyez entre 9h et 18h pour un meilleur taux d'ouverture.</div>
-        <div>— Réservez la priorité <strong>Haute</strong> aux alertes critiques.</div>
-        <div>— Le taux d'ouverture se met à jour quand le parent ouvre le portail.</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════
-     BIBLIOTHÈQUE SCOLAIRE  ★ JOUR 19
-═══════════════════════════════════════ -->
+<!-- Module Notifications supprimé -->
 <div class="page" id="page-bibliotheque">
   <div class="top">
     <div>
@@ -7852,10 +7710,10 @@ function showPage(p) {
     documents:    chargerDocuments,
     rapports:     () => { peuplerFiltresRapports(); afficherRapport('effectifs'); },
     utilisateurs: () => { chargerUtilisateurs(); },
-    parametres:   () => { chargerParametres(); chargerConfigFCM(); chargerBranding(); },
+    parametres:   () => { chargerParametres(); chargerBranding(); },
     examens:      () => { chargerExamens(); peuplerFiltresExamens(); },
     enseignants:     () => { chargerEnseignants(); },
-    notifications:   chargerNotifications,
+    // notifications: supprimé
     certificats:     () => { chargerCertificats(); peuplerFiltresCert(); },
     bibliotheque:    () => { chargerBibliotheque(); },
     analytics:       chargerAnalytics,
@@ -8022,7 +7880,7 @@ async function chargerEcoles() {
   }
   chargerDashboard();
   // Auto-init FCM après chargement de l'école
-  setTimeout(() => initFCM(), 1500);
+  // initFCM supprimé — Messagerie est le canal unique
 }
 function changerEcole() {
   currentEcoleId = document.getElementById('ecole-selector').value;
@@ -11595,745 +11453,130 @@ async function telechargerTousBulletins() {
 
 // ══ NOTIFICATIONS PUSH FCM  ★ JOUR 15 ══════════════════════════════
 
-// ── Configuration Firebase EduLink (hardcodée) ──────────────────────────
-const FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyBEdRgcfDi2ai23shWBf4TLBZiM16MpW-U",
-  authDomain:        "edulink-demo-client.firebaseapp.com",
-  projectId:         "edulink-demo-client",
-  storageBucket:     "edulink-demo-client.firebasestorage.app",
-  messagingSenderId: "988597670758",
-  appId:             "1:988597670758:web:86ee62dc5f96e2bf0caea7"
-};
-const FIREBASE_VAPID = "BI749zTbOn-FCKlvFA73d3GV72SOYLGJivQCwzuSqlNdSw8OhF9TO9Rl_DCgU7_5Y2irpfaBpHDJyJFubtZ-4tQ";
 
-// ── Configuration FCM (chargée depuis localStorage + config hardcodée) ──
-let fcmMessaging  = null;
-let fcmVapidKey   = FIREBASE_VAPID;
-let fcmAdminToken = null;
-
-function chargerConfigFCM() {
-  // Pré-remplir avec les valeurs hardcodées si localStorage vide
-  if (!localStorage.getItem('edulink_vapid_key'))      localStorage.setItem('edulink_vapid_key',      FIREBASE_VAPID);
-  if (!localStorage.getItem('edulink_fcm_api_key'))    localStorage.setItem('edulink_fcm_api_key',    FIREBASE_CONFIG.apiKey);
-  if (!localStorage.getItem('edulink_fcm_project_id')) localStorage.setItem('edulink_fcm_project_id', FIREBASE_CONFIG.projectId);
-  if (!localStorage.getItem('edulink_fcm_sender_id'))  localStorage.setItem('edulink_fcm_sender_id',  FIREBASE_CONFIG.messagingSenderId);
-  if (!localStorage.getItem('edulink_fcm_server_key')) localStorage.setItem('edulink_fcm_server_key', FIREBASE_CONFIG.apiKey);
-
-  fcmVapidKey = FIREBASE_VAPID;
-  const el1 = document.getElementById('input-vapid-key');
-  const el2 = document.getElementById('input-fcm-server-key');
-  const el3 = document.getElementById('input-fcm-project-id');
-  const el4 = document.getElementById('input-fcm-sender-id');
-  if (el1) el1.value = FIREBASE_VAPID;
-  if (el2) el2.value = FIREBASE_CONFIG.apiKey;
-  if (el3) el3.value = FIREBASE_CONFIG.projectId;
-  if (el4) el4.value = FIREBASE_CONFIG.messagingSenderId;
-  mettreAJourStatutFCM();
-  compterTokensFCM();
-  // Auto-init Firebase au chargement
-  initFCM();
-}
-
-function sauvegarderConfigFCM() {
-  const vapid     = document.getElementById('input-vapid-key')?.value.trim();
-  const apiKey    = document.getElementById('input-fcm-server-key')?.value.trim();
-  const projectId = document.getElementById('input-fcm-project-id')?.value.trim();
-  const senderId  = document.getElementById('input-fcm-sender-id')?.value.trim();
-  if (!vapid) { showToast('Clé VAPID obligatoire', 'error'); return; }
-  localStorage.setItem('edulink_vapid_key',       vapid);
-  localStorage.setItem('edulink_fcm_api_key',     apiKey || '');
-  localStorage.setItem('edulink_fcm_project_id',  projectId || '');
-  localStorage.setItem('edulink_fcm_sender_id',   senderId || '988597670758');
-  // Compatibilité ancienne clé
-  localStorage.setItem('edulink_fcm_server_key',  apiKey || '');
-  fcmVapidKey = vapid;
-  showToast('✅ Config FCM V1 sauvegardée !', 'success');
-  mettreAJourStatutFCM();
-  initFCM();
-}
-
-function mettreAJourStatutFCM() {
-  const el = document.getElementById('fcm-config-state');
-  if (!el) return;
-  if (fcmMessaging && fcmAdminToken) {
-    el.innerHTML = '<span style="color:#059669;font-weight:600">✅ Firebase configuré et actif — Token enregistré</span>';
-  } else if (typeof firebase !== 'undefined') {
-    el.innerHTML = '<span style="color:#d97706;font-weight:600">⚠️ Firebase chargé — En attente de permission Push</span>';
-  } else {
-    el.innerHTML = '<span style="color:#dc2626">❌ Firebase SDK non chargé</span>';
-  }
-}
-
-// ── Initialisation Firebase + FCM ──
+// ── FCM supprimé — Messagerie est le canal unique ──────────────────────
 let fcmInitialized = false;
-async function initFCM() {
-  if (fcmInitialized) return; // Éviter les appels multiples
-  // Vérifier si Firebase SDK est chargé
-  if (typeof firebase === 'undefined') {
-    console.warn('[FCM] Firebase SDK non chargé');
-    return;
-  }
+let fcmMessaging   = null;
+let fcmVapidKey    = null;
+let fcmAdminToken  = null;
 
-  try {
-    // Utiliser la config hardcodée directement
-    if (!firebase.apps.length) {
-      firebase.initializeApp(FIREBASE_CONFIG);
-    }
-
-    fcmMessaging = firebase.messaging();
-    fcmInitialized = true; // Éviter ré-init
-
-    // Demander permission si pas encore accordée
-    if (Notification.permission === 'default') {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        console.warn('[FCM] Permission refusée');
-        return;
-      }
-    }
-    if (Notification.permission !== 'granted') return;
-
-    // Obtenir token FCM — peut échouer avec 401 si config OAuth2 manquante
-    try {
-      const token = await fcmMessaging.getToken({ vapidKey: FIREBASE_VAPID });
-      if (token) {
-        fcmAdminToken = token;
-        await sauvegarderTokenFCM(token, 'admin');
-        console.log('[FCM] ✅ Token admin enregistré');
-        mettreAJourStatutFCM();
-      }
-    } catch(tokenErr) {
-      // Erreur 401 normale si pas de compte de service OAuth2 configuré
-      // Les notifications locales fonctionnent quand même
-      console.warn('[FCM] Token non obtenu (OAuth2 requis pour push distant):', tokenErr.message);
-      // Statut : Firebase chargé, notifications locales OK
-      const el = document.getElementById('fcm-config-state');
-      if (el) el.innerHTML = '<span style="color:#059669;font-weight:600">✅ Firebase actif — Notifications locales OK</span>';
-    }
-
-    // Écoute messages en premier plan (fonctionne sans token distant)
-    fcmMessaging.onMessage(function(payload) {
-      console.log('[FCM] Message reçu:', payload);
-      const notif = payload.notification || {};
-      ajouterNotifLocale(
-        notif.title || 'EduLink',
-        notif.body  || '',
-        '🔔'
-      );
-      showToast('🔔 ' + (notif.title || 'Nouvelle notification'), 'info');
-    });
-
-  } catch(err) {
-    console.warn('[FCM] Erreur init:', err.message);
-  }
-}
-
-// ── Sauvegarde token en base ──
-async function sauvegarderTokenFCM(token, role = 'admin') {
-  if (!token) return;
-  // Colonnes réelles : id, utilisateur_id, token, plateforme, actif, created_at, ecole_id, role
-  const payload = {
-    token,
-    role,
-    actif:      true,
-    plateforme: /Android/i.test(navigator.userAgent) ? 'android' : /iPhone|iPad/i.test(navigator.userAgent) ? 'ios' : 'web',
-  };
-  if (currentEcoleId) payload.ecole_id = currentEcoleId;
-
-  const { error } = await db.from('push_tokens').upsert(payload, { onConflict: 'token' });
-  if (error) console.warn('[FCM] Erreur save token:', error.message);
-  else console.log('[FCM] ✅ Token sauvegardé — rôle:', role, '— plateforme:', payload.plateforme);
-}
-
-async function compterTokensFCM() {
-  if (!currentEcoleId) return;
-  // Compter d'abord sans filtre ecole_id (compatibilité tokens sans ecole_id)
-  const { count: countTotal } = await db.from('push_tokens')
-    .select('*', { count: 'exact', head: true });
-  // Puis avec filtre
-  const { count: countEcole } = await db.from('push_tokens')
-    .select('*', { count: 'exact', head: true })
-    .eq('ecole_id', currentEcoleId);
-  const el = document.getElementById('fcm-tokens-count');
-  // Afficher le plus grand des deux (cas où ecole_id null sur anciens tokens)
-  if (el) el.textContent = Math.max(countTotal||0, countEcole||0);
-}
-
-// ── Envoi notification depuis back-office ──
-async function envoyerPushNotification() {
-  const titre  = document.getElementById('input-push-titre')?.value.trim();
-  const body   = document.getElementById('input-push-body')?.value.trim();
-  const dest   = document.getElementById('input-push-dest')?.value || 'tous';
-  const url    = document.getElementById('input-push-url')?.value.trim() || '/edulink-portail.html';
-
-  if (!titre || !body) { showToast('Titre et message obligatoires', 'error'); return; }
-
-  const btn = document.getElementById('btn-send-push');
-  btn.disabled = true; btn.textContent = 'Envoi...';
-  document.getElementById('push-send-progress').style.display = 'block';
-  document.getElementById('push-send-log').innerHTML = '⏳ Recherche des appareils...';
-
-  // ── Récupérer tous les tokens abonnés depuis Supabase ─────────────────
-  let q = db.from('push_tokens').select('token, role, plateforme').eq('ecole_id', currentEcoleId);
-  if (dest === 'parents')    q = q.eq('role', 'parent');
-  if (dest === 'etudiants')  q = q.eq('role', 'etudiant');
-  if (dest === 'admin')      q = q.eq('role', 'admin');
-  if (dest === 'enseignant') q = q.eq('role', 'enseignant');
-  let { data: tokenRows } = await q;
-
-  // Fallback sans filtre ecole_id si 0 résultats
-  if (!tokenRows?.length) {
-    const { data: all } = await db.from('push_tokens').select('token, role, plateforme');
-    tokenRows = all;
-  }
-
-  const tokens = (tokenRows||[]).map(t => t.token).filter(Boolean);
-  document.getElementById('push-send-log').innerHTML = `📱 ${tokens.length} appareil(s) trouvé(s) — Envoi FCM...`;
-
-  let succes = 0, echecs = 0;
-
-  if (tokens.length > 0) {
-    try {
-      // ── Appel Edge Function Supabase (OAuth2 FCM V1) ─────────────────
-      const SUPABASE_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
-      const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
-
-      const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON}`,
-        },
-        body: JSON.stringify({ tokens, titre, body, url })
-      });
-
-      const result = await resp.json();
-      if (result.error) throw new Error(result.error);
-      succes = result.succes || 0;
-      echecs = result.echecs || 0;
-      document.getElementById('push-send-log').innerHTML =
-        `✅ ${succes} Push envoyé(s) · ❌ ${echecs} échoué(s)`;
-    } catch(err) {
-      console.warn('[Push] Edge Function erreur:', err.message);
-      document.getElementById('push-send-log').innerHTML = `⚠️ Erreur FCM: ${err.message}`;
-      echecs = tokens.length;
-    }
-  }
-
-  // ── Notification locale sur le navigateur admin ───────────────────────
-  if (Notification.permission === 'granted') {
-    try { new Notification('🔔 ' + titre, { body, icon: '/icon-192.png' }); } catch(e) {}
-  }
-
-  // ── Sauvegarder dans Supabase notifications ───────────────────────────
-  const { data: etudiants } = await db.from('etudiants')
-    .select('id').eq('ecole_id', currentEcoleId).limit(500);
-  const notifRows = (etudiants||[]).map(e => ({
-    ecole_id: currentEcoleId, etudiant_id: e.id,
-    titre, message: body, type: 'push', lue: false,
-  }));
-  if (notifRows.length) await db.from('notifications').insert(notifRows).catch(()=>{});
-
-  // ── Historique ────────────────────────────────────────────────────────
-  await db.from('notifications_historique').insert([{
-    ecole_id: currentEcoleId, titre, body,
-    destinataires: dest, nb_envoyes: succes || notifRows.length,
-    nb_echecs: echecs, envoyee_par: 'admin'
-  }]).catch(()=>{});
-
-  btn.disabled = false; btn.textContent = '🔔 Envoyer';
-  setTimeout(() => fermerModal('modal-push-notif'), 2500);
-  showToast(succes > 0 ? `✅ ${succes} Push envoyé(s) !` : `📋 Notifications enregistrées dans EduLink`, 'success');
-}
+function chargerConfigFCM() {}
+function sauvegarderConfigFCM() { showToast('Notifications Push désactivées — utilisez la Messagerie', 'info'); }
+function mettreAJourStatutFCM() {}
+async function initFCM() {}
+async function sauvegarderTokenFCM() {}
+async function compterTokensFCM() {}
+async function envoyerPushNotification() { showToast('Utilisez le module Messagerie pour contacter les parents', 'info'); fermerModal('modal-push-notif'); }
+function envoyerNotifATous() { showToast('Utilisez le module Messagerie pour contacter les parents', 'info'); }
+async function testerNotifPush() { showToast('Notifications Push désactivées', 'info'); }
+async function envoyerPushGroupe() { return 0; }
+async function envoyerPushAbsence() {}
+async function envoyerNotifAbsencesJour() { showToast('Utilisez le module Messagerie', 'info'); }
 
 
-function envoyerNotifATous() {
-  ouvrirModal('modal-push-notif');
-  document.getElementById('input-push-dest').value = 'tous';
-}
-
-// ── Test notification ──
-async function testerNotifPush() {
-  // Demander la permission navigateur
-  if (Notification.permission === 'default') {
-    const perm = await Notification.requestPermission();
-    if (perm !== 'granted') { showToast('Permission de notification refusée par le navigateur', 'error'); return; }
-  }
-  if (Notification.permission !== 'granted') {
-    showToast('Activez les notifications dans les paramètres de votre navigateur', 'error');
-    return;
-  }
-  // Notification locale navigateur (sans FCM)
-  try {
-    new Notification('🎓 EduLink — Test Push', {
-      body:  'Les notifications fonctionnent correctement sur cet appareil !',
-      icon:  '/icon-192.png',
-    });
-    showToast('🔔 Notification test envoyée (locale) !', 'success');
-  } catch(e) {
-    showToast('Erreur notification : '+e.message, 'error');
-  }
-}
-
-// ── Notifications automatiques (triggers) ──
-
-// Notif push automatique lors d'une absence
-async function envoyerPushAbsence(etudiant, matiere, date) {
-  const serverKey = localStorage.getItem('edulink_fcm_server_key');
-  if (!etudiant?.telephone_parent) return;
-  // Récupérer le token du parent
-  const { data: tokens } = await db.from('push_tokens')
-    .select('token').eq('ecole_id', currentEcoleId).eq('role', 'parent').limit(50);
-  if (!tokens?.length) return;
-  const titre = 'Absence signalée — ' + etudiant.nom + ' ' + etudiant.prenom;
-  const body  = matiere + ' · ' + new Date(date).toLocaleDateString('fr-FR');
-  await envoyerPushGroupe(tokens.map(t=>t.token), titre, body, serverKey);
-}
-
-// Notif push lors de la saisie d'une note
-async function envoyerPushNote(etudiant, matiere, note) {
-  const serverKey = localStorage.getItem('edulink_fcm_server_key');
-  if (!serverKey) return;
-  const { data: tokens } = await db.from('push_tokens')
-    .select('token').eq('ecole_id', currentEcoleId).limit(50);
-  if (!tokens?.length) return;
-  const titre = '📊 Nouvelle note disponible';
-  const body  = etudiant.nom + ' ' + etudiant.prenom + ' · ' + matiere + ' : ' + note + '/20';
-  await envoyerPushGroupe(tokens.map(t=>t.token), titre, body, serverKey);
-}
-
-// Notif push lors d'un nouvel examen planifié
-async function envoyerPushExamen(examen) {
-  const serverKey = localStorage.getItem('edulink_fcm_server_key');
-  if (!serverKey) return;
-  const { data: tokens } = await db.from('push_tokens')
-    .select('token').eq('ecole_id', currentEcoleId).limit(500);
-  if (!tokens?.length) return;
-  const titre = '📝 Examen planifié : ' + examen.matiere;
-  const jours = Math.ceil((new Date(examen.date_examen)-new Date())/86400000);
-  const body  = (examen.type_examen||'Examen') + ' le ' + new Date(examen.date_examen).toLocaleDateString('fr-FR') + (jours>0?' (J-'+jours+')':'');
-  await envoyerPushGroupe(tokens.map(t=>t.token), titre, body, serverKey);
-}
-
-// Helper envoi groupe
-async function envoyerPushGroupe(tokens, titre, body, _unused) {
-  if (!tokens.length) return 0;
-  // Notification locale navigateur
-  if (Notification.permission === 'granted') {
-    try { new Notification('🔔 ' + titre, { body, icon: '/icon-192.png' }); } catch(e) {}
-  }
-  // Enregistrement dans Supabase
-  const { data: ets } = await db.from('etudiants')
-    .select('id').eq('ecole_id', currentEcoleId).limit(500);
-  const rows = (ets||[]).map(e => ({
-    ecole_id: currentEcoleId, etudiant_id: e.id,
-    titre, message: body, type: 'push', lue: false
-  }));
-  if (rows.length) {
-    await db.from('notifications').insert(rows).catch(()=>{});
-    return rows.length;
-  }
-  return 1;
-}
-
-// ── Notifications in-app (panneau local) ──
-function ajouterNotifLocale(titre, message, icone = '🔔') {
-  const list = document.getElementById('notif-list');
-  if (!list) return;
-  const empty = list.querySelector('.notif-empty');
-  if (empty) empty.remove();
-  const item = document.createElement('div');
-  item.className = 'notif-item unread';
-  item.innerHTML = `
-    <div class="ni-ico">${icone}</div>
-    <div class="ni-body">
-      <div class="ni-title">${titre}</div>
-      <div style="font-size:12px;color:#6b7280;margin-top:2px">${message}</div>
-      <div style="font-size:10.5px;color:#9ca3af;margin-top:3px">${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div>
-    </div>`;
-  item.onclick = () => item.classList.remove('unread');
-  list.prepend(item);
-  // Mettre à jour badge
-  const badge = document.getElementById('notif-badge');
-  if (badge) {
-    const count = (parseInt(badge.textContent)||0) + 1;
-    badge.textContent = count;
-    badge.style.display = 'flex';
-  }
-}
-
-
-// ══════════════════════════════════════════════════════════════════════
-//  CENTRE DE NOTIFICATIONS  ★ JOUR 16
-// ══════════════════════════════════════════════════════════════════════
-
-let ncHistoriqueData = [];    // cache local historique
-let ncFiltreActif    = 'tous'; // filtre actif
-let ncTypeCompose    = 'annonce'; // type sélectionné dans le compose
-let ncConfigCache    = null;  // config chargée depuis Supabase
-
-// ── Chargement principal ───────────────────────────────────────────────
 async function chargerNotifications() {
-  await Promise.all([
-    chargerKPIsNotifications(),
-    chargerHistoriqueNotifications(),
-    chargerAppareilsAbonnes(),
-    chargerConfigNotif()
-  ]);
+  await chargerHistoriqueMessages();
 }
 
 async function actualiserNotifications() {
-  showToast('Actualisation...', 'info');
-  await chargerNotifications();
+  await chargerHistoriqueMessages();
   showToast('✅ Actualisé', 'success');
 }
 
-// ── KPIs ──────────────────────────────────────────────────────────────
-async function chargerKPIsNotifications() {
-  if (!currentEcoleId) return;
-  try {
-    // Historique envois
-    const { data: hist } = await db.from('notifications_historique')
-      .select('nb_envoyes, nb_echecs, taux_ouverture')
-      .eq('ecole_id', currentEcoleId);
+// ── Historique des messages — remplace les Notifications Push ────────────
+async function chargerHistoriqueMessages() {
+  const list = document.getElementById('notif-historique-list');
+  if (!list) return;
+  list.innerHTML = '<div class="loading">Chargement...</div>';
 
-    const totalEnvoyes = (hist||[]).reduce((s,h) => s + (h.nb_envoyes||0), 0);
-    const tauxMoy = hist?.length
-      ? Math.round((hist||[]).reduce((s,h) => s + (h.taux_ouverture||0), 0) / hist.length)
-      : 0;
+  const { data: msgs, error } = await db.from('messages')
+    .select('*, etudiants(nom,prenom)')
+    .eq('ecole_id', currentEcoleId)
+    .order('created_at', {ascending:false})
+    .limit(100);
 
-    // Appareils
-    const { count: nbApp } = await db.from('push_tokens')
-      .select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId);
+  if (error) { list.innerHTML = '<div class="loading">Erreur de chargement</div>'; return; }
+  const msgsOk = msgs || [];
 
-    // Dernières 24h
-    const hier = new Date(Date.now() - 86400000).toISOString();
-    const { count: nb24h } = await db.from('notifications_historique')
-      .select('*', {count:'exact', head:true})
-      .eq('ecole_id', currentEcoleId).gte('created_at', hier);
+  // KPIs
+  const total   = msgsOk.length;
+  const lus     = msgsOk.filter(m => m.lu).length;
+  const nonLus  = total - lus;
+  const parents = new Set(msgsOk.map(m => m.destinataire).filter(Boolean)).size;
+  const s = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  s('notif-total-msgs', total);
+  s('notif-msgs-lus',   lus);
+  s('notif-msgs-nonlus',nonLus);
+  s('notif-nb-parents', parents);
 
-    const el = id => document.getElementById(id);
-    if (el('nc-stat-envoyes'))  el('nc-stat-envoyes').textContent  = totalEnvoyes.toLocaleString('fr-FR');
-    if (el('nc-stat-taux'))     el('nc-stat-taux').textContent      = tauxMoy + '%';
-    if (el('nc-stat-appareils'))el('nc-stat-appareils').textContent = nbApp || 0;
-    if (el('nc-stat-24h'))      el('nc-stat-24h').textContent       = nb24h || 0;
-  } catch(e) { console.warn('[Notif] KPIs:', e.message); }
-}
-
-// ── Historique envois ──────────────────────────────────────────────────
-async function chargerHistoriqueNotifications() {
-  const el = document.getElementById('nc-hist-list');
-  if (!el) return;
-  el.innerHTML = '<div class="loading">Chargement...</div>';
-  try {
-    const { data } = await db.from('notifications_historique')
-      .select('*').eq('ecole_id', currentEcoleId)
-      .order('created_at', {ascending: false}).limit(50);
-    ncHistoriqueData = data || [];
-    afficherHistorique();
-  } catch(e) {
-    el.innerHTML = '<div class="loading">Erreur de chargement</div>';
-  }
-}
-
-function afficherHistorique() {
-  const el = document.getElementById('nc-hist-list');
-  if (!el) return;
-  const liste = ncFiltreActif === 'tous'
-    ? ncHistoriqueData
-    : ncHistoriqueData.filter(h => (h.type || 'annonce') === ncFiltreActif);
-
-  if (!liste.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">🔔</div><h3>Aucun envoi</h3><p>Les notifications apparaîtront ici après le premier envoi.</p></div>`;
+  if (!msgsOk.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:2rem;text-align:center">✉️ Aucun message envoyé</div>';
     return;
   }
+  window._notifAllMessages = msgsOk;
+  renderHistoriqueMessages(msgsOk);
+}
 
-  const ICONES = { annonce:'📢', absence:'🚫', note:'📊', examen:'📝', paiement:'💳', message:'✉️', systeme:'🔔' };
-  const COULEURS = { annonce:'blue', absence:'red', note:'teal', examen:'purple', paiement:'amber', message:'green' };
-
-  el.innerHTML = liste.map(h => {
-    const type    = h.type || 'annonce';
-    const ico     = ICONES[type] || '🔔';
-    const couleur = COULEURS[type] || 'blue';
-    const total   = (h.nb_envoyes||0) + (h.nb_echecs||0);
-    const taux    = h.taux_ouverture || 0;
-    const tauxBar = Math.min(100, taux);
-    const dest    = {tous:'Tous',parents:'Parents',etudiants:'Étudiants'}[h.destinataires] || h.destinataires || 'Tous';
-    const prio    = h.priorite === 'high' ? '<span class="badge red" style="font-size:9.5px">URGENT</span>' : '';
-    return `
-    <div class="nc-hist-item">
-      <div class="nc-hist-ico" style="background:var(--ico-bg-${couleur},#dbeafe)">${ico}</div>
-      <div class="nc-hist-body">
-        <div class="nc-hist-titre">${h.titre||'—'} ${prio}</div>
-        <div class="nc-hist-sub">${h.body||''}</div>
-        <div class="nc-hist-pills">
-          <span class="badge ${couleur}">${type}</span>
-          <span class="badge gray">${dest}</span>
-          <span class="badge green" style="font-size:9.5px">✅ ${h.nb_envoyes||0}</span>
-          ${(h.nb_echecs||0) > 0 ? `<span class="badge red" style="font-size:9.5px">❌ ${h.nb_echecs}</span>` : ''}
+function renderHistoriqueMessages(msgs) {
+  const list = document.getElementById('notif-historique-list');
+  if (!list) return;
+  list.innerHTML = msgs.map(m => {
+    const etnom = m.etudiants ? `${m.etudiants.prenom||''} ${m.etudiants.nom||''}`.trim() : '—';
+    const date  = m.created_at ? new Date(m.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    const typeColor = {absence:'#fee2e2',note:'#dbeafe',annonce:'#dcfce7',convocation:'#fef9c3'};
+    const bg = typeColor[m.type_message||m.type] || '#f9fafb';
+    return `<div style="display:flex;gap:.75rem;align-items:flex-start;padding:.85rem 1.2rem;border-bottom:1px solid #f3f4f6">
+      <div style="width:36px;height:36px;border-radius:8px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">✉️</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:#111827">${m.sujet||m.objet||'—'}</div>
+        <div style="font-size:11.5px;color:#6b7280;margin-top:2px">
+          À : ${m.destinataire||etnom||'—'} 
+          ${m.type_message||m.type ? `· <span class="badge" style="font-size:10px">${m.type_message||m.type}</span>` : ''}
         </div>
-        <div class="nc-rate-bar" style="width:140px;margin-top:6px"><div class="nc-rate-fill" style="width:${tauxBar}%"></div></div>
-        <div style="font-size:10px;color:#9ca3af;margin-top:2px">Taux d'ouverture : ${taux}%</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:3px">${(m.corps||m.contenu||'').substring(0,80)}${(m.corps||m.contenu||'').length>80?'...':''}</div>
       </div>
-      <div class="nc-hist-right">
-        <div class="nc-hist-date">${fmtDateHeure(h.created_at)}</div>
-        <div class="nc-hist-rate">${h.nb_envoyes||0}<span style="font-size:10px;color:#9ca3af">/${total} envoyés</span></div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:11px;color:#9ca3af">${date}</div>
+        <span class="badge ${m.lu?'green':'amber'}" style="font-size:10px;margin-top:4px;display:inline-block">${m.lu?'Lu':'Non lu'}</span>
       </div>
     </div>`;
   }).join('');
 }
 
-function filtrerHistorique(type, btn) {
-  ncFiltreActif = type;
-  document.querySelectorAll('.nc-filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  afficherHistorique();
+function filtrerHistoriqueMessages() {
+  const msgs = window._notifAllMessages || [];
+  const q    = document.getElementById('notif-search')?.value.toLowerCase() || '';
+  const type = document.getElementById('notif-filter-type')?.value || '';
+  const filtered = msgs.filter(m => {
+    const txt = `${m.sujet||''} ${m.destinataire||''} ${m.corps||m.contenu||''}`.toLowerCase();
+    const matchQ    = !q    || txt.includes(q);
+    const matchType = !type || (m.type_message||m.type) === type;
+    return matchQ && matchType;
+  });
+  renderHistoriqueMessages(filtered);
 }
 
-function fmtDateHeure(d) {
-  if (!d) return '—';
-  const date = new Date(d);
-  return date.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'}) + ' ' +
-         date.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-}
-
-async function chargerAppareilsAbonnes() {
-  const el  = document.getElementById('nc-devices-list');
-  const cnt = document.getElementById('nc-devices-count');
-  if (!el) return;
-  try {
-    // Colonnes réelles : id, token, plateforme, actif, created_at, ecole_id, role
-    let { data } = await db.from('push_tokens')
-      .select('role, plateforme, actif, created_at, ecole_id')
-      .eq('ecole_id', currentEcoleId)
-      .order('created_at', {ascending: false}).limit(20);
-
-    // Fallback sans filtre ecole_id
-    if (!data?.length) {
-      const { data: all } = await db.from('push_tokens')
-        .select('role, plateforme, actif, created_at, ecole_id')
-        .order('created_at', {ascending: false}).limit(20);
-      data = all;
-    }
-
-    const tokens = data || [];
-    if (cnt) cnt.textContent = tokens.length + ' appareil(s)';
-    if (!tokens.length) {
-      el.innerHTML = '<div class="empty-state" style="padding:1.5rem"><div class="icon" style="font-size:28px">📱</div><h3>Aucun appareil abonné</h3><p>Les appareils s\'afficheront ici après activation des push sur le portail.</p></div>';
-      return;
-    }
-    const ROLE_ICO = { parent:'👨‍👩‍👧', etudiant:'🎓', admin:'👨‍💼', enseignant:'👨‍🏫' };
-    const PLAT_ICO = { android:'🤖 Android', ios:'🍎 iOS', web:'💻 Web' };
-    el.innerHTML = tokens.map(t => {
-      const ico  = ROLE_ICO[t.role] || '📱';
-      const plat = PLAT_ICO[t.plateforme] || '💻 Web';
-      const date = t.created_at ? new Date(t.created_at).toLocaleDateString('fr-FR') : '—';
-      return `
-      <div class="nc-device-row">
-        <div class="nc-device-ico">${ico}</div>
-        <div class="nc-device-info">
-          <div class="nc-device-role">${t.role||'Inconnu'} · ${plat}</div>
-          <div class="nc-device-ua">Inscrit le ${date} · <span class="badge ${t.actif?'green':'red'}">${t.actif?'actif':'inactif'}</span></div>
-        </div>
-        <div class="nc-device-date">${date}</div>
-      </div>`;
-    }).join('');
-  } catch(e) {
-    el.innerHTML = '<div class="loading">Erreur de chargement</div>';
-    console.warn('[Appareils]', e.message);
-  }
-}
-
-// ── Config déclencheurs automatiques ──────────────────────────────────
-async function chargerConfigNotif() {
-  if (!currentEcoleId) return;
-  try {
-    const { data } = await db.from('notifications_config')
-      .select('*').eq('ecole_id', currentEcoleId).maybeSingle();
-    if (!data) return;
-    ncConfigCache = data;
-    const ids = {
-      'cfg-absence':  data.notif_absence,
-      'cfg-note':     data.notif_note,
-      'cfg-examen':   data.notif_examen,
-      'cfg-paiement': data.notif_paiement,
-      'cfg-message':  data.notif_message,
-    };
-    Object.entries(ids).forEach(([id, val]) => {
-      const el = document.getElementById(id);
-      if (el) el.checked = val ?? true;
-    });
-    const hd = document.getElementById('cfg-heure-debut');
-    const hf = document.getElementById('cfg-heure-fin');
-    if (hd && data.heure_debut) hd.value = data.heure_debut.slice(0,5);
-    if (hf && data.heure_fin)   hf.value = data.heure_fin.slice(0,5);
-  } catch(e) { console.warn('[Notif] Config:', e.message); }
-}
-
-async function sauvegarderConfigNotif() {
-  if (!currentEcoleId) return;
-  const payload = {
-    ecole_id:      currentEcoleId,
-    notif_absence: document.getElementById('cfg-absence')?.checked ?? true,
-    notif_note:    document.getElementById('cfg-note')?.checked ?? true,
-    notif_examen:  document.getElementById('cfg-examen')?.checked ?? true,
-    notif_paiement:document.getElementById('cfg-paiement')?.checked ?? false,
-    notif_message: document.getElementById('cfg-message')?.checked ?? true,
-    heure_debut:   document.getElementById('cfg-heure-debut')?.value || '07:00',
-    heure_fin:     document.getElementById('cfg-heure-fin')?.value   || '21:00',
-    updated_at:    new Date().toISOString()
-  };
-  try {
-    await db.from('notifications_config').upsert(payload, {onConflict:'ecole_id'});
-    ncConfigCache = payload;
-    showToast('✅ Configuration sauvegardée', 'success');
-  } catch(e) { showToast('Erreur sauvegarde config', 'error'); }
-}
-
-// ── Composer rapide ────────────────────────────────────────────────────
-function selTypeNotif(btn, type) {
-  document.querySelectorAll('.nc-type-btn').forEach(b => b.classList.remove('sel'));
-  btn.classList.add('sel');
-  ncTypeCompose = type;
-  // Pré-remplir le titre selon le type
-  const TITRES = {
-    annonce: 'Annonce importante',
-    absence: 'Absence signalée',
-    note:    'Nouvelle note disponible',
-    examen:  'Rappel d\'examen',
-    paiement:'Rappel de paiement',
-    message: 'Nouveau message reçu'
-  };
-  const inp = document.getElementById('nc-compose-titre');
-  if (inp && !inp.value) inp.value = TITRES[type] || '';
-}
-
-async function envoyerDepuisCompose() {
-  const titre  = document.getElementById('nc-compose-titre')?.value.trim();
-  const body   = document.getElementById('nc-compose-body')?.value.trim();
-  const dest   = document.getElementById('nc-compose-dest')?.value || 'tous';
-  const urgent = document.getElementById('nc-compose-urgent')?.checked;
-  const result = document.getElementById('nc-compose-result');
-
-  if (!titre || !body) { showToast('Titre et message obligatoires', 'error'); return; }
-  if (result) { result.style.display='block'; result.textContent='⏳ Envoi en cours...'; result.style.color='#6b7280'; }
-
-  const ICONES_TYPE = { annonce:'📢', absence:'🚫', note:'📊', examen:'📝', paiement:'💳', message:'✉️' };
-  const icone = ICONES_TYPE[ncTypeCompose] || '🔔';
-
-  let succes = 0, echecs = 0;
-  const serverKey = localStorage.getItem('edulink_fcm_server_key');
-
-  if (serverKey) {
-    // Mode FCM push — récupérer tokens avec fallback sans filtre ecole_id
-    let q = db.from('push_tokens').select('token, role').eq('ecole_id', currentEcoleId);
-    if (dest === 'parents')    q = q.eq('role', 'parent');
-    if (dest === 'etudiants')  q = q.eq('role', 'etudiant');
-    if (dest === 'admin')      q = q.eq('role', 'admin');
-    if (dest === 'enseignant') q = q.eq('role', 'enseignant');
-    let { data: tokens } = await q;
-
-    // Fallback : si 0 tokens avec ecole_id, essayer sans filtre
-    if (!tokens?.length && dest === 'tous') {
-      const { data: all } = await db.from('push_tokens').select('token, role');
-      tokens = all;
-    }
-
-    if (tokens?.length) {
-      // Notification locale navigateur pour l'admin
-      if (Notification.permission === 'granted') {
-        try {
-          new Notification('🔔 ' + icone + ' ' + titre, { body, icon: '/icon-192.png' });
-        } catch(e) {}
-      }
-      // Enregistrement dans Supabase pour tous les étudiants
-      const { data: ets } = await db.from('etudiants')
-        .select('id').eq('ecole_id', currentEcoleId).limit(500);
-      const rows = (ets||[]).map(e => ({
-        ecole_id: currentEcoleId, etudiant_id: e.id,
-        titre: icone + ' ' + titre, message: body, type: ncTypeCompose, lue: false
-      }));
-      if (rows.length) {
-        await db.from('notifications').insert(rows).catch(()=>{});
-        succes = rows.length;
-      } else {
-        succes = 1;
-      }
-    } else {
-      if (result) { result.textContent='⚠️ Aucun appareil trouvé'; result.style.color='#d97706'; }
-      succes = 1;
-    }
-  } else {
-    // Mode dégradé : enregistrement dans Supabase uniquement
-    succes = 1; echecs = 0;
-  }
-
-  // Persister dans l'historique
-  await db.from('notifications_historique').insert([{
-    ecole_id: currentEcoleId, titre, body,
-    type: ncTypeCompose, destinataires: dest,
-    nb_envoyes: succes, nb_echecs: echecs,
-    priorite: urgent ? 'high' : 'normal',
-    envoyee_par: 'admin'
-  }]).catch(() => {});
-
-  // Persister dans la table notifications (portail)
-  await db.from('notifications').insert([{
-    ecole_id: currentEcoleId, etudiant_id: null,
-    type: ncTypeCompose, titre: icone + ' ' + titre,
-    corps: body, icone, couleur: 'blue',
-    priorite: urgent ? 'high' : 'normal'
-  }]).catch(() => {});
-
-  if (result) {
-    const modeLabel = serverKey ? '' : ' (mode in-app — sans push FCM)';
-    result.textContent = succes > 0
-      ? `✅ Notification enregistrée${modeLabel}${succes > 1 ? ` — ${succes} envoyés` : ''}`
-      : `❌ ${echecs} échec(s)`;
-    result.style.color = succes > 0 ? '#059669' : '#dc2626';
-  }
-  showToast(`🔔 Notification envoyée !`, 'success');
-
-  setTimeout(() => {
-    if (result) result.style.display = 'none';
-    ['nc-compose-titre','nc-compose-body'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-    chargerHistoriqueNotifications();
-    chargerKPIsNotifications();
-  }, 2500);
-}
-
-// ── Export CSV historique ──────────────────────────────────────────────
-function exporterHistoriqueNotifCSV() {
-  if (!ncHistoriqueData.length) { showToast('Aucune donnée à exporter', 'error'); return; }
-  const header = ['titre','type','message','destinataires','envoyes','echecs','taux_ouverture','date'];
-  const rows = ncHistoriqueData.map(h => [
-    h.titre||'', h.type||'annonce', h.body||'', h.destinataires||'',
-    h.nb_envoyes||0, h.nb_echecs||0, (h.taux_ouverture||0)+'%', fmtDateHeure(h.created_at)
+function csvDownloadMessages() {
+  const msgs = window._notifAllMessages || [];
+  if (!msgs.length) { showToast('Aucun message à exporter', 'error'); return; }
+  const header = ['Date','Sujet','Destinataire','Type','Lu','Contenu'];
+  const rows = msgs.map(m => [
+    m.created_at ? new Date(m.created_at).toLocaleDateString('fr-FR') : '—',
+    m.sujet||m.objet||'—',
+    m.destinataire||'—',
+    m.type_message||m.type||'—',
+    m.lu ? 'Oui' : 'Non',
+    (m.corps||m.contenu||'').replace(/,/g,'；').substring(0,100)
   ]);
-  csvDownload('notifications.csv', header, rows);
+  csvDownload('Historique-Messages.csv', header, rows);
+  showToast('📥 Historique exporté !', 'success');
 }
 
-// ── Hook showPage — ajouter notifications dans les loaders ────────────
-// Intégration propre : on ajoute notifications au map de loaders existant
-document.addEventListener('DOMContentLoaded', function() {
-  // Patch sûr : on écoute les clics nav-notifications
-  const navBtn = document.getElementById('nav-notifications');
-  if (navBtn) {
-    navBtn.addEventListener('click', function() {
-      chargerNotifications();
-    });
-  }
-});
+function chargerAppareilsAbonnes() {}
+async function chargerConfigNotif() {}
 
-// ══════════════════════════════════════════════════════════════════════
-//  FIN CENTRE DE NOTIFICATIONS  ★ JOUR 16
-// ══════════════════════════════════════════════════════════════════════
 
-// ══════════════════════════════════════════════════════════════════════
-//  BRANDING ★ JOUR 17
-// ══════════════════════════════════════════════════════════════════════
-
-let tousThemes = [];
+async function envoyerDepuisCompose() { showToast("Utilisez le module Messagerie", "info"); }
 
 async function chargerBranding() {
   if (!currentEcoleId) return;
