@@ -17758,74 +17758,107 @@ function effacerConversation() {
    SUITE 11 — SMS & COMMUNICATION PARENTS ★ JOUR 36
 ══════════════════════════════════════════════════════════════════ */
 const SMS_TEMPLATES = [
-  { ico:'🚫', nom:'Alerte absence', preview:'Bonjour {nom_parent}, votre enfant {nom_eleve} était absent(e) ce jour...', msg:'Bonjour {nom_parent}, votre enfant {nom_eleve} de la classe {classe} était absent(e) ce jour. Veuillez contacter l\'établissement. Merci.' },
-  { ico:'💳', nom:'Rappel paiement', preview:'Bonjour {nom_parent}, un paiement de frais scolaires est en attente...', msg:'Bonjour {nom_parent}, un paiement de frais scolaires pour {nom_eleve} est en attente. Veuillez régulariser votre situation avant le 30/04/2026. Merci.' },
-  { ico:'📊', nom:'Résultats disponibles', preview:'Bonjour {nom_parent}, le bulletin de {nom_eleve} est disponible...', msg:'Bonjour {nom_parent}, le bulletin scolaire de {nom_eleve} est disponible sur EduLink. Consultez-le sur app.afryx.io. Cordialement.' },
-  { ico:'📅', nom:'Réunion parents', preview:'Bonjour {nom_parent}, vous êtes invité(e) à la réunion...', msg:'Bonjour {nom_parent}, vous êtes invité(e) à la réunion parents-professeurs du 05/04/2026 à 15h à l\'établissement. Votre présence est souhaitée.' },
-  { ico:'⚠️', nom:'Avertissement discipline', preview:'Bonjour {nom_parent}, un incident disciplinaire a été signalé...', msg:'Bonjour {nom_parent}, un incident disciplinaire concernant {nom_eleve} a été signalé. Merci de contacter le bureau de la direction.' },
-  { ico:'🎉', nom:'Félicitations', preview:'Bonjour {nom_parent}, félicitations pour les résultats de {nom_eleve}...', msg:'Bonjour {nom_parent}, félicitations ! {nom_eleve} a obtenu d\'excellents résultats ce trimestre. Continuez à encourager votre enfant !' },
-];
-
-const SMS_HISTORIQUE = [
-  { ico:'🚫', titre:'Alertes absences', preview:'Bonjour, votre enfant était absent...', date:'01/04/2026', nb:14, taux:92 },
-  { ico:'💳', titre:'Rappel paiements T3', preview:'Un paiement est en attente...', date:'28/03/2026', nb:26, taux:88 },
-  { ico:'📊', titre:'Bulletins S1 disponibles', preview:'Le bulletin est disponible...', date:'25/03/2026', nb:115, taux:96 },
-  { ico:'📅', titre:'Réunion parents du 15/03', preview:'Vous êtes invité à la réunion...', date:'12/03/2026', nb:98, taux:91 },
-];
-
-const SMS_CONTACTS = [
-  {nom:'M. Mensah Koffi', enfant:'Kofi Mensah', classe:'Tle D', tel:'+229 97 12 34 56', color:'#1e3a5f'},
-  {nom:'Mme Dossou Adélaïde', enfant:'Afi Dossou', classe:'1ère A', tel:'+229 96 23 45 67', color:'#059669'},
-  {nom:'M. Gbedo Paul', enfant:'Brice Gbedo', classe:'Tle C', tel:'+229 95 34 56 78', color:'#7c3aed'},
-  {nom:'Mme Akpo Thérèse', enfant:'Flore Akpo', classe:'2nde B', tel:'+229 94 45 67 89', color:'#d97706'},
-  {nom:'M. Sime Martial', enfant:'Marius Sime', classe:'Tle D', tel:'+229 93 56 78 90', color:'#dc2626'},
-  {nom:'Mme Ahoton Rosalie', enfant:'Sonia Ahoton', classe:'1ère B', tel:'+229 92 67 89 01', color:'#1d4ed8'},
+  { ico:'🚫', nom:'Alerte absence', preview:'Bonjour {nom_parent}, votre enfant {nom_eleve} était absent(e) ce jour...', msg:"Bonjour {nom_parent}, votre enfant {nom_eleve} de la classe {classe} était absent(e) ce jour. Veuillez contacter l'établissement. Merci." },
+  { ico:'💳', nom:'Rappel paiement', preview:'Bonjour {nom_parent}, un paiement de frais scolaires est en attente...', msg:"Bonjour {nom_parent}, un paiement de frais scolaires pour {nom_eleve} est en attente. Veuillez régulariser votre situation. Merci." },
+  { ico:'📊', nom:'Résultats disponibles', preview:'Bonjour {nom_parent}, le bulletin de {nom_eleve} est disponible...', msg:"Bonjour {nom_parent}, le bulletin scolaire de {nom_eleve} est disponible sur EduLink. Cordialement." },
+  { ico:'📅', nom:'Réunion parents', preview:'Bonjour {nom_parent}, vous êtes invité(e) à la réunion...', msg:"Bonjour {nom_parent}, vous êtes invité(e) à la réunion parents-professeurs. Votre présence est souhaitée. Cordialement." },
+  { ico:'⚠️', nom:'Avertissement discipline', preview:'Bonjour {nom_parent}, un incident disciplinaire a été signalé...', msg:"Bonjour {nom_parent}, un incident disciplinaire concernant {nom_eleve} a été signalé. Merci de contacter le bureau de la direction." },
+  { ico:'🎉', nom:'Félicitations', preview:'Bonjour {nom_parent}, félicitations pour les résultats de {nom_eleve}...', msg:"Bonjour {nom_parent}, félicitations ! {nom_eleve} a obtenu d'excellents résultats ce trimestre. Continuez à encourager votre enfant !" },
 ];
 
 const SMS_AUTO_CONFIG = [
-  {ico:'🚫', nom:'Alerte absence automatique', desc:'Envoyé chaque matin à 8h30 aux parents des absents', actif:true, freq:'Quotidien'},
-  {ico:'💳', nom:'Rappel paiement J+15', desc:'Rappel automatique 15 jours après l\'échéance', actif:true, freq:'Mensuel'},
-  {ico:'📊', nom:'Notification bulletin', desc:'Envoyé dès qu\'un bulletin est validé', actif:true, freq:'Trimestriel'},
-  {ico:'📅', nom:'Rappel réunion -48h', desc:'Rappel 48h avant chaque réunion programmée', actif:false, freq:'À la demande'},
+  {ico:'🚫', nom:'Alerte absence automatique', desc:"Email envoyé aux parents lors de l'enregistrement d'une absence", actif:true, freq:'Immédiat'},
+  {ico:'💳', nom:'Rappel paiement', desc:"Email de confirmation lors de validation d'un paiement", actif:true, freq:"À l'événement"},
+  {ico:'📊', nom:'Notification bulletin', desc:"Email envoyé dès qu'un bulletin est généré", actif:true, freq:'Trimestriel'},
+  {ico:'✅', nom:'Bienvenue nouvel étudiant', desc:"Email de bienvenue au parent lors de l'inscription", actif:true, freq:"À l'inscription"},
 ];
 
+
 let smsDestSelectes = [];
+let _smsContactsCache = [];
 
-function chargerSMSParents() {
-  const totalEnvoyes = SMS_HISTORIQUE.reduce((s,h)=>s+h.nb,0);
-  const tauxMoy = Math.round(SMS_HISTORIQUE.reduce((s,h)=>s+h.taux,0)/SMS_HISTORIQUE.length);
-  document.getElementById('sms-envoyes').textContent = totalEnvoyes;
-  document.getElementById('sms-taux').textContent = tauxMoy+'%';
-  document.getElementById('sms-parents').textContent = SMS_CONTACTS.length;
-
-  // KPI bar
+async function chargerSMSParents() {
+  renderSMSTemplates();
+  renderSMSAuto();
+  await Promise.all([chargerContactsParents(), chargerHistoriqueMessagesTab()]);
+  const contacts = _smsContactsCache;
+  const { data: msgs } = await db.from('messages').select('id').eq('ecole_id', currentEcoleId);
+  const total = msgs?.length || 0;
+  const sel = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  sel('sms-envoyes', total);
+  sel('sms-taux',    'Email');
+  sel('sms-parents', contacts.filter(c => c.email_parent).length);
   const kpiBar = document.getElementById('sms-kpi-bar');
   if (kpiBar) kpiBar.innerHTML = [
-    {ico:'📤',val:totalEnvoyes,lbl:'SMS ce mois',color:'#dbeafe',textColor:'#1d4ed8'},
-    {ico:'✅',val:tauxMoy+'%',lbl:'Taux réception',color:'#dcfce7',textColor:'#059669'},
-    {ico:'👥',val:SMS_CONTACTS.length,lbl:'Parents inscrits',color:'#ede9fe',textColor:'#7c3aed'},
-    {ico:'💰',val:'13 500 F',lbl:'Coût du mois',color:'#fef9c3',textColor:'#d97706'},
+    {ico:'📤', val:total,                                       lbl:'Messages envoyés',    color:'#dbeafe', textColor:'#1d4ed8'},
+    {ico:'✅', val:'Email',                                     lbl:'Canal actif (Brevo)',  color:'#dcfce7', textColor:'#059669'},
+    {ico:'👥', val:contacts.filter(c=>c.email_parent).length,  lbl:'Parents avec email',  color:'#ede9fe', textColor:'#7c3aed'},
+    {ico:'💰', val:'Gratuit',                                   lbl:'Brevo 300/jour',       color:'#fef9c3', textColor:'#d97706'},
   ].map(k=>`<div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.1rem 1.2rem;display:flex;align-items:center;gap:.85rem">
     <div style="width:44px;height:44px;border-radius:12px;background:${k.color};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${k.ico}</div>
     <div><div style="font-size:22px;font-weight:700;color:${k.textColor}">${k.val}</div><div style="font-size:11px;color:#6b7280">${k.lbl}</div></div>
   </div>`).join('');
+  sel('sms-stat-envoyes', total + ' emails');
+  sel('sms-stat-taux',    'Brevo');
+  sel('sms-stat-cout',    'Gratuit');
+  sel('sms-stat-auto',    '4 actifs');
+  await peuplerSelectDestinatairesSMS();
+}
 
-  renderSMSTemplates();
-  renderSMSHistorique();
+async function chargerContactsParents() {
+  const { data } = await db.from('etudiants')
+    .select('id,nom,prenom,classe,filiere,niveau,email_parent,telephone_parent,nom_parent,classe_id')
+    .eq('ecole_id', currentEcoleId).order('nom');
+  _smsContactsCache = data || [];
   renderSMSContacts();
-  renderSMSAuto();
+}
 
-  // Stats sidebar
-  document.getElementById('sms-stat-envoyes').textContent = totalEnvoyes+' SMS';
-  document.getElementById('sms-stat-taux').textContent = tauxMoy+'%';
-  document.getElementById('sms-stat-cout').textContent = '13 500 FCFA';
-  document.getElementById('sms-stat-auto').textContent = '156 SMS';
+async function peuplerSelectDestinatairesSMS() {
+  const sel = document.getElementById('sms-dest-selector');
+  if (!sel) return;
+  const { data: classes } = await db.from('classes').select('id,nom,filiere,niveau').eq('ecole_id', currentEcoleId).order('nom');
+  sel.innerHTML = `<option value="">Ajouter des destinataires...</option>
+    <option value="tous">👨‍👩‍👧 Tous les parents</option>
+    <option value="avec_email">📧 Parents avec email</option>
+    <option value="absences">🚫 Parents des absents du jour</option>
+    <option value="impayes">💳 Parents avec factures impayées</option>
+    ${(classes||[]).map(c=>`<option value="classe_${c.id}">📚 ${c.nom||c.filiere+" "+c.niveau} — Parents</option>`).join('')}`;
+}
+
+async function chargerHistoriqueMessagesTab() {
+  const list = document.getElementById('sms-historique-list');
+  if (!list) return;
+  const { data: msgs } = await db.from('messages')
+    .select('id,sujet,objet,corps,contenu,created_at,destinataire,lu')
+    .eq('ecole_id', currentEcoleId)
+    .order('created_at', {ascending:false}).limit(30);
+  const items = msgs || [];
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:1.5rem;text-align:center">📭 Aucun message envoyé</div>';
+    return;
+  }
+  list.innerHTML = items.map(h => {
+    const date   = h.created_at ? new Date(h.created_at).toLocaleDateString('fr-FR') : '—';
+    const sujet  = h.sujet || h.objet || 'Message';
+    const apercu = (h.corps||h.contenu||'').substring(0,60);
+    return `<div class="sms-envoi-item">
+      <div class="sms-envoi-ico" style="background:#dbeafe">📧</div>
+      <div class="sms-envoi-body">
+        <div class="sms-envoi-titre">${sujet}</div>
+        <div class="sms-envoi-preview">${apercu}${apercu.length>=60?'...':''}</div>
+      </div>
+      <div class="sms-envoi-right">
+        <div class="sms-envoi-date">${date}</div>
+        <span class="badge ${h.lu?'green':'amber'}">${h.lu?'Lu':'Non lu'}</span>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderSMSTemplates() {
   const grid = document.getElementById('sms-templates-grid');
   if (!grid) return;
-  grid.innerHTML = SMS_TEMPLATES.map(t=>`<div class="sms-template-card" onclick="utiliserTemplate('${t.msg.replace(/'/g,"\\'")}')">
+  grid.innerHTML = SMS_TEMPLATES.map(t=>`<div class="sms-template-card" onclick="utiliserTemplate(this.dataset.msg)" data-msg="${t.msg.replace(/"/g,'&quot;')}">
     <div class="st-ico">${t.ico}</div>
     <div class="st-nom">${t.nom}</div>
     <div class="st-preview">${t.preview}</div>
@@ -17834,46 +17867,37 @@ function renderSMSTemplates() {
 
 function utiliserTemplate(msg) {
   const ta = document.getElementById('sms-message');
-  if (ta) { ta.value = msg; compterCaracteres(); showToast('✅ Template appliqué','success'); }
-}
-
-function renderSMSHistorique() {
-  const list = document.getElementById('sms-historique-list');
-  if (!list) return;
-  list.innerHTML = SMS_HISTORIQUE.map(h=>`<div class="sms-envoi-item">
-    <div class="sms-envoi-ico" style="background:#dcfce7">${h.ico}</div>
-    <div class="sms-envoi-body">
-      <div class="sms-envoi-titre">${h.titre}</div>
-      <div class="sms-envoi-preview">${h.preview}</div>
-    </div>
-    <div class="sms-envoi-right">
-      <div class="sms-envoi-date">${h.date}</div>
-      <span class="badge green">${h.nb} envois</span>
-      <div class="sms-taux-bar"><div class="sms-taux-fill" style="width:${h.taux}%"></div></div>
-      <div style="font-size:10px;color:#6b7280;margin-top:2px">${h.taux}% réception</div>
-    </div>
-  </div>`).join('');
+  if (ta) { ta.value = msg; compterCaracteres(); showToast('✅ Template appliqué', 'success'); }
 }
 
 function renderSMSContacts(filtre='') {
-  const list = document.getElementById('sms-contacts-list');
+  const list  = document.getElementById('sms-contacts-list');
   const count = document.getElementById('sms-contacts-count');
   if (!list) return;
-  const contacts = filtre ? SMS_CONTACTS.filter(c=>c.nom.toLowerCase().includes(filtre.toLowerCase())||c.enfant.toLowerCase().includes(filtre.toLowerCase())) : SMS_CONTACTS;
-  if (count) count.textContent = contacts.length+' contacts';
-  list.innerHTML = contacts.map(c=>`<div class="parent-contact-item">
-    <div class="pc-ava2" style="background:${c.color}">${c.nom[0]}</div>
-    <div class="pc-body2">
-      <div class="pc-parent-nom">${c.nom}</div>
-      <div class="pc-enfant-nom">👤 ${c.enfant} · ${c.classe}</div>
-    </div>
-    <div class="pc-tel">${c.tel}</div>
-    <button class="btn-sm btn-green" onclick="showToast('📤 SMS envoyé à ${c.nom}','success')">📤</button>
-  </div>`).join('');
+  const all = _smsContactsCache;
+  const contacts = filtre ? all.filter(c=>`${c.nom} ${c.prenom} ${c.nom_parent||''}`.toLowerCase().includes(filtre.toLowerCase())) : all;
+  if (count) count.textContent = contacts.length + ' contacts';
+  if (!contacts.length) { list.innerHTML = '<div class="empty-state" style="padding:1rem;text-align:center">Aucun contact trouvé</div>'; return; }
+  const COLORS = ['#1e3a5f','#059669','#7c3aed','#d97706','#dc2626','#1d4ed8'];
+  list.innerHTML = contacts.map((c,i) => {
+    const parent = c.nom_parent || `Parent de ${c.prenom} ${c.nom}`;
+    const email  = c.email_parent || '';
+    const tel    = c.telephone_parent || '';
+    return `<div class="parent-contact-item">
+      <div class="pc-ava2" style="background:${COLORS[i%COLORS.length]}">${(c.nom_parent||c.nom||'?')[0].toUpperCase()}</div>
+      <div class="pc-body2">
+        <div class="pc-parent-nom">${parent}</div>
+        <div class="pc-enfant-nom">👤 ${c.prenom} ${c.nom} · ${c.classe||c.filiere||'—'}</div>
+        ${email ? `<div style="font-size:11px;color:#6b7280">📧 ${email}</div>` : `<div style="font-size:11px;color:#dc2626">⚠️ Pas d'email</div>`}
+      </div>
+      <div class="pc-tel">${tel||'—'}</div>
+      ${email ? `<button class="btn-sm btn-green" onclick="envoyerEmailParent('${c.id}','${parent.replace(/'/g,"\'")}','${email}')">📧</button>` : ''}
+    </div>`;
+  }).join('');
 }
 
 function filtrerContacts() {
-  renderSMSContacts(document.getElementById('sms-search-parent').value);
+  renderSMSContacts(document.getElementById('sms-search-parent')?.value || '');
 }
 
 function renderSMSAuto() {
@@ -17882,10 +17906,7 @@ function renderSMSAuto() {
   list.innerHTML = SMS_AUTO_CONFIG.map((s,i)=>`<div class="toggle-row">
     <div style="display:flex;gap:.85rem;align-items:center;flex:1">
       <div style="width:40px;height:40px;border-radius:10px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${s.ico}</div>
-      <div class="toggle-info">
-        <div class="tl">${s.nom}</div>
-        <div class="ts">${s.desc} · <span class="badge gray" style="font-size:10px">${s.freq}</span></div>
-      </div>
+      <div class="toggle-info"><div class="tl">${s.nom}</div><div class="ts">${s.desc} · <span class="badge gray" style="font-size:10px">${s.freq}</span></div></div>
     </div>
     <label class="toggle-sw"><input type="checkbox" ${s.actif?'checked':''} onchange="toggleSMSAuto(${i},this)"><span class="toggle-sl"></span></label>
   </div>`).join('');
@@ -17893,36 +17914,132 @@ function renderSMSAuto() {
 
 function toggleSMSAuto(i, cb) {
   SMS_AUTO_CONFIG[i].actif = cb.checked;
-  showToast(cb.checked?`✅ SMS automatique activé`:`⏸️ SMS automatique désactivé`,'info');
+  showToast(cb.checked ? "✅ Email automatique activé" : "⏸️ Email automatique désactivé", 'info');
 }
 
 function ajouterDestinataire() {
   const sel = document.getElementById('sms-dest-selector');
-  const val = sel.value; const txt = sel.options[sel.selectedIndex].text;
+  const val = sel?.value;
   if (!val || smsDestSelectes.includes(val)) return;
   smsDestSelectes.push(val);
   const tags = document.getElementById('sms-dest-tags');
-  const tag = document.createElement('span');
-  tag.className = 'sms-dest-tag';
-  tag.innerHTML = `${txt} <span class="remove" onclick="supprimerDestinataire('${val}',this)">✕</span>`;
-  tag.dataset.val = val;
-  tags.appendChild(tag);
+  if (tags) {
+    const label = sel.options[sel.selectedIndex]?.text || val;
+    const span  = document.createElement('span');
+    span.className = 'badge green';
+    span.style.cssText = 'display:inline-flex;align-items:center;gap:4px';
+    span.innerHTML = `${label}<button onclick="retirerDestinataire('${val}',this.parentElement)" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0;color:#059669">×</button>`;
+    tags.appendChild(span);
+  }
   sel.value = '';
 }
 
-function supprimerDestinataire(val, el) {
-  smsDestSelectes = smsDestSelectes.filter(v=>v!==val);
-  el.parentElement.remove();
+function retirerDestinataire(val, el) {
+  smsDestSelectes = smsDestSelectes.filter(d => d !== val);
+  el?.remove();
 }
 
-function compterCaracteres() {
-  const ta = document.getElementById('sms-message');
-  const counter = document.getElementById('sms-chars');
-  if (!ta||!counter) return;
-  const len = ta.value.length;
-  counter.textContent = len+' / 160';
-  counter.className = 'chars' + (len>160?' danger':len>140?' warning':'');
+async function envoyerEmailParent(etudiantId, parentNom, parentEmail) {
+  const msg = document.getElementById('sms-message')?.value.trim();
+  if (!msg) { showToast("Rédigez d'abord un message dans l'onglet Composer", 'info'); return; }
+  const etu = _smsContactsCache.find(c => c.id === etudiantId);
+  const msgP = msg.replace(/{nom_parent}/g, parentNom)
+    .replace(/{nom_eleve}/g, etu ? `${etu.prenom} ${etu.nom}` : '')
+    .replace(/{classe}/g, etu?.classe || '');
+  showToast('📧 Envoi en cours...', 'info');
+  const result = await envoyerEmailBrevo({
+    to: parentEmail, toName: parentNom,
+    subject: "Message de votre établissement — EduLink",
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+      <div style="background:#1e3a5f;color:#fff;padding:16px;border-radius:8px 8px 0 0;text-align:center"><h3>📧 Message de l'établissement</h3></div>
+      <div style="padding:20px;background:#f9fafb;border-radius:0 0 8px 8px">
+        <p>${msgP.replace(/\n/g,'<br>')}</p>
+        <p style="color:#6b7280;font-size:12px;margin-top:16px">EduLink — Système de gestion scolaire</p>
+      </div></div>`
+  });
+  if (result.ok) showToast(`✅ Email envoyé à ${parentNom} !`, 'success');
+  else showToast('❌ Erreur : ' + result.error, 'error');
 }
+
+async function envoyerSMS() {
+  if (!smsDestSelectes.length) { showToast('⚠️ Ajoutez au moins un destinataire', 'error'); return; }
+  const msg = document.getElementById('sms-message')?.value.trim();
+  if (!msg) { showToast('⚠️ Rédigez un message', 'error'); return; }
+  const cfg = getBrevoConfig();
+  if (!cfg.apiKey) { showToast('⚠️ Configurez Brevo dans Paramètres Avancés → Intégrations', 'error'); return; }
+  let contacts = [];
+  if (smsDestSelectes.includes('tous') || smsDestSelectes.includes('avec_email')) {
+    contacts = _smsContactsCache.filter(c => c.email_parent);
+  } else {
+    for (const dest of smsDestSelectes) {
+      if (dest.startsWith('classe_')) {
+        const cid = dest.replace('classe_','');
+        contacts.push(..._smsContactsCache.filter(c => c.classe_id === cid && c.email_parent));
+      }
+    }
+    if (!contacts.length) contacts = _smsContactsCache.filter(c => c.email_parent);
+  }
+  if (!contacts.length) { showToast('⚠️ Aucun parent avec email dans cette sélection', 'error'); return; }
+  showToast(`📧 Envoi à ${contacts.length} parent(s)...`, 'info');
+  let succes = 0, echecs = 0;
+  for (const etu of contacts) {
+    const msgP = msg.replace(/{nom_parent}/g, etu.nom_parent||'Parent')
+      .replace(/{nom_eleve}/g, `${etu.prenom} ${etu.nom}`)
+      .replace(/{classe}/g, etu.classe||'');
+    const result = await envoyerEmailBrevo({
+      to: etu.email_parent, toName: etu.nom_parent || `Parent de ${etu.prenom}`,
+      subject: "Message de votre établissement — EduLink",
+      html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#1e3a5f;color:#fff;padding:16px;border-radius:8px 8px 0 0;text-align:center"><h3>📧 Message de l'établissement</h3></div>
+        <div style="padding:20px;background:#f9fafb;border-radius:0 0 8px 8px">
+          <p>${msgP.replace(/\n/g,'<br>')}</p>
+          <p style="color:#6b7280;font-size:12px;margin-top:16px">EduLink — Système de gestion scolaire</p>
+        </div></div>`
+    });
+    if (result.ok) succes++; else echecs++;
+    await db.from('messages').insert([{
+      ecole_id: currentEcoleId, sujet: 'Message groupé', corps: msgP,
+      destinataire: etu.email_parent, expediteur: 'Admin', lu: false, etudiant_id: etu.id
+    }]).catch(()=>{});
+  }
+  document.getElementById('sms-message').value = '';
+  smsDestSelectes = [];
+  document.getElementById('sms-dest-tags').innerHTML = '';
+  showToast(`✅ ${succes} email(s) envoyé(s)${echecs?' · ❌ '+echecs+' échoué(s)':''}`, succes > 0 ? 'success' : 'error');
+  await chargerHistoriqueMessagesTab();
+}
+
+function ouvrirComposerSMS() { smsSwitchTab('composer', document.querySelectorAll('#page-sms-parents .tab')[0]); }
+
+function previsualiserSMS() {
+  const msg = document.getElementById('sms-message')?.value || '';
+  const ex  = _smsContactsCache[0];
+  const preview = msg
+    .replace(/{nom_parent}/g,  ex?.nom_parent || 'M. Parent')
+    .replace(/{nom_eleve}/g,   ex ? `${ex.prenom} ${ex.nom}` : 'Élève')
+    .replace(/{classe}/g,      ex?.classe || 'Classe');
+  showToast('👁️ Aperçu : "' + preview.substring(0,80) + (preview.length>80?'...':'"'), 'info');
+}
+
+function programmerSMS() { showToast('⏰ Fonctionnalité à venir — utilisez Envoyer maintenant', 'info'); }
+
+async function envoyerAlertesAuto() {
+  showToast('⚡ Chargement des absents du jour...', 'info');
+  const today = new Date().toISOString().split('T')[0];
+  const { data: absences } = await db.from('absences')
+    .select('etudiant_id, matiere, date_absence, etudiants(nom,prenom,email_parent,nom_parent,classe)')
+    .eq('ecole_id', currentEcoleId).eq('date_absence', today);
+  if (!absences?.length) { showToast("✅ Aucune absence enregistrée aujourd'hui", 'info'); return; }
+  let succes = 0;
+  for (const a of absences) {
+    const etu = a.etudiants;
+    if (etu?.email_parent) { const r = await envoyerEmailAbsence(etu, a.matiere, a.date_absence); if (r?.ok) succes++; }
+  }
+  showToast(`✅ ${succes} alerte(s) absence envoyée(s) !`, 'success');
+}
+
+async function envoyerAlertesAbsences() { await envoyerAlertesAuto(); }
+
 
 function smsSwitchTab(tab, btn) {
   ['composer','historique','contacts','automatique'].forEach(t=>{
