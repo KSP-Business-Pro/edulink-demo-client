@@ -11765,119 +11765,87 @@ async function envoyerPushNotification() {
   const body   = document.getElementById('input-push-body')?.value.trim();
   const dest   = document.getElementById('input-push-dest')?.value || 'tous';
   const url    = document.getElementById('input-push-url')?.value.trim() || '/edulink-portail.html';
-  const prio   = document.getElementById('input-push-priority')?.value || 'normal';
 
   if (!titre || !body) { showToast('Titre et message obligatoires', 'error'); return; }
 
-  const serverKey = localStorage.getItem('edulink_fcm_server_key');
   const btn = document.getElementById('btn-send-push');
   btn.disabled = true; btn.textContent = 'Envoi...';
   document.getElementById('push-send-progress').style.display = 'block';
-  document.getElementById('push-send-log').innerHTML = '⏳ Chargement des tokens...';
+  document.getElementById('push-send-log').innerHTML = '⏳ Recherche des appareils...';
 
-  // ── MODE DÉGRADÉ : pas de clé FCM → sauvegarder dans Supabase ──────────
-  if (!serverKey) {
-    // Sauvegarder dans notifications (affichée dans le module Notifications)
-    const { data: destinataires } = await db.from('etudiants')
-      .select('id').eq('ecole_id', currentEcoleId).limit(500);
-    const notifRows = (destinataires||[]).map(e=>({
-      ecole_id:   currentEcoleId,
-      etudiant_id: e.id,
-      titre,
-      message:    body,
-      type:       'push',
-      lue:        false,
-    }));
-    if (notifRows.length) {
-      await db.from('notifications').insert(notifRows).then(()=>{}).catch(()=>{});
-    }
-    // Historique
-    await db.from('notifications_historique').insert([{
-      ecole_id:     currentEcoleId,
-      titre, body,
-      destinataires: dest,
-      nb_envoyes:   notifRows.length,
-      nb_echecs:    0,
-      envoyee_par:  'admin'
-    }]).then(()=>{}).catch(()=>{});
-
-    document.getElementById('push-send-log').innerHTML =
-      `✅ ${notifRows.length} notification(s) sauvegardée(s) dans Supabase (mode sans FCM)`;
-    btn.disabled = false; btn.textContent = '🔔 Envoyer';
-    setTimeout(() => fermerModal('modal-push-notif'), 2000);
-    showToast(`✅ ${notifRows.length} notification(s) enregistrée(s) — FCM non configuré, notifications visibles dans l'app`, 'success');
-    return;
-  }
-
-  // ── MODE FCM : clé configurée → envoi direct ────────────────────────────
-  // Récupérer tokens avec fallback sans ecole_id si nécessaire
-  let q = db.from('push_tokens').select('token, role').eq('ecole_id', currentEcoleId);
+  // ── Récupérer tous les tokens abonnés depuis Supabase ─────────────────
+  let q = db.from('push_tokens').select('token, role, plateforme').eq('ecole_id', currentEcoleId);
   if (dest === 'parents')    q = q.eq('role', 'parent');
   if (dest === 'etudiants')  q = q.eq('role', 'etudiant');
   if (dest === 'admin')      q = q.eq('role', 'admin');
   if (dest === 'enseignant') q = q.eq('role', 'enseignant');
-  let { data: tokens } = await q;
+  let { data: tokenRows } = await q;
 
-  // Fallback : si 0 tokens avec ecole_id, essayer sans filtre ecole_id
-  if (!tokens?.length && dest === 'tous') {
-    const { data: all } = await db.from('push_tokens').select('token, role');
-    tokens = all;
+  // Fallback sans filtre ecole_id si 0 résultats
+  if (!tokenRows?.length) {
+    const { data: all } = await db.from('push_tokens').select('token, role, plateforme');
+    tokenRows = all;
   }
 
-  if (!tokens?.length) {
-    const roleLabel = {tous:'aucun appareil abonné', parents:'aucun parent abonné', etudiants:'aucun étudiant abonné', admin:'aucun admin abonné', enseignant:'aucun enseignant abonné'};
-    document.getElementById('push-send-log').innerHTML = `⚠️ ${roleLabel[dest]||'Aucun appareil'} — Les utilisateurs doivent ouvrir l'app et autoriser les notifications.`;
-    btn.disabled = false; btn.textContent = '🔔 Envoyer';
-    return;
-  }
+  const tokens = (tokenRows||[]).map(t => t.token).filter(Boolean);
+  document.getElementById('push-send-log').innerHTML = `📱 ${tokens.length} appareil(s) trouvé(s) — Envoi FCM...`;
 
-  document.getElementById('push-send-log').innerHTML = `📱 ${tokens.length} appareil(s) trouvé(s) — Envoi en cours...`;
+  let succes = 0, echecs = 0;
 
-  // ── Envoi via notification locale navigateur (fonctionne immédiatement) ──
-  let succes = 0;
-  if (Notification.permission === 'granted') {
+  if (tokens.length > 0) {
     try {
-      new Notification('🔔 ' + titre, {
-        body, icon: '/icon-192.png',
-        tag: 'edulink-push-' + Date.now()
+      // ── Appel Edge Function Supabase (OAuth2 FCM V1) ─────────────────
+      const SUPABASE_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
+      const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
+
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON}`,
+        },
+        body: JSON.stringify({ tokens, titre, body, url })
       });
-      succes = 1;
-    } catch(e) { console.warn('[Push local]', e.message); }
+
+      const result = await resp.json();
+      if (result.error) throw new Error(result.error);
+      succes = result.succes || 0;
+      echecs = result.echecs || 0;
+      document.getElementById('push-send-log').innerHTML =
+        `✅ ${succes} Push envoyé(s) · ❌ ${echecs} échoué(s)`;
+    } catch(err) {
+      console.warn('[Push] Edge Function erreur:', err.message);
+      document.getElementById('push-send-log').innerHTML = `⚠️ Erreur FCM: ${err.message}`;
+      echecs = tokens.length;
+    }
   }
 
-  // ── Enregistrement dans Supabase notifications (pour tous les étudiants) ──
+  // ── Notification locale sur le navigateur admin ───────────────────────
+  if (Notification.permission === 'granted') {
+    try { new Notification('🔔 ' + titre, { body, icon: '/icon-192.png' }); } catch(e) {}
+  }
+
+  // ── Sauvegarder dans Supabase notifications ───────────────────────────
   const { data: etudiants } = await db.from('etudiants')
     .select('id').eq('ecole_id', currentEcoleId).limit(500);
   const notifRows = (etudiants||[]).map(e => ({
-    ecole_id:    currentEcoleId,
-    etudiant_id: e.id,
-    titre,
-    message:     body,
-    type:        'push',
-    lue:         false,
+    ecole_id: currentEcoleId, etudiant_id: e.id,
+    titre, message: body, type: 'push', lue: false,
   }));
-  if (notifRows.length) {
-    await db.from('notifications').insert(notifRows).then(()=>{}).catch(()=>{});
-    succes = notifRows.length;
-  }
+  if (notifRows.length) await db.from('notifications').insert(notifRows).catch(()=>{});
 
-  document.getElementById('push-send-log').innerHTML =
-    `✅ ${succes} notification(s) enregistrée(s) dans EduLink`;
-  btn.disabled = false; btn.textContent = '🔔 Envoyer';
-  setTimeout(() => fermerModal('modal-push-notif'), 2000);
-  showToast(`✅ ${succes} notification(s) envoyée(s)`, succes > 0 ? 'success' : 'error');
-
-  // Sauvegarder dans l'historique des notifications
+  // ── Historique ────────────────────────────────────────────────────────
   await db.from('notifications_historique').insert([{
-    ecole_id:     currentEcoleId,
-    titre,
-    body,
-    destinataires: dest,
-    nb_envoyes:   succes,
-    nb_echecs:    echecs,
-    envoyee_par:  'admin'
-  }]).then(() => {}).catch(() => {});
+    ecole_id: currentEcoleId, titre, body,
+    destinataires: dest, nb_envoyes: succes || notifRows.length,
+    nb_echecs: echecs, envoyee_par: 'admin'
+  }]).catch(()=>{});
+
+  btn.disabled = false; btn.textContent = '🔔 Envoyer';
+  setTimeout(() => fermerModal('modal-push-notif'), 2500);
+  showToast(succes > 0 ? `✅ ${succes} Push envoyé(s) !` : `📋 Notifications enregistrées dans EduLink`, 'success');
 }
+
 
 function envoyerNotifATous() {
   ouvrirModal('modal-push-notif');
