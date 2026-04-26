@@ -5042,14 +5042,15 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       </div>
 
       <div class="sms-block">
-        <div class="sms-block-header"><span>📡 Crédit SMS restant</span></div>
+        <div class="sms-block-header"><span>📧 Quota Brevo</span></div>
         <div style="padding:1rem;text-align:center">
-          <div style="font-size:36px;font-weight:800;color:#059669" id="sms-credit">450</div>
-          <div style="font-size:12px;color:#6b7280;margin-bottom:.75rem">SMS disponibles</div>
+          <div style="font-size:36px;font-weight:800;color:#059669" id="sms-credit">300</div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:.75rem">emails / jour (plan gratuit)</div>
           <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin-bottom:.75rem">
-            <div style="height:100%;width:45%;background:linear-gradient(90deg,#059669,#1d9e75);border-radius:4px"></div>
+            <div id="sms-credit-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#059669,#1d9e75);border-radius:4px;transition:.4s"></div>
           </div>
-          <button class="btn-green" style="width:100%" onclick="showToast('💳 Rechargement SMS — Contactez votre opérateur','info')">+ Recharger</button>
+          <div id="sms-credit-info" style="font-size:11px;color:#6b7280;margin-bottom:.75rem">Chargement...</div>
+          <a href="https://app.brevo.com/account/plans" target="_blank" class="btn-green" style="display:block;width:100%;text-align:center;text-decoration:none;padding:8px;border-radius:8px;font-size:12px;font-weight:600">📈 Voir mon quota Brevo</a>
         </div>
       </div>
     </div>
@@ -17803,6 +17804,7 @@ async function chargerSMSParents() {
   sel('sms-stat-cout',    'Gratuit');
   sel('sms-stat-auto',    '4 actifs');
   await peuplerSelectDestinatairesSMS();
+  chargerQuotaBrevo();
 }
 
 async function chargerContactsParents() {
@@ -18007,6 +18009,37 @@ async function envoyerSMS() {
   document.getElementById('sms-dest-tags').innerHTML = '';
   showToast(`✅ ${succes} email(s) envoyé(s)${echecs?' · ❌ '+echecs+' échoué(s)':''}`, succes > 0 ? 'success' : 'error');
   await chargerHistoriqueMessagesTab();
+  chargerQuotaBrevo();
+}
+
+async function chargerQuotaBrevo() {
+  const cfg = getBrevoConfig();
+  const bar  = document.getElementById('sms-credit-bar');
+  const info = document.getElementById('sms-credit-info');
+  const num  = document.getElementById('sms-credit');
+  if (!cfg.apiKey) {
+    if (info) info.textContent = 'Configurez Brevo pour voir le quota';
+    return;
+  }
+  try {
+    const resp = await fetch('https://api.brevo.com/v3/account', {
+      headers: { 'api-key': cfg.apiKey }
+    });
+    const data = await resp.json();
+    const plan    = data.plan?.[0];
+    const credits = plan?.credits || 300;
+    const used    = plan?.creditsUsed || 0;
+    const restant = Math.max(0, credits - used);
+    const pct     = Math.round((used / credits) * 100);
+    if (num)  num.textContent  = restant;
+    if (bar)  bar.style.width  = pct + '%';
+    if (bar)  bar.style.background = pct > 80 ? '#dc2626' : pct > 50 ? '#d97706' : '#059669';
+    if (info) info.textContent = `${used} utilisés sur ${credits} aujourd'hui`;
+  } catch(e) {
+    if (num)  num.textContent  = '300';
+    if (info) info.textContent = "Plan gratuit — 300 emails/jour";
+    if (bar)  bar.style.width  = '0%';
+  }
 }
 
 function ouvrirComposerSMS() { smsSwitchTab('composer', document.querySelectorAll('#page-sms-parents .tab')[0]); }
@@ -18048,26 +18081,7 @@ function smsSwitchTab(tab, btn) {
   document.querySelectorAll('#page-sms-parents .tab').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
 }
-
-function envoyerSMS() {
-  if (!smsDestSelectes.length) { showToast('⚠️ Ajoutez au moins un destinataire','error'); return; }
-  const msg = document.getElementById('sms-message').value.trim();
-  if (!msg) { showToast('⚠️ Rédigez un message','error'); return; }
-  const nbDest = smsDestSelectes.includes('tous') ? SMS_CONTACTS.length : smsDestSelectes.length * 8;
-  showToast(`📤 ${nbDest} SMS envoyés avec succès !`,'success');
-  document.getElementById('sms-message').value = '';
-  smsDestSelectes = [];
-  document.getElementById('sms-dest-tags').innerHTML = '';
-  const creditEl = document.getElementById('sms-credit');
-  if (creditEl) creditEl.textContent = Math.max(0, parseInt(creditEl.textContent) - nbDest);
-}
-
-function ouvrirComposerSMS() { smsSwitchTab('composer', document.querySelectorAll('#page-sms-parents .tab')[0]); }
-function previsualiserSMS() { const msg = document.getElementById('sms-message').value.replace(/{nom_parent}/g,'M. Mensah').replace(/{nom_eleve}/g,'Kofi Mensah').replace(/{classe}/g,'Tle D'); showToast('👁️ Aperçu: "'+msg.substring(0,60)+'..."','info'); }
-function programmerSMS() { showToast('⏰ SMS programmé pour demain 08h00','success'); }
-function envoyerAlertesAuto() { showToast('⚡ 14 alertes absences envoyées automatiquement !','success'); }
-function envoyerAlertesAbsences() { showToast('🚫 14 SMS d\'absence envoyés aux parents','success'); }
-function envoyerRappelPaiements() { showToast('💳 26 rappels de paiement envoyés','success'); }
+function envoyerRappelPaiements() { showToast('💳 Utilisez le module SMS Parents → Envoyer maintenant', 'info'); }
 function envoyerConvocationParents() { showToast('📅 98 convocations envoyées aux parents','success'); }
 function envoyerResultatsBulletins() { showToast('📊 115 notifications bulletins envoyées','success'); }
 
