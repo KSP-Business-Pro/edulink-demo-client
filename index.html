@@ -4351,43 +4351,92 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
       <!-- Intégrations -->
       <div id="param-tab-integrations" style="display:none">
-        <div class="param-panel-header"><h3>🔌 Intégrations & API</h3></div>
+        <div class="param-panel-header"><h3>🔌 Intégrations & Services</h3></div>
         <div class="param-panel-body">
-          <div class="section-label">Services connectés</div>
-          <div class="integration-card">
-            <div class="integ-ico" style="background:#dcfce7">📧</div>
-            <div class="integ-body"><div class="integ-nom">Gmail / Google Workspace</div><div class="integ-desc">Envoi d'emails depuis votre domaine institutionnel</div></div>
-            <span class="badge green">Connecté</span>
-          </div>
+
+          <div class="section-label">Services actifs</div>
+
+          <!-- Supabase — toujours actif -->
           <div class="integration-card">
             <div class="integ-ico" style="background:#dbeafe">☁️</div>
-            <div class="integ-body"><div class="integ-nom">Supabase</div><div class="integ-desc">Base de données principale — stockage sécurisé</div></div>
-            <span class="badge green">Actif</span>
+            <div class="integ-body">
+              <div class="integ-nom">Supabase</div>
+              <div class="integ-desc">Base de données principale — stockage sécurisé de toutes les données</div>
+            </div>
+            <span class="badge green">✅ Actif</span>
           </div>
+
+          <!-- Messagerie EduLink — toujours actif -->
           <div class="integration-card">
             <div class="integ-ico" style="background:#f0fdf4">✉️</div>
-            <div class="integ-body"><div class="integ-nom">Messagerie EduLink</div><div class="integ-desc">Canal unique de communication École ↔ Parents — messages dans Supabase</div></div>
-            <span class="badge green">Actif</span>
+            <div class="integ-body">
+              <div class="integ-nom">Messagerie EduLink</div>
+              <div class="integ-desc">Canal unique École ↔ Parents · Messages lisibles sur le Portail Famille</div>
+            </div>
+            <span class="badge green">✅ Actif</span>
           </div>
+
+          <div class="section-label" style="margin-top:1.5rem">Services disponibles (non configurés)</div>
+
+          <!-- Gmail / Brevo -->
+          <div class="integration-card">
+            <div class="integ-ico" style="background:#fef9c3">📧</div>
+            <div class="integ-body">
+              <div class="integ-nom">Email (Brevo / Gmail)</div>
+              <div class="integ-desc">Envoi d'emails automatiques aux parents — requiert une clé API Brevo</div>
+            </div>
+            <button class="btn-sm btn-secondary" onclick="ouvrirConfigBrevo()">⚙️ Configurer</button>
+          </div>
+
+          <!-- Mobile Money -->
           <div class="integration-card">
             <div class="integ-ico" style="background:#f3f4f6">💳</div>
-            <div class="integ-body"><div class="integ-nom">Mobile Money (MTN / Moov)</div><div class="integ-desc">Paiement des frais de scolarité en ligne</div></div>
-            <button class="btn-sm btn-blue" onclick="showToast('💳 Configuration Mobile Money — Contactez support@edulink.bj','info')">Configurer</button>
+            <div class="integ-body">
+              <div class="integ-nom">Mobile Money (MTN / Moov Bénin)</div>
+              <div class="integ-desc">Paiement des frais de scolarité en ligne — contactez votre opérateur pour l'API</div>
+            </div>
+            <button class="btn-sm btn-secondary" onclick="showToast('💳 Contactez MTN Bénin ou Moov Africa pour activer l\'API MoMo sur votre compte marchand','info')">ℹ️ Infos</button>
           </div>
+
+          <!-- Google Drive -->
           <div class="integration-card">
             <div class="integ-ico" style="background:#f3f4f6">🗂️</div>
-            <div class="integ-body"><div class="integ-nom">Google Drive</div><div class="integ-desc">Stockage des documents et pièces jointes</div></div>
-            <button class="btn-sm btn-secondary" onclick="showToast('🔗 Connexion Google Drive en cours...','info')">Connecter</button>
+            <div class="integ-body">
+              <div class="integ-nom">Google Drive</div>
+              <div class="integ-desc">Stockage des documents et pièces jointes dans votre Drive institutionnel</div>
+            </div>
+            <button class="btn-sm btn-secondary" onclick="window.open('https://workspace.google.com/intl/fr/','_blank')">🔗 En savoir plus</button>
           </div>
+
+          <!-- Clé API EduLink -->
           <div class="section-label" style="margin-top:1.5rem">Clé API EduLink</div>
           <div class="form-group">
             <label>Votre clé API (pour intégrations tierces)</label>
             <div style="display:flex;gap:8px">
-              <input type="password" value="sk_live_edulink_●●●●●●●●●●●●●●●●" readonly style="font-family:monospace;background:#f9fafb" />
-              <button class="btn-sm btn-secondary" onclick="showToast('🔑 Clé API copiée !','success')">Copier</button>
-              <button class="btn-sm btn-red" onclick="showToast('⚠️ Nouvelle clé générée — ancienne révoquée','error')">Régénérer</button>
+              <input type="text" id="api-key-display" readonly style="font-family:monospace;background:#f9fafb;font-size:12px" />
+              <button class="btn-sm btn-secondary" onclick="copierCleAPI()">📋 Copier</button>
+              <button class="btn-sm btn-red" onclick="regenererCleAPI()">🔄 Régénérer</button>
+            </div>
+            <small style="color:#9ca3af;font-size:11px">Partagez cette clé uniquement avec des services de confiance</small>
+          </div>
+
+          <!-- Config Brevo inline -->
+          <div id="config-brevo-panel" style="display:none;margin-top:1rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:1rem">
+            <div style="font-weight:700;font-size:13px;margin-bottom:.75rem">📧 Configuration Brevo (email)</div>
+            <div class="form-group"><label>Clé API Brevo</label>
+              <input type="password" id="brevo-api-key" placeholder="xkeysib-..." style="font-family:monospace;font-size:12px" />
+              <small style="color:#9ca3af;font-size:11px">Obtenez votre clé sur <a href="https://app.brevo.com" target="_blank">app.brevo.com</a> → API Keys</small>
+            </div>
+            <div class="form-group" style="margin-top:.5rem"><label>Email expéditeur</label>
+              <input type="email" id="brevo-from-email" placeholder="noreply@votreecole.bj" />
+            </div>
+            <div style="display:flex;gap:8px;margin-top:.75rem">
+              <button onclick="sauvegarderConfigBrevo()">💾 Sauvegarder</button>
+              <button class="btn-secondary" onclick="testerBrevo()">🧪 Tester</button>
+              <button class="btn-secondary" onclick="document.getElementById('config-brevo-panel').style.display='none'">Annuler</button>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -16491,6 +16540,93 @@ async function sauvegarderRole() {
   chargerRoles();
 }
 
+// ── Intégrations — Clé API EduLink ──────────────────────────────────────
+function chargerCleAPI() {
+  const key = localStorage.getItem('edulink_api_key_' + (currentEcoleId||''));
+  const el  = document.getElementById('api-key-display');
+  if (!el) return;
+  if (key) {
+    el.value = key;
+  } else {
+    // Générer une clé initiale
+    const newKey = 'sk_' + (currentEcoleId||'demo').replace(/-/g,'').slice(0,8) + '_' + Math.random().toString(36).slice(2,18);
+    localStorage.setItem('edulink_api_key_' + (currentEcoleId||''), newKey);
+    el.value = newKey;
+  }
+}
+
+function copierCleAPI() {
+  const el = document.getElementById('api-key-display');
+  if (!el?.value) return;
+  navigator.clipboard.writeText(el.value)
+    .then(() => showToast('📋 Clé API copiée dans le presse-papiers !', 'success'))
+    .catch(() => {
+      el.select(); document.execCommand('copy');
+      showToast('📋 Clé API copiée !', 'success');
+    });
+}
+
+function regenererCleAPI() {
+  if (!confirm('Régénérer la clé API ? L\'ancienne clé sera révoquée immédiatement.')) return;
+  const newKey = 'sk_' + (currentEcoleId||'demo').replace(/-/g,'').slice(0,8) + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,10);
+  localStorage.setItem('edulink_api_key_' + (currentEcoleId||''), newKey);
+  const el = document.getElementById('api-key-display');
+  if (el) el.value = newKey;
+  showToast('🔄 Nouvelle clé API générée ! Mettez à jour vos intégrations.', 'success');
+}
+
+// ── Intégrations — Brevo Email ────────────────────────────────────────────
+function ouvrirConfigBrevo() {
+  const panel = document.getElementById('config-brevo-panel');
+  if (!panel) return;
+  // Pré-remplir depuis localStorage
+  const saved = JSON.parse(localStorage.getItem('edulink_brevo_' + (currentEcoleId||'')) || '{}');
+  const keyEl   = document.getElementById('brevo-api-key');
+  const emailEl = document.getElementById('brevo-from-email');
+  if (keyEl   && saved.apiKey) keyEl.value   = saved.apiKey;
+  if (emailEl && saved.fromEmail) emailEl.value = saved.fromEmail;
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function sauvegarderConfigBrevo() {
+  const apiKey    = document.getElementById('brevo-api-key')?.value.trim();
+  const fromEmail = document.getElementById('brevo-from-email')?.value.trim();
+  if (!apiKey) { showToast('Clé API Brevo obligatoire', 'error'); return; }
+  localStorage.setItem('edulink_brevo_' + (currentEcoleId||''), JSON.stringify({ apiKey, fromEmail }));
+  showToast('✅ Configuration Brevo sauvegardée !', 'success');
+  document.getElementById('config-brevo-panel').style.display = 'none';
+  // Mettre à jour le statut dans la carte
+  const card = document.querySelector('[data-integ="brevo"]');
+  if (card) card.innerHTML = '<span class="badge green">✅ Configuré</span>';
+}
+
+async function testerBrevo() {
+  const saved = JSON.parse(localStorage.getItem('edulink_brevo_' + (currentEcoleId||'')) || '{}');
+  const apiKey    = document.getElementById('brevo-api-key')?.value.trim() || saved.apiKey;
+  const fromEmail = document.getElementById('brevo-from-email')?.value.trim() || saved.fromEmail;
+  if (!apiKey) { showToast('Configurez d\'abord la clé API Brevo', 'error'); return; }
+  showToast('📧 Test d\'envoi Brevo en cours...', 'info');
+  try {
+    const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: { name: 'EduLink Test', email: fromEmail || 'test@edulink.bj' },
+        to: [{ email: fromEmail || 'test@edulink.bj', name: 'Admin EduLink' }],
+        subject: '✅ Test EduLink — Configuration Brevo OK',
+        htmlContent: '<h2>Félicitations !</h2><p>Votre intégration Brevo fonctionne correctement avec EduLink.</p>'
+      })
+    });
+    if (resp.ok) showToast('✅ Email de test envoyé avec succès !', 'success');
+    else {
+      const err = await resp.json();
+      showToast('❌ Erreur Brevo : ' + (err.message || resp.status), 'error');
+    }
+  } catch(e) {
+    showToast('❌ Erreur réseau : ' + e.message, 'error');
+  }
+}
+
 async function supprimerRole(id, nom) {
   if (!confirm(`Supprimer le rôle "${nom}" ? Cette action est irréversible.`)) return;
   if (id.startsWith('local-')) { showToast('Rôle local — non supprimable', 'info'); return; }
@@ -16499,7 +16635,6 @@ async function supprimerRole(id, nom) {
   showToast(`🗑️ Rôle "${nom}" supprimé.`, 'success');
   chargerRoles();
 }
-
 
 const ROLES_DATA = [
   { nom:'Administrateur', ico:'👨‍💼', color:'#1e3a5f', perms:['Tous les modules','Gestion utilisateurs','Paramètres','Suppression de données','Export','Import','Rapports','Finance'] },
@@ -16516,6 +16651,15 @@ async function chargerParamAvances() {
   const ecole = (typeof tousLesEcoles !== 'undefined') ? tousLesEcoles.find(e=>e.id===currentEcoleId) : null;
   if (ecole && document.getElementById('nom-etablissement-param')) {
     document.getElementById('nom-etablissement-param').value = ecole.nom || '';
+  }
+  // Charger clé API et config Brevo
+  chargerCleAPI();
+  const brevo = JSON.parse(localStorage.getItem('edulink_brevo_' + (currentEcoleId||'')) || '{}');
+  if (brevo.apiKey) {
+    const keyEl = document.getElementById('brevo-api-key');
+    const emailEl = document.getElementById('brevo-from-email');
+    if (keyEl) keyEl.value = brevo.apiKey;
+    if (emailEl) emailEl.value = brevo.fromEmail || '';
   }
   // Charger stats messagerie
   db.from('messages').select('id,lu').eq('ecole_id', currentEcoleId).then(({data}) => {
