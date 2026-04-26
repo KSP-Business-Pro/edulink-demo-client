@@ -16587,8 +16587,7 @@ async function envoyerEmailBrevo({ to, toName, subject, html, text }) {
         sender:      { name: cfg.fromName, email: cfg.fromEmail },
         to:          [{ email: to, name: toName || to }],
         subject,
-        htmlContent: html || `<p>${text||''}</p>`,
-        textContent: text || ''
+        htmlContent: html || `<p>${(text||'').replace(/\n/g,'<br>')}</p>`
       })
     });
     const data = await resp.json();
@@ -17857,7 +17856,7 @@ async function envoyerSMS() {
       expediteur_nom:    'Administration',
       expediteur_role:   'admin',
       lu:                false,
-    }]).catch(e => console.warn('[Messages] Insert:', e.message));
+    }]).then(r => { if (r.error) console.warn('[Messages] Insert:', r.error.message); });
   }
 
   document.getElementById('sms-message').value = '';
