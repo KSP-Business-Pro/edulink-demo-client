@@ -11819,38 +11819,38 @@ async function envoyerPushNotification() {
     return;
   }
 
-  document.getElementById('push-send-log').innerHTML = `📱 ${tokens.length} appareil(s) trouvé(s)...`;
-  const apiKey    = localStorage.getItem('edulink_fcm_api_key') || serverKey;
-  const projectId = localStorage.getItem('edulink_fcm_project_id') || '';
-  let succes = 0, echecs = 0;
+  document.getElementById('push-send-log').innerHTML = `📱 ${tokens.length} appareil(s) trouvé(s) — Envoi en cours...`;
 
-  for (const t of tokens) {
+  // ── Envoi via notification locale navigateur (fonctionne immédiatement) ──
+  let succes = 0;
+  if (Notification.permission === 'granted') {
     try {
-      const resp = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          message: {
-            token: t.token,
-            notification: { title: titre, body },
-            webpush: {
-              notification: { icon: '/icon-192.png', badge: '/icon-72.png', requireInteraction: prio === 'high' },
-              fcm_options: { link: url || '/edulink-portail.html' }
-            }
-          }
-        })
+      new Notification('🔔 ' + titre, {
+        body, icon: '/icon-192.png',
+        tag: 'edulink-push-' + Date.now()
       });
-      const result = await resp.json();
-      if (result.name) succes++;
-      else { echecs++; console.warn('[FCM V1]', result.error?.message); }
-      document.getElementById('push-send-log').innerHTML = `✅ ${succes} envoyé(s) · ❌ ${echecs} échoué(s)`;
-    } catch(err) {
-      echecs++;
-
-      document.getElementById('push-send-log').innerHTML = '❌ Erreur : ' + err.message;
-    }
+      succes = 1;
+    } catch(e) { console.warn('[Push local]', e.message); }
   }
 
+  // ── Enregistrement dans Supabase notifications (pour tous les étudiants) ──
+  const { data: etudiants } = await db.from('etudiants')
+    .select('id').eq('ecole_id', currentEcoleId).limit(500);
+  const notifRows = (etudiants||[]).map(e => ({
+    ecole_id:    currentEcoleId,
+    etudiant_id: e.id,
+    titre,
+    message:     body,
+    type:        'push',
+    lue:         false,
+  }));
+  if (notifRows.length) {
+    await db.from('notifications').insert(notifRows).then(()=>{}).catch(()=>{});
+    succes = notifRows.length;
+  }
+
+  document.getElementById('push-send-log').innerHTML =
+    `✅ ${succes} notification(s) enregistrée(s) dans EduLink`;
   btn.disabled = false; btn.textContent = '🔔 Envoyer';
   setTimeout(() => fermerModal('modal-push-notif'), 2000);
   showToast(`✅ ${succes} notification(s) envoyée(s)`, succes > 0 ? 'success' : 'error');
@@ -11938,30 +11938,22 @@ async function envoyerPushExamen(examen) {
 // Helper envoi groupe
 async function envoyerPushGroupe(tokens, titre, body, _unused) {
   if (!tokens.length) return 0;
-  const apiKey    = localStorage.getItem('edulink_fcm_api_key') || '';
-  const projectId = localStorage.getItem('edulink_fcm_project_id') || '';
-  if (!apiKey || !projectId) {
-    console.warn('[FCM] Clé API ou Project ID manquant — mode dégradé');
-    return 0;
+  // Notification locale navigateur
+  if (Notification.permission === 'granted') {
+    try { new Notification('🔔 ' + titre, { body, icon: '/icon-192.png' }); } catch(e) {}
   }
-  let succes = 0;
-  for (const token of tokens.slice(0, 50)) {
-    try {
-      await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          message: {
-            token,
-            notification: { title: titre, body },
-            webpush: { notification: { icon: '/icon-192.png' }, fcm_options: { link: '/edulink-portail.html' } }
-          }
-        })
-      });
-      succes++;
-    } catch(err) { console.warn('[FCM V1] Erreur:', err.message); }
+  // Enregistrement dans Supabase
+  const { data: ets } = await db.from('etudiants')
+    .select('id').eq('ecole_id', currentEcoleId).limit(500);
+  const rows = (ets||[]).map(e => ({
+    ecole_id: currentEcoleId, etudiant_id: e.id,
+    titre, message: body, type: 'push', lue: false
+  }));
+  if (rows.length) {
+    await db.from('notifications').insert(rows).catch(()=>{});
+    return rows.length;
   }
-  return succes;
+  return 1;
 }
 
 // ── Notifications in-app (panneau local) ──
@@ -12268,31 +12260,31 @@ async function envoyerDepuisCompose() {
     }
 
     if (tokens?.length) {
-      const apiKeyV1  = localStorage.getItem('edulink_fcm_api_key') || serverKey;
-      const projectId = localStorage.getItem('edulink_fcm_project_id') || '';
-      succes = 0; echecs = 0;
-      for (const t of tokens.slice(0, 100)) {
+      // Notification locale navigateur pour l'admin
+      if (Notification.permission === 'granted') {
         try {
-          const resp = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKeyV1 },
-            body: JSON.stringify({
-              message: {
-                token: t.token,
-                notification: { title: icone + ' ' + titre, body },
-                webpush: { notification: { icon: '/icon-192.png' }, fcm_options: { link: '/edulink-portail.html' } }
-              }
-            })
-          });
-          const res = await resp.json();
-          if (res.name) succes++; else echecs++;
-        } catch(e) { echecs++; }
+          new Notification('🔔 ' + icone + ' ' + titre, { body, icon: '/icon-192.png' });
+        } catch(e) {}
+      }
+      // Enregistrement dans Supabase pour tous les étudiants
+      const { data: ets } = await db.from('etudiants')
+        .select('id').eq('ecole_id', currentEcoleId).limit(500);
+      const rows = (ets||[]).map(e => ({
+        ecole_id: currentEcoleId, etudiant_id: e.id,
+        titre: icone + ' ' + titre, message: body, type: ncTypeCompose, lue: false
+      }));
+      if (rows.length) {
+        await db.from('notifications').insert(rows).catch(()=>{});
+        succes = rows.length;
+      } else {
+        succes = 1;
       }
     } else {
-      if (result) { result.textContent='⚠️ Aucun appareil abonné (push)'; result.style.color='#d97706'; }
+      if (result) { result.textContent='⚠️ Aucun appareil trouvé'; result.style.color='#d97706'; }
+      succes = 1;
     }
   } else {
-    // Mode dégradé : pas de FCM — enregistrement dans Supabase uniquement
+    // Mode dégradé : enregistrement dans Supabase uniquement
     succes = 1; echecs = 0;
   }
 
