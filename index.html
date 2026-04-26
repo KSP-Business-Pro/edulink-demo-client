@@ -4428,7 +4428,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
               <small style="color:#9ca3af;font-size:11px">Obtenez votre clé sur <a href="https://app.brevo.com" target="_blank">app.brevo.com</a> → API Keys</small>
             </div>
             <div class="form-group" style="margin-top:.5rem"><label>Email expéditeur</label>
-              <input type="email" id="brevo-from-email" placeholder="noreply@votreecole.bj" />
+              <input type="email" id="brevo-from-email" placeholder="kinnou1er@yahoo.fr" />
             </div>
             <div style="display:flex;gap:8px;margin-top:.75rem">
               <button onclick="sauvegarderConfigBrevo()">💾 Sauvegarder</button>
@@ -8197,6 +8197,13 @@ async function ajouterEtudiant() {
   const fi=document.getElementById('input-filiere'); if(fi)fi.value='';
   const sc=document.getElementById('input-classe-etudiant'); if(sc)sc.value='';
   showToast(editId?'✅ Étudiant modifié !':'✅ Étudiant ajouté !','success');
+  // Email de bienvenue au parent si nouvel étudiant
+  if (!editId && etudiantId) {
+    const { data: etu } = await db.from('etudiants').select('*').eq('id', etudiantId).single();
+    if (etu?.email_parent) envoyerEmailBienvenue(etu).then(r => {
+      if (r?.ok) showToast('📧 Email de bienvenue envoyé au parent !', 'success');
+    });
+  }
   chargerEtudiants(); chargerDashboard();
   if(classeId) chargerClasses();
 }
@@ -8284,6 +8291,16 @@ async function enregistrerAbsence() {
   document.getElementById('input-absence-matiere').value='';
   showToast(editId?'✅ Absence modifiée !':'Absence enregistrée !','success');
   invalidateData('absences');
+  // Email au parent si nouvelle absence
+  if (!editId) {
+    const etudiantId = document.getElementById('input-absence-etudiant')?.value;
+    const matiere    = document.getElementById('input-absence-matiere')?.value;
+    const date       = document.getElementById('input-absence-date')?.value;
+    if (etudiantId) {
+      db.from('etudiants').select('nom,prenom,email_parent,nom_parent,matricule').eq('id', etudiantId).single()
+        .then(({data: etu}) => { if (etu?.email_parent) envoyerEmailAbsence(etu, matiere, date); });
+    }
+  }
   chargerAbsences(); chargerDashboard();
 }
 function ouvrirModifierAbsence(id,etudiantId,matiere,date,statut,justification){
@@ -9050,6 +9067,11 @@ async function enregistrerPaiement() {
   fermerModal('modal-paiement'); document.getElementById('input-pay-montant').value=''; document.getElementById('input-pay-ref').value='';
   showToast(nouveauStatut==='payée'?'✅ Facture entièrement payée !':'💰 Paiement partiel enregistré !','success');
   invalidateData('paiements');
+  // Email de confirmation au parent
+  if (facture?.etudiant_id) {
+    db.from('etudiants').select('nom,prenom,email_parent,nom_parent,matricule').eq('id', facture.etudiant_id).single()
+      .then(({data: etu}) => { if (etu?.email_parent) envoyerEmailPaiement(etu, montant, mode, ref); });
+  }
   chargerPaiements(); chargerDashboard();
 }
 
@@ -16540,7 +16562,156 @@ async function sauvegarderRole() {
   chargerRoles();
 }
 
-// ── Intégrations — Clé API EduLink ──────────────────────────────────────
+// ── Brevo Email — Configuration et envoi ─────────────────────────────────
+const BREVO_API_KEY_DEFAULT = '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';
+
+function getBrevoConfig() {
+  const saved = JSON.parse(localStorage.getItem('edulink_brevo_' + (currentEcoleId||'')) || '{}');
+  return {
+    apiKey:    saved.apiKey    || BREVO_API_KEY_DEFAULT,
+    fromEmail: saved.fromEmail || 'kinnou1er@yahoo.fr',
+    fromName:  saved.fromName  || 'AI Conseil Benin — EduLink'
+  };
+}
+
+// Fonction globale d'envoi d'email via Brevo API
+async function envoyerEmailBrevo({ to, toName, subject, html, text }) {
+  const cfg = getBrevoConfig();
+  try {
+    const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': cfg.apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender:      { name: cfg.fromName, email: cfg.fromEmail },
+        to:          [{ email: to, name: toName || to }],
+        subject,
+        htmlContent: html || `<p>${text||''}</p>`,
+        textContent: text || ''
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.message || 'Erreur Brevo ' + resp.status);
+    console.log('[Brevo] ✅ Email envoyé à', to);
+    return { ok: true, messageId: data.messageId };
+  } catch(e) {
+    console.warn('[Brevo] ❌ Erreur:', e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+// Email de bienvenue étudiant
+async function envoyerEmailBienvenue(etudiant) {
+  if (!etudiant?.email_parent) return;
+  return envoyerEmailBrevo({
+    to:      etudiant.email_parent,
+    toName:  etudiant.nom_parent || 'Parent',
+    subject: `✅ Inscription confirmée — ${etudiant.prenom} ${etudiant.nom}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#1e3a5f;color:#fff;padding:20px;border-radius:8px 8px 0 0;text-align:center">
+          <h2>🎓 EduLink — Confirmation d'inscription</h2>
+        </div>
+        <div style="padding:24px;background:#f9fafb;border-radius:0 0 8px 8px">
+          <p>Bonjour <strong>${etudiant.nom_parent || 'Parent'}</strong>,</p>
+          <p>L'inscription de <strong>${etudiant.prenom} ${etudiant.nom}</strong> a bien été enregistrée.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0">
+            <tr style="background:#e5e7eb"><td style="padding:8px;font-weight:bold">Matricule</td><td style="padding:8px">${etudiant.matricule||'—'}</td></tr>
+            <tr><td style="padding:8px;font-weight:bold">Filière</td><td style="padding:8px">${etudiant.filiere||'—'}</td></tr>
+            <tr style="background:#e5e7eb"><td style="padding:8px;font-weight:bold">Niveau</td><td style="padding:8px">${etudiant.niveau||'—'}</td></tr>
+          </table>
+          <p>Vous pouvez suivre la scolarité de votre enfant via le <strong>Portail Famille EduLink</strong>.</p>
+          <div style="text-align:center;margin:20px 0">
+            <a href="https://edulink-demo-client.vercel.app/edulink-portail.html" style="background:#1e3a5f;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Accéder au Portail Famille</a>
+          </div>
+          <p style="color:#6b7280;font-size:12px">Cet email a été envoyé automatiquement par EduLink.</p>
+        </div>
+      </div>`
+  });
+}
+
+// Email d'absence
+async function envoyerEmailAbsence(etudiant, matiere, date) {
+  if (!etudiant?.email_parent) return;
+  return envoyerEmailBrevo({
+    to:      etudiant.email_parent,
+    toName:  etudiant.nom_parent || 'Parent',
+    subject: `⚠️ Absence signalée — ${etudiant.prenom} ${etudiant.nom}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#dc2626;color:#fff;padding:20px;border-radius:8px 8px 0 0;text-align:center">
+          <h2>⚠️ Absence signalée</h2>
+        </div>
+        <div style="padding:24px;background:#f9fafb;border-radius:0 0 8px 8px">
+          <p>Bonjour <strong>${etudiant.nom_parent || 'Parent'}</strong>,</p>
+          <p>Une absence a été enregistrée pour <strong>${etudiant.prenom} ${etudiant.nom}</strong> :</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0">
+            <tr style="background:#fee2e2"><td style="padding:8px;font-weight:bold">Date</td><td style="padding:8px">${date || new Date().toLocaleDateString('fr-FR')}</td></tr>
+            <tr><td style="padding:8px;font-weight:bold">Matière</td><td style="padding:8px">${matiere||'—'}</td></tr>
+            <tr style="background:#fee2e2"><td style="padding:8px;font-weight:bold">Matricule</td><td style="padding:8px">${etudiant.matricule||'—'}</td></tr>
+          </table>
+          <p>Si cette absence est justifiée, veuillez contacter l'administration.</p>
+          <p style="color:#6b7280;font-size:12px">EduLink — Système de gestion scolaire</p>
+        </div>
+      </div>`
+  });
+}
+
+// Email de note
+async function envoyerEmailNote(etudiant, matiere, note, coef) {
+  if (!etudiant?.email_parent) return;
+  const mention = note >= 16 ? '🏆 Très bien' : note >= 14 ? '👍 Bien' : note >= 10 ? '✅ Passable' : '⚠️ Insuffisant';
+  return envoyerEmailBrevo({
+    to:      etudiant.email_parent,
+    toName:  etudiant.nom_parent || 'Parent',
+    subject: `📊 Nouvelle note — ${etudiant.prenom} ${etudiant.nom} — ${matiere}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#1e3a5f;color:#fff;padding:20px;border-radius:8px 8px 0 0;text-align:center">
+          <h2>📊 Nouvelle note enregistrée</h2>
+        </div>
+        <div style="padding:24px;background:#f9fafb;border-radius:0 0 8px 8px">
+          <p>Bonjour <strong>${etudiant.nom_parent || 'Parent'}</strong>,</p>
+          <p>Une nouvelle note a été saisie pour <strong>${etudiant.prenom} ${etudiant.nom}</strong> :</p>
+          <div style="text-align:center;margin:20px 0;padding:20px;background:#fff;border-radius:8px;border:2px solid #e5e7eb">
+            <div style="font-size:36px;font-weight:bold;color:#1e3a5f">${note}/20</div>
+            <div style="font-size:16px;color:#6b7280">${matiere} · Coef. ${coef||1}</div>
+            <div style="font-size:14px;margin-top:8px">${mention}</div>
+          </div>
+          <p style="color:#6b7280;font-size:12px">EduLink — Système de gestion scolaire</p>
+        </div>
+      </div>`
+  });
+}
+
+// Email de paiement reçu
+async function envoyerEmailPaiement(etudiant, montant, mode, reference) {
+  if (!etudiant?.email_parent) return;
+  return envoyerEmailBrevo({
+    to:      etudiant.email_parent,
+    toName:  etudiant.nom_parent || 'Parent',
+    subject: `✅ Paiement reçu — ${etudiant.prenom} ${etudiant.nom}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#059669;color:#fff;padding:20px;border-radius:8px 8px 0 0;text-align:center">
+          <h2>✅ Paiement confirmé</h2>
+        </div>
+        <div style="padding:24px;background:#f9fafb;border-radius:0 0 8px 8px">
+          <p>Bonjour <strong>${etudiant.nom_parent || 'Parent'}</strong>,</p>
+          <p>Le paiement suivant a bien été enregistré :</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0">
+            <tr style="background:#dcfce7"><td style="padding:8px;font-weight:bold">Étudiant</td><td style="padding:8px">${etudiant.prenom} ${etudiant.nom}</td></tr>
+            <tr><td style="padding:8px;font-weight:bold">Montant</td><td style="padding:8px;font-weight:bold;color:#059669">${Number(montant).toLocaleString('fr-FR')} FCFA</td></tr>
+            <tr style="background:#dcfce7"><td style="padding:8px;font-weight:bold">Mode</td><td style="padding:8px">${mode||'—'}</td></tr>
+            <tr><td style="padding:8px;font-weight:bold">Référence</td><td style="padding:8px;font-family:monospace">${reference||'—'}</td></tr>
+            <tr style="background:#dcfce7"><td style="padding:8px;font-weight:bold">Date</td><td style="padding:8px">${new Date().toLocaleDateString('fr-FR')}</td></tr>
+          </table>
+          <p style="color:#6b7280;font-size:12px">EduLink — Système de gestion scolaire</p>
+        </div>
+      </div>`
+  });
+}
+
+
 function chargerCleAPI() {
   const key = localStorage.getItem('edulink_api_key_' + (currentEcoleId||''));
   const el  = document.getElementById('api-key-display');
@@ -16601,30 +16772,19 @@ function sauvegarderConfigBrevo() {
 }
 
 async function testerBrevo() {
-  const saved = JSON.parse(localStorage.getItem('edulink_brevo_' + (currentEcoleId||'')) || '{}');
-  const apiKey    = document.getElementById('brevo-api-key')?.value.trim() || saved.apiKey;
-  const fromEmail = document.getElementById('brevo-from-email')?.value.trim() || saved.fromEmail;
+  const cfg = getBrevoConfig();
+  const apiKey    = document.getElementById('brevo-api-key')?.value.trim() || cfg.apiKey;
+  const fromEmail = document.getElementById('brevo-from-email')?.value.trim() || cfg.fromEmail;
   if (!apiKey) { showToast('Configurez d\'abord la clé API Brevo', 'error'); return; }
-  showToast('📧 Test d\'envoi Brevo en cours...', 'info');
-  try {
-    const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sender: { name: 'EduLink Test', email: fromEmail || 'test@edulink.bj' },
-        to: [{ email: fromEmail || 'test@edulink.bj', name: 'Admin EduLink' }],
-        subject: '✅ Test EduLink — Configuration Brevo OK',
-        htmlContent: '<h2>Félicitations !</h2><p>Votre intégration Brevo fonctionne correctement avec EduLink.</p>'
-      })
-    });
-    if (resp.ok) showToast('✅ Email de test envoyé avec succès !', 'success');
-    else {
-      const err = await resp.json();
-      showToast('❌ Erreur Brevo : ' + (err.message || resp.status), 'error');
-    }
-  } catch(e) {
-    showToast('❌ Erreur réseau : ' + e.message, 'error');
-  }
+  showToast('📧 Envoi du test en cours...', 'info');
+  const result = await envoyerEmailBrevo({
+    to:      fromEmail,
+    toName:  'Admin EduLink',
+    subject: '✅ Test EduLink — Brevo fonctionne !',
+    html:    '<h2>🎉 Configuration Brevo OK !</h2><p>Votre intégration email fonctionne correctement avec EduLink.</p><p>Les emails d\'absence, de notes et de paiement seront envoyés automatiquement aux parents.</p>'
+  });
+  if (result.ok) showToast('✅ Email de test envoyé à ' + fromEmail + ' !', 'success');
+  else showToast('❌ Erreur : ' + result.error, 'error');
 }
 
 async function supprimerRole(id, nom) {
