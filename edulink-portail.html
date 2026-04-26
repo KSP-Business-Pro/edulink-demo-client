@@ -751,6 +751,15 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
 
   <!-- Pages -->
   <div id="push-permission-banner"></div>
+  <!-- Bouton flottant pour activer les notifications Push -->
+  <div id="notif-fab" onclick="demanderPermissionPush()" style="
+    position:fixed;bottom:80px;right:16px;z-index:999;
+    background:#1e3a5f;color:#fff;border-radius:50px;
+    padding:10px 16px;font-size:12px;font-weight:700;
+    box-shadow:0 4px 15px rgba(0,0,0,.3);cursor:pointer;
+    display:flex;align-items:center;gap:6px;
+    font-family:'Poppins',sans-serif;transition:opacity .3s;
+  ">🔔 Activer les notifications</div>
   <div class="page active" id="page-accueil"></div>
   <div class="page" id="page-notes"></div>
   <div class="page" id="page-absences"></div>
@@ -2452,18 +2461,17 @@ async function initFCMPortail() {
   if (!('Notification' in window))         return;
 
   try {
-    // 1. Charger config Firebase depuis Supabase
-    const { data } = await db.from('parametres')
-      .select('firebase_config')
-      .eq('ecole_id', currentEcoleId)
-      .maybeSingle();
-    if (!data?.firebase_config) {
-      console.warn('[FCM Portail] firebase_config absent dans parametres');
-      return;
-    }
-    fcmPortailFirebaseCfg = data.firebase_config;
+    // Config Firebase hardcodée (même que index.html)
+    fcmPortailFirebaseCfg = {
+      apiKey:            "AIzaSyBEdRgcfDi2ai23shWBf4TLBZiM16MpW-U",
+      authDomain:        "edulink-demo-client.firebaseapp.com",
+      projectId:         "edulink-demo-client",
+      storageBucket:     "edulink-demo-client.firebasestorage.app",
+      messagingSenderId: "988597670758",
+      appId:             "1:988597670758:web:86ee62dc5f96e2bf0caea7"
+    };
 
-    // 2. Initialiser Firebase dans le thread principal
+    // 2. Initialiser Firebase
     if (!firebase.apps.length) {
       firebase.initializeApp(fcmPortailFirebaseCfg);
     }
@@ -2504,8 +2512,11 @@ async function initFCMPortail() {
       afficherBannierePermission();
     } else if (Notification.permission === 'granted') {
       await abonnerFCMPortail();
+      // Masquer le bouton flottant si permission déjà accordée
+      const fab = document.getElementById('notif-fab');
+      if (fab) fab.style.display = 'none';
     }
-    // Si 'denied' → on ne fait rien (l'utilisateur a refusé)
+    // Si 'denied' → montrer le bouton flottant pour guider l'utilisateur
 
   } catch(err) {
     console.warn('[FCM Portail] Erreur init :', err.message);
@@ -2530,11 +2541,14 @@ async function demanderPermissionPush() {
   try {
     const permission = await Notification.requestPermission();
     masquerBannierePermission();
+    const fab = document.getElementById('notif-fab');
     if (permission === 'granted') {
+      if (fab) fab.style.display = 'none';
       await abonnerFCMPortail();
       afficherBanniereNotif('🔔 Notifications activées !', 'Vous recevrez les alertes en temps réel.');
-    } else {
-      showToast('Notifications refusées par le navigateur', 'error');
+    } else if (permission === 'denied') {
+      if (fab) fab.innerHTML = '🔕 Notifications bloquées — Autorisez dans les paramètres Chrome';
+      showToast('Notifications refusées — Allez dans Paramètres Chrome → Notifications', 'error');
     }
   } catch(err) {
     console.warn('[FCM Portail] Permission error :', err);
@@ -2544,33 +2558,31 @@ async function demanderPermissionPush() {
 // ── S'abonner et sauvegarder le token ────────────────────────────────
 async function abonnerFCMPortail() {
   try {
-    // Récupérer VAPID key depuis Supabase
-    const { data } = await db.from('parametres')
-      .select('vapid_key').eq('ecole_id', currentEcoleId).maybeSingle();
-    const vapidKey = data?.vapid_key || localStorage.getItem('edulink_vapid_key');
-    if (!vapidKey) { console.warn('[FCM Portail] VAPID key manquante'); return; }
+    // VAPID hardcodée
+    const vapidKey = "BI749zTbOn-FCKlvFA73d3GV72SOYLGJivQCwzuSqlNdSw8OhF9TO9Rl_DCgU7_5Y2irpfaBpHDJyJFubtZ-4tQ";
     if (!fcmPortailMessaging) return;
 
-    // FIX CRITIQUE : passer serviceWorkerRegistration à getToken()
     const tokenOptions = { vapidKey };
     if (fcmPortailSwReg) tokenOptions.serviceWorkerRegistration = fcmPortailSwReg;
 
     const token = await fcmPortailMessaging.getToken(tokenOptions);
     if (!token) { console.warn('[FCM Portail] Token vide'); return; }
     fcmPortailToken = token;
-    localStorage.setItem('edulink_fcm_token', token); // Cache local
+    localStorage.setItem('edulink_fcm_token', token);
 
     const role = currentProfile?.role || 'parent';
-    await db.from('push_tokens').upsert({
-      ecole_id:    currentEcoleId,
+    // Colonnes réelles : token, role, actif, plateforme, ecole_id
+    const payload = {
       token,
       role,
-      etudiant_id: currentEtudiant?.id || null,
-      user_agent:  navigator.userAgent.slice(0, 200),
-      updated_at:  new Date().toISOString()
-    }, { onConflict: 'token' });
+      actif:      true,
+      plateforme: /Android/i.test(navigator.userAgent) ? 'android' : /iPhone|iPad/i.test(navigator.userAgent) ? 'ios' : 'web',
+    };
+    if (currentEcoleId) payload.ecole_id = currentEcoleId;
 
-    console.log('[FCM Portail] ✅ Abonné avec token :', token.slice(0, 20) + '...');
+    const { error } = await db.from('push_tokens').upsert(payload, { onConflict: 'token' });
+    if (error) console.warn('[FCM Portail] Erreur upsert token:', error.message);
+    else console.log('[FCM Portail] ✅ Abonné — rôle:', role, '— token:', token.slice(0,20)+'...');
   } catch(err) {
     console.warn('[FCM Portail] Erreur abonnement :', err.message);
   }
