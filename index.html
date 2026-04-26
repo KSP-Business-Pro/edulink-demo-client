@@ -4320,7 +4320,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div id="param-tab-roles" style="display:none">
         <div class="param-panel-header">
           <h3>👥 Rôles & Permissions</h3>
-          <button class="btn-sm btn-blue" onclick="showToast('✨ Nouveau rôle personnalisé — fonctionnalité bientôt disponible','info')">+ Créer rôle</button>
+          <button class="btn-sm btn-blue" onclick="ouvrirModalRole()">+ Créer rôle</button>
         </div>
         <div class="param-panel-body" id="roles-panel-body"></div>
       </div>
@@ -16400,6 +16400,48 @@ const THEMES_COLORS = [
   {nom:'Ardoise',      color:'#475569'},
 ];
 
+const TOUTES_PERMISSIONS = [
+  'Étudiants','Classes','Notes','Présences','Examens','Emploi du temps',
+  'Messagerie','Discipline','Paiements','Comptabilité','Documents',
+  'Certificats','Rapports','Bibliothèque','Analytics IA','Utilisateurs',
+  'Enseignants','RH & Personnel','Paramètres','Export','Import','Finance'
+];
+
+let roleEditIndex = null;
+
+function ouvrirModalRole(idx) {
+  roleEditIndex = (idx !== undefined && idx !== null) ? idx : null;
+  const r = (roleEditIndex !== null) ? ROLES_DATA[roleEditIndex] : { nom:'', ico:'👤', color:'#1e3a5f', perms:[] };
+  document.getElementById('modal-role-titre').textContent = roleEditIndex !== null ? `✏️ Modifier — ${r.nom}` : '➕ Créer un nouveau rôle';
+  document.getElementById('role-nom').value   = r.nom   || '';
+  document.getElementById('role-ico').value   = r.ico   || '👤';
+  document.getElementById('role-color').value = r.color || '#1e3a5f';
+  document.getElementById('role-perms-grid').innerHTML = TOUTES_PERMISSIONS.map(p => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;padding:.35rem .5rem;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb">
+      <input type="checkbox" value="${p}" ${r.perms.includes(p)?'checked':''} style="cursor:pointer" />
+      ${p}
+    </label>`).join('');
+  ouvrirModal('modal-role');
+}
+
+function sauvegarderRole() {
+  const nom   = document.getElementById('role-nom')?.value.trim();
+  const ico   = document.getElementById('role-ico')?.value.trim() || '👤';
+  const color = document.getElementById('role-color')?.value || '#1e3a5f';
+  if (!nom) { showToast('Le nom du rôle est obligatoire', 'error'); return; }
+  const perms = [...document.querySelectorAll('#role-perms-grid input[type=checkbox]:checked')].map(cb => cb.value);
+  const newRole = { nom, ico, color, perms };
+  if (roleEditIndex !== null) {
+    ROLES_DATA[roleEditIndex] = newRole;
+    showToast(`✅ Rôle "${nom}" modifié !`, 'success');
+  } else {
+    ROLES_DATA.push(newRole);
+    showToast(`✅ Rôle "${nom}" créé !`, 'success');
+  }
+  fermerModal('modal-role');
+  renderRoles();
+}
+
 const ROLES_DATA = [
   { nom:'Administrateur', ico:'👨‍💼', color:'#1e3a5f', perms:['Tous les modules','Gestion utilisateurs','Paramètres','Suppression de données','Export','Import','Rapports','Finance'] },
   { nom:'Comptable', ico:'💰', color:'#059669', perms:['Paiements','Comptabilité','Rapports financiers','Export finance','Factures'] },
@@ -16472,20 +16514,23 @@ function toggleDarkMode(checkbox) {
 function renderRoles() {
   const body = document.getElementById('roles-panel-body');
   if (!body) return;
-  body.innerHTML = ROLES_DATA.map(r=>`
+  body.innerHTML = ROLES_DATA.map((r,i)=>`
     <div class="role-card">
       <div class="role-card-header">
         <div class="role-name">
           <span style="width:32px;height:32px;border-radius:8px;background:${r.color}20;display:inline-flex;align-items:center;justify-content:center;font-size:16px">${r.ico}</span>
           ${r.nom}
         </div>
-        <button class="btn-sm btn-secondary" onclick="showToast('✏️ Modification du rôle ${r.nom}','info')">✏️ Modifier</button>
+        <button class="btn-sm btn-secondary" onclick="ouvrirModalRole(${i})">✏️ Modifier</button>
       </div>
       <div class="perm-grid">
         ${r.perms.map(p=>`<div class="perm-item"><input type="checkbox" checked /><span>${p}</span></div>`).join('')}
       </div>
     </div>
-  `).join('');
+  `).join('') + `
+  <div style="margin-top:1rem">
+    <button onclick="ouvrirModalRole()" class="btn-blue">➕ Créer un nouveau rôle</button>
+  </div>`;
 }
 
 async function renderBackupHistory() {
@@ -19695,6 +19740,35 @@ function telechargerModeleEnseignantsExcel() {
 }
 
 </script>
+<!-- ══ MODALE RÔLE ══ -->
+<div class="modal-overlay" id="modal-role">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 id="modal-role-titre">✏️ Modifier le rôle</h3>
+      <button class="modal-close" onclick="fermerModal('modal-role')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Nom du rôle *</label>
+        <input id="role-nom" placeholder="Ex: Directeur adjoint" />
+      </div>
+      <div class="form-grid" style="margin-top:.75rem">
+        <div class="form-group"><label>Icône (emoji)</label>
+          <input id="role-ico" placeholder="👤" maxlength="4" style="font-size:22px;text-align:center" />
+        </div>
+        <div class="form-group"><label>Couleur</label>
+          <input type="color" id="role-color" value="#1e3a5f" style="height:42px;width:100%;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer" />
+        </div>
+      </div>
+      <div class="section-label" style="margin-top:1rem">Permissions</div>
+      <div id="role-perms-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="fermerModal('modal-role')">Annuler</button>
+      <button onclick="sauvegarderRole()">💾 Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ OFFLINE BANNER ══ -->
 <div class="offline-banner" id="offline-banner">
   📡 Mode hors-ligne — Les modifications seront synchronisées dès la reconnexion
