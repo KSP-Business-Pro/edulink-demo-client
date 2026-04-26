@@ -16407,40 +16407,99 @@ const TOUTES_PERMISSIONS = [
   'Enseignants','RH & Personnel','Paramètres','Export','Import','Finance'
 ];
 
-let roleEditIndex = null;
+let roleEditId = null; // UUID du rôle en cours d'édition (null = nouveau)
 
-function ouvrirModalRole(idx) {
-  roleEditIndex = (idx !== undefined && idx !== null) ? idx : null;
-  const r = (roleEditIndex !== null) ? ROLES_DATA[roleEditIndex] : { nom:'', ico:'👤', color:'#1e3a5f', perms:[] };
-  document.getElementById('modal-role-titre').textContent = roleEditIndex !== null ? `✏️ Modifier — ${r.nom}` : '➕ Créer un nouveau rôle';
-  document.getElementById('role-nom').value   = r.nom   || '';
-  document.getElementById('role-ico').value   = r.ico   || '👤';
-  document.getElementById('role-color').value = r.color || '#1e3a5f';
+async function chargerRoles() {
+  const { data, error } = await db.from('roles')
+    .select('*')
+    .eq('ecole_id', currentEcoleId)
+    .order('created_at');
+  if (error || !data?.length) {
+    // Fallback : rôles par défaut si table vide ou erreur
+    renderRoles(ROLES_DATA.map((r,i) => ({...r, id: 'local-'+i})));
+    return;
+  }
+  // Synchroniser ROLES_DATA avec Supabase
+  window._rolesSupabase = data;
+  renderRoles(data);
+}
+
+function renderRoles(roles) {
+  const list = roles || window._rolesSupabase || ROLES_DATA;
+  const body = document.getElementById('roles-panel-body');
+  if (!body) return;
+  body.innerHTML = list.map(r => `
+    <div class="role-card">
+      <div class="role-card-header">
+        <div class="role-name">
+          <span style="width:32px;height:32px;border-radius:8px;background:${r.color}20;display:inline-flex;align-items:center;justify-content:center;font-size:16px">${r.ico}</span>
+          ${r.nom}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-sm btn-secondary" onclick="ouvrirModalRole('${r.id}')">✏️ Modifier</button>
+          <button class="btn-sm btn-red" onclick="supprimerRole('${r.id}','${r.nom}')">🗑️</button>
+        </div>
+      </div>
+      <div class="perm-grid">
+        ${(r.perms||[]).map(p=>`<div class="perm-item"><input type="checkbox" checked /><span>${p}</span></div>`).join('')}
+      </div>
+    </div>
+  `).join('') + `
+  <div style="margin-top:1rem">
+    <button onclick="ouvrirModalRole()" class="btn-blue">➕ Créer un nouveau rôle</button>
+  </div>`;
+}
+
+function ouvrirModalRole(id) {
+  roleEditId = id || null;
+  const roles = window._rolesSupabase || ROLES_DATA;
+  const r = id ? roles.find(x => String(x.id) === String(id)) : null;
+
+  document.getElementById('modal-role-titre').textContent = r ? `✏️ Modifier — ${r.nom}` : '➕ Créer un nouveau rôle';
+  document.getElementById('role-nom').value   = r?.nom   || '';
+  document.getElementById('role-ico').value   = r?.ico   || '👤';
+  document.getElementById('role-color').value = r?.color || '#1e3a5f';
+
+  const perms = r?.perms || [];
   document.getElementById('role-perms-grid').innerHTML = TOUTES_PERMISSIONS.map(p => `
     <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;padding:.35rem .5rem;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb">
-      <input type="checkbox" value="${p}" ${r.perms.includes(p)?'checked':''} style="cursor:pointer" />
+      <input type="checkbox" value="${p}" ${perms.includes(p)?'checked':''} style="cursor:pointer" />
       ${p}
     </label>`).join('');
   ouvrirModal('modal-role');
 }
 
-function sauvegarderRole() {
+async function sauvegarderRole() {
   const nom   = document.getElementById('role-nom')?.value.trim();
   const ico   = document.getElementById('role-ico')?.value.trim() || '👤';
   const color = document.getElementById('role-color')?.value || '#1e3a5f';
   if (!nom) { showToast('Le nom du rôle est obligatoire', 'error'); return; }
+
   const perms = [...document.querySelectorAll('#role-perms-grid input[type=checkbox]:checked')].map(cb => cb.value);
-  const newRole = { nom, ico, color, perms };
-  if (roleEditIndex !== null) {
-    ROLES_DATA[roleEditIndex] = newRole;
+  const payload = { nom, ico, color, perms, ecole_id: currentEcoleId, updated_at: new Date().toISOString() };
+
+  if (roleEditId && !roleEditId.startsWith('local-')) {
+    const { error } = await db.from('roles').update(payload).eq('id', roleEditId);
+    if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
     showToast(`✅ Rôle "${nom}" modifié !`, 'success');
   } else {
-    ROLES_DATA.push(newRole);
+    const { error } = await db.from('roles').insert([payload]);
+    if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
     showToast(`✅ Rôle "${nom}" créé !`, 'success');
   }
   fermerModal('modal-role');
-  renderRoles();
+  chargerRoles();
 }
+
+async function supprimerRole(id, nom) {
+  if (!confirm(`Supprimer le rôle "${nom}" ? Cette action est irréversible.`)) return;
+  if (id.startsWith('local-')) { showToast('Rôle local — non supprimable', 'info'); return; }
+  const { error } = await db.from('roles').delete().eq('id', id);
+  if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
+  showToast(`🗑️ Rôle "${nom}" supprimé.`, 'success');
+  chargerRoles();
+}
+
 
 const ROLES_DATA = [
   { nom:'Administrateur', ico:'👨‍💼', color:'#1e3a5f', perms:['Tous les modules','Gestion utilisateurs','Paramètres','Suppression de données','Export','Import','Rapports','Finance'] },
@@ -16452,7 +16511,7 @@ const ROLES_DATA = [
 
 async function chargerParamAvances() {
   renderThemeGrid();
-  renderRoles();
+  await chargerRoles(); // charge depuis Supabase
   // Charger nom établissement depuis Supabase
   const ecole = (typeof tousLesEcoles !== 'undefined') ? tousLesEcoles.find(e=>e.id===currentEcoleId) : null;
   if (ecole && document.getElementById('nom-etablissement-param')) {
@@ -16511,27 +16570,6 @@ function toggleDarkMode(checkbox) {
   showToast(checkbox.checked ? '🌙 Mode sombre activé' : '☀️ Mode clair activé','info');
 }
 
-function renderRoles() {
-  const body = document.getElementById('roles-panel-body');
-  if (!body) return;
-  body.innerHTML = ROLES_DATA.map((r,i)=>`
-    <div class="role-card">
-      <div class="role-card-header">
-        <div class="role-name">
-          <span style="width:32px;height:32px;border-radius:8px;background:${r.color}20;display:inline-flex;align-items:center;justify-content:center;font-size:16px">${r.ico}</span>
-          ${r.nom}
-        </div>
-        <button class="btn-sm btn-secondary" onclick="ouvrirModalRole(${i})">✏️ Modifier</button>
-      </div>
-      <div class="perm-grid">
-        ${r.perms.map(p=>`<div class="perm-item"><input type="checkbox" checked /><span>${p}</span></div>`).join('')}
-      </div>
-    </div>
-  `).join('') + `
-  <div style="margin-top:1rem">
-    <button onclick="ouvrirModalRole()" class="btn-blue">➕ Créer un nouveau rôle</button>
-  </div>`;
-}
 
 async function renderBackupHistory() {
   const tl = document.getElementById('backup-timeline');
