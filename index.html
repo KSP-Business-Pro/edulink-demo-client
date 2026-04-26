@@ -5007,9 +5007,18 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
       <!-- TAB Historique -->
       <div id="sms-tab-historique" style="display:none">
+        <div class="sms-block" style="margin-bottom:1rem">
+          <div class="sms-block-header">
+            <span>🔍 Diagnostic livraison Brevo</span>
+            <button class="btn-sm btn-blue" onclick="diagnostiquerLivraisonBrevo()">🩺 Vérifier les 50 derniers envois</button>
+          </div>
+          <div id="brevo-diagnostic-result" style="padding:1rem">
+            <div style="color:#6b7280;font-size:13px">Cliquez sur <b>Vérifier</b> pour interroger l'API Brevo et savoir si vos emails ont vraiment été livrés, mis en spam ou rejetés.</div>
+          </div>
+        </div>
         <div class="sms-block">
           <div class="sms-block-header">
-            <span>📋 Historique des envois</span>
+            <span>📋 Historique des envois (base interne)</span>
             <button class="btn-sm btn-secondary" onclick="exporterHistoriqueEmails()">📥 Export CSV</button>
           </div>
           <div id="sms-historique-list"></div>
@@ -18259,6 +18268,111 @@ async function exporterHistoriqueEmails() {
   ]);
   csvDownload(`EduLink-Historique-Emails-${new Date().toISOString().split("T")[0]}.csv`, header, rows);
   showToast(`📥 ${rows.length} message(s) exporté(s)`, "success");
+}
+
+
+// Diagnostic livraison réelle via l'API Brevo /v3/smtp/statistics/events
+// Affiche le statut réel (delivered, soft_bounce, hard_bounce, blocked, spam) de chaque envoi
+async function diagnostiquerLivraisonBrevo() {
+  const cfg = getBrevoConfig();
+  const out = document.getElementById("brevo-diagnostic-result");
+  if (!out) return;
+  if (!cfg.apiKey) {
+    out.innerHTML = '<div style="color:#dc2626;font-size:13px">⚠️ Clé API Brevo non configurée — Paramètres Avancés → Intégrations → Brevo</div>';
+    return;
+  }
+  out.innerHTML = '<div style="color:#6b7280;font-size:13px">⏳ Interrogation de l\'API Brevo en cours...</div>';
+
+  try {
+    const resp = await fetch("https://api.brevo.com/v3/smtp/statistics/events?limit=50&sort=desc", {
+      headers: { "api-key": cfg.apiKey, "accept": "application/json" }
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      out.innerHTML = `<div style="color:#dc2626;font-size:13px">❌ Erreur API Brevo : ${data.message || resp.status}</div>`;
+      return;
+    }
+    const events = data.events || [];
+    if (!events.length) {
+      out.innerHTML = '<div style="color:#6b7280;font-size:13px">Aucun événement Brevo trouvé. Vous n\'avez peut-être pas encore envoyé d\'emails depuis cette clé API.</div>';
+      return;
+    }
+
+    // Compter par type d'événement
+    const compte = {};
+    events.forEach(e => { compte[e.event] = (compte[e.event]||0) + 1; });
+
+    // Mapping libellé/couleur par statut
+    const STATUTS = {
+      delivered:    { lbl:"✅ Livré",            color:"#059669", bg:"#dcfce7" },
+      requests:     { lbl:"📤 Demande",          color:"#1d4ed8", bg:"#dbeafe" },
+      opened:       { lbl:"👁️ Ouvert",           color:"#7c3aed", bg:"#ede9fe" },
+      clicks:       { lbl:"🖱️ Cliqué",           color:"#7c3aed", bg:"#ede9fe" },
+      hardBounces:  { lbl:"❌ Hard bounce",      color:"#dc2626", bg:"#fee2e2" },
+      softBounces:  { lbl:"⚠️ Soft bounce",      color:"#d97706", bg:"#fef3c7" },
+      blocked:      { lbl:"🚫 Bloqué (DMARC ?)", color:"#dc2626", bg:"#fee2e2" },
+      spam:         { lbl:"🗑️ Marqué spam",      color:"#dc2626", bg:"#fee2e2" },
+      invalid:      { lbl:"⚠️ Email invalide",   color:"#d97706", bg:"#fef3c7" },
+      deferred:     { lbl:"⏳ Différé",           color:"#6b7280", bg:"#f3f4f6" },
+      unsubscribed: { lbl:"🚷 Désinscrit",        color:"#6b7280", bg:"#f3f4f6" },
+    };
+    const get = k => STATUTS[k] || { lbl:k, color:"#6b7280", bg:"#f3f4f6" };
+
+    // Diagnostic global
+    const livres   = compte.delivered || 0;
+    const echecs   = (compte.hardBounces||0) + (compte.softBounces||0) + (compte.blocked||0) + (compte.spam||0) + (compte.invalid||0);
+    let verdict;
+    if (echecs > livres) {
+      verdict = `<div style="background:#fee2e2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:8px;padding:12px 14px;margin-bottom:1rem">
+        <div style="font-weight:700;color:#991b1b;font-size:13px;margin-bottom:4px">❌ Problème de livraison confirmé</div>
+        <div style="color:#7f1d1d;font-size:12.5px;line-height:1.5">${echecs} email(s) en échec contre ${livres} livré(s). C'est très probablement le problème DMARC : utilisez un email expéditeur d'un domaine que vous possédez (validé dans Brevo → Senders).</div>
+      </div>`;
+    } else if (livres > 0 && echecs === 0) {
+      verdict = `<div style="background:#dcfce7;border:1px solid #bbf7d0;border-left:4px solid #059669;border-radius:8px;padding:12px 14px;margin-bottom:1rem">
+        <div style="font-weight:700;color:#065f46;font-size:13px;margin-bottom:4px">✅ Livraison normale</div>
+        <div style="color:#064e3b;font-size:12.5px;line-height:1.5">${livres} email(s) livré(s). Vérifiez le dossier <b>spam/courrier indésirable</b> du destinataire si vous ne les voyez pas.</div>
+      </div>`;
+    } else {
+      verdict = `<div style="background:#fef3c7;border:1px solid #fde68a;border-left:4px solid #d97706;border-radius:8px;padding:12px 14px;margin-bottom:1rem">
+        <div style="font-weight:700;color:#78350f;font-size:13px;margin-bottom:4px">⚠️ Diagnostic mixte</div>
+        <div style="color:#92400e;font-size:12.5px;line-height:1.5">${livres} livré(s), ${echecs} en échec. Examinez le détail ci-dessous.</div>
+      </div>`;
+    }
+
+    // Récapitulatif par statut
+    const recap = Object.entries(compte).map(([k,v]) => {
+      const s = get(k);
+      return `<span style="display:inline-flex;align-items:center;gap:4px;background:${s.bg};color:${s.color};padding:4px 10px;border-radius:14px;font-size:11.5px;font-weight:600;margin:2px">${s.lbl} : ${v}</span>`;
+    }).join("");
+
+    // Tableau détaillé des 50 derniers
+    const lignes = events.slice(0, 50).map(e => {
+      const s = get(e.event);
+      const date = e.date ? new Date(e.date).toLocaleString("fr-FR") : "—";
+      const reason = e.reason ? `<div style="font-size:11px;color:#dc2626;margin-top:2px">↳ ${e.reason}</div>` : "";
+      return `<tr>
+        <td style="padding:6px 8px;font-size:12px;color:#6b7280;white-space:nowrap">${date}</td>
+        <td style="padding:6px 8px;font-size:12px">${e.email||"—"}</td>
+        <td style="padding:6px 8px"><span style="background:${s.bg};color:${s.color};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${s.lbl}</span>${reason}</td>
+      </tr>`;
+    }).join("");
+
+    out.innerHTML = `${verdict}
+      <div style="margin-bottom:.85rem">${recap}</div>
+      <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#f9fafb;position:sticky;top:0">
+            <th style="padding:8px;text-align:left;font-size:11.5px;color:#374151">Date</th>
+            <th style="padding:8px;text-align:left;font-size:11.5px;color:#374151">Destinataire</th>
+            <th style="padding:8px;text-align:left;font-size:11.5px;color:#374151">Statut</th>
+          </tr></thead>
+          <tbody>${lignes}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:.75rem;font-size:11px;color:#9ca3af">Source : API Brevo · ${events.length} événement(s) récents · ${new Date().toLocaleString("fr-FR")}</div>`;
+  } catch(e) {
+    out.innerHTML = `<div style="color:#dc2626;font-size:13px">❌ Erreur réseau : ${e.message}</div>`;
+  }
 }
 
 
