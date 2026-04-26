@@ -11717,9 +11717,9 @@ async function initFCM() {
 }
 
 // ── Sauvegarde token en base ──
-async function sauvegarderTokenFCM(token, role = 'parent') {
+async function sauvegarderTokenFCM(token, role = 'admin') {
   if (!token) return;
-  // Colonnes réelles de push_tokens : id, utilisateur_id, token, plateforme, actif, created_at, ecole_id, role
+  // Colonnes réelles : id, utilisateur_id, token, plateforme, actif, created_at, ecole_id, role
   const payload = {
     token,
     role,
