@@ -16777,15 +16777,28 @@ async function testerBrevo() {
   const apiKey    = document.getElementById('brevo-api-key')?.value.trim() || cfg.apiKey;
   const fromEmail = document.getElementById('brevo-from-email')?.value.trim() || cfg.fromEmail;
   if (!apiKey) { showToast('Configurez d\'abord la clé API Brevo', 'error'); return; }
+  if (!fromEmail) { showToast('Renseignez l\'email expéditeur', 'error'); return; }
   showToast('📧 Envoi du test en cours...', 'info');
-  const result = await envoyerEmailBrevo({
-    to:      fromEmail,
-    toName:  'Admin EduLink',
-    subject: '✅ Test EduLink — Brevo fonctionne !',
-    html:    '<h2>🎉 Configuration Brevo OK !</h2><p>Votre intégration email fonctionne correctement avec EduLink.</p><p>Les emails d\'absence, de notes et de paiement seront envoyés automatiquement aux parents.</p>'
-  });
-  if (result.ok) showToast('✅ Email de test envoyé à ' + fromEmail + ' !', 'success');
-  else showToast('❌ Erreur : ' + result.error, 'error');
+  try {
+    const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender:      { name: 'EduLink Test', email: fromEmail },
+        to:          [{ email: fromEmail, name: 'Admin EduLink' }],
+        subject:     '✅ Test EduLink — Configuration Brevo OK',
+        htmlContent: '<h2>🎉 Brevo fonctionne !</h2><p>Votre intégration email EduLink est configurée correctement.</p><p>Les emails d\'absence, de notes et de paiement seront envoyés automatiquement aux parents.</p>'
+      })
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      showToast('✅ Email de test envoyé à ' + fromEmail + ' !', 'success');
+    } else {
+      showToast('❌ Erreur Brevo : ' + (data.message || resp.status), 'error');
+    }
+  } catch(e) {
+    showToast('❌ Erreur réseau : ' + e.message, 'error');
+  }
 }
 
 async function supprimerRole(id, nom) {
