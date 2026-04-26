@@ -6751,6 +6751,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div class="form-group"><label>Email étudiant</label><input type="email" id="input-email" placeholder="email@etudiant.com"></div>
     <div style="background:#f0fdf4;border-radius:10px;padding:.85rem;margin-bottom:1rem;border:1px solid #bbf7d0">
       <div style="font-size:12px;font-weight:700;color:#059669;margin-bottom:.6rem">👨‍👩‍👧 Liaison Parent — Portail Famille</div>
+      <div class="form-group" style="margin-bottom:.5rem"><label>Nom du parent</label><input type="text" id="input-parent-nom" placeholder="Ex: AGOSSOU Bernard"></div>
       <div class="form-grid">
         <div class="form-group" style="margin-bottom:0"><label>Email parent</label><input type="email" id="input-parent-email" placeholder="parent@gmail.com"></div>
         <div class="form-group" style="margin-bottom:0"><label>Tél. parent</label><input type="text" id="input-parent-tel" placeholder="+229 97 00 00 00"></div>
@@ -8169,8 +8170,9 @@ async function ouvrirModifierEtudiant(id){
   document.getElementById('input-sexe').value=e.sexe||'M';
   const fi=document.getElementById('input-filiere');if(fi)fi.value=e.filiere||'';
   document.getElementById('input-email').value=e.email||'';
-  document.getElementById('input-parent-email').value=e.parent_email||'';
-  document.getElementById('input-parent-tel').value=e.parent_tel||'';
+  document.getElementById('input-parent-email').value=e.email_parent||'';
+  document.getElementById('input-parent-tel').value=e.telephone_parent||'';
+  const pn = document.getElementById('input-parent-nom'); if(pn) pn.value=e.nom_parent||'';
   const sc=document.getElementById('input-classe-etudiant');if(sc)sc.value=e.classe_id||'';
   const nv=document.getElementById('input-niveau');if(nv)Array.from(nv.options).forEach(o=>{o.selected=o.value===e.niveau;});
   const modal=document.getElementById('modal-etudiant');if(modal)modal.dataset.editId=id;
@@ -8201,12 +8203,16 @@ async function voirEtudiant(id) {
       <div class="info-item"><div class="ii-label">Filière</div><div class="ii-val">${etudiant.filiere||'—'}</div></div>
       <div class="info-item"><div class="ii-label">Niveau</div><div class="ii-val">${etudiant.niveau||'—'}</div></div>
       <div class="info-item"><div class="ii-label">Classe</div><div class="ii-val">${cls?`<span class="badge blue">${cls.nom||cls.filiere+' '+cls.niveau}</span>`:'<span style="color:#9ca3af">Non affecté</span>'}</div></div>
-      <div class="info-item"><div class="ii-label">Email</div><div class="ii-val">${etudiant.email||'—'}</div></div>
       <div class="info-item"><div class="ii-label">Statut</div><div class="ii-val"><span class="badge ${etudiant.statut==='actif'?'green':'amber'}">${etudiant.statut}</span></div></div>
     </div>
-    ${etudiant.parent_email?`
+    ${(etudiant.email_parent||etudiant.nom_parent||etudiant.telephone_parent)?`
     <div style="margin-top:1rem"><div class="section-label" style="margin-top:0">👨‍👩‍👧 Liaison Parent</div>
-      <div class="parent-badge"><span>📧</span><span class="pb-email">${etudiant.parent_email}</span>${etudiant.parent_tel?`<span style="color:#6b7280;margin-left:8px">📞 ${etudiant.parent_tel}</span>`:''}<span class="badge green" style="margin-left:auto">✓ Lié</span></div>
+      <div class="parent-badge">
+        ${etudiant.nom_parent?`<span style="font-weight:600">👤 ${etudiant.nom_parent}</span>`:''}
+        ${etudiant.email_parent?`<span>📧</span><span class="pb-email">${etudiant.email_parent}</span>`:''}
+        ${etudiant.telephone_parent?`<span style="color:#6b7280;margin-left:8px">📞 ${etudiant.telephone_parent}</span>`:''}
+        <span class="badge green" style="margin-left:auto">✓ Lié</span>
+      </div>
     </div>`:`<div style="margin-top:1rem"><div style="background:#fff8e6;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:12px;color:#d97706">⚠️ Aucun parent lié.</div></div>`}
     <div style="margin-top:1rem;display:flex;gap:8px">
       <button class="btn-sm btn-secondary" onclick="fermerModal('modal-fiche-etudiant');ouvrirModifierEtudiant('${id}')">✏️ Modifier</button>
@@ -8215,39 +8221,45 @@ async function voirEtudiant(id) {
   document.getElementById('modal-fiche-etudiant').classList.add('open');
 }
 async function ajouterEtudiant() {
-  const nom=document.getElementById('input-nom').value.trim();
-  const prenom=document.getElementById('input-prenom').value.trim();
-  const matricule=document.getElementById('input-matricule').value.trim();
+  const nom      = document.getElementById('input-nom').value.trim();
+  const prenom   = document.getElementById('input-prenom').value.trim();
+  const matricule= document.getElementById('input-matricule').value.trim();
   if (!nom||!prenom||!matricule) { showToast('Remplissez les champs obligatoires','error'); return; }
-  const modal = document.getElementById('modal-etudiant');
+  const modal  = document.getElementById('modal-etudiant');
   const editId = modal?.dataset?.editId;
-  const classeId = document.getElementById('input-classe-etudiant')?.value||null;
-  const payload = { nom, prenom, matricule,
-    sexe:    document.getElementById('input-sexe').value,
-    filiere: document.getElementById('input-filiere')?.value?.trim()||'',
-    niveau:  document.getElementById('input-niveau').value,
-    email:   document.getElementById('input-email').value.trim() };
-  const pe = document.getElementById('input-parent-email').value.trim();
-  const pt = document.getElementById('input-parent-tel').value.trim();
-  if (pe) payload.parent_email=pe;
-  if (pt) payload.parent_tel=pt;
-  // Colonnes à exclure si absentes du schéma Supabase
-  const COLONNES_OPTIONNELLES = ['email', 'classe', 'classe_nom'];
-  COLONNES_OPTIONNELLES.forEach(c => { if (c in payload) delete payload[c]; });
+  const classeId = document.getElementById('input-classe-etudiant')?.value || null;
+  // Payload avec toutes les colonnes — auto-retry retirera celles absentes du schéma
+  const payload = {
+    nom, prenom, matricule,
+    sexe:    document.getElementById('input-sexe')?.value || '',
+    filiere: document.getElementById('input-filiere')?.value?.trim() || '',
+    niveau:  document.getElementById('input-niveau')?.value || '',
+  };
+  // Colonnes réelles : email_parent, telephone_parent, nom_parent
+  const pe = document.getElementById('input-parent-email')?.value.trim();
+  const pt = document.getElementById('input-parent-tel')?.value.trim();
+  const np = document.getElementById('input-parent-nom')?.value.trim();
+  if (pe) payload.email_parent     = pe;
+  if (pt) payload.telephone_parent = pt;
+  if (np) payload.nom_parent       = np;
+  console.log('[Étudiant] Payload:', JSON.stringify(payload));
 
   let etudiantId = editId;
   if (editId) {
-    let { error } = await db.from('etudiants').update(payload).eq('id', editId);
+    let payloadUp = { ...payload };
+    let { error } = await db.from('etudiants').update(payloadUp).eq('id', editId);
     let guard = 0;
-    while (error && guard < 8) {
+    while (error && guard < 10) {
       const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/.exec(error.message || '');
       const col = m?.[1] || m?.[2];
-      if (!col || !(col in payload)) break;
-      delete payload[col];
-      ({ error } = await db.from('etudiants').update(payload).eq('id', editId));
+      console.warn('[Étudiant] Retrait colonne:', col);
+      if (!col || !(col in payloadUp)) break;
+      delete payloadUp[col];
+      ({ error } = await db.from('etudiants').update(payloadUp).eq('id', editId));
       guard++;
     }
-    if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
+    if (error) { showToast('Erreur sauvegarde : ' + error.message, 'error'); return; }
+    console.log('[Étudiant] ✅ Modifié:', JSON.stringify(payloadUp));
   } else {
     const insertPayload = { ...payload, ecole_id: currentEcoleId, statut: 'actif' };
     let { data: ins, error } = await db.from('etudiants').insert([insertPayload]).select('id').single();
@@ -8267,7 +8279,7 @@ async function ajouterEtudiant() {
   fermerModal('modal-etudiant');
   if (modal) delete modal.dataset.editId;
   const h3m = document.querySelector('#modal-etudiant h3'); if(h3m) h3m.textContent='👥 Ajouter un étudiant';
-  ['input-nom','input-prenom','input-matricule','input-email','input-parent-email','input-parent-tel'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['input-nom','input-prenom','input-matricule','input-email','input-parent-email','input-parent-tel','input-parent-nom'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   const fi=document.getElementById('input-filiere'); if(fi)fi.value='';
   const sc=document.getElementById('input-classe-etudiant'); if(sc)sc.value='';
   showToast(editId?'✅ Étudiant modifié !':'✅ Étudiant ajouté !','success');
@@ -8839,7 +8851,7 @@ async function peuplerDestinataires() {
     const {data} = await qe; tousLesEnseignants = data||[];
   }
   if (!tousLesEtudiants.length) {
-    let qet = db.from('etudiants').select('id,nom,prenom,parent_email').order('nom');
+    let qet = db.from('etudiants').select('id,nom,prenom,email_parent,telephone_parent').order('nom');
     if(currentEcoleId) qet=qet.eq('ecole_id',currentEcoleId);
     const {data} = await qet; tousLesEtudiants = data||[];
   }
@@ -8849,7 +8861,7 @@ async function peuplerDestinataires() {
     + '</optgroup><optgroup label="🎓 Étudiants">'
     + tousLesEtudiants.map(e=>`<option value="${e.nom+' '+e.prenom}" data-role="etudiant">${e.nom} ${e.prenom}</option>`).join('')
     + '</optgroup><optgroup label="👨‍👩‍👧 Parents">'
-    + tousLesEtudiants.filter(e=>e.parent_email).map(e=>`<option value="Parent de ${e.nom} ${e.prenom}" data-role="parent">Parent de ${e.nom} ${e.prenom}</option>`).join('')
+    + tousLesEtudiants.filter(e=>e.parent_email).map(e=>`<option value="Parent de ${e.nom} ${e.prenom}" data-role="parent" data-email="${e.email_parent||''}">Parent de ${e.nom} ${e.prenom}</option>`).join('')
     + '</optgroup>';
 }
 
@@ -10083,7 +10095,7 @@ document.querySelectorAll('nav a').forEach(a => a.addEventListener('click', ferm
 let csvLignesValides = [];
 
 function telechargerTemplateCSV() {
-  const header = 'nom,prenom,matricule,sexe,filiere,niveau,email,parent_email,parent_tel';
+  const header = 'nom,prenom,matricule,sexe,filiere,niveau,email_parent,telephone_parent,nom_parent';
   const exemple = 'Agbodjan,Kossi,2024-001,M,Informatique,L1,kossi@edu.bj,parent.agbodjan@gmail.com,+229 97 00 00 01';
   const blob = new Blob([header + '\n' + exemple], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
@@ -10120,13 +10132,13 @@ function parserCSV(text) {
   let nbValid = 0, nbError = 0;
   const rows = dataLignes.map((ligne, i) => {
     const cols = ligne.split(sep).map(c => c.trim().replace(/^"|"$/g,''));
-    const [nom, prenom, matricule, sexe, filiere, niveau, email, parent_email, parent_tel] = cols;
+    const [nom, prenom, matricule, sexe, filiere, niveau, email_parent, telephone_parent, nom_parent] = cols;
     const erreurs = [];
     if (!nom)       erreurs.push('Nom manquant');
     if (!prenom)    erreurs.push('Prénom manquant');
     if (!matricule) erreurs.push('Matricule manquant');
     const valide = erreurs.length === 0;
-    if (valide) { nbValid++; csvLignesValides.push({ nom, prenom, matricule, sexe: sexe||'M', filiere: filiere||'Informatique', niveau: niveau||'L1', email: email||'', parent_email: parent_email||'', parent_tel: parent_tel||'' }); }
+    if (valide) { nbValid++; csvLignesValides.push({ nom, prenom, matricule, sexe: sexe||'M', filiere: filiere||'Informatique', niveau: niveau||'L1', email_parent: email_parent||'', telephone_parent: telephone_parent||'', nom_parent: nom_parent||'' }); }
     else nbError++;
     return { i:i+1, nom, prenom, matricule, filiere, niveau, parent_email, valide, erreurs };
   });
@@ -11900,7 +11912,7 @@ async function testerNotifPush() {
 // Notif push automatique lors d'une absence
 async function envoyerPushAbsence(etudiant, matiere, date) {
   const serverKey = localStorage.getItem('edulink_fcm_server_key');
-  if (!serverKey || !etudiant?.parent_tel) return;
+  if (!etudiant?.telephone_parent) return;
   // Récupérer le token du parent
   const { data: tokens } = await db.from('push_tokens')
     .select('token').eq('ecole_id', currentEcoleId).eq('role', 'parent').limit(50);
