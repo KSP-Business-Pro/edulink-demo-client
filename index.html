@@ -16563,12 +16563,13 @@ async function sauvegarderRole() {
 }
 
 // ── Brevo Email — Configuration et envoi ─────────────────────────────────
-const BREVO_API_KEY_DEFAULT = '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';
+// ⚠️ La clé API est stockée dans localStorage uniquement — jamais dans le code
+const BREVO_API_KEY_DEFAULT = ''; // Configurer via Paramètres Avancés → Intégrations
 
 function getBrevoConfig() {
   const saved = JSON.parse(localStorage.getItem('edulink_brevo_' + (currentEcoleId||'')) || '{}');
   return {
-    apiKey:    saved.apiKey    || BREVO_API_KEY_DEFAULT,
+    apiKey:    saved.apiKey    || '',
     fromEmail: saved.fromEmail || 'kinnou1er@yahoo.fr',
     fromName:  saved.fromName  || 'AI Conseil Benin — EduLink'
   };
