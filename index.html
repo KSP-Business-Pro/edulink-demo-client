@@ -4970,11 +4970,11 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
             <!-- Message -->
             <div class="form-group" style="margin-top:1rem">
-              <label>Message SMS</label>
-              <textarea id="sms-message" rows="4" placeholder="Rédigez votre message..." style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;resize:vertical" oninput="compterCaracteres()"></textarea>
+              <label>Message Email</label>
+              <textarea id="sms-message" rows="4" placeholder="Rédigez votre message email..." style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;resize:vertical" oninput="compterCaracteres()"></textarea>
               <div class="sms-counter">
                 <span>💡 Utilisez {nom_parent}, {nom_eleve}, {classe} pour personnaliser</span>
-                <span class="chars" id="sms-chars">0 / 160</span>
+                <span class="chars" id="sms-chars" style="color:#6b7280;font-size:11px">0 caractère(s)</span>
               </div>
             </div>
 
@@ -17778,6 +17778,97 @@ const SMS_AUTO_CONFIG = [
 let smsDestSelectes = [];
 let _smsContactsCache = [];
 
+function compterCaracteres() {
+  const ta = document.getElementById('sms-message');
+  const el = document.getElementById('sms-chars');
+  if (!ta || !el) return;
+  el.textContent = ta.value.length + ' caractère(s)';
+}
+
+async function envoyerSMS() {
+  if (!smsDestSelectes.length) { showToast('⚠️ Ajoutez au moins un destinataire', 'error'); return; }
+  const msg = document.getElementById('sms-message')?.value.trim();
+  if (!msg) { showToast('⚠️ Rédigez un message', 'error'); return; }
+  const cfg = getBrevoConfig();
+  if (!cfg.apiKey) { showToast('⚠️ Configurez Brevo dans Paramètres Avancés → Intégrations', 'error'); return; }
+
+  // Déterminer les destinataires
+  let contacts = [];
+  if (smsDestSelectes.includes('tous') || smsDestSelectes.includes('avec_email')) {
+    contacts = _smsContactsCache.filter(c => c.email_parent);
+  } else if (smsDestSelectes.includes('absences')) {
+    const today = new Date().toISOString().split('T')[0];
+    const { data: abs } = await db.from('absences')
+      .select('etudiant_id').eq('ecole_id', currentEcoleId).eq('date_absence', today);
+    const ids = (abs||[]).map(a => a.etudiant_id);
+    contacts = _smsContactsCache.filter(c => ids.includes(c.id) && c.email_parent);
+  } else if (smsDestSelectes.includes('impayes')) {
+    const { data: fac } = await db.from('factures')
+      .select('etudiant_id').eq('ecole_id', currentEcoleId).neq('statut','payée');
+    const ids = (fac||[]).map(f => f.etudiant_id);
+    contacts = _smsContactsCache.filter(c => ids.includes(c.id) && c.email_parent);
+  } else {
+    for (const dest of smsDestSelectes) {
+      if (dest.startsWith('classe_')) {
+        const cid = dest.replace('classe_','');
+        contacts.push(..._smsContactsCache.filter(c => c.classe_id === cid && c.email_parent));
+      }
+    }
+  }
+
+  // Diagnostic si aucun email trouvé
+  const sansEmail = _smsContactsCache.filter(c => !c.email_parent).length;
+  if (!contacts.length) {
+    if (sansEmail > 0) {
+      showToast(`⚠️ Aucun parent avec email dans cette sélection — ${sansEmail} étudiant(s) sans email parent dans la base`, 'error');
+    } else {
+      showToast('⚠️ Aucun destinataire trouvé', 'error');
+    }
+    return;
+  }
+
+  showToast(`📧 Envoi à ${contacts.length} parent(s) avec email...`, 'info');
+  let succes = 0, echecs = 0;
+
+  for (const etu of contacts) {
+    const msgP = msg
+      .replace(/{nom_parent}/g, etu.nom_parent || 'Parent')
+      .replace(/{nom_eleve}/g,  `${etu.prenom} ${etu.nom}`)
+      .replace(/{classe}/g,     etu.classe || '');
+    const result = await envoyerEmailBrevo({
+      to:      etu.email_parent,
+      toName:  etu.nom_parent || `Parent de ${etu.prenom}`,
+      subject: 'Message de votre établissement — EduLink',
+      html:    `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#1e3a5f;color:#fff;padding:16px;border-radius:8px 8px 0 0;text-align:center"><h3>📧 Message de l'établissement</h3></div>
+        <div style="padding:20px;background:#f9fafb;border-radius:0 0 8px 8px">
+          <p>${msgP.replace(/\n/g,'<br>')}</p>
+          <p style="color:#6b7280;font-size:12px;margin-top:16px">EduLink — Système de gestion scolaire</p>
+        </div></div>`
+    });
+    if (result.ok) succes++; else { echecs++; console.warn('[Email]', etu.email_parent, result.error); }
+    // Sauvegarder dans messagerie interne avec les vraies colonnes
+    await db.from('messages').insert([{
+      ecole_id:          currentEcoleId,
+      objet:             'Message groupé — Email Parents',
+      contenu:           msgP,
+      destinataire_nom:  etu.nom_parent || `Parent de ${etu.prenom} ${etu.nom}`,
+      destinataire_role: 'parent',
+      expediteur_nom:    'Administration',
+      expediteur_role:   'admin',
+      lu:                false,
+    }]).catch(e => console.warn('[Messages] Insert:', e.message));
+  }
+
+  document.getElementById('sms-message').value = '';
+  smsDestSelectes = [];
+  document.getElementById('sms-dest-tags').innerHTML = '';
+  const msg_result = `✅ ${succes} email(s) envoyé(s)${echecs ? ' · ❌ '+echecs+' échoué(s)' : ''}${sansEmail ? ' · ⚠️ '+sansEmail+' sans email' : ''}`;
+  showToast(msg_result, succes > 0 ? 'success' : 'error');
+  await chargerHistoriqueMessagesTab();
+  chargerQuotaBrevo();
+}
+
 async function chargerSMSParents() {
   renderSMSTemplates();
   renderSMSAuto();
@@ -17830,8 +17921,9 @@ async function peuplerSelectDestinatairesSMS() {
 async function chargerHistoriqueMessagesTab() {
   const list = document.getElementById('sms-historique-list');
   if (!list) return;
+  // Colonnes réelles : objet, contenu, created_at, destinataire_nom, lu
   const { data: msgs } = await db.from('messages')
-    .select('id,sujet,objet,corps,contenu,created_at,destinataire,lu')
+    .select('id,objet,contenu,created_at,destinataire_nom,lu,expediteur_nom')
     .eq('ecole_id', currentEcoleId)
     .order('created_at', {ascending:false}).limit(30);
   const items = msgs || [];
@@ -17841,13 +17933,14 @@ async function chargerHistoriqueMessagesTab() {
   }
   list.innerHTML = items.map(h => {
     const date   = h.created_at ? new Date(h.created_at).toLocaleDateString('fr-FR') : '—';
-    const sujet  = h.sujet || h.objet || 'Message';
-    const apercu = (h.corps||h.contenu||'').substring(0,60);
+    const sujet  = h.objet || 'Message';
+    const apercu = (h.contenu||'').substring(0,60);
+    const dest   = h.destinataire_nom || '—';
     return `<div class="sms-envoi-item">
       <div class="sms-envoi-ico" style="background:#dbeafe">📧</div>
       <div class="sms-envoi-body">
         <div class="sms-envoi-titre">${sujet}</div>
-        <div class="sms-envoi-preview">${apercu}${apercu.length>=60?'...':''}</div>
+        <div class="sms-envoi-preview">À : ${dest} · ${apercu}${apercu.length>=60?'...':''}</div>
       </div>
       <div class="sms-envoi-right">
         <div class="sms-envoi-date">${date}</div>
@@ -17963,54 +18056,6 @@ async function envoyerEmailParent(etudiantId, parentNom, parentEmail) {
   else showToast('❌ Erreur : ' + result.error, 'error');
 }
 
-async function envoyerSMS() {
-  if (!smsDestSelectes.length) { showToast('⚠️ Ajoutez au moins un destinataire', 'error'); return; }
-  const msg = document.getElementById('sms-message')?.value.trim();
-  if (!msg) { showToast('⚠️ Rédigez un message', 'error'); return; }
-  const cfg = getBrevoConfig();
-  if (!cfg.apiKey) { showToast('⚠️ Configurez Brevo dans Paramètres Avancés → Intégrations', 'error'); return; }
-  let contacts = [];
-  if (smsDestSelectes.includes('tous') || smsDestSelectes.includes('avec_email')) {
-    contacts = _smsContactsCache.filter(c => c.email_parent);
-  } else {
-    for (const dest of smsDestSelectes) {
-      if (dest.startsWith('classe_')) {
-        const cid = dest.replace('classe_','');
-        contacts.push(..._smsContactsCache.filter(c => c.classe_id === cid && c.email_parent));
-      }
-    }
-    if (!contacts.length) contacts = _smsContactsCache.filter(c => c.email_parent);
-  }
-  if (!contacts.length) { showToast('⚠️ Aucun parent avec email dans cette sélection', 'error'); return; }
-  showToast(`📧 Envoi à ${contacts.length} parent(s)...`, 'info');
-  let succes = 0, echecs = 0;
-  for (const etu of contacts) {
-    const msgP = msg.replace(/{nom_parent}/g, etu.nom_parent||'Parent')
-      .replace(/{nom_eleve}/g, `${etu.prenom} ${etu.nom}`)
-      .replace(/{classe}/g, etu.classe||'');
-    const result = await envoyerEmailBrevo({
-      to: etu.email_parent, toName: etu.nom_parent || `Parent de ${etu.prenom}`,
-      subject: "Message de votre établissement — EduLink",
-      html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-        <div style="background:#1e3a5f;color:#fff;padding:16px;border-radius:8px 8px 0 0;text-align:center"><h3>📧 Message de l'établissement</h3></div>
-        <div style="padding:20px;background:#f9fafb;border-radius:0 0 8px 8px">
-          <p>${msgP.replace(/\n/g,'<br>')}</p>
-          <p style="color:#6b7280;font-size:12px;margin-top:16px">EduLink — Système de gestion scolaire</p>
-        </div></div>`
-    });
-    if (result.ok) succes++; else echecs++;
-    await db.from('messages').insert([{
-      ecole_id: currentEcoleId, sujet: 'Message groupé', corps: msgP,
-      destinataire: etu.email_parent, expediteur: 'Admin', lu: false, etudiant_id: etu.id
-    }]).catch(()=>{});
-  }
-  document.getElementById('sms-message').value = '';
-  smsDestSelectes = [];
-  document.getElementById('sms-dest-tags').innerHTML = '';
-  showToast(`✅ ${succes} email(s) envoyé(s)${echecs?' · ❌ '+echecs+' échoué(s)':''}`, succes > 0 ? 'success' : 'error');
-  await chargerHistoriqueMessagesTab();
-  chargerQuotaBrevo();
-}
 
 async function chargerQuotaBrevo() {
   const cfg = getBrevoConfig();
