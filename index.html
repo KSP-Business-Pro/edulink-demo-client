@@ -5290,7 +5290,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       </div>
       <div>
         <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:1rem">
-          <div style="padding:.9rem 1.2rem;border-bottom:1px solid #f3f4f6;font-size:13px;font-weight:700;color:#374151">📉 Élèves en difficulté</div>
+          <div style="padding:.9rem 1.2rem;border-bottom:1px solid #f3f4f6;font-size:13px;font-weight:700;color:#374151">📉 Étudiants en difficulté</div>
           <div id="exec-eleves-diff"></div>
         </div>
         <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;overflow:hidden">
@@ -19224,7 +19224,7 @@ async function chargerExecDashboard() {
   // Hero KPIs
   const heroKpis = document.getElementById("exec-hero-kpis");
   if (heroKpis) heroKpis.innerHTML = [
-    { v: nbEtudiants,                              l: "Élèves inscrits" },
+    { v: nbEtudiants,                              l: "Étudiants inscrits" },
     { v: tauxReussite.toFixed(0)+"%",              l: "Taux de réussite" },
     { v: execFmtMontant(recetteMois),              l: "Recette du mois" },
     { v: alertes.length,                           l: "Alertes actives" },
@@ -19306,7 +19306,7 @@ function renderExecObjectifs() {
   const obj = [
     { label: "Taux de réussite",       target: cfg.tauxReussiteCible, current: Math.round(peda.tauxReussite || 0),    unit: "%", inverse: false },
     { label: "Recouvrement frais",     target: cfg.tauxRecouvCible,   current: Math.round(finance.tauxRecouvr || 0),  unit: "%", inverse: false },
-    { label: "Effectif inscriptions",  target: cfg.effectifCible,     current: _execState.hero?.effectif || 0,        unit: " élèves", inverse: false },
+    { label: "Effectif inscriptions",  target: cfg.effectifCible,     current: _execState.hero?.effectif || 0,        unit: " étudiants", inverse: false },
     { label: "Absentéisme (max)",      target: cfg.absenteismeMax,    current: parseFloat((peda.absenteisme||0).toFixed(1)), unit: "%", inverse: true },
   ];
   cont.innerHTML = obj.map(o => {
@@ -19479,7 +19479,7 @@ function renderExecPedagogie() {
   if (diff) {
     const list = peda.elevesDiff || [];
     if (!list.length) {
-      diff.innerHTML = '<div style="padding:1.2rem;text-align:center;color:#9ca3af;font-size:13px">✅ Aucun élève en difficulté détecté</div>';
+      diff.innerHTML = '<div style="padding:1.2rem;text-align:center;color:#9ca3af;font-size:13px">✅ Aucun étudiant en difficulté détecté</div>';
     } else {
       const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
       diff.innerHTML = list.map(e => `<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1.2rem;border-bottom:1px solid #f3f4f6">
