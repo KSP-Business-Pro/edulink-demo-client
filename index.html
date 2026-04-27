@@ -5944,8 +5944,9 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <!-- Export RGPD -->
       <div style="background:#fff;border-radius:14px;border:1px solid #bfdbfe;padding:1.2rem">
         <div style="font-size:13px;font-weight:700;color:#1d4ed8;margin-bottom:.5rem">📥 Exporter les données (RGPD)</div>
-        <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:1rem">Génère un fichier ZIP/JSON contenant toutes les données de l'établissement (étudiants, notes, paiements...).</div>
-        <button onclick="paramExporterRGPD()" style="width:100%;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">📥 Exporter (CSV multiple)</button>
+        <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:1rem">Téléchargez toutes les données de l'établissement (étudiants, notes, paiements, etc.) avec foreign keys résolues et formatage français.</div>
+        <button onclick="paramExporterRGPDExcel()" style="width:100%;background:#059669;color:#fff;border:none;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif;margin-bottom:.5rem">📊 Exporter Excel (XLSX) — Recommandé</button>
+        <button onclick="paramExporterRGPD()" style="width:100%;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">📥 Exporter en CSV (fichiers séparés)</button>
       </div>
 
       <!-- Vider données de test -->
@@ -7856,7 +7857,10 @@ function invalidateData(table) {
 // csvDownload(filename, header, rows) — règle permanente du projet.
 // Génère et télécharge un CSV UTF-8 avec BOM + séparateur point-virgule (;)
 // pour compatibilité Excel en locale francophone (FR/BE/BJ/CI/...).
-// La directive sep=; en première ligne force la détection correcte sur tous tableurs.
+// - sep=; en 1ère ligne : force la détection du séparateur sur tous tableurs
+// - BOM 0xEF 0xBB 0xBF : force Excel Windows à interpréter en UTF-8
+// - TextEncoder('utf-8') : encodage octet-précis, évite les conversions parasites
+// - CRLF : compatibilité Windows/Excel
 function csvDownload(filename, header, rows) {
   const SEP = ";";
   const esc = v => {
@@ -7864,19 +7868,26 @@ function csvDownload(filename, header, rows) {
     let s = String(v);
     // Convertir retours à la ligne en espace pour préserver l'alignement des colonnes
     s = s.replace(/\r?\n/g, " ");
-    // Quote si contient le séparateur, des guillemets, ou des espaces problématiques
+    // Quote si contient le séparateur, des guillemets, virgules ou tabulations
     if (s.includes('"') || s.includes(SEP) || s.includes(",") || s.includes("\t")) {
       return '"' + s.replace(/"/g, '""') + '"';
     }
     return s;
   };
   const lines = [];
-  // Directive Excel : force le séparateur ; quel que soit la locale système
   lines.push("sep=" + SEP);
   if (Array.isArray(header) && header.length) lines.push(header.map(esc).join(SEP));
   (rows || []).forEach(r => lines.push((r || []).map(esc).join(SEP)));
-  const csv  = "\uFEFF" + lines.join("\r\n"); // CRLF pour compat Windows/Excel
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const csvText = lines.join("\r\n") + "\r\n";
+
+  // Encodage UTF-8 strict : BOM + corps via TextEncoder
+  const bom  = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  const body = new TextEncoder().encode(csvText);
+  const buf  = new Uint8Array(bom.length + body.length);
+  buf.set(bom, 0);
+  buf.set(body, bom.length);
+
+  const blob = new Blob([buf], { type: "text/csv;charset=utf-8" });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement("a");
   a.href     = url;
@@ -10481,10 +10492,10 @@ function paramExporterConfig() {
 // ══════════════════════════════════════════════════════════════════
 //  ONGLET 6 — ZONE DE DANGER
 // ══════════════════════════════════════════════════════════════════
-async function paramExporterRGPD() {
-  if (!currentEcoleId) { showToast("Aucune école sélectionnée", "error"); return; }
-  showToast("📥 Export en cours...", "info");
 
+// Helper interne : prépare les données formatées pour l'export RGPD
+// Retourne { tables: [{ titre, slug, headers, rows }], totalLignes }
+async function _paramPreparerExportRGPD() {
   // Charger toutes les tables liées + référentiels pour résoudre les foreign keys
   const [etud, notes, abs, fact, paie, ens, pers, inc, classes, matieres] = await Promise.all([
     db.from("etudiants").select("*").eq("ecole_id", currentEcoleId),
@@ -10504,13 +10515,13 @@ async function paramExporterRGPD() {
   const dataCl   = classes.data || [];
   const dataMat  = matieres.data || [];
 
-  // ── Index pour résolution rapide des FK ──
+  // Index pour résolution rapide des FK
   const idxEtud = new Map(dataEtud.map(e => [e.id, `${(e.nom||"").toUpperCase()} ${e.prenom||""}`.trim() + (e.matricule ? ` (${e.matricule})` : "")]));
   const idxEns  = new Map(dataEns.map(e => [e.id, `${(e.nom||"").toUpperCase()} ${e.prenom||""}`.trim()]));
   const idxCl   = new Map(dataCl.map(c => [c.id, c.nom || `${c.filiere||""} ${c.niveau||""}`.trim()]));
   const idxMat  = new Map(dataMat.map(m => [m.id, m.nom]));
 
-  // ── Helpers de formatage ──
+  // Helpers de formatage
   const fmtDate = v => {
     if (!v) return "";
     const d = new Date(v);
@@ -10534,15 +10545,15 @@ async function paramExporterRGPD() {
   };
   const fmtMontant = v => v == null || v === "" ? "" : Number(v).toLocaleString("fr-FR");
 
-  // ── Schémas par table : libellés FR + transformations ──
+  // Schémas par table : libellés FR + transformations
   const SCHEMAS = {
     etudiants: {
-      titre: "Étudiants",
+      titre: "Étudiants", slug: "Etudiants",
       cols: [
         ["matricule",        "Matricule"],
         ["nom",              "Nom"],
         ["prenom",           "Prénom"],
-        ["sexe",             "Sexe", v => v === "M" ? "Masculin" : v === "F" ? "Féminin" : v],
+        ["sexe",             "Sexe", v => v === "M" ? "Masculin" : v === "F" ? "Féminin" : (v || "")],
         ["date_naissance",   "Date de naissance", fmtDate],
         ["lieu_naissance",   "Lieu de naissance"],
         ["classe_id",        "Classe", v => idxCl.get(v) || ""],
@@ -10558,7 +10569,7 @@ async function paramExporterRGPD() {
       ],
     },
     notes: {
-      titre: "Notes",
+      titre: "Notes", slug: "Notes",
       cols: [
         ["etudiant_id",   "Étudiant", v => idxEtud.get(v) || ""],
         ["matiere",       "Matière",  (v, r) => v || idxMat.get(r.matiere_id) || ""],
@@ -10574,7 +10585,7 @@ async function paramExporterRGPD() {
       ],
     },
     absences: {
-      titre: "Absences",
+      titre: "Absences", slug: "Absences",
       cols: [
         ["etudiant_id",     "Étudiant", v => idxEtud.get(v) || ""],
         ["date_absence",    "Date", fmtDate],
@@ -10590,7 +10601,7 @@ async function paramExporterRGPD() {
       ],
     },
     factures: {
-      titre: "Factures",
+      titre: "Factures", slug: "Factures",
       cols: [
         ["numero",         "N° facture"],
         ["etudiant_id",    "Étudiant", v => idxEtud.get(v) || ""],
@@ -10604,7 +10615,7 @@ async function paramExporterRGPD() {
       ],
     },
     paiements: {
-      titre: "Paiements",
+      titre: "Paiements", slug: "Paiements",
       cols: [
         ["etudiant_id",   "Étudiant", v => idxEtud.get(v) || ""],
         ["montant_paye",  "Montant", fmtMontant],
@@ -10614,7 +10625,7 @@ async function paramExporterRGPD() {
       ],
     },
     enseignants: {
-      titre: "Enseignants",
+      titre: "Enseignants", slug: "Enseignants",
       cols: [
         ["matricule",      "Matricule"],
         ["nom",            "Nom"],
@@ -10631,7 +10642,7 @@ async function paramExporterRGPD() {
       ],
     },
     personnel: {
-      titre: "Personnel",
+      titre: "Personnel", slug: "Personnel",
       cols: [
         ["matricule",     "Matricule"],
         ["nom",           "Nom"],
@@ -10646,7 +10657,7 @@ async function paramExporterRGPD() {
       ],
     },
     incidents: {
-      titre: "Incidents",
+      titre: "Incidents", slug: "Incidents",
       cols: [
         ["etudiant_id",     "Étudiant", v => idxEtud.get(v) || ""],
         ["type_incident",   "Type d'incident", (v, r) => v || r.type || ""],
@@ -10663,8 +10674,7 @@ async function paramExporterRGPD() {
     },
   };
 
-  // ── Génération ──
-  const tables = [
+  const sources = [
     { key: "etudiants",   data: dataEtud           },
     { key: "notes",       data: notes.data || []   },
     { key: "absences",    data: abs.data   || []   },
@@ -10674,15 +10684,13 @@ async function paramExporterRGPD() {
     { key: "personnel",   data: pers.data  || []   },
     { key: "incidents",   data: inc.data   || []   },
   ];
-  let totalLignes = 0;
-  let totalFichiers = 0;
 
-  tables.forEach(t => {
+  const tables = [];
+  let totalLignes = 0;
+  sources.forEach(t => {
     if (!t.data.length) return;
     const schema = SCHEMAS[t.key];
     if (!schema) return;
-    totalLignes += t.data.length;
-    totalFichiers++;
     const headers = schema.cols.map(c => c[1]);
     const rows = t.data.map(r => schema.cols.map(c => {
       const [field, , transformer] = c;
@@ -10693,17 +10701,77 @@ async function paramExporterRGPD() {
       if (raw === null || raw === undefined) return "";
       return raw;
     }));
-    const today = new Date().toISOString().split("T")[0];
+    tables.push({ titre: schema.titre, slug: schema.slug, headers, rows });
+    totalLignes += rows.length;
+  });
+  return { tables, totalLignes };
+}
+
+// Export RGPD au format CSV (1 fichier par table)
+async function paramExporterRGPD() {
+  if (!currentEcoleId) { showToast("Aucune école sélectionnée", "error"); return; }
+  showToast("📥 Export en cours...", "info");
+  const { tables, totalLignes } = await _paramPreparerExportRGPD();
+  if (!tables.length) { showToast("ℹ️ Aucune donnée à exporter", "info"); return; }
+  const today = new Date().toISOString().split("T")[0];
+  tables.forEach(t => {
     if (typeof csvDownload === "function") {
-      csvDownload(`EduLink-${schema.titre.replace(/\s+/g,"-")}-${today}.csv`, headers, rows);
+      csvDownload(`EduLink-${t.slug}-${today}.csv`, t.headers, t.rows);
     }
   });
+  showToast(`📥 Export terminé : ${totalLignes} ligne(s) sur ${tables.length} fichier(s)`, "success");
+}
 
-  if (totalFichiers === 0) {
-    showToast("ℹ️ Aucune donnée à exporter", "info");
-  } else {
-    showToast(`📥 Export terminé : ${totalLignes} ligne(s) sur ${totalFichiers} fichier(s)`, "success");
+// Export RGPD au format Excel XLSX natif (1 seul fichier multi-feuilles)
+async function paramExporterRGPDExcel() {
+  if (!currentEcoleId) { showToast("Aucune école sélectionnée", "error"); return; }
+  if (typeof XLSX === "undefined") {
+    showToast("⚠️ Bibliothèque XLSX non chargée — utilisez l'export CSV", "error");
+    return;
   }
+  showToast("📊 Génération du classeur Excel...", "info");
+  const { tables, totalLignes } = await _paramPreparerExportRGPD();
+  if (!tables.length) { showToast("ℹ️ Aucune donnée à exporter", "info"); return; }
+
+  // Créer un classeur multi-feuilles (1 feuille par table)
+  const wb = XLSX.utils.book_new();
+  tables.forEach(t => {
+    // Construire les données : ligne d'en-tête + lignes de données
+    const aoa = [t.headers, ...t.rows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // Largeurs de colonnes auto-ajustées (max 50 caractères)
+    const colWidths = t.headers.map((h, idx) => {
+      const maxContentLen = Math.max(
+        String(h).length,
+        ...t.rows.map(r => String(r[idx] ?? "").length)
+      );
+      return { wch: Math.min(Math.max(maxContentLen + 2, 10), 50) };
+    });
+    ws["!cols"] = colWidths;
+
+    // Mettre la ligne d'en-tête en gras (limité par SheetJS sans extensions)
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: C });
+      if (ws[cellRef]) {
+        ws[cellRef].s = { font: { bold: true } };
+      }
+    }
+
+    // Tronquer le nom de feuille à 31 caractères (limite Excel)
+    const sheetName = t.titre.substring(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  const today = new Date().toISOString().split("T")[0];
+  const ecole = (typeof tousLesEcoles !== "undefined" ? tousLesEcoles : []).find(e => e.id === currentEcoleId);
+  const slugEcole = ecole && ecole.nom
+    ? ecole.nom.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/(^-|-$)/g, "").substring(0, 30)
+    : "ecole";
+  const filename = `EduLink-Export-${slugEcole}-${today}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  showToast(`📊 Excel exporté : ${totalLignes} ligne(s) sur ${tables.length} feuille(s)`, "success");
 }
 
 async function paramPurgerDemo() {
