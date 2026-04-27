@@ -5376,7 +5376,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div>
         <!-- Infos principales -->
         <div class="content-editor-block">
-          <div class="ceb-header"><span>🏫 Informations principales</span><button class="btn-sm btn-green" onclick="showToast('✅ Informations sauvegardées','success')">💾 Sauvegarder</button></div>
+          <div class="ceb-header"><span>🏫 Informations principales</span><button class="btn-sm btn-green" onclick="ppSauvegarderInfos()">💾 Sauvegarder</button></div>
           <div class="ceb-body">
             <div class="form-group"><label>Nom affiché de l'établissement</label><input id="pp-nom-ecole" placeholder="Lycée EduLink Bénin" /></div>
             <div class="form-group"><label>Slogan / sous-titre</label><input id="pp-slogan" placeholder="L'excellence au service de l'avenir" /></div>
@@ -5391,7 +5391,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
         <!-- Sections du site -->
         <div class="content-editor-block">
-          <div class="ceb-header"><span>📄 Sections du site</span><button class="btn-sm btn-blue" onclick="showToast('+ Section ajoutée','success')">+ Ajouter</button></div>
+          <div class="ceb-header"><span>📄 Sections du site</span><button class="btn-sm btn-blue" onclick="ppAjouterSection()">+ Ajouter</button></div>
           <div id="pp-sections-list"></div>
         </div>
       </div>
@@ -5457,7 +5457,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <!-- TAB Galerie -->
   <div id="pp-tab-galerie" style="display:none">
     <div class="content-editor-block">
-      <div class="ceb-header"><span>🖼️ Galerie photos</span><button class="btn-sm btn-green" onclick="showToast('📸 Ajout de photos — Glissez vos fichiers','info')">+ Ajouter photos</button></div>
+      <div class="ceb-header"><span>🖼️ Galerie photos</span><button class="btn-sm btn-green" onclick="ppAjouterPhoto()">+ Ajouter photo</button></div>
       <div id="pp-galerie-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:1rem"></div>
     </div>
   </div>
@@ -7689,6 +7689,9 @@ const DATA_CONSUMERS = {
   examens:      ["examens","portail-etudiant"],
   incidents:    ["discipline","exec-dashboard"],
   pwa_devices:  ["pwa-avancee"],
+  portail_config:       ["portail-public"],
+  inscriptions_demandes: ["portail-public"],
+  actualites:           ["portail-public"],
 };
 
 function invalidateData(table) {
@@ -7713,6 +7716,7 @@ function invalidateData(table) {
     "sms-parents":   () => { chargerSMSParents && chargerSMSParents(); },
     "pwa-avancee":   () => { chargerPWAAvancee && chargerPWAAvancee(); },
     "exec-dashboard": () => { chargerExecDashboard && chargerExecDashboard(); },
+    "portail-public": () => { chargerPortailPublic && chargerPortailPublic(); },
   };
   if (loaders[currentPage]) loaders[currentPage]();
 }
@@ -19712,38 +19716,160 @@ function exporterRapportRH() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   SUITE 12 — PORTAIL WEB PUBLIC ★ JOUR 39
+   SUITE 12 — PORTAIL WEB PUBLIC ★ JOUR 39 (réécrit : données live)
 ══════════════════════════════════════════════════════════════════ */
-const PP_SECTIONS = [
-  {ico:'🏠', titre:'Page d\'accueil', desc:'Hero, présentation, CTA inscription', visible:true},
-  {ico:'ℹ️', titre:'À propos', desc:'Histoire, mission, valeurs de l\'établissement', visible:true},
-  {ico:'📚', titre:'Formations proposées', desc:'Filières, programmes, débouchés', visible:true},
-  {ico:'📝', titre:'Inscription en ligne', desc:'Formulaire de demande d\'admission', visible:true},
-  {ico:'📰', titre:'Actualités', desc:'Articles, événements, résultats', visible:true},
-  {ico:'🖼️', titre:'Galerie photos', desc:'Photos de l\'établissement et événements', visible:false},
-  {ico:'📞', titre:'Contact & Localisation', desc:'Coordonnées, plan d\'accès, formulaire', visible:true},
+
+// Sections par défaut (servent de gabarit si aucune config sauvegardée)
+const PP_SECTIONS_DEFAULT = [
+  { ico: "🏠",  titre: "Page d\u2019accueil",          desc: "Hero, présentation, CTA inscription",            visible: true },
+  { ico: "ℹ️",  titre: "À propos",                    desc: "Histoire, mission, valeurs de l\u2019établissement", visible: true },
+  { ico: "📚",  titre: "Formations proposées",        desc: "Filières, programmes, débouchés",                 visible: true },
+  { ico: "📝",  titre: "Inscription en ligne",         desc: "Formulaire de demande d\u2019admission",          visible: true },
+  { ico: "📰",  titre: "Actualités",                   desc: "Articles, événements, résultats",                visible: true },
+  { ico: "🖼️", titre: "Galerie photos",               desc: "Photos de l\u2019établissement et événements",   visible: false },
+  { ico: "📞",  titre: "Contact & Localisation",       desc: "Coordonnées, plan d\u2019accès, formulaire",      visible: true },
 ];
 
-const PP_INSCRIPTIONS_RECUES = [
-  {nom:'Adjobi Emmanuel', niveau:'Tle → BTS Info', date:'01/04/2026', statut:'nouveau', color:'#1e3a5f'},
-  {nom:'Sossou Marie-Claire', niveau:'3ème → 2nde', date:'31/03/2026', statut:'en_cours', color:'#059669'},
-  {nom:'Bako Tiémoko', niveau:'2nde → 1ère', date:'30/03/2026', statut:'accepte', color:'#d97706'},
-  {nom:'Degan Rosine', niveau:'CM2 → 6ème', date:'29/03/2026', statut:'nouveau', color:'#7c3aed'},
-  {nom:'Hounsou Pierre', niveau:'Tle → Licence', date:'28/03/2026', statut:'en_cours', color:'#dc2626'},
-];
+// État vivant du module (rechargé depuis Supabase)
+let _ppState = {
+  config:       null,    // ligne de portail_config
+  sections:     null,    // tableau de sections (depuis config.sections_json ou défaut)
+  inscriptions: [],      // table inscriptions_demandes
+  actualites:   [],      // table actualites
+  galerie:      [],      // table galerie_photos OU config.gallery_urls
+};
 
-const PP_ACTUALITES = [
-  {titre:'Résultats du 1er semestre 2025-2026', cat:'Résultats', date:'01/04/2026', vues:342, statut:'publié'},
-  {titre:'Journée portes ouvertes — 15 avril 2026', cat:'Événements', date:'28/03/2026', vues:217, statut:'publié'},
-  {titre:'Félicitations aux lauréats du BAC 2025', cat:'Actualités', date:'25/03/2026', vues:489, statut:'publié'},
-  {titre:'Nouveau laboratoire informatique inauguré', cat:'Annonces', date:'20/03/2026', vues:156, statut:'brouillon'},
-];
+// Utilitaire : compteur de visites local (vrai compteur, pas inventé)
+function ppLireStats() {
+  const k = "edulink_pp_stats_" + (currentEcoleId || "global");
+  return JSON.parse(localStorage.getItem(k) || '{"visiteurs":0,"pagesVues":0,"dureeTotal":0,"dernieres":[]}');
+}
 
-const PP_GALERIE = ['🏫','🎓','📚','👨‍🏫','🏆','🎨','⚽','🔬','🎵','📊','🌍','💻'];
+// Calcul de l'URL publique du site
+function ppCalculerUrl(ecole) {
+  if (!ecole) return "https://app.afryx.io";
+  const slug = (ecole.slug || ecole.nom || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .substring(0, 40) || "ecole";
+  return "https://" + slug + ".afryx.io";
+}
 
-function chargerPortailPublic() {
-  document.getElementById('pp-visiteurs').textContent = '1 247';
-  document.getElementById('pp-inscriptions').textContent = PP_INSCRIPTIONS_RECUES.length;
+// Charge la config du portail (1 ligne par école) avec auto-retry colonnes
+async function ppChargerConfig() {
+  if (!currentEcoleId) return null;
+  let res = await db.from("portail_config")
+    .select("id,nom_affiche,slogan,description,telephone,email,adresse,sections_json,gallery_urls,publie,publie_le,url_publique")
+    .eq("ecole_id", currentEcoleId).maybeSingle();
+  if (res.error && /column .* does not exist/i.test(res.error.message)) {
+    res = await db.from("portail_config").select("*").eq("ecole_id", currentEcoleId).maybeSingle();
+  }
+  if (res.error) {
+    console.warn("[PP] portail_config:", res.error.message);
+    return null;
+  }
+  return res.data;
+}
+
+// Charge les inscriptions reçues (table publique, soumissions du formulaire en ligne)
+async function ppChargerInscriptions() {
+  if (!currentEcoleId) return [];
+  let res = await db.from("inscriptions_demandes")
+    .select("id,nom,prenom,email,telephone,niveau_actuel,niveau_demande,filiere,message,statut,created_at")
+    .eq("ecole_id", currentEcoleId)
+    .order("created_at", { ascending: false }).limit(100);
+  if (res.error && /column .* does not exist/i.test(res.error.message)) {
+    res = await db.from("inscriptions_demandes").select("*").eq("ecole_id", currentEcoleId).order("created_at", { ascending: false }).limit(100);
+  }
+  if (res.error) {
+    console.warn("[PP] inscriptions_demandes:", res.error.message);
+    return [];
+  }
+  return res.data || [];
+}
+
+// Charge les actualités publiées
+async function ppChargerActualites() {
+  if (!currentEcoleId) return [];
+  let res = await db.from("actualites")
+    .select("id,titre,categorie,contenu,extrait,image_url,vues,statut,publie_le,created_at")
+    .eq("ecole_id", currentEcoleId)
+    .order("created_at", { ascending: false });
+  if (res.error && /column .* does not exist/i.test(res.error.message)) {
+    res = await db.from("actualites").select("*").eq("ecole_id", currentEcoleId).order("created_at", { ascending: false });
+  }
+  if (res.error) {
+    console.warn("[PP] actualites:", res.error.message);
+    return [];
+  }
+  return res.data || [];
+}
+
+async function chargerPortailPublic() {
+  if (!currentEcoleId) {
+    const visEl = document.getElementById("pp-visiteurs");
+    if (visEl) visEl.textContent = "—";
+    return;
+  }
+  const ecole = (typeof tousLesEcoles !== "undefined" ? tousLesEcoles : []).find(e => e.id === currentEcoleId);
+
+  // Charger toutes les données en parallèle
+  const [config, inscriptions, actualites] = await Promise.all([
+    ppChargerConfig(),
+    ppChargerInscriptions(),
+    ppChargerActualites(),
+  ]);
+  _ppState.config       = config;
+  _ppState.inscriptions = inscriptions;
+  _ppState.actualites   = actualites;
+  // Sections : depuis config.sections_json ou défaut
+  let sections = PP_SECTIONS_DEFAULT.map(s => ({ ...s }));
+  if (config?.sections_json) {
+    try {
+      const parsed = typeof config.sections_json === "string" ? JSON.parse(config.sections_json) : config.sections_json;
+      if (Array.isArray(parsed) && parsed.length) sections = parsed;
+    } catch(e) { /* garder défaut */ }
+  }
+  _ppState.sections = sections;
+  // Galerie : depuis config.gallery_urls (array de URLs)
+  let galerie = [];
+  if (config?.gallery_urls) {
+    try {
+      const parsed = typeof config.gallery_urls === "string" ? JSON.parse(config.gallery_urls) : config.gallery_urls;
+      if (Array.isArray(parsed)) galerie = parsed;
+    } catch(e) { /* ignore */ }
+  }
+  _ppState.galerie = galerie;
+
+  // Hero KPIs (vraies données)
+  const stats = ppLireStats();
+  const elVis = document.getElementById("pp-visiteurs");
+  const elIns = document.getElementById("pp-inscriptions");
+  const elSta = document.getElementById("pp-statut");
+  if (elVis) elVis.textContent = stats.visiteurs ? stats.visiteurs.toLocaleString("fr-FR") : "0";
+  if (elIns) elIns.textContent = inscriptions.length;
+  if (elSta) elSta.textContent = config?.publie ? "🟢 En ligne" : "🟠 Brouillon";
+
+  // Pré-remplir les champs avec la config sauvegardée OU les infos de l'école
+  const fields = {
+    "pp-nom-ecole":  config?.nom_affiche  || ecole?.nom              || "",
+    "pp-slogan":     config?.slogan       || "",
+    "pp-description":config?.description  || ecole?.description      || "",
+    "pp-tel":        config?.telephone    || ecole?.telephone        || "",
+    "pp-email":      config?.email        || ecole?.email            || "",
+    "pp-adresse":    config?.adresse      || ecole?.adresse          || ecole?.ville || "",
+  };
+  Object.entries(fields).forEach(([id, v]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = v;
+  });
+
+  // URL preview
+  const urlEl = document.getElementById("pp-url-preview");
+  const url   = config?.url_publique || ppCalculerUrl(ecole);
+  if (urlEl) urlEl.textContent = url;
 
   renderPPSections();
   renderPPPreview();
@@ -19751,144 +19877,466 @@ function chargerPortailPublic() {
   renderPPActualites();
   renderPPGalerie();
   renderPPStats();
-
-  // Remplir les champs
-  const fields = {
-    'pp-nom-ecole':'Lycée EduLink Bénin',
-    'pp-slogan':'L\'excellence au service de l\'avenir du Bénin',
-    'pp-description':'Établissement d\'enseignement secondaire et supérieur basé à Cotonou. Nous formons les cadres de demain grâce à une pédagogie innovante et des équipements modernes.',
-    'pp-tel':'+229 21 32 45 67',
-    'pp-email':'contact@lycee-edulink.bj',
-    'pp-adresse':'Avenue Jean-Paul II, Cotonou, Bénin',
-  };
-  Object.entries(fields).forEach(([id,v])=>{ const el=document.getElementById(id); if(el&&!el.value) el.value=v; });
-  const urlEl = document.getElementById('pp-url-preview');
-  if (urlEl) urlEl.textContent = 'https://lycee-edulink.afryx.io';
 }
 
 function renderPPSections() {
-  const list = document.getElementById('pp-sections-list');
+  const list = document.getElementById("pp-sections-list");
   if (!list) return;
-  list.innerHTML = PP_SECTIONS.map((s,i)=>`<div class="page-section-item">
+  const sections = _ppState.sections || [];
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  list.innerHTML = sections.map((s,i) => `<div class="page-section-item">
     <span class="psi-handle">⋮⋮</span>
-    <span class="psi-ico">${s.ico}</span>
-    <div class="psi-body"><div class="psi-titre">${s.titre}</div><div class="psi-desc">${s.desc}</div></div>
-    <label class="toggle-sw"><input type="checkbox" ${s.visible?'checked':''} onchange="PP_SECTIONS[${i}].visible=this.checked;renderPPPreview()"><span class="toggle-sl"></span></label>
-    <button class="btn-sm btn-secondary" onclick="showToast('✏️ Édition de la section ${s.titre}','info')">✏️</button>
-  </div>`).join('');
+    <span class="psi-ico">${s.ico||"📄"}</span>
+    <div class="psi-body"><div class="psi-titre">${esc(s.titre)}</div><div class="psi-desc">${esc(s.desc)}</div></div>
+    <label class="toggle-sw"><input type="checkbox" ${s.visible?"checked":""} onchange="ppToggleSection(${i}, this.checked)"><span class="toggle-sl"></span></label>
+    <button class="btn-sm btn-secondary" onclick="ppEditerSection(${i})" title="Renommer">✏️</button>
+    <button class="btn-sm btn-red" onclick="ppSupprimerSection(${i})" title="Supprimer">🗑️</button>
+  </div>`).join("");
+}
+
+function ppToggleSection(idx, visible) {
+  if (!_ppState.sections?.[idx]) return;
+  _ppState.sections[idx].visible = !!visible;
+  renderPPPreview();
+}
+
+function ppEditerSection(idx) {
+  const s = _ppState.sections?.[idx];
+  if (!s) return;
+  const nv = prompt("Nouveau titre de la section :", s.titre);
+  if (nv === null) return;
+  if (nv.trim()) s.titre = nv.trim();
+  const nd = prompt("Description courte :", s.desc || "");
+  if (nd !== null) s.desc = nd.trim();
+  renderPPSections();
+  renderPPPreview();
+}
+
+function ppSupprimerSection(idx) {
+  if (!_ppState.sections?.[idx]) return;
+  if (!confirm(`Supprimer la section "${_ppState.sections[idx].titre}" ?`)) return;
+  _ppState.sections.splice(idx, 1);
+  renderPPSections();
+  renderPPPreview();
+}
+
+function ppAjouterSection() {
+  const titre = prompt("Titre de la nouvelle section :");
+  if (!titre || !titre.trim()) return;
+  const desc = prompt("Description courte :", "") || "";
+  const ico  = prompt("Émoji (optionnel) :", "📄") || "📄";
+  if (!_ppState.sections) _ppState.sections = [];
+  _ppState.sections.push({ ico: ico.trim(), titre: titre.trim(), desc: desc.trim(), visible: true });
+  renderPPSections();
+  renderPPPreview();
+  showToast("✅ Section ajoutée — pensez à Sauvegarder", "info");
 }
 
 function renderPPPreview() {
-  const frame = document.getElementById('pp-site-frame');
+  const frame = document.getElementById("pp-site-frame");
   if (!frame) return;
+  const ecole    = (typeof tousLesEcoles !== "undefined" ? tousLesEcoles : []).find(e => e.id === currentEcoleId);
+  const nom      = document.getElementById("pp-nom-ecole")?.value  || ecole?.nom || "Établissement";
+  const slogan   = document.getElementById("pp-slogan")?.value     || "";
+  const email    = document.getElementById("pp-email")?.value      || "";
+  const sections = (_ppState.sections || []).filter(s => s.visible);
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   frame.innerHTML = `
     <div style="background:linear-gradient(135deg,#1e3a5f,#059669);padding:1.5rem;text-align:center;color:#fff">
       <div style="font-size:28px;margin-bottom:.5rem">🏫</div>
-      <div style="font-size:18px;font-weight:800">Lycée EduLink Bénin</div>
-      <div style="font-size:12px;opacity:.7;margin-top:4px">L'excellence au service de l'avenir</div>
+      <div style="font-size:18px;font-weight:800">${esc(nom)}</div>
+      <div style="font-size:12px;opacity:.7;margin-top:4px">${esc(slogan) || "Excellence pédagogique"}</div>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:1rem">
         <div style="background:rgba(255,255,255,.2);border-radius:20px;padding:5px 14px;font-size:11px">📝 S'inscrire</div>
         <div style="background:rgba(255,255,255,.1);border-radius:20px;padding:5px 14px;font-size:11px">ℹ️ En savoir plus</div>
       </div>
     </div>
     <div style="padding:1rem">
-      ${PP_SECTIONS.filter(s=>s.visible).map(s=>`<div style="background:#f9fafb;border-radius:8px;padding:.6rem .85rem;margin-bottom:.4rem;font-size:12px;color:#374151;display:flex;align-items:center;gap:6px">${s.ico} ${s.titre}</div>`).join('')}
+      ${sections.length
+        ? sections.map(s => `<div style="background:#f9fafb;border-radius:8px;padding:.6rem .85rem;margin-bottom:.4rem;font-size:12px;color:#374151;display:flex;align-items:center;gap:6px">${s.ico||"📄"} ${esc(s.titre)}</div>`).join("")
+        : '<div style="padding:1rem;text-align:center;color:#9ca3af;font-size:12px">Aucune section visible</div>'}
     </div>
-    <div style="background:#1e3a5f;padding:.75rem;text-align:center;color:rgba(255,255,255,.6);font-size:11px">© 2026 Lycée EduLink Bénin · contact@lycee-edulink.bj</div>`;
+    <div style="background:#1e3a5f;padding:.75rem;text-align:center;color:rgba(255,255,255,.7);font-size:11px">© ${new Date().getFullYear()} ${esc(nom)} ${email ? "· "+esc(email) : ""}</div>`;
 }
 
 function renderPPInscriptions() {
-  const list = document.getElementById('pp-inscriptions-list');
-  const count = document.getElementById('pp-nb-inscr');
-  if (count) count.textContent = PP_INSCRIPTIONS_RECUES.length+' demandes';
+  const list  = document.getElementById("pp-inscriptions-list");
+  const count = document.getElementById("pp-nb-inscr");
+  const data  = _ppState.inscriptions || [];
+  if (count) count.textContent = data.length + " demande" + (data.length>1?"s":"");
   if (!list) return;
-  const labels = {nouveau:'🆕 Nouvelle',en_cours:'⏳ En cours',accepte:'✅ Acceptée'};
-  const cls = {nouveau:'amber',en_cours:'blue',accepte:'green'};
-  list.innerHTML = PP_INSCRIPTIONS_RECUES.map(d=>`<div class="inscr-demande-item">
-    <div class="idi-ava" style="background:${d.color}">${d.nom[0]}</div>
-    <div class="idi-body"><div class="idi-nom">${d.nom}</div><div class="idi-meta">${d.niveau}</div></div>
-    <div class="idi-right"><div class="idi-date">${d.date}</div>
-    <span class="badge ${cls[d.statut]}" style="font-size:10px;margin-top:3px;display:block">${labels[d.statut]}</span></div>
-    <button class="btn-sm btn-blue" onclick="showToast('📋 Dossier de ${d.nom} ouvert','info')" style="margin-left:.5rem">Voir</button>
-  </div>`).join('');
+  if (!data.length) {
+    list.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#9ca3af;font-size:13px">Aucune demande d\'inscription reçue.<br><span style="font-size:11px">Les demandes apparaîtront ici dès qu\'un visiteur soumettra le formulaire en ligne.</span></div>';
+  } else {
+    const labels = { nouveau: "🆕 Nouvelle", en_cours: "⏳ En cours", accepte: "✅ Acceptée", refuse: "❌ Refusée" };
+    const cls    = { nouveau: "amber", en_cours: "blue", accepte: "green", refuse: "red" };
+    const couleurs = ["#1e3a5f","#059669","#d97706","#7c3aed","#dc2626","#0891b2"];
+    const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    list.innerHTML = data.map((d, i) => {
+      const nomComplet = `${d.prenom||""} ${d.nom||""}`.trim() || "—";
+      const niveau = [d.niveau_actuel, d.niveau_demande].filter(Boolean).join(" → ") || d.niveau_demande || d.niveau_actuel || "—";
+      const dateAff = d.created_at ? new Date(d.created_at).toLocaleDateString("fr-FR") : "—";
+      const statut = d.statut || "nouveau";
+      return `<div class="inscr-demande-item">
+        <div class="idi-ava" style="background:${couleurs[i % couleurs.length]}">${esc(nomComplet[0]||"?")}</div>
+        <div class="idi-body"><div class="idi-nom">${esc(nomComplet)}</div><div class="idi-meta">${esc(niveau)}${d.filiere ? " · "+esc(d.filiere) : ""}</div></div>
+        <div class="idi-right">
+          <div class="idi-date">${dateAff}</div>
+          <span class="badge ${cls[statut]||"blue"}" style="font-size:10px;margin-top:3px;display:block">${labels[statut]||statut}</span>
+        </div>
+        <div style="display:flex;gap:4px;margin-left:.5rem;flex-shrink:0">
+          <button class="btn-sm btn-blue" onclick="ppVoirInscription('${d.id}')">Voir</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
 
-  const steps = document.getElementById('pp-inscr-steps');
-  if (steps) steps.innerHTML = ['Informations personnelles','Documents requis','Choix de la filière','Validation et paiement'].map((s,i)=>`<div class="inscr-step">
-    <div class="inscr-num">${i+1}</div>
-    <div class="inscr-body"><div class="inscr-titre">${s}</div></div>
-  </div>`).join('');
+  const steps = document.getElementById("pp-inscr-steps");
+  if (steps) steps.innerHTML = ["Informations personnelles","Documents requis","Choix de la filière","Validation et paiement"]
+    .map((s,i) => `<div class="inscr-step"><div class="inscr-num">${i+1}</div><div class="inscr-body"><div class="inscr-titre">${s}</div></div></div>`).join("");
 
-  const stats = document.getElementById('pp-inscr-stats');
-  if (stats) stats.innerHTML = [
-    {l:'Nouvelles demandes',v:'2',cls:'amber'},
-    {l:'En cours de traitement',v:'2',cls:'blue'},
-    {l:'Acceptées ce mois',v:'1',cls:'green'},
-  ].map(s=>`<div class="kpi-row"><span class="kpi-label">${s.l}</span><span class="badge ${s.cls}">${s.v}</span></div>`).join('');
+  // Stats inscriptions par statut
+  const stats = document.getElementById("pp-inscr-stats");
+  if (stats) {
+    const compte = { nouveau: 0, en_cours: 0, accepte: 0, refuse: 0 };
+    data.forEach(d => { compte[d.statut || "nouveau"] = (compte[d.statut || "nouveau"] || 0) + 1; });
+    stats.innerHTML = [
+      { l: "Nouvelles demandes",     v: compte.nouveau,    cls: "amber" },
+      { l: "En cours de traitement",  v: compte.en_cours,   cls: "blue" },
+      { l: "Acceptées",                v: compte.accepte,    cls: "green" },
+      { l: "Refusées",                 v: compte.refuse,     cls: "red" },
+    ].map(s => `<div class="kpi-row"><span class="kpi-label">${s.l}</span><span class="badge ${s.cls}">${s.v}</span></div>`).join("");
+  }
+}
+
+async function ppVoirInscription(id) {
+  const d = (_ppState.inscriptions || []).find(x => String(x.id) === String(id));
+  if (!d) return;
+  const nomComplet = `${d.prenom||""} ${d.nom||""}`.trim();
+  const detail = [
+    "Demande d'inscription :",
+    "",
+    "Nom : "       + nomComplet,
+    "Email : "      + (d.email || "—"),
+    "Téléphone : " + (d.telephone || "—"),
+    "Niveau actuel : "  + (d.niveau_actuel || "—"),
+    "Niveau demandé : " + (d.niveau_demande || "—"),
+    "Filière : "        + (d.filiere || "—"),
+    "Message : "        + (d.message || "—"),
+    "",
+    "Statut actuel : " + (d.statut || "nouveau"),
+    "",
+    "Action ? (1=Accepter, 2=Refuser, 3=Marquer en cours, vide=Annuler)",
+  ].join("\n");
+  const choix = prompt(detail, "");
+  if (!choix) return;
+  let nouveauStatut = null;
+  if (choix === "1") nouveauStatut = "accepte";
+  else if (choix === "2") nouveauStatut = "refuse";
+  else if (choix === "3") nouveauStatut = "en_cours";
+  if (!nouveauStatut) { showToast("Action annulée", "info"); return; }
+  const { error } = await db.from("inscriptions_demandes").update({ statut: nouveauStatut }).eq("id", id);
+  if (error) { showToast("❌ " + error.message, "error"); return; }
+  showToast("✅ Statut mis à jour : " + nouveauStatut, "success");
+  invalidateData("inscriptions_demandes");
+  // Recharger
+  _ppState.inscriptions = await ppChargerInscriptions();
+  renderPPInscriptions();
 }
 
 function renderPPActualites() {
-  const tbody = document.getElementById('pp-actu-tbody');
+  const tbody = document.getElementById("pp-actu-tbody");
   if (!tbody) return;
-  tbody.innerHTML = PP_ACTUALITES.map(a=>`<tr>
-    <td><strong>${a.titre}</strong></td>
-    <td><span class="badge blue">${a.cat}</span></td>
-    <td>${a.date}</td>
-    <td>${a.vues}</td>
-    <td><span class="badge ${a.statut==='publié'?'green':'gray'}">${a.statut}</span></td>
-    <td><button class="btn-sm btn-secondary" onclick="showToast('✏️ Édition de l\'article','info')">✏️</button></td>
-  </tr>`).join('');
+  const data = _ppState.actualites || [];
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:#9ca3af;font-size:13px">Aucun article publié. Cliquez sur <b>+ Nouvel article</b> pour commencer.</td></tr>';
+    return;
+  }
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  tbody.innerHTML = data.map(a => {
+    const date = a.publie_le || a.created_at;
+    const dateAff = date ? new Date(date).toLocaleDateString("fr-FR") : "—";
+    return `<tr>
+      <td><strong>${esc(a.titre||"—")}</strong></td>
+      <td><span class="badge blue">${esc(a.categorie||"Actualités")}</span></td>
+      <td>${dateAff}</td>
+      <td>${a.vues || 0}</td>
+      <td><span class="badge ${a.statut==="publie"?"green":"gray"}">${esc(a.statut||"brouillon")}</span></td>
+      <td>
+        <button class="btn-sm btn-secondary" onclick="ppEditerActualite('${a.id}')" title="Éditer">✏️</button>
+        <button class="btn-sm btn-red" onclick="ppSupprimerActualite('${a.id}')" title="Supprimer">🗑️</button>
+      </td>
+    </tr>`;
+  }).join("");
 }
 
 function renderPPGalerie() {
-  const grid = document.getElementById('pp-galerie-grid');
+  const grid = document.getElementById("pp-galerie-grid");
   if (!grid) return;
-  const colors = ['#dbeafe','#dcfce7','#fef9c3','#ede9fe','#fee2e2','#ccfbf1'];
-  grid.innerHTML = PP_GALERIE.map((ico,i)=>`<div style="aspect-ratio:1;border-radius:10px;background:${colors[i%colors.length]};display:flex;align-items:center;justify-content:center;font-size:32px;cursor:pointer;transition:all .15s;border:1px solid #e5e7eb" onmouseenter="this.style.transform='scale(1.05)'" onmouseleave="this.style.transform=''">${ico}</div>`).join('');
+  const photos = _ppState.galerie || [];
+  if (!photos.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:1.5rem;text-align:center;color:#9ca3af;font-size:13px">Aucune photo dans la galerie.<br><span style="font-size:11px">Cliquez sur <b>+ Ajouter photo</b> pour ajouter une URL d\'image.</span></div>';
+    return;
+  }
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  grid.innerHTML = photos.map((url,i) => `<div style="aspect-ratio:1;border-radius:10px;overflow:hidden;position:relative;background:#f3f4f6;border:1px solid #e5e7eb">
+    <img src="${esc(url)}" alt="Photo ${i+1}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentNode.innerHTML+='<div style=&quot;display:flex;align-items:center;justify-content:center;height:100%;font-size:32px;color:#9ca3af&quot;>🖼️</div>'">
+    <button onclick="ppSupprimerPhoto(${i})" title="Supprimer" style="position:absolute;top:4px;right:4px;background:rgba(220,38,38,.9);color:#fff;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px">×</button>
+  </div>`).join("");
+}
+
+function ppAjouterPhoto() {
+  const url = prompt("URL de l'image (https://...) :");
+  if (!url || !url.trim()) return;
+  if (!/^https?:\/\//i.test(url.trim())) {
+    showToast("⚠️ URL invalide (doit commencer par http:// ou https://)", "error");
+    return;
+  }
+  if (!_ppState.galerie) _ppState.galerie = [];
+  _ppState.galerie.push(url.trim());
+  renderPPGalerie();
+  showToast("✅ Photo ajoutée — pensez à Sauvegarder", "info");
+}
+
+function ppSupprimerPhoto(idx) {
+  if (!_ppState.galerie?.[idx]) return;
+  if (!confirm("Supprimer cette photo de la galerie ?")) return;
+  _ppState.galerie.splice(idx, 1);
+  renderPPGalerie();
+  showToast("🗑️ Photo retirée — pensez à Sauvegarder", "info");
 }
 
 function renderPPStats() {
-  const grid = document.getElementById('pp-stats-grid');
+  const grid = document.getElementById("pp-stats-grid");
   if (!grid) return;
+  const stats = ppLireStats();
+  const dureeMoy = stats.visiteurs > 0 ? Math.round(stats.dureeTotal / stats.visiteurs) : 0;
+  const fmtDuree = s => {
+    if (!s) return "0:00";
+    const m = Math.floor(s / 60);
+    const sec = String(s % 60).padStart(2, "0");
+    return m + ":" + sec;
+  };
   grid.innerHTML = [
-    {ico:'👁️',bg:'#dbeafe',v:'1 247',l:'Visiteurs ce mois',t:'↑ +18%'},
-    {ico:'📄',bg:'#dcfce7',v:'4 892',l:'Pages vues',t:'↑ +22%'},
-    {ico:'📝',bg:'#fef9c3',v:'5',l:'Inscriptions reçues',t:'↑ +2 vs mois dernier'},
-    {ico:'⏱️',bg:'#ede9fe',v:'2:34',l:'Durée moy. visite',t:'↑ +0:18s'},
-  ].map(k=>`<div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.1rem 1.2rem;display:flex;align-items:center;gap:.85rem">
+    { ico: "👁️", bg: "#dbeafe", v: (stats.visiteurs||0).toLocaleString("fr-FR"),  l: "Visiteurs (cumul)" },
+    { ico: "📄", bg: "#dcfce7", v: (stats.pagesVues||0).toLocaleString("fr-FR"), l: "Pages vues (cumul)" },
+    { ico: "📝", bg: "#fef9c3", v: (_ppState.inscriptions || []).length,          l: "Inscriptions reçues" },
+    { ico: "⏱️", bg: "#ede9fe", v: fmtDuree(dureeMoy),                            l: "Durée moy. visite" },
+  ].map(k => `<div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.1rem 1.2rem;display:flex;align-items:center;gap:.85rem">
     <div style="width:44px;height:44px;border-radius:12px;background:${k.bg};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${k.ico}</div>
     <div><div style="font-size:22px;font-weight:700;color:#111827">${k.v}</div>
-    <div style="font-size:11px;color:#6b7280">${k.l}</div>
-    <div style="font-size:11px;font-weight:600;color:#059669">${k.t}</div></div>
-  </div>`).join('');
+    <div style="font-size:11px;color:#6b7280">${k.l}</div></div>
+  </div>`).join("");
 
-  const tbody = document.getElementById('pp-pages-tbody');
-  if (tbody) tbody.innerHTML = [
-    {page:'Accueil',vues:1247,uniques:892,rebond:'42%',duree:'1:52'},
-    {page:'Inscriptions',vues:486,uniques:341,rebond:'28%',duree:'3:21'},
-    {page:'Formations',vues:321,uniques:267,rebond:'35%',duree:'2:45'},
-    {page:'Contact',vues:198,uniques:176,rebond:'55%',duree:'1:12'},
-    {page:'Actualités',vues:640,uniques:489,rebond:'38%',duree:'2:05'},
-  ].map(p=>`<tr><td><strong>${p.page}</strong></td><td>${p.vues}</td><td>${p.uniques}</td><td>${p.rebond}</td><td>${p.duree}</td></tr>`).join('');
+  const tbody = document.getElementById("pp-pages-tbody");
+  if (tbody) {
+    const sections = (_ppState.sections || []).filter(s => s.visible);
+    if (!sections.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:1rem;color:#9ca3af;font-size:13px">Activez des sections pour les voir ici.</td></tr>';
+    } else {
+      const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      // On affiche les sections visibles avec les stats locales si dispo
+      tbody.innerHTML = sections.map(s => {
+        const pageStats = (stats.dernieres || []).find(p => p.titre === s.titre) || {};
+        return `<tr>
+          <td><strong>${s.ico||""} ${esc(s.titre)}</strong></td>
+          <td>${pageStats.vues || 0}</td>
+          <td>${pageStats.uniques || 0}</td>
+          <td>${pageStats.rebond || "—"}</td>
+          <td>${pageStats.duree ? fmtDuree(pageStats.duree) : "—"}</td>
+        </tr>`;
+      }).join("");
+    }
+  }
 }
 
-function ppSwitchTab(tab,btn) {
-  ['editeur','inscriptions','actualites','galerie','stats-site'].forEach(t=>{
-    const el=document.getElementById('pp-tab-'+t); if(el) el.style.display=t===tab?'block':'none';
+function ppSwitchTab(tab, btn) {
+  ["editeur","inscriptions","actualites","galerie","stats-site"].forEach(t => {
+    const el = document.getElementById("pp-tab-"+t); if (el) el.style.display = (t===tab ? "block" : "none");
   });
-  document.querySelectorAll('#page-portail-public .tab').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
+  document.querySelectorAll("#page-portail-public .tab").forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
 }
 
-function previsualiserSitePublic() { window.open('https://app.afryx.io','_blank'); }
-function publierSitePublic() { showToast('🚀 Site publié avec succès ! Disponible sur https://lycee-edulink.afryx.io','success'); }
-function ouvrirModalActualite() { ouvrirModal('modal-actualite'); }
-function publierActualite() {
-  const t = document.getElementById('actu-titre').value.trim();
-  if (!t) { showToast('Titre requis','error'); return; }
-  PP_ACTUALITES.unshift({titre:t, cat:document.getElementById('actu-cat').value, date:new Date().toLocaleDateString('fr-FR'), vues:0, statut:'publié'});
-  fermerModal('modal-actualite');
+// ── Sauvegarde de la config ──
+async function ppSauvegarderInfos() {
+  if (!currentEcoleId) { showToast("Sélectionnez une école d'abord", "error"); return; }
+  const payload = {
+    ecole_id:     currentEcoleId,
+    nom_affiche:  document.getElementById("pp-nom-ecole")?.value.trim() || "",
+    slogan:       document.getElementById("pp-slogan")?.value.trim() || "",
+    description:  document.getElementById("pp-description")?.value.trim() || "",
+    telephone:    document.getElementById("pp-tel")?.value.trim() || "",
+    email:        document.getElementById("pp-email")?.value.trim() || "",
+    adresse:      document.getElementById("pp-adresse")?.value.trim() || "",
+    sections_json: JSON.stringify(_ppState.sections || []),
+    gallery_urls:  JSON.stringify(_ppState.galerie || []),
+  };
+  let res = await db.from("portail_config").upsert(payload, { onConflict: "ecole_id" });
+  if (res.error && /column .* does not exist/i.test(res.error.message)) {
+    // Auto-retry minimal (sans gallery_urls/sections_json si colonnes absentes)
+    const minimal = { ecole_id: currentEcoleId, nom_affiche: payload.nom_affiche, slogan: payload.slogan, description: payload.description, telephone: payload.telephone, email: payload.email, adresse: payload.adresse };
+    res = await db.from("portail_config").upsert(minimal, { onConflict: "ecole_id" });
+  }
+  if (res.error) { showToast("❌ " + res.error.message, "error"); return; }
+  showToast("✅ Informations sauvegardées", "success");
+  invalidateData("portail_config");
+  // Recharger la config
+  _ppState.config = await ppChargerConfig();
+  renderPPPreview();
+}
+
+// ── Publier / Dépublier le site ──
+async function publierSitePublic() {
+  if (!currentEcoleId) { showToast("Sélectionnez une école", "error"); return; }
+  // 1) Sauvegarder d'abord la config en cours
+  await ppSauvegarderInfos();
+  // 2) Marquer comme publié
+  const ecole = (typeof tousLesEcoles !== "undefined" ? tousLesEcoles : []).find(e => e.id === currentEcoleId);
+  const url = _ppState.config?.url_publique || ppCalculerUrl(ecole);
+  let res = await db.from("portail_config").upsert({
+    ecole_id:      currentEcoleId,
+    publie:        true,
+    publie_le:     new Date().toISOString(),
+    url_publique:  url,
+  }, { onConflict: "ecole_id" });
+  if (res.error && /column .* does not exist/i.test(res.error.message)) {
+    res = await db.from("portail_config").upsert({ ecole_id: currentEcoleId, publie: true }, { onConflict: "ecole_id" });
+  }
+  if (res.error) { showToast("❌ " + res.error.message, "error"); return; }
+  // 3) Copier l'URL dans le presse-papier
+  try { await navigator.clipboard.writeText(url); } catch(e) { /* ignore */ }
+  showToast(`🚀 Site publié ! URL copiée : ${url}`, "success");
+  const elSta = document.getElementById("pp-statut");
+  if (elSta) elSta.textContent = "🟢 En ligne";
+  invalidateData("portail_config");
+}
+
+// ── Prévisualiser : ouvre une fenêtre avec un vrai aperçu HTML généré ──
+function previsualiserSitePublic() {
+  const ecole    = (typeof tousLesEcoles !== "undefined" ? tousLesEcoles : []).find(e => e.id === currentEcoleId);
+  const nom      = document.getElementById("pp-nom-ecole")?.value || ecole?.nom || "Établissement";
+  const slogan   = document.getElementById("pp-slogan")?.value     || "";
+  const desc     = document.getElementById("pp-description")?.value|| "";
+  const tel      = document.getElementById("pp-tel")?.value         || "";
+  const email    = document.getElementById("pp-email")?.value       || "";
+  const adresse  = document.getElementById("pp-adresse")?.value    || "";
+  const sections = (_ppState.sections || []).filter(s => s.visible);
+  const actus    = (_ppState.actualites || []).filter(a => a.statut === "publie").slice(0, 3);
+  const photos   = _ppState.galerie || [];
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>${esc(nom)}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
+  body{background:#f9fafb;color:#111827}
+  .hero{background:linear-gradient(135deg,#1e3a5f,#059669);color:#fff;padding:4rem 2rem;text-align:center}
+  .hero h1{font-size:48px;margin-bottom:.5rem;font-weight:800}
+  .hero p{font-size:18px;opacity:.85}
+  .cta{display:inline-block;margin-top:1.5rem;padding:.85rem 1.8rem;background:#fff;color:#1e3a5f;border-radius:30px;font-weight:700;text-decoration:none;font-size:14px}
+  .container{max-width:1100px;margin:0 auto;padding:3rem 2rem}
+  section{background:#fff;border-radius:14px;padding:2rem;margin-bottom:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  section h2{font-size:24px;margin-bottom:1rem;color:#1e3a5f}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1rem}
+  .card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:1rem}
+  .card h3{font-size:15px;margin-bottom:.4rem;color:#111827}
+  .card p{font-size:13px;color:#6b7280}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.75rem}
+  .gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
+  .actu{padding:1rem;border-bottom:1px solid #f3f4f6}
+  .actu:last-child{border:none}
+  .actu .meta{font-size:12px;color:#6b7280;margin-bottom:.3rem}
+  footer{background:#1e3a5f;color:rgba(255,255,255,.8);padding:2rem;text-align:center;font-size:13px}
+</style></head><body>
+  <div class="hero">
+    <h1>🏫 ${esc(nom)}</h1>
+    ${slogan ? `<p>${esc(slogan)}</p>` : ""}
+    <a href="#inscription" class="cta">📝 Demander une inscription</a>
+  </div>
+  <div class="container">
+    ${desc ? `<section><h2>ℹ️ À propos</h2><p style="line-height:1.7;color:#374151">${esc(desc)}</p></section>` : ""}
+    ${sections.length ? `<section><h2>📚 Nos sections</h2><div class="grid">
+      ${sections.map(s => `<div class="card"><h3>${s.ico||""} ${esc(s.titre)}</h3><p>${esc(s.desc||"")}</p></div>`).join("")}
+    </div></section>` : ""}
+    ${actus.length ? `<section><h2>📰 Dernières actualités</h2>
+      ${actus.map(a => `<div class="actu"><div class="meta">${esc(a.categorie||"")} · ${a.publie_le ? new Date(a.publie_le).toLocaleDateString("fr-FR") : ""}</div><h3>${esc(a.titre||"")}</h3><p style="color:#6b7280;font-size:13px;margin-top:.3rem">${esc((a.extrait||a.contenu||"").substring(0,200))}</p></div>`).join("")}
+    </section>` : ""}
+    ${photos.length ? `<section><h2>🖼️ Galerie</h2><div class="gallery">
+      ${photos.map(u => `<img src="${esc(u)}" alt="" loading="lazy">`).join("")}
+    </div></section>` : ""}
+    <section id="inscription"><h2>📞 Contact & Inscription</h2>
+      ${adresse ? `<p>📍 ${esc(adresse)}</p>` : ""}
+      ${tel     ? `<p>📞 ${esc(tel)}</p>` : ""}
+      ${email   ? `<p>✉️ <a href="mailto:${esc(email)}" style="color:#059669">${esc(email)}</a></p>` : ""}
+    </section>
+  </div>
+  <footer>© ${new Date().getFullYear()} ${esc(nom)} · Site propulsé par EduLink</footer>
+</body></html>`;
+  // Ouvrir dans une nouvelle fenêtre via blob URL (pas de cache, pas de tracking)
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const blobUrl = URL.createObjectURL(blob);
+  const w = window.open(blobUrl, "_blank");
+  if (!w) {
+    showToast("⚠️ Le navigateur a bloqué l'aperçu — autorisez les pop-ups", "error");
+  } else {
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  }
+}
+
+// ── Modal d'actualité ──
+function ouvrirModalActualite(id) {
+  // Pré-remplir si édition
+  const actu = id ? (_ppState.actualites || []).find(a => String(a.id) === String(id)) : null;
+  document.getElementById("actu-titre").value   = actu?.titre   || "";
+  document.getElementById("actu-cat").value     = actu?.categorie || "Actualités";
+  document.getElementById("actu-contenu").value = actu?.contenu || "";
+  document.getElementById("modal-actualite").dataset.editId = actu?.id || "";
+  ouvrirModal("modal-actualite");
+}
+
+async function publierActualite() {
+  const titre    = document.getElementById("actu-titre")?.value.trim();
+  const categorie= document.getElementById("actu-cat")?.value || "Actualités";
+  const contenu  = document.getElementById("actu-contenu")?.value.trim() || "";
+  if (!titre) { showToast("Titre requis", "error"); return; }
+  const editId = document.getElementById("modal-actualite")?.dataset.editId;
+  const payload = {
+    ecole_id:  currentEcoleId,
+    titre, categorie, contenu,
+    extrait:   contenu.substring(0, 200),
+    statut:    "publie",
+    publie_le: new Date().toISOString(),
+  };
+  let res;
+  if (editId) {
+    res = await db.from("actualites").update(payload).eq("id", editId);
+  } else {
+    res = await db.from("actualites").insert([payload]);
+  }
+  if (res.error && /column .* does not exist/i.test(res.error.message)) {
+    const minimal = { ecole_id: currentEcoleId, titre, contenu, statut: "publie" };
+    res = editId
+      ? await db.from("actualites").update(minimal).eq("id", editId)
+      : await db.from("actualites").insert([minimal]);
+  }
+  if (res.error) { showToast("❌ " + res.error.message, "error"); return; }
+  fermerModal("modal-actualite");
+  showToast(editId ? "✏️ Article mis à jour" : "📰 Article publié !", "success");
+  invalidateData("actualites");
+  _ppState.actualites = await ppChargerActualites();
   renderPPActualites();
-  showToast('📰 Article publié !','success');
+}
+
+function ppEditerActualite(id) { ouvrirModalActualite(id); }
+
+async function ppSupprimerActualite(id) {
+  if (!confirm("Supprimer définitivement cet article ?")) return;
+  const { error } = await db.from("actualites").delete().eq("id", id);
+  if (error) { showToast("❌ " + error.message, "error"); return; }
+  showToast("🗑️ Article supprimé", "success");
+  invalidateData("actualites");
+  _ppState.actualites = await ppChargerActualites();
+  renderPPActualites();
 }
 
 /* ══════════════════════════════════════════════════════════════════
