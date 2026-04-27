@@ -2327,7 +2327,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div class="sync-status-indicator online" id="sync-indicator" onclick="forcerSync()" title="Statut synchronisation">
         <span id="sync-dot">●</span> <span id="sync-label">En ligne</span>
       </div>
-      <a href="edulink-portail.html" target="_blank" style="font-size:11px;color:rgba(255,255,255,.55);padding:5px 8px;border-radius:6px;background:rgba(255,255,255,.06);text-decoration:none">🌐 Portail</a>
+      <a onclick="showPage('portail-etudiant')" style="font-size:11px;color:rgba(255,255,255,.55);padding:5px 8px;border-radius:6px;background:rgba(255,255,255,.06);text-decoration:none;cursor:pointer">🌐 Portail</a>
     </div>
     <div class="nav-user">
       <div class="u-avatar" id="nav-avatar">?</div>
@@ -7169,7 +7169,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       </select>
     </div>
     <div class="form-group"><label>Lien (optionnel)</label>
-      <input type="text" id="input-push-url" placeholder="/edulink-portail.html">
+      <input type="text" id="input-push-url" placeholder="/?page=portail-etudiant">
     </div>
     <div class="form-group"><label>Priorité</label>
       <select id="input-push-priority">
@@ -17474,7 +17474,7 @@ async function envoyerEmailBienvenue(etudiant) {
           </table>
           <p>Vous pouvez suivre la scolarité de votre enfant via le <strong>Portail Famille EduLink</strong>.</p>
           <div style="text-align:center;margin:20px 0">
-            <a href="https://edulink-demo-client.vercel.app/edulink-portail.html" style="background:#1e3a5f;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Accéder au Portail Famille</a>
+            <a href="https://edulink-demo-client.vercel.app/?page=portail-etudiant" style="background:#1e3a5f;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">Accéder au Portail Famille</a>
           </div>
           <p style="color:#6b7280;font-size:12px">Cet email a été envoyé automatiquement par EduLink.</p>
         </div>
