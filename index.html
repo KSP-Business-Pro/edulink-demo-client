@@ -5213,6 +5213,14 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <h2 id="exec-ecole-nom">🏫 EduLink — Tableau de Bord Direction</h2>
       <p>Vue consolidée en temps réel · Accès restreint Directeur</p>
       <div class="exec-date" id="exec-date-now"></div>
+      <!-- Sélecteur d'établissement synchronisé avec la nav -->
+      <div style="margin-top:.75rem">
+        <select id="exec-ecole-selector"
+          onchange="changerEcoleDepuisDashboard(this.value)"
+          style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:7px 14px;border-radius:10px;font-size:13px;font-weight:600;font-family:'Poppins',sans-serif;cursor:pointer;outline:none;min-width:220px">
+          <option style="background:#1e3a5f">Chargement...</option>
+        </select>
+      </div>
     </div>
     <div class="exec-kpi-row" id="exec-hero-kpis"></div>
   </div>
@@ -7982,6 +7990,8 @@ async function chargerEcoles() {
     sel.innerHTML = tousLesEcoles.map(e => `<option value="${e.id}">${e.nom}</option>`).join('');
     currentEcoleId = tousLesEcoles[0].id;
     mettreAJourBadgeEcole(tousLesEcoles[0]);
+    // Synchroniser le sélecteur du Dashboard Directeur
+    peuplerExecSelector();
   } else {
     sel.innerHTML = '<option value="">Aucun établissement</option>';
   }
@@ -7993,9 +8003,42 @@ function changerEcole() {
   currentEcoleId = document.getElementById('ecole-selector').value;
   const ecole = tousLesEcoles.find(e => e.id === currentEcoleId);
   mettreAJourBadgeEcole(ecole);
-  tousLesEtudiants = [];
+  // Synchroniser le sélecteur du Dashboard Directeur
+  const execSel = document.getElementById('exec-ecole-selector');
+  if (execSel) execSel.value = currentEcoleId;
+  // Vider les caches de tous les modules
+  tousLesEtudiants = []; tousLesEnseignants = []; tousLesCreneaux = [];
+  tousLesFactures = []; tousLesPaiements = []; tousLesMessages = [];
+  // Recharger le module actif + dashboard
   chargerDashboard();
-  showToast('Établissement : ' + (ecole?.nom || ''), 'info');
+  // Recharger le module actuellement affiché
+  const pageActive = document.querySelector('.page.active')?.id?.replace('page-', '');
+  if (pageActive && pageActive !== 'dashboard' && typeof pageLoaders !== 'undefined') {
+    const loader = pageLoaders[pageActive];
+    if (typeof loader === 'function') setTimeout(loader, 100);
+  }
+  showToast('📍 ' + (ecole?.nom || 'Établissement sélectionné'), 'info');
+}
+
+// Sélecteur du Dashboard Directeur → synchronise la nav et recharge
+function changerEcoleDepuisDashboard(id) {
+  if (!id || id === currentEcoleId) return;
+  // Synchroniser la nav gauche
+  const navSel = document.getElementById('ecole-selector');
+  if (navSel) navSel.value = id;
+  // Déclencher le changement global
+  changerEcole();
+  // Recharger le Dashboard Directeur
+  if (typeof chargerExecDashboard === 'function') chargerExecDashboard();
+}
+
+// Peupler le sélecteur du Dashboard Directeur quand les écoles sont chargées
+function peuplerExecSelector() {
+  const sel = document.getElementById('exec-ecole-selector');
+  if (!sel || !tousLesEcoles.length) return;
+  sel.innerHTML = tousLesEcoles.map(e =>
+    `<option value="${e.id}" style="background:#1e3a5f" ${e.id === currentEcoleId ? 'selected' : ''}>${e.nom}</option>`
+  ).join('');
 }
 function mettreAJourBadgeEcole(ecole) {
   if (!ecole) return;
@@ -19804,6 +19847,8 @@ function execFmtPct(num, den) {
 }
 
 async function chargerExecDashboard() {
+  // Synchroniser le sélecteur avec l'école courante
+  peuplerExecSelector();
   // Date du jour
   const dateEl = document.getElementById("exec-date-now");
   if (dateEl) dateEl.textContent = new Date().toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long", year:"numeric"});
