@@ -5883,14 +5883,14 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
         <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🔔 Catégories d'envoi automatique</div>
         <div id="notif-categories" style="display:flex;flex-direction:column;gap:8px">
-          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-notes" checked> <span style="flex:1">📊 Nouvelles notes saisies</span></label>
-          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-absences" checked> <span style="flex:1">🚫 Absences enregistrées</span></label>
-          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-paiements" checked> <span style="flex:1">💳 Reçus de paiement</span></label>
-          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-factures" checked> <span style="flex:1">📄 Nouvelles factures</span></label>
-          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-evenements"> <span style="flex:1">📅 Événements & calendrier</span></label>
-          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-incidents"> <span style="flex:1">⚠️ Incidents disciplinaires</span></label>
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-notes" checked onchange="paramSauverCategories()"> <span style="flex:1">📊 Nouvelles notes saisies</span></label>
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-absences" checked onchange="paramSauverCategories()"> <span style="flex:1">🚫 Absences enregistrées</span></label>
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-paiements" checked onchange="paramSauverCategories()"> <span style="flex:1">💳 Reçus de paiement</span></label>
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-factures" checked onchange="paramSauverCategories()"> <span style="flex:1">📄 Nouvelles factures</span></label>
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-evenements" onchange="paramSauverCategories()"> <span style="flex:1">📅 Événements & calendrier</span></label>
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-incidents" onchange="paramSauverCategories()"> <span style="flex:1">⚠️ Incidents disciplinaires</span></label>
         </div>
-        <button class="btn-blue" onclick="paramSauverCategories()" style="width:100%;margin-top:1rem">💾 Sauvegarder préférences notifs</button>
+        <button class="btn-blue" onclick="paramSauverCategories();showToast('✅ Préférences notifs sauvegardées','success')" style="width:100%;margin-top:1rem">💾 Confirmer les préférences</button>
       </div>
     </div>
   </div>
@@ -10113,22 +10113,24 @@ async function chargerParametres() {
     ecoleDb = data;
   }
 
-  const f = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = val; };
-  // Priorité : Supabase > localStorage > vide (Supabase est source de vérité)
-  f("param-nom",      ecoleDb?.nom            || saved.nom      || "");
-  f("param-type",     ecoleDb?.type           || saved.type     || "");
-  f("param-ville",    ecoleDb?.ville          || saved.ville    || "");
-  f("param-pays",     ecoleDb?.pays           || saved.pays     || "Bénin");
-  f("param-adresse",  ecoleDb?.adresse        || saved.adresse  || "");
-  f("param-tel",      ecoleDb?.telephone      || saved.tel      || "");
-  f("param-email",    ecoleDb?.email          || saved.email    || "");
-  f("param-site",     ecoleDb?.site_web       || saved.site     || "");
-  f("param-annee",    ecoleDb?.annee_scolaire || saved.annee    || "");
-  f("param-notation", ecoleDb?.systeme_notation || saved.notation || "trimestres");
-  f("param-debut",    ecoleDb?.date_debut     || saved.debut    || "");
-  f("param-fin",      ecoleDb?.date_fin       || saved.fin      || "");
-  f("param-devise",   ecoleDb?.devise         || saved.devise   || "FCFA");
-  f("param-agrement", ecoleDb?.agrement       || saved.agrement || "");
+  const f = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null && val !== "") el.value = val; };
+  // Priorité : localStorage > Supabase > vide
+  // Logique : localStorage = travail en cours (modifié par l'utilisateur)
+  //           Supabase = source de référence pour les champs non encore locaux
+  f("param-nom",      saved.nom      || ecoleDb?.nom            || "");
+  f("param-type",     saved.type     || ecoleDb?.type           || "");
+  f("param-ville",    saved.ville    || ecoleDb?.ville          || "");
+  f("param-pays",     saved.pays     || ecoleDb?.pays           || "Bénin");
+  f("param-adresse",  saved.adresse  || ecoleDb?.adresse        || "");
+  f("param-tel",      saved.tel      || ecoleDb?.telephone      || "");
+  f("param-email",    saved.email    || ecoleDb?.email          || "");
+  f("param-site",     saved.site     || ecoleDb?.site_web       || "");
+  f("param-annee",    saved.annee    || ecoleDb?.annee_scolaire || "");
+  f("param-notation", saved.notation || ecoleDb?.systeme_notation || "trimestres");
+  f("param-debut",    saved.debut    || ecoleDb?.date_debut     || "");
+  f("param-fin",      saved.fin      || ecoleDb?.date_fin       || "");
+  f("param-devise",   saved.devise   || ecoleDb?.devise         || "FCFA");
+  f("param-agrement", saved.agrement || ecoleDb?.agrement       || "");
 
   // URL portail famille
   const urlEl = document.getElementById("portail-url");
@@ -10382,7 +10384,7 @@ function paramSauverCategories() {
     email: document.getElementById("notif-sender-email")?.value.trim() || "",
   };
   localStorage.setItem("edulink_notif_sender", JSON.stringify(sender));
-  showToast("✅ Préférences de notifications sauvegardées", "success");
+  // Pas de toast ici : appelé automatiquement à chaque onchange + manuellement via le bouton
 }
 
 async function paramTesterEnvoiEmail() {
@@ -12450,36 +12452,40 @@ async function envoyerDepuisCompose() { showToast("Utilisez le module Messagerie
 async function chargerBranding() {
   if (!currentEcoleId) return;
   try {
-    // Charger branding de l'école — fallback select(*) si colonnes absentes
-    let res = await db.from("ecoles")
-      .select("nom, couleur_primaire, couleur_secondaire, couleur_accent, logo_url, slogan, couleur_bg")
-      .eq("id", currentEcoleId).single();
-    if (res.error && /column .* does not exist/i.test(res.error.message)) {
-      res = await db.from("ecoles").select("*").eq("id", currentEcoleId).single();
-    }
-    let ecole = res.data;
-    // Compléter avec le backup localStorage si certaines colonnes manquent
+    // Lire d'abord le backup localStorage (priorité absolue — sauvegarde toujours réussit)
     let backup = {};
     try {
       backup = JSON.parse(localStorage.getItem("edulink_branding_" + currentEcoleId) || "{}");
     } catch(e) { /* ignore */ }
 
-    if (ecole || Object.keys(backup).length) {
-      const p = (ecole && ecole.couleur_primaire)   || backup.couleur_primaire   || "#0f6e56";
-      const s = (ecole && ecole.couleur_secondaire) || backup.couleur_secondaire || "#1e3a5f";
-      const a = (ecole && ecole.couleur_accent)     || backup.couleur_accent     || "#c97c1a";
-      setColorInputs(p, s, a);
-      document.getElementById("brand-logo-url").value = (ecole && ecole.logo_url) || backup.logo_url || "";
-      document.getElementById("brand-slogan").value   = (ecole && ecole.slogan)   || backup.slogan   || "";
-      previewBranding();
+    // Charger branding depuis Supabase en complément
+    let ecole = null;
+    let res = await db.from("ecoles")
+      .select("nom, couleur_primaire, couleur_secondaire, couleur_accent, logo_url, slogan")
+      .eq("id", currentEcoleId).single();
+    if (res.error && /column .* does not exist/i.test(res.error.message)) {
+      res = await db.from("ecoles").select("*").eq("id", currentEcoleId).single();
     }
+    if (!res.error) ecole = res.data;
 
-    // Charger thèmes prédéfinis (table branding_themes peut ne pas exister → on tolère)
+    // Fusion : localStorage prime sur Supabase (colonnes manquantes côté Supabase)
+    const p = backup.couleur_primaire   || (ecole && ecole.couleur_primaire)   || "#0f6e56";
+    const s = backup.couleur_secondaire || (ecole && ecole.couleur_secondaire) || "#1e3a5f";
+    const a = backup.couleur_accent     || (ecole && ecole.couleur_accent)     || "#c97c1a";
+    const logo   = backup.logo_url !== undefined ? backup.logo_url : ((ecole && ecole.logo_url) || "");
+    const slogan = backup.slogan   !== undefined ? backup.slogan   : ((ecole && ecole.slogan)   || "");
+
+    setColorInputs(p, s, a);
+    document.getElementById("brand-logo-url").value = logo;
+    document.getElementById("brand-slogan").value   = slogan;
+    previewBranding();
+
+    // Charger thèmes prédéfinis
     try {
       const { data: themes } = await db.from("branding_themes").select("*").order("nom");
       tousThemes = themes || [];
       afficherThemes();
-    } catch(e) { /* table absente, on ignore */ }
+    } catch(e) { /* table absente */ }
   } catch(e) { console.warn("[Branding]", e.message); }
 }
 
@@ -12551,14 +12557,26 @@ function previewBranding() {
 
 async function sauvegarderBranding() {
   if (!currentEcoleId) { showToast("Aucun établissement sélectionné", "error"); return; }
-  const payload = {
+  const brandingData = {
     couleur_primaire:   document.getElementById("brand-couleur-primaire").value,
     couleur_secondaire: document.getElementById("brand-couleur-secondaire").value,
     couleur_accent:     document.getElementById("brand-couleur-accent").value,
-    logo_url:           document.getElementById("brand-logo-url").value.trim() || null,
-    slogan:             document.getElementById("brand-slogan").value.trim() || null,
+    logo_url:           document.getElementById("brand-logo-url").value.trim(),
+    slogan:             document.getElementById("brand-slogan").value.trim(),
   };
-  // Auto-retry : retirer les colonnes absentes du schéma jusqu'à ce que la requête passe
+  // 1. Sauvegarde localStorage EN PREMIER — persiste même si Supabase échoue
+  try {
+    localStorage.setItem("edulink_branding_" + currentEcoleId, JSON.stringify(brandingData));
+  } catch(e) { /* ignore */ }
+
+  // 2. Tentative Supabase avec auto-retry colonnes
+  const payload = {
+    couleur_primaire:   brandingData.couleur_primaire,
+    couleur_secondaire: brandingData.couleur_secondaire,
+    couleur_accent:     brandingData.couleur_accent,
+    logo_url:           brandingData.logo_url || null,
+    slogan:             brandingData.slogan   || null,
+  };
   let { error } = await db.from("ecoles").update(payload).eq("id", currentEcoleId);
   let guard = 0;
   let droppedCols = [];
@@ -12572,25 +12590,15 @@ async function sauvegarderBranding() {
     guard++;
   }
   if (error) {
-    showToast("❌ Erreur : " + error.message, "error");
+    showToast("🎨 Branding sauvegardé localement (colonnes Supabase indisponibles)", "info");
     return;
   }
   if (droppedCols.length) {
-    showToast(`🎨 Branding enregistré (colonnes ignorées : ${droppedCols.join(", ")})`, "success");
-    console.warn("[Branding] Colonnes Supabase manquantes :", droppedCols);
+    showToast(`🎨 Branding enregistré (${droppedCols.length} colonne(s) Supabase non créée(s) — voir SQL ci-dessous)`, "success");
+    console.warn("[Branding] Colonnes manquantes en Supabase :", droppedCols.join(", "), "\nSQL :", droppedCols.map(c => `ALTER TABLE ecoles ADD COLUMN IF NOT EXISTS ${c} text;`).join("\n"));
   } else {
     showToast("🎨 Branding enregistré ! Le portail sera mis à jour.", "success");
   }
-  // Sauvegarder en localStorage en backup
-  try {
-    localStorage.setItem("edulink_branding_" + currentEcoleId, JSON.stringify({
-      couleur_primaire:   document.getElementById("brand-couleur-primaire").value,
-      couleur_secondaire: document.getElementById("brand-couleur-secondaire").value,
-      couleur_accent:     document.getElementById("brand-couleur-accent").value,
-      logo_url:           document.getElementById("brand-logo-url").value.trim(),
-      slogan:             document.getElementById("brand-slogan").value.trim(),
-    }));
-  } catch(e) { /* ignore */ }
   if (typeof invalidateData === "function") invalidateData("ecoles");
 }
 
