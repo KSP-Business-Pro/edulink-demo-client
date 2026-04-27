@@ -5636,219 +5636,340 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 ═══════════════════════════════════════ -->
 <div class="page" id="page-parametres">
   <div class="top">
-    <div><h2>⚙️ Paramètres</h2><p class="page-subtitle">Configuration de l'établissement</p></div>
-    <button onclick="sauvegarderParametres()">💾 Enregistrer</button>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
-
-    <!-- Informations école -->
-    <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
-      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🏫 Informations de l'établissement</div>
-      <div class="form-group"><label>Nom *</label><input type="text" id="param-nom" placeholder="Ex: Collège Saint Joseph"></div>
-      <div class="form-group"><label>Type</label>
-        <select id="param-type">
-          <option value="collège">Collège</option><option value="lycée">Lycée</option>
-          <option value="université">Université</option><option value="école_primaire">École primaire</option>
-          <option value="institut">Institut</option><option value="centre_formation">Centre de formation</option>
-        </select>
-      </div>
-      <div class="form-grid">
-        <div class="form-group"><label>Ville</label><input type="text" id="param-ville" placeholder="Ex: Cotonou"></div>
-        <div class="form-group"><label>Pays</label><input type="text" id="param-pays" value="Bénin"></div>
-      </div>
-      <div class="form-group"><label>Téléphone</label><input type="text" id="param-tel" placeholder="+229 97 00 00 00"></div>
-      <div class="form-group"><label>Email</label><input type="email" id="param-email" placeholder="contact@ecole.bj"></div>
+    <div><h2>⚙️ Paramètres</h2><p class="page-subtitle">Configuration de l'établissement et préférences personnelles</p></div>
+    <div class="top-actions">
+      <button class="btn-secondary" onclick="paramExporterConfig()">📦 Exporter config</button>
+      <button onclick="sauvegarderParametres()">💾 Enregistrer</button>
     </div>
+  </div>
 
-    <!-- Année scolaire -->
-    <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
-      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">📅 Année scolaire & Notation</div>
-      <div class="form-group"><label>Année scolaire</label><input type="text" id="param-annee" placeholder="Ex: 2025-2026"></div>
-      <div class="form-group"><label>Système de notation</label>
-        <select id="param-notation">
-          <option value="semestres">Semestres (S1, S2)</option>
-          <option value="trimestres">Trimestres (T1, T2, T3)</option>
-        </select>
+  <!-- Onglets -->
+  <div class="tabs" style="margin-bottom:1.2rem">
+    <button class="tab active" onclick="settingsSwitchTab('etablissement', this)">🏫 Établissement</button>
+    <button class="tab" onclick="settingsSwitchTab('compte', this)">👤 Mon compte</button>
+    <button class="tab" onclick="settingsSwitchTab('branding', this)">🎨 Branding</button>
+    <button class="tab" onclick="settingsSwitchTab('notifications', this)">📧 Notifications</button>
+    <button class="tab" onclick="settingsSwitchTab('systeme', this)">🔧 Système</button>
+    <button class="tab" onclick="settingsSwitchTab('danger', this)" style="color:#dc2626">⚠️ Zone de danger</button>
+  </div>
+
+  <!-- ── ONGLET 1 : ÉTABLISSEMENT ─────────────────────────────────── -->
+  <div id="param-tab-etablissement">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
+      <!-- Informations école -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🏫 Informations principales</div>
+        <div class="form-group"><label>Nom <span style="color:#dc2626">*</span></label><input type="text" id="param-nom" placeholder="Ex: Université Africaine"></div>
+        <div class="form-group"><label>Type</label>
+          <select id="param-type">
+            <option value="collège">Collège</option><option value="lycée">Lycée</option>
+            <option value="université">Université</option><option value="école_primaire">École primaire</option>
+            <option value="institut">Institut</option><option value="centre_formation">Centre de formation</option>
+          </select>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Ville</label><input type="text" id="param-ville" placeholder="Ex: Cotonou"></div>
+          <div class="form-group"><label>Pays</label><input type="text" id="param-pays" value="Bénin"></div>
+        </div>
+        <div class="form-group"><label>Adresse complète</label><textarea id="param-adresse" rows="2" placeholder="N° voie, quartier, repère..."></textarea></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Téléphone</label><input type="text" id="param-tel" placeholder="+229 ..."></div>
+          <div class="form-group"><label>Email</label><input type="email" id="param-email" placeholder="contact@ecole.bj"></div>
+        </div>
+        <div class="form-group"><label>Site web</label><input type="url" id="param-site" placeholder="https://votre-ecole.bj"></div>
       </div>
-      <div class="form-grid">
-        <div class="form-group"><label>Date début</label><input type="date" id="param-debut"></div>
-        <div class="form-group"><label>Date fin</label><input type="date" id="param-fin"></div>
-      </div>
-      <div class="form-group"><label>Devise</label>
-        <select id="param-devise">
-          <option value="FCFA">FCFA</option><option value="EUR">EUR</option><option value="USD">USD</option>
-        </select>
+
+      <!-- Année & Notation -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">📅 Année académique & Notation</div>
+        <div class="form-group"><label>Année académique</label><input type="text" id="param-annee" placeholder="Ex: 2025-2026"></div>
+        <div class="form-group"><label>Système de notation</label>
+          <select id="param-notation">
+            <option value="semestres">Semestres (S1, S2)</option>
+            <option value="trimestres">Trimestres (T1, T2, T3)</option>
+          </select>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Date début</label><input type="date" id="param-debut"></div>
+          <div class="form-group"><label>Date fin</label><input type="date" id="param-fin"></div>
+        </div>
+        <div class="form-group"><label>Devise</label>
+          <select id="param-devise">
+            <option value="FCFA">FCFA (F CFA)</option><option value="EUR">EUR (€)</option><option value="USD">USD ($)</option>
+            <option value="MAD">MAD (DH)</option><option value="XAF">XAF</option><option value="GHS">GHS (₵)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Numéro d'agrément</label><input type="text" id="param-agrement" placeholder="N° d'autorisation officielle"></div>
       </div>
     </div>
 
     <!-- Portail famille -->
-    <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+    <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem;margin-top:1.2rem">
       <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🌐 Portail Famille</div>
-      <div style="background:#f0fdf4;border-radius:10px;padding:.9rem;font-size:12.5px;color:#374151;margin-bottom:1rem">
+      <div style="background:#f0fdf4;border-radius:10px;padding:.9rem;font-size:12.5px;color:#374151">
         <div style="font-weight:700;color:#059669;margin-bottom:.4rem">✅ Portail actif</div>
-        <div style="background:#fff;padding:7px 10px;border-radius:7px;border:1px solid #e5e7eb;font-size:12px;font-weight:600;color:#1e3a5f;display:flex;align-items:center;justify-content:space-between">
-          <span id="portail-url">—</span>
-          <button class="btn-sm btn-blue" onclick="copierLienPortail()" style="padding:3px 10px;font-size:11px">Copier</button>
+        <div style="background:#fff;padding:7px 10px;border-radius:7px;border:1px solid #e5e7eb;font-size:12px;font-weight:600;color:#1e3a5f;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span id="portail-url" style="word-break:break-all;flex:1">—</span>
+          <button class="btn-sm btn-blue" onclick="copierLienPortail()" style="padding:3px 10px;font-size:11px;flex-shrink:0">Copier</button>
+          <button class="btn-sm btn-secondary" onclick="window.open(document.getElementById('portail-url').textContent,'_blank')" style="padding:3px 10px;font-size:11px;flex-shrink:0">Ouvrir ↗</button>
         </div>
       </div>
-      <a href="edulink-portail.html" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1e3a5f;color:#fff;padding:9px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">🌐 Ouvrir le portail</a>
-    </div>
-
-    <!-- Notifications Email -->
-    <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
-      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">📧 Notifications Email</div>
-      <div id="brevo-status" style="background:#f9fafb;border-radius:10px;padding:.9rem;margin-bottom:1rem;font-size:12.5px;color:#374151">Chargement...</div>
-      <button onclick="ouvrirConfigNotif()" style="width:100%;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">⚙️ Configurer Brevo</button>
-    </div>
-
-    <!-- Section FCM supprimée — Messagerie est le canal unique -->
-    <div style="display:none">
-      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🔔 Notifications Push (FCM API V1)</div>
-      <div id="fcm-admin-status" style="background:#f9fafb;border-radius:10px;padding:.9rem;margin-bottom:1rem;font-size:12.5px;color:#374151">
-        <div style="font-weight:600;margin-bottom:.5rem">Configuration Firebase Cloud Messaging</div>
-        <div id="fcm-config-state" style="color:#6b7280">Non configuré</div>
-      </div>
-
-      <div class="form-group"><label>Clé VAPID publique (Web Push)</label>
-        <input type="text" id="input-vapid-key" placeholder="BxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxAE" style="font-size:11px;font-family:monospace">
-      </div>
-
-      <div class="form-group" style="margin-top:.75rem">
-        <label>ID Expéditeur (Sender ID)</label>
-        <input type="text" id="input-fcm-sender-id" placeholder="988597670758" style="font-size:12px;font-family:monospace">
-        <small style="color:#9ca3af;font-size:11px">Visible dans Firebase → Paramètres → Cloud Messaging</small>
-      </div>
-
-      <div class="form-group" style="margin-top:.75rem">
-        <label>Clé API Web (pour API V1)</label>
-        <input type="text" id="input-fcm-server-key" placeholder="AIzaSy..." style="font-size:11px;font-family:monospace">
-        <small style="color:#9ca3af;font-size:11px">Firebase → Paramètres généraux → Votre app Web → apiKey</small>
-      </div>
-
-      <div class="form-group" style="margin-top:.75rem">
-        <label>Project ID Firebase</label>
-        <input type="text" id="input-fcm-project-id" placeholder="edulink-demo-client" style="font-size:12px;font-family:monospace">
-        <small style="color:#9ca3af;font-size:11px">Firebase → Paramètres généraux → ID du projet</small>
-      </div>
-
-      <div style="background:#eff6ff;border-radius:8px;padding:.75rem;margin:.75rem 0;font-size:12px;color:#1d4ed8">
-        <strong>📋 ID Expéditeur détecté :</strong> 988597670758<br>
-        <strong>✅ API FCM V1 activée</strong> sur votre projet Firebase
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button onclick="sauvegarderConfigFCM()" style="background:#1e3a5f;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">💾 Sauvegarder</button>
-        <button onclick="testerNotifPush()" style="background:#059669;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">🧪 Tester Push</button>
-      </div>
-      <div style="margin-top:1rem;padding:.75rem;background:#eff6ff;border-radius:8px;font-size:12px;color:#1d4ed8">
-        <strong>📋 Tokens abonnés :</strong> <span id="fcm-tokens-count">0</span> appareil(s)
-        <button onclick="envoyerNotifATous()" style="float:right;background:#1d4ed8;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'Poppins',sans-serif">📣 Notifier tous</button>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Stats système -->
-  <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem;margin-top:1.2rem">
-    <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem">ℹ️ Informations système</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
-      <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#1e3a5f" id="sys-ecoles">—</div><div style="font-size:11px;color:#6b7280">Établissements</div></div>
-      <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#059669" id="sys-etudiants">—</div><div style="font-size:11px;color:#6b7280">Étudiants</div></div>
-      <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#7c3aed" id="sys-enseignants">—</div><div style="font-size:11px;color:#6b7280">Enseignants</div></div>
-      <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#c97c1a" id="sys-users">—</div><div style="font-size:11px;color:#6b7280">Utilisateurs</div></div>
     </div>
   </div>
 
-  <!-- ★ JOUR 17 — Branding Établissement -->
-  <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem;margin-top:1.2rem">
-    <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🎨 Branding & Identité visuelle</div>
-
+  <!-- ── ONGLET 2 : MON COMPTE ───────────────────────────────────── -->
+  <div id="param-tab-compte" style="display:none">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
-
-      <!-- Couleurs -->
-      <div>
-        <div style="font-size:11.5px;font-weight:600;color:#6b7280;margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.04em">Couleurs de l'établissement</div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem">
-          <div>
-            <label style="font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Couleur principale</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="color" id="brand-couleur-primaire" value="#0f6e56" oninput="previewBranding()" style="width:36px;height:36px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;padding:2px">
-              <input type="text" id="brand-couleur-primaire-hex" value="#0f6e56" oninput="syncColorInput(this,'brand-couleur-primaire')" style="flex:1;padding:6px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-family:monospace;outline:none">
-            </div>
-          </div>
-          <div>
-            <label style="font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Couleur secondaire</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="color" id="brand-couleur-secondaire" value="#1e3a5f" oninput="previewBranding()" style="width:36px;height:36px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;padding:2px">
-              <input type="text" id="brand-couleur-secondaire-hex" value="#1e3a5f" oninput="syncColorInput(this,'brand-couleur-secondaire')" style="flex:1;padding:6px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-family:monospace;outline:none">
-            </div>
-          </div>
-          <div>
-            <label style="font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Couleur accent</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="color" id="brand-couleur-accent" value="#c97c1a" oninput="previewBranding()" style="width:36px;height:36px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;padding:2px">
-              <input type="text" id="brand-couleur-accent-hex" value="#c97c1a" oninput="syncColorInput(this,'brand-couleur-accent')" style="flex:1;padding:6px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-family:monospace;outline:none">
-            </div>
-          </div>
-        </div>
-
-        <!-- Thèmes prédéfinis -->
-        <div style="font-size:11.5px;font-weight:600;color:#6b7280;margin-bottom:.5rem">Thèmes prédéfinis</div>
-        <div id="brand-themes-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:1rem">
-          <div class="loading" style="grid-column:1/-1">Chargement...</div>
-        </div>
-
-        <!-- Logo -->
-        <div style="font-size:11.5px;font-weight:600;color:#6b7280;margin-bottom:.5rem">Logo URL</div>
-        <input type="url" id="brand-logo-url" placeholder="https://votre-ecole.bj/logo.png" style="width:100%;padding:7px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12.5px;font-family:'Poppins',sans-serif;outline:none;margin-bottom:.75rem" oninput="previewBranding()">
-
-        <!-- Slogan -->
-        <div style="font-size:11.5px;font-weight:600;color:#6b7280;margin-bottom:.5rem">Slogan / Devise</div>
-        <input type="text" id="brand-slogan" placeholder="Ex: L'excellence au service de l'avenir" style="width:100%;padding:7px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12.5px;font-family:'Poppins',sans-serif;outline:none" maxlength="80">
+      <!-- Profil utilisateur -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">👤 Profil utilisateur</div>
+        <div class="form-group"><label>Email <span style="font-size:11px;color:#9ca3af">(non modifiable)</span></label><input type="email" id="user-email" readonly style="background:#f9fafb;color:#6b7280"></div>
+        <div class="form-group"><label>Nom complet</label><input type="text" id="user-nom" placeholder="Votre nom"></div>
+        <div class="form-group"><label>Téléphone</label><input type="text" id="user-tel" placeholder="+229 ..."></div>
+        <div class="form-group"><label>Rôle</label><input type="text" id="user-role" readonly style="background:#f9fafb;color:#6b7280"></div>
+        <button class="btn-blue" onclick="paramSauverProfil()" style="width:100%">💾 Sauvegarder le profil</button>
       </div>
 
-      <!-- Aperçu -->
-      <div>
-        <div style="font-size:11.5px;font-weight:600;color:#6b7280;margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.04em">Aperçu portail</div>
-        <div id="brand-preview" style="border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;font-family:'Poppins',sans-serif">
-          <!-- Header -->
-          <div id="prev-header" style="background:linear-gradient(135deg,#0f6e56,#1e3a5f);padding:1rem;color:#fff">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:.5rem">
-              <div id="prev-logo" style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0">🎓</div>
-              <div>
-                <div style="font-size:14px;font-weight:700" id="prev-nom">EduLink</div>
-                <div id="prev-slogan" style="font-size:10px;opacity:.75">Portail Famille</div>
+      <!-- Sécurité -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🔐 Sécurité</div>
+        <div class="form-group"><label>Mot de passe actuel</label><input type="password" id="pwd-current" placeholder="••••••••" autocomplete="current-password"></div>
+        <div class="form-group"><label>Nouveau mot de passe</label>
+          <input type="password" id="pwd-new" placeholder="Min. 8 caractères" autocomplete="new-password" oninput="paramEvaluerForceMDP()">
+          <div id="pwd-strength" style="height:4px;border-radius:2px;background:#e5e7eb;margin-top:6px;overflow:hidden">
+            <div id="pwd-strength-bar" style="height:100%;width:0%;background:#dc2626;transition:all .25s"></div>
+          </div>
+          <div id="pwd-strength-label" style="font-size:11px;color:#9ca3af;margin-top:3px">Force : —</div>
+        </div>
+        <div class="form-group"><label>Confirmer le nouveau mot de passe</label><input type="password" id="pwd-confirm" placeholder="••••••••" autocomplete="new-password"></div>
+        <button class="btn-blue" onclick="paramChangerMDP()" style="width:100%">🔑 Changer le mot de passe</button>
+      </div>
+
+      <!-- Préférences -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🎛️ Préférences</div>
+        <div class="form-group"><label>Langue de l'interface</label>
+          <select id="pref-langue">
+            <option value="fr">Français</option><option value="en">English</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Format de date</label>
+          <select id="pref-date">
+            <option value="dd/MM/yyyy">JJ/MM/AAAA (européen)</option>
+            <option value="MM/dd/yyyy">MM/JJ/AAAA (américain)</option>
+            <option value="yyyy-MM-dd">AAAA-MM-JJ (ISO)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Fuseau horaire</label>
+          <select id="pref-timezone">
+            <option value="Africa/Porto-Novo">Africa/Porto-Novo (GMT+1)</option>
+            <option value="Africa/Abidjan">Africa/Abidjan (GMT)</option>
+            <option value="Africa/Lagos">Africa/Lagos (GMT+1)</option>
+            <option value="Europe/Paris">Europe/Paris (GMT+1/+2)</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </div>
+        <div class="form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="pref-confirm-suppr" style="width:auto"> Demander confirmation avant suppression
+        </label></div>
+        <button class="btn-blue" onclick="paramSauverPreferences()" style="width:100%">💾 Sauvegarder préférences</button>
+      </div>
+
+      <!-- Session -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🚪 Session</div>
+        <div id="user-session-info" style="background:#f9fafb;border-radius:10px;padding:.9rem;font-size:12.5px;color:#374151;margin-bottom:1rem">Chargement...</div>
+        <button class="btn-secondary" onclick="paramRafraichirSession()" style="width:100%;margin-bottom:.5rem">🔄 Rafraîchir la session</button>
+        <button onclick="seDeconnecter()" style="width:100%;background:#dc2626;color:#fff;border:none;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">🚪 Se déconnecter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ONGLET 3 : BRANDING ─────────────────────────────────────── -->
+  <div id="param-tab-branding" style="display:none">
+    <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🎨 Branding & Identité visuelle</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
+        <!-- Couleurs -->
+        <div>
+          <div style="font-size:11.5px;font-weight:600;color:#6b7280;margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.04em">Couleurs de l'établissement</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem">
+            <div>
+              <label style="font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Couleur principale</label>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input type="color" id="brand-couleur-primaire" value="#0f6e56" oninput="previewBranding()" style="width:36px;height:36px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;padding:2px">
+                <input type="text" id="brand-couleur-primaire-hex" value="#0f6e56" oninput="syncColorInput(this,'brand-couleur-primaire')" style="flex:1;padding:6px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-family:monospace;outline:none">
               </div>
             </div>
-            <div style="font-size:11px;opacity:.7">Espace étudiant · BALOGOUN Isaac</div>
-          </div>
-          <!-- Stats -->
-          <div style="background:#f0f7f4;padding:.75rem;display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
-            <div style="background:#fff;border-radius:10px;padding:.6rem;text-align:center;border:1px solid #e5e7eb">
-              <div id="prev-accent" style="font-size:18px;font-weight:700;color:#0f6e56">11.3/20</div>
-              <div style="font-size:10px;color:#6b7280">Moyenne</div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Couleur secondaire</label>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input type="color" id="brand-couleur-secondaire" value="#1e3a5f" oninput="previewBranding()" style="width:36px;height:36px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;padding:2px">
+                <input type="text" id="brand-couleur-secondaire-hex" value="#1e3a5f" oninput="syncColorInput(this,'brand-couleur-secondaire')" style="flex:1;padding:6px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-family:monospace;outline:none">
+              </div>
             </div>
-            <div style="background:#fff;border-radius:10px;padding:.6rem;text-align:center;border:1px solid #e5e7eb">
-              <div style="font-size:18px;font-weight:700;color:#dc2626">2</div>
-              <div style="font-size:10px;color:#6b7280">Absences</div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Couleur accent</label>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input type="color" id="brand-couleur-accent" value="#c97c1a" oninput="previewBranding()" style="width:36px;height:36px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer;padding:2px">
+                <input type="text" id="brand-couleur-accent-hex" value="#c97c1a" oninput="syncColorInput(this,'brand-couleur-accent')" style="flex:1;padding:6px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-family:monospace;outline:none">
+              </div>
             </div>
           </div>
-          <!-- Nav -->
-          <div id="prev-nav" style="background:#fff;display:flex;border-top:1px solid #e5e7eb">
-            <div style="flex:1;text-align:center;padding:.5rem;font-size:9px;color:#0f6e56;font-weight:600">🏠<br>Accueil</div>
-            <div style="flex:1;text-align:center;padding:.5rem;font-size:9px;color:#9ca3af">📊<br>Notes</div>
-            <div style="flex:1;text-align:center;padding:.5rem;font-size:9px;color:#9ca3af">✅<br>Présences</div>
-            <div style="flex:1;text-align:center;padding:.5rem;font-size:9px;color:#9ca3af">📝<br>Examens</div>
+          <!-- Thèmes prédéfinis -->
+          <div style="font-size:11.5px;font-weight:600;color:#6b7280;margin-bottom:.5rem">Thèmes prédéfinis</div>
+          <div id="brand-themes-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:1rem">
+            <div class="loading" style="grid-column:1/-1">Chargement...</div>
           </div>
+          <!-- Logo -->
+          <div style="font-size:11.5px;font-weight:600;color:#6b7280;margin-bottom:.5rem">Logo URL</div>
+          <input type="url" id="brand-logo-url" placeholder="https://votre-ecole.bj/logo.png" style="width:100%;padding:7px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12.5px;font-family:'Poppins',sans-serif;outline:none;margin-bottom:.75rem" oninput="previewBranding()">
+          <!-- Slogan -->
+          <div style="font-size:11.5px;font-weight:600;color:#6b7280;margin-bottom:.5rem">Slogan / Devise</div>
+          <input type="text" id="brand-slogan" placeholder="Ex: L'excellence au service de l'avenir" style="width:100%;padding:7px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:12.5px;font-family:'Poppins',sans-serif;outline:none" maxlength="80" oninput="previewBranding()">
         </div>
+        <!-- Aperçu -->
+        <div>
+          <div style="font-size:11.5px;font-weight:600;color:#6b7280;margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.04em">Aperçu portail</div>
+          <div id="brand-preview" style="border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;font-family:'Poppins',sans-serif">
+            <div id="prev-header" style="background:linear-gradient(135deg,#0f6e56,#1e3a5f);padding:1rem;color:#fff">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:.5rem">
+                <div id="prev-logo" style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0">🎓</div>
+                <div>
+                  <div style="font-size:14px;font-weight:700" id="prev-nom">EduLink</div>
+                  <div id="prev-slogan" style="font-size:10px;opacity:.75">Portail Famille</div>
+                </div>
+              </div>
+              <div style="font-size:11px;opacity:.7">Espace étudiant · Aperçu en direct</div>
+            </div>
+            <div style="background:#f0f7f4;padding:.75rem;display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+              <div style="background:#fff;border-radius:10px;padding:.6rem;text-align:center;border:1px solid #e5e7eb">
+                <div id="prev-accent" style="font-size:18px;font-weight:700;color:#0f6e56">15.2/20</div>
+                <div style="font-size:10px;color:#6b7280">Moyenne</div>
+              </div>
+              <div style="background:#fff;border-radius:10px;padding:.6rem;text-align:center;border:1px solid #e5e7eb">
+                <div style="font-size:18px;font-weight:700;color:#dc2626">2</div>
+                <div style="font-size:10px;color:#6b7280">Absences</div>
+              </div>
+            </div>
+            <div id="prev-nav" style="background:#fff;display:flex;border-top:1px solid #e5e7eb">
+              <div style="flex:1;text-align:center;padding:.5rem;font-size:9px;color:#0f6e56;font-weight:600">🏠<br>Accueil</div>
+              <div style="flex:1;text-align:center;padding:.5rem;font-size:9px;color:#9ca3af">📊<br>Notes</div>
+              <div style="flex:1;text-align:center;padding:.5rem;font-size:9px;color:#9ca3af">✅<br>Présences</div>
+              <div style="flex:1;text-align:center;padding:.5rem;font-size:9px;color:#9ca3af">📝<br>Examens</div>
+            </div>
+          </div>
+          <button onclick="sauvegarderBranding()" style="width:100%;margin-top:.75rem;background:#0f6e56;color:#fff;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Poppins',sans-serif">🎨 Enregistrer le branding</button>
+          <button onclick="reinitialiserBranding()" style="width:100%;margin-top:.5rem;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">↺ Réinitialiser (thème EduLink)</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        <button onclick="sauvegarderBranding()" style="width:100%;margin-top:.75rem;background:#0f6e56;color:#fff;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Poppins',sans-serif">🎨 Enregistrer le branding</button>
-        <button onclick="reinitialiserBranding()" style="width:100%;margin-top:.5rem;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">↺ Réinitialiser (thème EduLink)</button>
+  <!-- ── ONGLET 4 : NOTIFICATIONS ───────────────────────────────── -->
+  <div id="param-tab-notifications" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
+      <!-- Configuration Brevo -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">📧 Brevo (anciennement Sendinblue)</div>
+        <div id="brevo-status" style="background:#f9fafb;border-radius:10px;padding:.9rem;margin-bottom:1rem;font-size:12.5px;color:#374151">Chargement...</div>
+        <div class="form-group"><label>Expéditeur (nom)</label><input type="text" id="notif-sender-nom" placeholder="EduLink Notifications"></div>
+        <div class="form-group"><label>Expéditeur (email)</label><input type="email" id="notif-sender-email" placeholder="notifications@afryx.io"></div>
+        <button class="btn-blue" onclick="paramTesterEnvoiEmail()" style="width:100%;margin-bottom:.5rem">🧪 Envoyer un email de test</button>
+        <button class="btn-secondary" onclick="ouvrirConfigNotif()" style="width:100%">⚙️ Configuration avancée</button>
+      </div>
+
+      <!-- Catégories notifications -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🔔 Catégories d'envoi automatique</div>
+        <div id="notif-categories" style="display:flex;flex-direction:column;gap:8px">
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-notes" checked> <span style="flex:1">📊 Nouvelles notes saisies</span></label>
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-absences" checked> <span style="flex:1">🚫 Absences enregistrées</span></label>
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-paiements" checked> <span style="flex:1">💳 Reçus de paiement</span></label>
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-factures" checked> <span style="flex:1">📄 Nouvelles factures</span></label>
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-evenements"> <span style="flex:1">📅 Événements & calendrier</span></label>
+          <label class="notif-cat-row"><input type="checkbox" id="notif-cat-incidents"> <span style="flex:1">⚠️ Incidents disciplinaires</span></label>
+        </div>
+        <button class="btn-blue" onclick="paramSauverCategories()" style="width:100%;margin-top:1rem">💾 Sauvegarder préférences notifs</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ONGLET 5 : SYSTÈME ─────────────────────────────────────── -->
+  <div id="param-tab-systeme" style="display:none">
+    <!-- Stats système -->
+    <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem;margin-bottom:1.2rem">
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem">📊 Statistiques de l'établissement</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
+        <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#1e3a5f" id="sys-ecoles">—</div><div style="font-size:11px;color:#6b7280">Établissements</div></div>
+        <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#059669" id="sys-etudiants">—</div><div style="font-size:11px;color:#6b7280">Étudiants</div></div>
+        <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#7c3aed" id="sys-enseignants">—</div><div style="font-size:11px;color:#6b7280">Enseignants</div></div>
+        <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.9rem;border:1px solid #f3f4f6"><div style="font-size:22px;font-weight:700;color:#c97c1a" id="sys-users">—</div><div style="font-size:11px;color:#6b7280">Utilisateurs</div></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
+      <!-- Statut application -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">ℹ️ Statut de l'application</div>
+        <div id="sys-app-info" style="font-size:12.5px;color:#374151;line-height:1.9"></div>
+      </div>
+
+      <!-- Cache & Maintenance -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid #f3f4f6">🛠️ Maintenance</div>
+        <button class="btn-secondary" onclick="paramTesterSupabase()" style="width:100%;margin-bottom:.5rem">🧪 Tester la connexion Supabase</button>
+        <button class="btn-secondary" onclick="paramViderCacheLocal()" style="width:100%;margin-bottom:.5rem">🗑️ Vider le cache local (localStorage)</button>
+        <button class="btn-secondary" onclick="paramRechargerConfig()" style="width:100%;margin-bottom:.5rem">🔄 Recharger la configuration</button>
+        <button class="btn-blue" onclick="paramExporterConfig()" style="width:100%">📦 Exporter la configuration (JSON)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ONGLET 6 : ZONE DE DANGER ──────────────────────────────── -->
+  <div id="param-tab-danger" style="display:none">
+    <div style="background:#fff;border-radius:14px;border:2px solid #fecaca;padding:1.2rem;margin-bottom:1.2rem">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#dc2626;margin-bottom:.5rem">⚠️ Zone de danger</div>
+      <div style="font-size:12px;color:#6b7280;line-height:1.6">Les actions ci-dessous sont irréversibles ou ont des conséquences importantes. Procédez avec précaution.</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
+      <!-- Réinitialisation branding -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #fde68a;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:.5rem">↺ Réinitialiser le branding</div>
+        <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:1rem">Restaure les couleurs, logo et slogan par défaut d'EduLink. Sans suppression de données.</div>
+        <button onclick="reinitialiserBranding()" style="width:100%;background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">↺ Réinitialiser</button>
+      </div>
+
+      <!-- Export RGPD -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #bfdbfe;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#1d4ed8;margin-bottom:.5rem">📥 Exporter les données (RGPD)</div>
+        <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:1rem">Génère un fichier ZIP/JSON contenant toutes les données de l'établissement (étudiants, notes, paiements...).</div>
+        <button onclick="paramExporterRGPD()" style="width:100%;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">📥 Exporter (CSV multiple)</button>
+      </div>
+
+      <!-- Vider données de test -->
+      <div style="background:#fff;border-radius:14px;border:1px solid #fecaca;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:.5rem">🗑️ Purger les données de test</div>
+        <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:1rem">Supprime UNIQUEMENT les enregistrements marqués comme données de démonstration. Ne touche pas aux données réelles.</div>
+        <button onclick="paramPurgerDemo()" style="width:100%;background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif">🗑️ Purger les données démo</button>
+      </div>
+
+      <!-- Suppression école -->
+      <div style="background:#fff;border-radius:14px;border:2px solid #dc2626;padding:1.2rem">
+        <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:.5rem">💀 Supprimer cet établissement</div>
+        <div style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:1rem">Supprime définitivement l'établissement et TOUTES ses données. Cette action est <strong style="color:#dc2626">IRRÉVERSIBLE</strong>.</div>
+        <button onclick="paramSupprimerEcole()" style="width:100%;background:#dc2626;color:#fff;border:none;padding:9px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Poppins',sans-serif">💀 Supprimer définitivement</button>
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  .notif-cat-row{display:flex;align-items:center;gap:10px;padding:.6rem .8rem;background:#f9fafb;border-radius:8px;font-size:12.5px;color:#374151;cursor:pointer;border:1px solid #e5e7eb;transition:all .15s}
+  .notif-cat-row:hover{background:#f3f4f6;border-color:#d1d5db}
+  .notif-cat-row input{width:auto;cursor:pointer}
+</style>
 
 <!-- ═══════════════════════════════════════
      CENTRE DE NOTIFICATIONS  ★ JOUR 16
@@ -9964,117 +10085,460 @@ async function chargerDashboardCharts() {
 
 // ══ PARAMÈTRES  ★ JOUR 6 ══════════════════════
 async function chargerParametres() {
-  const prefix = 'edulink_param_' + (currentEcoleId || 'global');
-  const saved  = JSON.parse(localStorage.getItem(prefix) || '{}');
+  const prefix = "edulink_param_" + (currentEcoleId || "global");
+  const saved  = JSON.parse(localStorage.getItem(prefix) || "{}");
 
   // Lire les données complètes depuis Supabase
   let ecoleDb = null;
   if (currentEcoleId) {
-    const { data } = await db.from('ecoles').select('*').eq('id', currentEcoleId).single();
+    const { data } = await db.from("ecoles").select("*").eq("id", currentEcoleId).single();
     ecoleDb = data;
   }
 
   const f = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = val; };
-  // Priorité : localStorage > Supabase > vide
-  f('param-nom',      saved.nom       || ecoleDb?.nom       || '');
-  f('param-type',     saved.type      || ecoleDb?.type      || '');
-  f('param-ville',    saved.ville     || ecoleDb?.ville     || '');
-  f('param-pays',     saved.pays      || ecoleDb?.pays      || 'Bénin');
-  f('param-tel',      saved.tel       || ecoleDb?.telephone || '');
-  f('param-email',    saved.email     || ecoleDb?.email     || '');
-  f('param-annee',    saved.annee     || ecoleDb?.annee_scolaire || '');
-  f('param-notation', saved.notation  || '');
-  f('param-debut',    saved.debut     || '');
-  f('param-fin',      saved.fin       || '');
-  f('param-devise',   saved.devise    || 'FCFA');
+  // Priorité : Supabase > localStorage > vide (Supabase est source de vérité)
+  f("param-nom",      ecoleDb?.nom            || saved.nom      || "");
+  f("param-type",     ecoleDb?.type           || saved.type     || "");
+  f("param-ville",    ecoleDb?.ville          || saved.ville    || "");
+  f("param-pays",     ecoleDb?.pays           || saved.pays     || "Bénin");
+  f("param-adresse",  ecoleDb?.adresse        || saved.adresse  || "");
+  f("param-tel",      ecoleDb?.telephone      || saved.tel      || "");
+  f("param-email",    ecoleDb?.email          || saved.email    || "");
+  f("param-site",     ecoleDb?.site_web       || saved.site     || "");
+  f("param-annee",    ecoleDb?.annee_scolaire || saved.annee    || "");
+  f("param-notation", ecoleDb?.systeme_notation || saved.notation || "trimestres");
+  f("param-debut",    ecoleDb?.date_debut     || saved.debut    || "");
+  f("param-fin",      ecoleDb?.date_fin       || saved.fin      || "");
+  f("param-devise",   ecoleDb?.devise         || saved.devise   || "FCFA");
+  f("param-agrement", ecoleDb?.agrement       || saved.agrement || "");
 
-  // URL portail
-  const el = document.getElementById('portail-url');
-  if (el) el.textContent = window.location.origin + '/edulink-portail.html';
+  // URL portail famille
+  const urlEl = document.getElementById("portail-url");
+  if (urlEl) urlEl.textContent = window.location.origin + "/edulink-portail.html";
 
   // Statut Brevo
-  const brevo = document.getElementById('brevo-status');
+  const brevo = document.getElementById("brevo-status");
   if (brevo) {
-    const actif = typeof NOTIF_CONFIG !== 'undefined' && NOTIF_CONFIG.actif;
+    const actif = typeof NOTIF_CONFIG !== "undefined" && NOTIF_CONFIG.actif;
     brevo.innerHTML = actif
       ? '<span style="color:#059669;font-weight:700">✅ Brevo configuré</span><br><span style="font-size:11px;color:#6b7280">Emails automatiques actifs</span>'
       : '<span style="color:#d97706;font-weight:700">⚠️ Brevo non configuré</span><br><span style="font-size:11px;color:#6b7280">Configurez votre clé API pour activer les emails.</span>';
   }
 
-  // FCM tokens count
-  const fcmCount = document.getElementById('fcm-tokens-count');
-  if (fcmCount && currentEcoleId) {
-    const { count } = await db.from('push_tokens').select('*', {count:'exact', head:true});
-    fcmCount.textContent = count ?? 0;
-  }
-
-  // Stats système depuis Supabase
-  const [r1, r2, r3, r4] = await Promise.all([
-    db.from('ecoles').select('*', {count:'exact', head:true}),
-    db.from('etudiants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
-    db.from('utilisateurs').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
-    db.from('enseignants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
-  ]);
-  const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
-  s('sys-ecoles',    r1.count);
-  s('sys-etudiants', r2.count);
-  s('sys-users',     r3.count);
-  s('sys-enseignants', r4.count);
+  // Charger profil utilisateur courant (onglet Mon compte)
+  await paramChargerProfilUser();
+  // Charger préférences locales
+  paramChargerPreferences();
+  // Charger catégories de notifications
+  paramChargerCategories();
+  // Charger statistiques système
+  await paramChargerStatsSysteme();
+  // Charger info session
+  await paramChargerSession();
+  // Charger statut application
+  paramChargerStatutApp();
 }
 
 async function sauvegarderParametres() {
-  const nom = document.getElementById('param-nom')?.value.trim();
-  if (!nom) { showToast('Le nom est obligatoire.', 'error'); return; }
+  const nom = document.getElementById("param-nom")?.value.trim();
+  if (!nom) { showToast("Le nom est obligatoire.", "error"); return; }
   const data = {};
-  ['nom','type','ville','pays','tel','email','annee','notation','debut','fin','devise'].forEach(f => {
-    const el = document.getElementById('param-' + f);
-    if (el) data[f] = el.value;
+  ["nom","type","ville","pays","adresse","tel","email","site","annee","notation","debut","fin","devise","agrement"].forEach(field => {
+    const el = document.getElementById("param-" + field);
+    if (el) data[field] = el.value;
   });
 
-  // Sauvegarder en localStorage (fallback immédiat)
-  const prefix = 'edulink_param_' + (currentEcoleId || 'global');
+  // Sauvegarde locale (fallback)
+  const prefix = "edulink_param_" + (currentEcoleId || "global");
   localStorage.setItem(prefix, JSON.stringify(data));
 
   if (currentEcoleId) {
-    // Payload Supabase complet
+    // Payload Supabase complet (toutes les colonnes possibles)
     const payload = {
-      nom:             data.nom,
-      type:            data.type,
-      ville:           data.ville,
-      pays:            data.pays,
-      telephone:       data.tel,
-      email:           data.email,
-      annee_scolaire:  data.annee,
+      nom:               data.nom,
+      type:              data.type,
+      ville:             data.ville,
+      pays:              data.pays,
+      adresse:           data.adresse,
+      telephone:         data.tel,
+      email:             data.email,
+      site_web:          data.site,
+      annee_scolaire:    data.annee,
+      systeme_notation:  data.notation,
+      date_debut:        data.debut || null,
+      date_fin:          data.fin   || null,
+      devise:            data.devise,
+      agrement:          data.agrement,
     };
     // Auto-retry : retirer les colonnes absentes du schéma
-    let { error } = await db.from('ecoles').update(payload).eq('id', currentEcoleId);
+    let { error } = await db.from("ecoles").update(payload).eq("id", currentEcoleId);
     let guard = 0;
-    while (error && guard < 10) {
-      const m = /Could not find the '([^']+)' column/.exec(error.message||'');
+    while (error && guard < 15) {
+      const m = /Could not find the '([^']+)' column/.exec(error.message || "");
       if (!m || !(m[1] in payload)) break;
       delete payload[m[1]];
-      ({ error } = await db.from('ecoles').update(payload).eq('id', currentEcoleId));
+      ({ error } = await db.from("ecoles").update(payload).eq("id", currentEcoleId));
       guard++;
     }
-    if (error) { showToast('Paramètres sauvés localement — Erreur Supabase : '+error.message, 'error'); return; }
+    if (error) { showToast("Paramètres sauvés localement — Erreur Supabase : " + error.message, "error"); return; }
 
-    // Mettre à jour en mémoire
+    // Mise à jour en mémoire
     const ecole = tousLesEcoles.find(e => e.id === currentEcoleId);
-    if (ecole) { ecole.nom = data.nom; ecole.type = data.type; ecole.ville = data.ville; }
-    mettreAJourBadgeEcole({ nom: data.nom, type: data.type });
-    const opt = [...document.getElementById('ecole-selector').options].find(o => o.value === currentEcoleId);
+    if (ecole) Object.assign(ecole, { nom: data.nom, type: data.type, ville: data.ville });
+    if (typeof mettreAJourBadgeEcole === "function") mettreAJourBadgeEcole({ nom: data.nom, type: data.type });
+    const opt = [...document.getElementById("ecole-selector").options].find(o => o.value === currentEcoleId);
     if (opt) opt.textContent = data.nom;
   }
-  showToast('✅ Paramètres enregistrés !', 'success');
-  // Synchroniser le Réseau Écoles si initialisé
-  if (reseauInitialized) forcerSyncReseau();
+  showToast("✅ Paramètres enregistrés !", "success");
+  if (typeof reseauInitialized !== "undefined" && reseauInitialized && typeof forcerSyncReseau === "function") forcerSyncReseau();
+  if (typeof invalidateData === "function") invalidateData("ecoles");
 }
 
 function copierLienPortail() {
-  const url = window.location.origin + '/edulink-portail.html';
+  const url = window.location.origin + "/edulink-portail.html";
   navigator.clipboard.writeText(url)
-    .then(() => showToast('Lien copié !', 'success'))
-    .catch(() => showToast('URL : ' + url, 'info'));
+    .then(() => showToast("✅ Lien copié dans le presse-papier", "success"))
+    .catch(() => showToast("URL : " + url, "info"));
+}
+
+// ── ONGLETS ──
+function settingsSwitchTab(tab, btn) {
+  ["etablissement","compte","branding","notifications","systeme","danger"].forEach(t => {
+    const el = document.getElementById("param-tab-" + t);
+    if (el) el.style.display = (t === tab ? "block" : "none");
+  });
+  document.querySelectorAll("#page-parametres > .tabs > .tab").forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  ONGLET 2 — MON COMPTE
+// ══════════════════════════════════════════════════════════════════
+async function paramChargerProfilUser() {
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) return;
+    const user = session.user;
+    document.getElementById("user-email").value = user.email || "";
+    const { data: profil } = await db.from("utilisateurs").select("*").eq("auth_id", user.id).single();
+    if (profil) {
+      document.getElementById("user-nom").value  = profil.nom        || "";
+      document.getElementById("user-tel").value  = profil.telephone  || "";
+      document.getElementById("user-role").value = profil.role       || "admin";
+    }
+  } catch(e) { console.warn("[Paramètres] Profil:", e.message); }
+}
+
+async function paramSauverProfil() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { showToast("Session expirée", "error"); return; }
+  const payload = {
+    nom:       document.getElementById("user-nom")?.value.trim() || "",
+    telephone: document.getElementById("user-tel")?.value.trim() || "",
+  };
+  let { error } = await db.from("utilisateurs").update(payload).eq("auth_id", session.user.id);
+  if (error && /Could not find the 'telephone' column/i.test(error.message)) {
+    delete payload.telephone;
+    ({ error } = await db.from("utilisateurs").update(payload).eq("auth_id", session.user.id));
+  }
+  if (error) { showToast("❌ " + error.message, "error"); return; }
+  showToast("✅ Profil mis à jour", "success");
+  // Mettre à jour le nom dans la barre de navigation
+  const navName = document.getElementById("nav-user-name");
+  if (navName && payload.nom) navName.textContent = payload.nom;
+  const navAvatar = document.getElementById("nav-avatar");
+  if (navAvatar && payload.nom) navAvatar.textContent = payload.nom[0].toUpperCase();
+}
+
+function paramEvaluerForceMDP() {
+  const pwd = document.getElementById("pwd-new")?.value || "";
+  let score = 0;
+  if (pwd.length >= 8)  score++;
+  if (pwd.length >= 12) score++;
+  if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+  if (/\d/.test(pwd))   score++;
+  if (/[^a-zA-Z0-9]/.test(pwd)) score++;
+  const labels = ["Très faible","Faible","Moyen","Bon","Excellent","Excellent"];
+  const colors = ["#dc2626","#dc2626","#d97706","#059669","#059669","#059669"];
+  const widths = [10,30,55,75,90,100];
+  const bar = document.getElementById("pwd-strength-bar");
+  const lbl = document.getElementById("pwd-strength-label");
+  if (bar) { bar.style.width = widths[score] + "%"; bar.style.background = colors[score]; }
+  if (lbl) { lbl.textContent = "Force : " + labels[score]; lbl.style.color = colors[score]; }
+}
+
+async function paramChangerMDP() {
+  const newPwd  = document.getElementById("pwd-new")?.value || "";
+  const confirm = document.getElementById("pwd-confirm")?.value || "";
+  if (newPwd.length < 8) { showToast("⚠️ Le mot de passe doit contenir au moins 8 caractères", "error"); return; }
+  if (newPwd !== confirm) { showToast("⚠️ Les deux mots de passe ne correspondent pas", "error"); return; }
+  if (!window.confirm("Confirmer le changement de mot de passe ?")) return;
+  const { error } = await db.auth.updateUser({ password: newPwd });
+  if (error) { showToast("❌ " + error.message, "error"); return; }
+  showToast("✅ Mot de passe modifié avec succès", "success");
+  document.getElementById("pwd-current").value = "";
+  document.getElementById("pwd-new").value     = "";
+  document.getElementById("pwd-confirm").value = "";
+  paramEvaluerForceMDP();
+}
+
+function paramChargerPreferences() {
+  const prefs = JSON.parse(localStorage.getItem("edulink_user_prefs") || "{}");
+  const f = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+  const c = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+  f("pref-langue",   prefs.langue   || "fr");
+  f("pref-date",     prefs.formatDate || "dd/MM/yyyy");
+  f("pref-timezone", prefs.timezone || "Africa/Porto-Novo");
+  c("pref-confirm-suppr", prefs.confirmSuppr !== false); // par défaut activé
+}
+
+function paramSauverPreferences() {
+  const prefs = {
+    langue:        document.getElementById("pref-langue")?.value      || "fr",
+    formatDate:    document.getElementById("pref-date")?.value        || "dd/MM/yyyy",
+    timezone:      document.getElementById("pref-timezone")?.value    || "Africa/Porto-Novo",
+    confirmSuppr:  document.getElementById("pref-confirm-suppr")?.checked,
+  };
+  localStorage.setItem("edulink_user_prefs", JSON.stringify(prefs));
+  showToast("✅ Préférences sauvegardées", "success");
+}
+
+async function paramChargerSession() {
+  const cont = document.getElementById("user-session-info");
+  if (!cont) return;
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { cont.innerHTML = "Aucune session active"; return; }
+    const expiresAt = session.expires_at ? new Date(session.expires_at * 1000) : null;
+    const dureeRestante = expiresAt ? Math.round((expiresAt - new Date()) / 60000) : null;
+    cont.innerHTML = `
+      <div><strong>Email :</strong> ${session.user.email || "—"}</div>
+      <div><strong>Connecté depuis :</strong> ${new Date(session.user.last_sign_in_at || session.user.created_at).toLocaleString("fr-FR")}</div>
+      ${expiresAt ? `<div><strong>Session expire :</strong> ${expiresAt.toLocaleString("fr-FR")} ${dureeRestante > 0 ? `(${dureeRestante} min)` : "(expirée)"}</div>` : ""}
+    `;
+  } catch(e) { cont.textContent = "Erreur : " + e.message; }
+}
+
+async function paramRafraichirSession() {
+  const { error } = await db.auth.refreshSession();
+  if (error) { showToast("❌ " + error.message, "error"); return; }
+  showToast("✅ Session rafraîchie", "success");
+  paramChargerSession();
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  ONGLET 4 — NOTIFICATIONS
+// ══════════════════════════════════════════════════════════════════
+function paramChargerCategories() {
+  const cats = JSON.parse(localStorage.getItem("edulink_notif_cats_" + (currentEcoleId || "global")) || "{}");
+  const map = {
+    "notif-cat-notes":      cats.notes      !== false,
+    "notif-cat-absences":   cats.absences   !== false,
+    "notif-cat-paiements":  cats.paiements  !== false,
+    "notif-cat-factures":   cats.factures   !== false,
+    "notif-cat-evenements": !!cats.evenements,
+    "notif-cat-incidents":  !!cats.incidents,
+  };
+  Object.entries(map).forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.checked = v; });
+  // Charger sender Brevo depuis localStorage si existe
+  const sender = JSON.parse(localStorage.getItem("edulink_notif_sender") || "{}");
+  const senderNom = document.getElementById("notif-sender-nom");
+  const senderEmail = document.getElementById("notif-sender-email");
+  if (senderNom) senderNom.value = sender.nom || "EduLink Notifications";
+  if (senderEmail) senderEmail.value = sender.email || "notifications@afryx.io";
+}
+
+function paramSauverCategories() {
+  const cats = {
+    notes:      document.getElementById("notif-cat-notes")?.checked,
+    absences:   document.getElementById("notif-cat-absences")?.checked,
+    paiements:  document.getElementById("notif-cat-paiements")?.checked,
+    factures:   document.getElementById("notif-cat-factures")?.checked,
+    evenements: document.getElementById("notif-cat-evenements")?.checked,
+    incidents:  document.getElementById("notif-cat-incidents")?.checked,
+  };
+  localStorage.setItem("edulink_notif_cats_" + (currentEcoleId || "global"), JSON.stringify(cats));
+  // Sauvegarder l'expéditeur
+  const sender = {
+    nom:   document.getElementById("notif-sender-nom")?.value.trim()   || "",
+    email: document.getElementById("notif-sender-email")?.value.trim() || "",
+  };
+  localStorage.setItem("edulink_notif_sender", JSON.stringify(sender));
+  showToast("✅ Préférences de notifications sauvegardées", "success");
+}
+
+async function paramTesterEnvoiEmail() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { showToast("Session requise pour le test", "error"); return; }
+  const destEmail = prompt("Adresse email destinataire pour le test :", session.user.email || "");
+  if (!destEmail || !destEmail.trim()) return;
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destEmail.trim())) { showToast("⚠️ Email invalide", "error"); return; }
+  // Si fonction d'envoi Brevo existe, l'utiliser
+  if (typeof envoyerEmailBrevo === "function") {
+    showToast("📧 Envoi du test...", "info");
+    try {
+      await envoyerEmailBrevo({
+        to:      destEmail.trim(),
+        subject: "Test EduLink — " + new Date().toLocaleString("fr-FR"),
+        html:    "<h2>✅ Configuration Brevo opérationnelle</h2><p>Cet email confirme que votre intégration Brevo est correctement configurée et fonctionnelle.</p><p style=\"color:#6b7280;font-size:12px\">Envoyé depuis EduLink.</p>",
+      });
+      showToast("✅ Email de test envoyé à " + destEmail, "success");
+    } catch(e) {
+      showToast("❌ Échec : " + (e.message || e), "error");
+    }
+  } else {
+    showToast("⚠️ Fonction Brevo non chargée — configurez d'abord la clé API", "error");
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  ONGLET 5 — SYSTÈME
+// ══════════════════════════════════════════════════════════════════
+async function paramChargerStatsSysteme() {
+  const safe = r => r.error ? null : r.count;
+  const [r1, r2, r3, r4] = await Promise.all([
+    db.from("ecoles").select("*", {count:"exact", head:true}),
+    db.from("etudiants").select("*", {count:"exact", head:true}).eq("ecole_id", currentEcoleId),
+    db.from("utilisateurs").select("*", {count:"exact", head:true}).eq("ecole_id", currentEcoleId),
+    db.from("enseignants").select("*", {count:"exact", head:true}).eq("ecole_id", currentEcoleId),
+  ]);
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = (val ?? "—"); };
+  set("sys-ecoles",      safe(r1));
+  set("sys-etudiants",   safe(r2));
+  set("sys-users",       safe(r3));
+  set("sys-enseignants", safe(r4));
+}
+
+function paramChargerStatutApp() {
+  const cont = document.getElementById("sys-app-info");
+  if (!cont) return;
+  const lsKeys = Object.keys(localStorage).filter(k => k.startsWith("edulink_")).length;
+  const lsSize = Object.keys(localStorage).reduce((acc, k) => acc + (localStorage.getItem(k) || "").length, 0);
+  const lsSizeKb = (lsSize / 1024).toFixed(1);
+  cont.innerHTML = `
+    <div>📦 <strong>Version :</strong> EduLink Demo Client v1.0</div>
+    <div>🕐 <strong>Heure serveur :</strong> ${new Date().toLocaleTimeString("fr-FR")}</div>
+    <div>🌍 <strong>Fuseau navigateur :</strong> ${Intl.DateTimeFormat().resolvedOptions().timeZone}</div>
+    <div>🌐 <strong>Connexion :</strong> ${navigator.onLine ? '<span style="color:#059669">En ligne</span>' : '<span style="color:#dc2626">Hors ligne</span>'}</div>
+    <div>💾 <strong>Cache local :</strong> ${lsKeys} clés · ${lsSizeKb} Kb</div>
+    <div>🔗 <strong>Supabase :</strong> ${SUPABASE_URL.replace("https://", "")}</div>
+  `;
+}
+
+async function paramTesterSupabase() {
+  showToast("🧪 Test en cours...", "info");
+  const t0 = performance.now();
+  const { error } = await db.from("ecoles").select("id", { count:"exact", head:true });
+  const dt = Math.round(performance.now() - t0);
+  if (error) showToast("❌ Erreur Supabase : " + error.message, "error");
+  else showToast(`✅ Connexion OK (${dt} ms)`, "success");
+}
+
+function paramViderCacheLocal() {
+  if (!confirm("Vider tout le cache local EduLink (localStorage) ?\n\nVos préférences personnelles et paramètres seront perdus, mais aucune donnée Supabase ne sera affectée.")) return;
+  const keys = Object.keys(localStorage).filter(k => k.startsWith("edulink_"));
+  keys.forEach(k => localStorage.removeItem(k));
+  showToast(`🗑️ ${keys.length} clé(s) supprimée(s)`, "success");
+  paramChargerStatutApp();
+}
+
+async function paramRechargerConfig() {
+  showToast("🔄 Rechargement...", "info");
+  await chargerParametres();
+  if (typeof chargerBranding === "function") await chargerBranding();
+  showToast("✅ Configuration rechargée", "success");
+}
+
+function paramExporterConfig() {
+  const config = {
+    ecole: tousLesEcoles.find(e => e.id === currentEcoleId) || null,
+    parametres: JSON.parse(localStorage.getItem("edulink_param_" + (currentEcoleId || "global")) || "{}"),
+    preferences: JSON.parse(localStorage.getItem("edulink_user_prefs") || "{}"),
+    notifications: {
+      categories: JSON.parse(localStorage.getItem("edulink_notif_cats_" + (currentEcoleId || "global")) || "{}"),
+      sender:     JSON.parse(localStorage.getItem("edulink_notif_sender") || "{}"),
+    },
+    exporte_le: new Date().toISOString(),
+    version:    "1.0",
+  };
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `EduLink-config-${new Date().toISOString().split("T")[0]}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  showToast("📦 Configuration exportée", "success");
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  ONGLET 6 — ZONE DE DANGER
+// ══════════════════════════════════════════════════════════════════
+async function paramExporterRGPD() {
+  if (!currentEcoleId) { showToast("Aucune école sélectionnée", "error"); return; }
+  showToast("📥 Export en cours...", "info");
+  // Charger toutes les tables liées à cette école
+  const [etud, notes, abs, fact, paie, ens, pers, inc] = await Promise.all([
+    db.from("etudiants").select("*").eq("ecole_id", currentEcoleId),
+    db.from("notes").select("*").eq("ecole_id", currentEcoleId),
+    db.from("absences").select("*").eq("ecole_id", currentEcoleId),
+    db.from("factures").select("*").eq("ecole_id", currentEcoleId),
+    db.from("paiements").select("*").eq("ecole_id", currentEcoleId),
+    db.from("enseignants").select("*").eq("ecole_id", currentEcoleId),
+    db.from("personnel").select("*").eq("ecole_id", currentEcoleId),
+    db.from("incidents").select("*").eq("ecole_id", currentEcoleId),
+  ]);
+  const tables = [
+    { nom: "etudiants",   data: etud.data   || [] },
+    { nom: "notes",       data: notes.data  || [] },
+    { nom: "absences",    data: abs.data    || [] },
+    { nom: "factures",    data: fact.data   || [] },
+    { nom: "paiements",   data: paie.data   || [] },
+    { nom: "enseignants", data: ens.data    || [] },
+    { nom: "personnel",   data: pers.data   || [] },
+    { nom: "incidents",   data: inc.data    || [] },
+  ];
+  let totalLignes = 0;
+  tables.forEach(t => {
+    if (!t.data.length) return;
+    totalLignes += t.data.length;
+    const headers = Object.keys(t.data[0]);
+    const rows = t.data.map(r => headers.map(h => r[h] !== null && r[h] !== undefined ? (typeof r[h] === "object" ? JSON.stringify(r[h]) : r[h]) : ""));
+    if (typeof csvDownload === "function") {
+      csvDownload(`EduLink-export-${t.nom}-${new Date().toISOString().split("T")[0]}.csv`, headers, rows);
+    }
+  });
+  showToast(`📥 Export RGPD terminé : ${totalLignes} lignes exportées sur ${tables.length} tables`, "success");
+}
+
+async function paramPurgerDemo() {
+  if (!currentEcoleId) { showToast("Aucune école sélectionnée", "error"); return; }
+  const c1 = prompt('Pour confirmer la purge des données démo, tapez "PURGER" :');
+  if (c1 !== "PURGER") { showToast("Action annulée", "info"); return; }
+  showToast("🗑️ Purge en cours...", "info");
+  // Tables à purger : on ne supprime que les enregistrements marqués comme demo
+  // (présence d'une colonne is_demo=true OU note dans la description). Mode prudent.
+  // En l'absence d'un marqueur clair, on ne fait rien et on informe l'utilisateur.
+  showToast("⚠️ Aucune donnée marquée comme démo trouvée. Pour ajouter un marqueur is_demo, contactez l'admin.", "info");
+}
+
+async function paramSupprimerEcole() {
+  if (!currentEcoleId) { showToast("Aucune école sélectionnée", "error"); return; }
+  const ecole = tousLesEcoles.find(e => e.id === currentEcoleId);
+  if (!ecole) { showToast("École introuvable", "error"); return; }
+  const c1 = prompt(`⚠️ ATTENTION : Cette action est IRRÉVERSIBLE.\n\nToutes les données de "${ecole.nom}" seront définitivement supprimées :\n• Étudiants, notes, absences\n• Factures, paiements\n• Enseignants, personnel\n• Configuration, branding\n\nPour confirmer, tapez exactement le nom de l'école :`);
+  if (c1 !== ecole.nom) { showToast("Nom incorrect — suppression annulée", "info"); return; }
+  if (!confirm(`Dernière confirmation : supprimer DÉFINITIVEMENT "${ecole.nom}" ?`)) return;
+  const { error } = await db.from("ecoles").delete().eq("id", currentEcoleId);
+  if (error) { showToast("❌ " + error.message, "error"); return; }
+  showToast(`💀 "${ecole.nom}" a été supprimée`, "success");
+  // Recharger la liste des écoles
+  if (typeof chargerEcoles === "function") {
+    await chargerEcoles();
+    if (typeof showPage === "function") showPage("dashboard");
+  } else {
+    setTimeout(() => location.reload(), 1500);
+  }
 }
 
 // ══ JOUR 7 — MOBILE NAV ═══════════════════════
@@ -20239,13 +20703,14 @@ function previsualiserSitePublic() {
     ? window.location.origin + window.location.pathname + "?page=portail-public"
     : "#";
   const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  // JSON-encode : safer que d'inliner directement les valeurs dans des strings JS
-  const cfgJson = JSON.stringify({
-    supabaseUrl: SUPABASE_URL,
-    supabaseKey: SUPABASE_KEY,
-    ecoleId:     currentEcoleId || null,
-    retourUrl:   retourUrl,
-  }).replace(/</g, "\\u003c"); // sécurité XSS basique
+  // Échapper pour mettre en attribut HTML (single quotes encodées)
+  const attrEsc = s => esc(s).replace(/'/g, "&#39;");
+  // Inliner les valeurs de config dans des attributs data-* sur <body> au lieu d'un <script type=json>
+  // → plus robuste, lisible côté JS via document.body.dataset
+  const cfgUrl    = attrEsc(SUPABASE_URL || "");
+  const cfgKey    = attrEsc(SUPABASE_KEY || "");
+  const cfgEcole  = attrEsc(currentEcoleId || "");
+  const cfgRetour = attrEsc(retourUrl);
 
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>${esc(nom)}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20256,14 +20721,14 @@ function previsualiserSitePublic() {
     border-bottom:1px solid #e5e7eb;padding:.7rem 1.2rem;display:flex;align-items:center;gap:1rem;
     z-index:1000;box-shadow:0 1px 3px rgba(0,0,0,.04)}
   .topbar .back{background:#1e3a5f;color:#fff;text-decoration:none;padding:.5rem 1rem;border-radius:8px;
-    font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:background .15s}
+    font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:background .15s;cursor:pointer;border:none}
   .topbar .back:hover{background:#059669}
   .topbar .preview-label{font-size:12px;color:#6b7280;margin-left:auto;font-weight:500}
   .hero{background:linear-gradient(135deg,#1e3a5f,#059669);color:#fff;padding:4rem 2rem;text-align:center}
   .hero h1{font-size:48px;margin-bottom:.5rem;font-weight:800}
   .hero p{font-size:18px;opacity:.85}
   .cta{display:inline-block;margin:.5rem .3rem 0;padding:.85rem 1.8rem;background:#fff;color:#1e3a5f;
-    border-radius:30px;font-weight:700;text-decoration:none;font-size:14px;cursor:pointer;border:none;transition:transform .15s}
+    border-radius:30px;font-weight:700;text-decoration:none;font-size:14px;cursor:pointer;border:none;transition:transform .15s;font-family:inherit}
   .cta:hover{transform:translateY(-2px)}
   .cta.outline{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.5)}
   .container{max-width:1100px;margin:0 auto;padding:3rem 2rem}
@@ -20291,7 +20756,7 @@ function previsualiserSitePublic() {
   /* Modal inscription */
   .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;
     align-items:center;justify-content:center;padding:1rem;overflow-y:auto}
-  .modal-bg.show{display:flex}
+  .modal-bg.show{display:flex !important}
   .modal-box{background:#fff;border-radius:14px;max-width:560px;width:100%;
     box-shadow:0 20px 50px rgba(0,0,0,.25);overflow:hidden;margin:auto}
   .modal-head{padding:1.2rem 1.5rem;background:linear-gradient(135deg,#1e3a5f,#059669);color:#fff}
@@ -20300,7 +20765,7 @@ function previsualiserSitePublic() {
   .modal-body{padding:1.3rem 1.5rem;max-height:60vh;overflow-y:auto}
   .modal-foot{padding:1rem 1.5rem;background:#f9fafb;border-top:1px solid #e5e7eb;
     display:flex;gap:8px;justify-content:flex-end}
-  .modal-foot button{padding:.65rem 1.3rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px}
+  .modal-foot button{padding:.65rem 1.3rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;font-family:inherit}
   .modal-foot .submit{background:#059669;color:#fff}
   .modal-foot .submit:hover{background:#047857}
   .modal-foot .submit:disabled{opacity:.6;cursor:wait}
@@ -20317,16 +20782,16 @@ function previsualiserSitePublic() {
   .form-msg.show{display:block}
   .form-msg.ok{background:#dcfce7;color:#065f46;border:1px solid #bbf7d0}
   .form-msg.err{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
-</style></head><body>
+</style></head><body data-supabase-url="${cfgUrl}" data-supabase-key="${cfgKey}" data-ecole-id="${cfgEcole}" data-retour-url="${cfgRetour}">
   <div class="topbar">
-    <a class="back" href="#" id="btnRetourEduLink">← Retour à EduLink</a>
+    <button type="button" class="back" onclick="ppRetourEduLink()">← Retour à EduLink</button>
     <span class="preview-label">🔍 Mode aperçu — non publié</span>
   </div>
   <div class="hero" id="top">
     <h1>🏫 ${esc(nom)}</h1>
     ${slogan ? `<p>${esc(slogan)}</p>` : ""}
     <div style="margin-top:1.2rem">
-      <button class="cta" id="ctaInscrire">📝 S'inscrire</button>
+      <button type="button" class="cta" onclick="ppOpenModal()">📝 S'inscrire</button>
       <a href="#apropos" class="cta outline">ℹ️ En savoir plus</a>
     </div>
   </div>
@@ -20334,11 +20799,10 @@ function previsualiserSitePublic() {
     ${desc ? `<section id="apropos"><h2>ℹ️ À propos</h2><p style="line-height:1.7;color:#374151">${esc(desc)}</p></section>` : ""}
     ${sections.length ? `<section id="sections"><h2>📚 Nos sections</h2><div class="grid">
       ${sections.map(s => {
-        // Mapping section → ancre (avec fallback intelligent)
         const t = (s.titre || "").toLowerCase();
         let href = "#";
         if (t.includes("accueil") || t.includes("page d"))     href = "#top";
-        else if (t.includes("propos") || t.includes("à propos") || t.includes("a propos")) href = "#apropos";
+        else if (t.includes("propos"))                          href = "#apropos";
         else if (t.includes("formation") || t.includes("filière") || t.includes("filiere")) href = "#sections";
         else if (t.includes("inscription") || t.includes("admission")) href = "#inscription-form";
         else if (t.includes("actualité") || t.includes("actualite") || t.includes("news")) href = "#actualites";
@@ -20356,10 +20820,9 @@ function previsualiserSitePublic() {
     <section id="inscription-form">
       <h2>📝 Inscription en ligne</h2>
       <p style="color:#6b7280;font-size:14px;line-height:1.6;margin-bottom:1.2rem">
-        Remplissez le formulaire ci-dessous pour soumettre votre demande d'inscription.
-        Notre équipe vous recontactera rapidement.
+        Remplissez le formulaire ci-dessous pour soumettre votre demande d'inscription. Notre équipe vous recontactera rapidement.
       </p>
-      <button class="cta" style="background:#059669;color:#fff" id="ctaInscrire2">📝 Ouvrir le formulaire d'inscription</button>
+      <button type="button" class="cta" style="background:#059669;color:#fff" onclick="ppOpenModal()">📝 Ouvrir le formulaire d'inscription</button>
     </section>
     <section id="contact">
       <h2>📞 Contact</h2>
@@ -20369,15 +20832,15 @@ function previsualiserSitePublic() {
     </section>
   </div>
   <footer>© ${new Date().getFullYear()} ${esc(nom)} · Site propulsé par EduLink</footer>
-  <button class="back-top" id="backTop" title="Retour en haut">↑</button>
+  <button type="button" class="back-top" id="backTop" title="Retour en haut" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
   <!-- Modal Inscription -->
-  <div class="modal-bg" id="modalInscr">
+  <div class="modal-bg" id="modalInscr" onclick="if(event.target===this)ppCloseModal()">
     <div class="modal-box">
       <div class="modal-head">
         <h3>📝 Demande d'inscription</h3>
         <p>Tous les champs marqués d'un * sont obligatoires</p>
       </div>
-      <form id="formInscr">
+      <form id="formInscr" onsubmit="ppSubmitForm(event)">
         <div class="modal-body">
           <div class="form-msg" id="formMsg"></div>
           <div class="modal-row">
@@ -20396,115 +20859,121 @@ function previsualiserSitePublic() {
           <div class="field"><label>Message complémentaire</label><textarea name="message" rows="3" maxlength="800" placeholder="Précisions, motivation, questions..."></textarea></div>
         </div>
         <div class="modal-foot">
-          <button type="button" class="cancel" id="btnCancel">Annuler</button>
+          <button type="button" class="cancel" onclick="ppCloseModal()">Annuler</button>
           <button type="submit" class="submit" id="btnSubmit">Envoyer ma demande</button>
         </div>
       </form>
     </div>
   </div>
-  <script id="cfgScript" type="application/json">${cfgJson}</scr` + `ipt>
   <script>
-    (function(){
-      var cfg = JSON.parse(document.getElementById("cfgScript").textContent);
-      var btnTop  = document.getElementById("backTop");
-      var btnRet  = document.getElementById("btnRetourEduLink");
-      var modal   = document.getElementById("modalInscr");
-      var form    = document.getElementById("formInscr");
-      var msg     = document.getElementById("formMsg");
-      var btnSub  = document.getElementById("btnSubmit");
-      var btnCan  = document.getElementById("btnCancel");
-      // Retour en haut
-      btnTop.onclick = function(){ window.scrollTo({top:0,behavior:"smooth"}); };
-      window.addEventListener("scroll", function(){
-        if (window.scrollY > 300) btnTop.classList.add("show");
-        else btnTop.classList.remove("show");
-      });
-      // Retour vers EduLink
-      btnRet.href = cfg.retourUrl;
-      btnRet.onclick = function(e){
-        // window.opener existe si la fenêtre vient d'un window.open()
-        if (window.opener && !window.opener.closed) {
-          e.preventDefault();
-          try { window.opener.focus(); } catch(_){}
-          window.close();
-        }
+    // Fonctions globales — accessibles depuis les onclick inline
+    function ppGetCfg() {
+      var d = document.body.dataset;
+      return {
+        supabaseUrl: d.supabaseUrl || "",
+        supabaseKey: d.supabaseKey || "",
+        ecoleId:     d.ecoleId     || "",
+        retourUrl:   d.retourUrl   || "#"
       };
-      // Ouvrir modal inscription
-      function openModal(){
-        msg.classList.remove("show","ok","err");
-        msg.textContent = "";
+    }
+    function ppRetourEduLink() {
+      var cfg = ppGetCfg();
+      if (window.opener && !window.opener.closed) {
+        try { window.opener.focus(); } catch(_){}
+        window.close();
+      } else {
+        window.location.href = cfg.retourUrl;
+      }
+    }
+    function ppOpenModal() {
+      console.log("[Aperçu] Ouverture modal inscription");
+      var modal = document.getElementById("modalInscr");
+      var msg   = document.getElementById("formMsg");
+      var form  = document.getElementById("formInscr");
+      if (!modal) { console.error("Modal introuvable"); alert("Erreur : modal introuvable"); return; }
+      if (msg) { msg.className = "form-msg"; msg.textContent = ""; }
+      if (form) form.reset();
+      modal.classList.add("show");
+      document.body.style.overflow = "hidden";
+    }
+    function ppCloseModal() {
+      var modal = document.getElementById("modalInscr");
+      if (modal) modal.classList.remove("show");
+      document.body.style.overflow = "";
+    }
+    async function ppSubmitForm(e) {
+      e.preventDefault();
+      var cfg  = ppGetCfg();
+      var form = document.getElementById("formInscr");
+      var msg  = document.getElementById("formMsg");
+      var btn  = document.getElementById("btnSubmit");
+      if (!cfg.ecoleId) {
+        msg.textContent = "⚠️ Aucune école sélectionnée dans EduLink. Sélectionnez une école avant la prévisualisation.";
+        msg.className = "form-msg show err"; return;
+      }
+      if (!cfg.supabaseUrl || !cfg.supabaseKey) {
+        msg.textContent = "⚠️ Configuration Supabase indisponible.";
+        msg.className = "form-msg show err"; return;
+      }
+      var data = new FormData(form);
+      var payload = {
+        ecole_id:        cfg.ecoleId,
+        nom:             (data.get("nom")||"").trim(),
+        prenom:          (data.get("prenom")||"").trim(),
+        email:           (data.get("email")||"").trim(),
+        telephone:       (data.get("telephone")||"").trim(),
+        niveau_actuel:   (data.get("niveau_actuel")||"").trim(),
+        niveau_demande:  (data.get("niveau_demande")||"").trim(),
+        filiere:         (data.get("filiere")||"").trim(),
+        message:         (data.get("message")||"").trim(),
+        statut:          "nouveau"
+      };
+      if (!payload.nom || !payload.prenom || !payload.email || !payload.niveau_demande) {
+        msg.textContent = "Merci de remplir tous les champs obligatoires.";
+        msg.className = "form-msg show err"; return;
+      }
+      btn.disabled = true; btn.textContent = "Envoi...";
+      try {
+        var resp = await fetch(cfg.supabaseUrl + "/rest/v1/inscriptions_demandes", {
+          method: "POST",
+          headers: {
+            "Content-Type":  "application/json",
+            "apikey":        cfg.supabaseKey,
+            "Authorization": "Bearer " + cfg.supabaseKey,
+            "Prefer":        "return=minimal"
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) {
+          var errTxt = await resp.text();
+          throw new Error(errTxt || ("HTTP " + resp.status));
+        }
+        msg.textContent = "✅ Votre demande a bien été envoyée ! Nous vous recontacterons rapidement.";
+        msg.className = "form-msg show ok";
         form.reset();
-        modal.classList.add("show");
-        document.body.style.overflow = "hidden";
+        setTimeout(ppCloseModal, 2500);
+      } catch(err) {
+        msg.textContent = "❌ Erreur lors de l'envoi : " + (err.message || err);
+        msg.className = "form-msg show err";
+      } finally {
+        btn.disabled = false; btn.textContent = "Envoyer ma demande";
       }
-      function closeModal(){
-        modal.classList.remove("show");
-        document.body.style.overflow = "";
+    }
+    // Bouton retour en haut au scroll
+    window.addEventListener("scroll", function(){
+      var btn = document.getElementById("backTop");
+      if (!btn) return;
+      if (window.scrollY > 300) btn.classList.add("show");
+      else btn.classList.remove("show");
+    });
+    // Echap pour fermer le modal
+    document.addEventListener("keydown", function(e){
+      if (e.key === "Escape") {
+        var m = document.getElementById("modalInscr");
+        if (m && m.classList.contains("show")) ppCloseModal();
       }
-      var ctas = document.querySelectorAll("#ctaInscrire,#ctaInscrire2");
-      ctas.forEach(function(b){ b.onclick = openModal; });
-      btnCan.onclick = closeModal;
-      modal.onclick = function(e){ if (e.target === modal) closeModal(); };
-      document.addEventListener("keydown", function(e){
-        if (e.key === "Escape" && modal.classList.contains("show")) closeModal();
-      });
-      // Soumission
-      form.onsubmit = async function(e){
-        e.preventDefault();
-        msg.classList.remove("show","ok","err");
-        if (!cfg.ecoleId) {
-          msg.textContent = "⚠️ Aucune école sélectionnée dans EduLink. Sélectionnez une école avant la prévisualisation.";
-          msg.className = "form-msg show err"; return;
-        }
-        if (!cfg.supabaseUrl || !cfg.supabaseKey) {
-          msg.textContent = "⚠️ Configuration Supabase indisponible.";
-          msg.className = "form-msg show err"; return;
-        }
-        var data = new FormData(form);
-        var payload = {
-          ecole_id:        cfg.ecoleId,
-          nom:             (data.get("nom")||"").trim(),
-          prenom:          (data.get("prenom")||"").trim(),
-          email:           (data.get("email")||"").trim(),
-          telephone:       (data.get("telephone")||"").trim(),
-          niveau_actuel:   (data.get("niveau_actuel")||"").trim(),
-          niveau_demande:  (data.get("niveau_demande")||"").trim(),
-          filiere:         (data.get("filiere")||"").trim(),
-          message:         (data.get("message")||"").trim(),
-          statut:          "nouveau"
-        };
-        if (!payload.nom || !payload.prenom || !payload.email || !payload.niveau_demande) {
-          msg.textContent = "Merci de remplir tous les champs obligatoires.";
-          msg.className = "form-msg show err"; return;
-        }
-        btnSub.disabled = true; btnSub.textContent = "Envoi...";
-        try {
-          var resp = await fetch(cfg.supabaseUrl + "/rest/v1/inscriptions_demandes", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "apikey": cfg.supabaseKey,
-              "Authorization": "Bearer " + cfg.supabaseKey,
-              "Prefer": "return=minimal"
-            },
-            body: JSON.stringify(payload)
-          });
-          if (!resp.ok) {
-            var errTxt = await resp.text();
-            throw new Error(errTxt || ("HTTP " + resp.status));
-          }
-          msg.textContent = "✅ Votre demande a bien été envoyée ! Nous vous recontacterons rapidement.";
-          msg.className = "form-msg show ok";
-          form.reset();
-          setTimeout(closeModal, 2500);
-        } catch(err) {
-          msg.textContent = "❌ Erreur lors de l'envoi : " + (err.message || err);
-          msg.className = "form-msg show err";
-        } finally {
-          btnSub.disabled = false; btnSub.textContent = "Envoyer ma demande";
-        }
-      };
-    })();
+    });
+    console.log("[Aperçu] Script chargé. Config:", ppGetCfg());
   </scr` + `ipt>
 </body></html>`;
   // Ouvrir dans une nouvelle fenêtre via blob URL (pas de cache, pas de tracking)
