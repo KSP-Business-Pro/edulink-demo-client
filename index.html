@@ -7666,13 +7666,14 @@ let ficheEnsActif      = null;
 // Quand un module modifie des données Supabase, il appelle invalidateData(table)
 // pour forcer le rechargement de tous les modules qui consomment cette table.
 const DATA_CONSUMERS = {
-  notes:        ["notes","portail-etudiant","rapports","analytics","dashboard"],
-  absences:     ["presences","portail-etudiant","rapports","analytics","dashboard"],
-  paiements:    ["paiements","portail-etudiant","comptabilite","dashboard"],
+  notes:        ["notes","portail-etudiant","rapports","analytics","dashboard","exec-dashboard"],
+  absences:     ["presences","portail-etudiant","rapports","analytics","dashboard","exec-dashboard"],
+  paiements:    ["paiements","portail-etudiant","comptabilite","dashboard","exec-dashboard"],
+  factures:     ["paiements","comptabilite","dashboard","exec-dashboard"],
   messages:     ["messages","portail-etudiant","sms-parents"],
-  etudiants:    ["etudiants","portail-etudiant","presences","notes","paiements","certificats","documents","discipline","sms-parents"],
+  etudiants:    ["etudiants","portail-etudiant","presences","notes","paiements","certificats","documents","discipline","sms-parents","exec-dashboard"],
   examens:      ["examens","portail-etudiant"],
-  incidents:    ["discipline"],
+  incidents:    ["discipline","exec-dashboard"],
   pwa_devices:  ["pwa-avancee"],
 };
 
@@ -7697,6 +7698,7 @@ function invalidateData(table) {
     "portail-etudiant": () => { chargerPortailEtudiant && chargerPortailEtudiant(getPortailEtudiantId()); },
     "sms-parents":   () => { chargerSMSParents && chargerSMSParents(); },
     "pwa-avancee":   () => { chargerPWAAvancee && chargerPWAAvancee(); },
+    "exec-dashboard": () => { chargerExecDashboard && chargerExecDashboard(); },
   };
   if (loaders[currentPage]) loaders[currentPage]();
 }
@@ -18999,39 +19001,249 @@ function pwaTelechargerQR() {
 
 
 /* ══════════════════════════════════════════════════════════════════
-   SUITE 12 — DASHBOARD DIRECTEUR ★ JOUR 38
+   SUITE 12 — DASHBOARD DIRECTEUR ★ JOUR 38 (réécrit : données live)
 ══════════════════════════════════════════════════════════════════ */
-function chargerExecDashboard() {
-  document.getElementById('exec-date-now').textContent =
-    new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
+// Cache de l'état du dashboard exec (utilisé pour l'export CSV et les drill-downs)
+let _execState = {
+  hero:    null,    // { effectif, tauxReussite, recetteMois, alertesActives }
+  finance: null,    // { recetteMois, chargesMois, resultat, creances }
+  peda:    null,    // { moyGen, tauxReussite, absenteisme, perfClasses, elevesDiff, top5 }
+  rh:      null,    // { totalPersonnel, masseSalariale, repartition }
+  alertes: [],
+  agenda:  [],
+};
+
+// Instances Chart.js pour les détruire avant rerender
+let _execChartRecettes = null;
+let _execChartProg     = null;
+
+// Helpers de formatage monétaire (Franc CFA, sans décimales)
+function execFmtMontant(n) {
+  if (n == null || isNaN(n)) return "0 F";
+  if (n >= 1e6) return (n/1e6).toFixed(1) + "M F";
+  if (n >= 1e3) return (n/1e3).toFixed(0) + "K F";
+  return Math.round(n).toLocaleString("fr-FR") + " F";
+}
+function execFmtPct(num, den) {
+  if (!den) return "0%";
+  return Math.round(num/den*100) + "%";
+}
+
+async function chargerExecDashboard() {
+  // Date du jour
+  const dateEl = document.getElementById("exec-date-now");
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long", year:"numeric"});
+
+  if (!currentEcoleId) {
+    // Affichage minimal sans données
+    const heroKpis = document.getElementById("exec-hero-kpis");
+    if (heroKpis) heroKpis.innerHTML = '<div style="padding:1rem;color:rgba(255,255,255,.7);font-size:13px">Sélectionnez une école pour afficher les indicateurs.</div>';
+    return;
+  }
+
+  // Charger toutes les données en parallèle
+  const [
+    etudCount, profCount, classes,
+    notes, absences, factures, paiements,
+    incidents, personnelData, enseignants,
+  ] = await Promise.all([
+    db.from("etudiants").select("*", {count:"exact", head:true}).eq("ecole_id", currentEcoleId),
+    db.from("enseignants").select("*", {count:"exact", head:true}).eq("ecole_id", currentEcoleId),
+    db.from("classes").select("id,nom,filiere,niveau").eq("ecole_id", currentEcoleId),
+    db.from("notes").select("note,coefficient,etudiant_id,matiere,periode,created_at").eq("ecole_id", currentEcoleId),
+    db.from("absences").select("etudiant_id,date_absence,statut,classe_id").eq("ecole_id", currentEcoleId),
+    db.from("factures").select("statut,montant_total,montant_paye,type_frais,date_emission,date_echeance,etudiant_id,created_at").eq("ecole_id", currentEcoleId),
+    db.from("paiements").select("montant_paye,created_at,etudiant_id").eq("ecole_id", currentEcoleId),
+    db.from("incidents").select("severite,statut,created_at").eq("ecole_id", currentEcoleId),
+    db.from("personnel").select("*").eq("ecole_id", currentEcoleId),
+    db.from("enseignants").select("nom,prenom,salaire,statut").eq("ecole_id", currentEcoleId),
+  ]);
+
+  // Tolérance erreurs (auto-retry sans colonnes manquantes côté logique)
+  const safe = r => r.error ? [] : (r.data || []);
+  const safeCount = r => r.error ? 0 : (r.count || 0);
+
+  const dataNotes      = safe(notes);
+  const dataAbs        = safe(absences);
+  const dataFact       = safe(factures);
+  const dataPaie       = safe(paiements);
+  const dataInc        = safe(incidents);
+  const dataPersonnel  = safe(personnelData);
+  const dataEnseig     = safe(enseignants);
+  const dataClasses    = safe(classes);
+  const nbEtudiants    = safeCount(etudCount);
+  const nbEnseignants  = safeCount(profCount);
+
+  // ── Calculs ──
+  const now      = new Date();
+  const moisDeb  = new Date(now.getFullYear(), now.getMonth(), 1);
+  const moisFin  = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59);
+  const aujourdhui = now.toISOString().split("T")[0];
+
+  // Moyenne générale (sur toutes les notes /20)
+  const notesValides = dataNotes.filter(n => n.note != null && !isNaN(parseFloat(n.note)));
+  const moyGen = notesValides.length
+    ? notesValides.reduce((s,n) => s + (parseFloat(n.note) * (n.coefficient || 1)), 0) /
+      notesValides.reduce((s,n) => s + (n.coefficient || 1), 0)
+    : 0;
+  const tauxReussite = notesValides.length
+    ? notesValides.filter(n => parseFloat(n.note) >= 10).length / notesValides.length * 100
+    : 0;
+
+  // Absentéisme : ratio (absences sur 30 derniers jours) / (étudiants × jours d'école)
+  const il30j = new Date(); il30j.setDate(il30j.getDate() - 30);
+  const abs30j = dataAbs.filter(a => a.date_absence && new Date(a.date_absence) >= il30j);
+  const joursOuvres30j = 22; // approximation lundi-vendredi sur 30 jours
+  const denomAbs = nbEtudiants * joursOuvres30j;
+  const absenteisme = denomAbs > 0 ? (abs30j.length / denomAbs * 100) : 0;
+
+  // Recettes du mois (paiements du mois en cours)
+  const paieMois = dataPaie.filter(p => {
+    const d = new Date(p.created_at);
+    return d >= moisDeb && d <= moisFin;
+  });
+  const recetteMois = paieMois.reduce((s,p) => s + (parseFloat(p.montant_paye) || 0), 0);
+
+  // Facturation totale et impayés
+  const totalFacture = dataFact.reduce((s,f) => s + (parseFloat(f.montant_total) || 0), 0);
+  const totalPaye    = dataFact.reduce((s,f) => s + (parseFloat(f.montant_paye)  || 0), 0);
+  const impayes      = totalFacture - totalPaye;
+  const tauxRecouvr  = totalFacture > 0 ? (totalPaye / totalFacture * 100) : 0;
+
+  // Créances par tranche d'âge (depuis date_echeance ou date_emission)
+  const calcAgeJours = f => {
+    const ref = f.date_echeance || f.date_emission || f.created_at;
+    if (!ref) return 0;
+    return Math.floor((Date.now() - new Date(ref).getTime()) / 86400000);
+  };
+  const creances = { "0-30": 0, "31-60": 0, "61-90": 0, "91+": 0 };
+  dataFact.forEach(f => {
+    const reste = (parseFloat(f.montant_total)||0) - (parseFloat(f.montant_paye)||0);
+    if (reste <= 0) return;
+    const age = calcAgeJours(f);
+    if (age <= 30) creances["0-30"] += reste;
+    else if (age <= 60) creances["31-60"] += reste;
+    else if (age <= 90) creances["61-90"] += reste;
+    else creances["91+"] += reste;
+  });
+
+  // Performance par classe : moyennes + taux réussite + absences
+  const perfByClasse = {};
+  dataClasses.forEach(c => {
+    perfByClasse[c.id] = { id:c.id, nom: c.nom || `${c.filiere||""} ${c.niveau||""}`.trim(), eff:0, notes:[], abs:0 };
+  });
+  // Effectifs par classe (besoin d'une 2e requête pour récupérer classe_id par étudiant)
+  const { data: etudClasses } = await db.from("etudiants").select("id,classe_id").eq("ecole_id", currentEcoleId);
+  (etudClasses || []).forEach(e => { if (e.classe_id && perfByClasse[e.classe_id]) perfByClasse[e.classe_id].eff++; });
+  // Notes par classe (jointure via étudiant_id → classe_id)
+  const etudToClasse = new Map((etudClasses||[]).map(e => [e.id, e.classe_id]));
+  notesValides.forEach(n => {
+    const cid = etudToClasse.get(n.etudiant_id);
+    if (cid && perfByClasse[cid]) perfByClasse[cid].notes.push(parseFloat(n.note));
+  });
+  // Absences par classe
+  dataAbs.forEach(a => {
+    const cid = a.classe_id || etudToClasse.get(a.etudiant_id);
+    if (cid && perfByClasse[cid]) perfByClasse[cid].abs++;
+  });
+  const perfClasses = Object.values(perfByClasse).map(c => {
+    const ns = c.notes;
+    const moy = ns.length ? ns.reduce((s,x) => s+x, 0) / ns.length : 0;
+    const reussite = ns.length ? ns.filter(x => x >= 10).length / ns.length * 100 : 0;
+    const tauxAbs = c.eff > 0 ? (c.abs / (c.eff * joursOuvres30j) * 100) : 0;
+    return { ...c, moy, reussite, tauxAbs };
+  }).sort((a,b) => b.eff - a.eff);
+
+  // Top 5 étudiants : moyenne par étudiant
+  const moyByEtud = {};
+  notesValides.forEach(n => {
+    if (!moyByEtud[n.etudiant_id]) moyByEtud[n.etudiant_id] = { sum:0, coef:0 };
+    moyByEtud[n.etudiant_id].sum  += parseFloat(n.note) * (n.coefficient || 1);
+    moyByEtud[n.etudiant_id].coef += (n.coefficient || 1);
+  });
+  const moyEtuds = Object.entries(moyByEtud).map(([id,v]) => ({ id, moy: v.coef ? v.sum/v.coef : 0 }));
+  const topIds  = moyEtuds.sort((a,b) => b.moy - a.moy).slice(0, 5).map(e => e.id);
+  const diffIds = moyEtuds.filter(e => e.moy < 10).sort((a,b) => a.moy - b.moy).slice(0, 5).map(e => e.id);
+  const idsToFetch = [...new Set([...topIds, ...diffIds])];
+  let etudInfos = [];
+  if (idsToFetch.length) {
+    const { data } = await db.from("etudiants").select("id,nom,prenom,classe_id").in("id", idsToFetch);
+    etudInfos = data || [];
+  }
+  const classNomById = new Map(dataClasses.map(c => [c.id, c.nom || `${c.filiere||""} ${c.niveau||""}`.trim()]));
+  const top5 = topIds.map(id => {
+    const e = etudInfos.find(x => x.id === id);
+    if (!e) return null;
+    const m = moyEtuds.find(x => x.id === id);
+    return {
+      nom: `${e.prenom||""} ${e.nom||""}`.trim(),
+      classe: classNomById.get(e.classe_id) || "—",
+      moy: m ? m.moy : 0,
+    };
+  }).filter(Boolean);
+  const elevesDiff = diffIds.map(id => {
+    const e = etudInfos.find(x => x.id === id);
+    if (!e) return null;
+    const m = moyEtuds.find(x => x.id === id);
+    const absEtud = dataAbs.filter(a => a.etudiant_id === id).length;
+    return {
+      id, nom: `${e.prenom||""} ${e.nom||""}`.trim(),
+      classe: classNomById.get(e.classe_id) || "—",
+      moy: m ? m.moy : 0,
+      abs: absEtud,
+    };
+  }).filter(Boolean);
+
+  // Alertes auto-détectées
+  const alertes = [];
+  if (impayes > 0 && tauxRecouvr < 80) {
+    alertes.push({ ico: "💸", type: "danger",  titre: "Retards de paiement",            detail: `${execFmtPct(totalFacture-totalPaye,totalFacture)} non réglés — ${execFmtMontant(impayes)} à recouvrer`, action: "showPage('comptabilite')" });
+  }
+  perfClasses.forEach(c => {
+    if (c.tauxAbs > 10 && c.eff > 0) {
+      alertes.push({ ico: "📉", type: "warning", titre: `Absentéisme élevé — ${c.nom}`, detail: `${c.tauxAbs.toFixed(1)}% sur 30j — Seuil critique à 10%`, action: "showPage('presences')" });
+    }
+  });
+  const incOuverts = dataInc.filter(i => i.statut !== "résolu" && i.severite === "haute").length;
+  if (incOuverts > 0) {
+    alertes.push({ ico: "⚠️", type: "danger", titre: "Incidents disciplinaires graves ouverts", detail: `${incOuverts} cas haute sévérité non résolu(s)`, action: "showPage('discipline')" });
+  }
+  if (absenteisme > 12) {
+    alertes.push({ ico: "🚫", type: "warning", titre: "Absentéisme global élevé", detail: `${absenteisme.toFixed(1)}% sur les 30 derniers jours`, action: "showPage('presences')" });
+  }
+
+  // Sauvegarder le state
+  _execState.hero    = { effectif: nbEtudiants, tauxReussite, recetteMois, alertesActives: alertes.length };
+  _execState.finance = { recetteMois, totalFacture, totalPaye, impayes, tauxRecouvr, creances };
+  _execState.peda    = { moyGen, tauxReussite, absenteisme, perfClasses, elevesDiff, top5 };
+  _execState.rh      = { totalPersonnel: dataPersonnel.length + dataEnseig.length, nbEnseignants, dataPersonnel, dataEnseig };
+  _execState.alertes = alertes;
+
+  // ── Rendu ──
   // Hero KPIs
-  const heroKpis = document.getElementById('exec-hero-kpis');
+  const heroKpis = document.getElementById("exec-hero-kpis");
   if (heroKpis) heroKpis.innerHTML = [
-    {v:'842', l:'Élèves inscrits', t:'+12 ce mois', up:true},
-    {v:'78%', l:'Taux de réussite', t:'+3.2% vs N-1', up:true},
-    {v:'15.4M F', l:'Recette mensuelle', t:'+8.3%', up:true},
-    {v:'3', l:'Alertes actives', t:'dont 1 critique', up:false},
-  ].map(k=>`<div class="exec-kpi">
-    <div class="ek-val">${k.v}</div><div class="ek-lbl">${k.l}</div>
-    <div class="ek-trend ${k.up?'up':'down'}">${k.up?'↑':'↓'} ${k.t}</div>
-  </div>`).join('');
+    { v: nbEtudiants,                              l: "Élèves inscrits" },
+    { v: tauxReussite.toFixed(0)+"%",              l: "Taux de réussite" },
+    { v: execFmtMontant(recetteMois),              l: "Recette du mois" },
+    { v: alertes.length,                           l: "Alertes actives" },
+  ].map(k => `<div class="exec-kpi"><div class="ek-val">${k.v}</div><div class="ek-lbl">${k.l}</div></div>`).join("");
 
   // Scorecards
-  const sc = document.getElementById('exec-scorecards');
+  const sc = document.getElementById("exec-scorecards");
   if (sc) sc.innerHTML = [
-    {ico:'👥', bg:'#dbeafe', v:'842', l:'Étudiants inscrits', t:'↑ +12 vs mois dernier', cls:'up'},
-    {ico:'👨‍🏫', bg:'#dcfce7', v:'64', l:'Enseignants actifs', t:'→ Stable', cls:'flat'},
-    {ico:'💳', bg:'#fef9c3', v:'77%', l:'Taux de recouvrement', t:'↑ +5% vs trimestre', cls:'up'},
-    {ico:'📊', bg:'#ede9fe', v:'13.4/20', l:'Moyenne générale établ.', t:'↑ +0.4 points', cls:'up'},
-    {ico:'🚫', bg:'#fee2e2', v:'8.2%', l:"Taux d'absentéisme", t:'↓ -1.3% à améliorer', cls:'down'},
-    {ico:'🏆', bg:'#ccfbf1', v:'91%', l:'Satisfaction parents', t:'↑ Excellent', cls:'up'},
-  ].map(k=>`<div class="exec-scorecard">
+    { ico: "👥",  bg: "#dbeafe", v: nbEtudiants,                          l: "Étudiants inscrits" },
+    { ico: "👨‍🏫", bg: "#dcfce7", v: nbEnseignants,                         l: "Enseignants actifs" },
+    { ico: "💳",  bg: "#fef9c3", v: tauxRecouvr.toFixed(0)+"%",            l: "Taux de recouvrement" },
+    { ico: "📊",  bg: "#ede9fe", v: moyGen.toFixed(1)+"/20",               l: "Moyenne générale" },
+    { ico: "🚫",  bg: "#fee2e2", v: absenteisme.toFixed(1)+"%",            l: "Taux d'absentéisme (30j)" },
+    { ico: "🏫",  bg: "#ccfbf1", v: dataClasses.length,                    l: "Classes actives" },
+  ].map(k => `<div class="exec-scorecard">
     <div class="exec-sc-ico" style="background:${k.bg}">${k.ico}</div>
     <div><div class="exec-sc-val">${k.v}</div>
-    <div class="exec-sc-lbl">${k.l}</div>
-    <div class="exec-sc-trend ${k.cls}">${k.t}</div></div>
-  </div>`).join('');
+    <div class="exec-sc-lbl">${k.l}</div></div>
+  </div>`).join("");
 
   renderExecAlertes();
   renderExecTopEtudiants();
@@ -19044,198 +19256,446 @@ function chargerExecDashboard() {
 }
 
 function renderExecAlertes() {
-  const list = document.getElementById('exec-alertes-list');
-  const nb = document.getElementById('exec-nb-alertes');
-  const alertes = [
-    {ico:'💸', type:'danger', titre:'Retards de paiement', detail:'23% des frais T3 non réglés — 1 950 000 F à recouvrer'},
-    {ico:'📉', type:'warning', titre:'Absentéisme élevé — Tle C', detail:'14% d\'absences cette semaine — Seuil critique à 10%'},
-    {ico:'📅', type:'info', titre:'Renouvellement contrats enseignants', detail:'3 contrats expirent le 31/05/2026'},
-  ];
+  const list = document.getElementById("exec-alertes-list");
+  const nb   = document.getElementById("exec-nb-alertes");
+  const alertes = _execState.alertes || [];
   if (nb) nb.textContent = alertes.length;
   if (!list) return;
-  list.innerHTML = alertes.map(a=>`<div class="exec-alerte ${a.type==='warning'?'warning':a.type==='info'?'info':''}">
+  if (!alertes.length) {
+    list.innerHTML = '<div style="padding:1.2rem;text-align:center;color:#9ca3af;font-size:13px">✅ Aucune alerte active</div>';
+    return;
+  }
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  list.innerHTML = alertes.map(a => `<div class="exec-alerte ${a.type==="warning"?"warning":a.type==="info"?"info":""}">
     <span style="font-size:20px">${a.ico}</span>
-    <div><div style="font-size:13px;font-weight:700;color:${a.type==='danger'?'#dc2626':a.type==='warning'?'#d97706':'#1d4ed8'}">${a.titre}</div>
-    <div style="font-size:12px;color:#6b7280;margin-top:2px">${a.detail}</div></div>
-    <button class="btn-sm btn-secondary" style="margin-left:auto;flex-shrink:0" onclick="showToast('✅ Alerte marquée traitée','success')">Traiter</button>
-  </div>`).join('');
+    <div><div style="font-size:13px;font-weight:700;color:${a.type==="danger"?"#dc2626":a.type==="warning"?"#d97706":"#1d4ed8"}">${esc(a.titre)}</div>
+    <div style="font-size:12px;color:#6b7280;margin-top:2px">${esc(a.detail)}</div></div>
+    <button class="btn-sm btn-secondary" style="margin-left:auto;flex-shrink:0" onclick="${a.action}">Voir</button>
+  </div>`).join("");
 }
 
 function renderExecTopEtudiants() {
-  const cont = document.getElementById('exec-top-etudiants');
+  const cont = document.getElementById("exec-top-etudiants");
   if (!cont) return;
-  const top = [
-    {nom:'Afi Dossou', classe:'1ère A', moy:17.1, trend:'↑'},
-    {nom:'Marius Sime', classe:'Tle D', moy:16.4, trend:'↑'},
-    {nom:'Kofi Mensah', classe:'Tle D', moy:14.8, trend:'→'},
-    {nom:'Flore Akpo', classe:'2nde B', moy:14.5, trend:'↑'},
-    {nom:'Brice Gbedo', classe:'Tle C', moy:13.2, trend:'↓'},
-  ];
-  cont.innerHTML = top.map((e,i)=>`<div style="display:flex;align-items:center;gap:.85rem;padding:.75rem 1.2rem;border-bottom:1px solid #f3f4f6">
-    <div class="classement-rang ${i===0?'rang-1':i===1?'rang-2':i===2?'rang-3':'rang-n'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)}</div>
-    <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#111827">${e.nom}</div>
-    <div style="font-size:11px;color:#9ca3af">${e.classe}</div></div>
-    <span class="badge ${e.moy>=15?'green':'blue'}">${e.moy}/20</span>
-    <span style="font-size:14px">${e.trend==='↑'?'📈':e.trend==='↓'?'📉':'➡️'}</span>
-  </div>`).join('');
+  const top = _execState.peda?.top5 || [];
+  if (!top.length) {
+    cont.innerHTML = '<div style="padding:1.2rem;text-align:center;color:#9ca3af;font-size:13px">Aucune note disponible pour classer les étudiants</div>';
+    return;
+  }
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  cont.innerHTML = top.map((e,i) => `<div style="display:flex;align-items:center;gap:.85rem;padding:.75rem 1.2rem;border-bottom:1px solid #f3f4f6">
+    <div class="classement-rang ${i===0?"rang-1":i===1?"rang-2":i===2?"rang-3":"rang-n"}">${i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1)}</div>
+    <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#111827">${esc(e.nom)}</div>
+    <div style="font-size:11px;color:#9ca3af">${esc(e.classe)}</div></div>
+    <span class="badge ${e.moy>=15?"green":"blue"}">${e.moy.toFixed(1)}/20</span>
+  </div>`).join("");
 }
 
 function renderExecObjectifs() {
-  const cont = document.getElementById('exec-objectifs');
+  const cont = document.getElementById("exec-objectifs");
   if (!cont) return;
+  // Objectifs configurables (lecture localStorage) — sinon valeurs par défaut raisonnables
+  const cfg = JSON.parse(localStorage.getItem("edulink_exec_objectifs_" + (currentEcoleId||"")) || "null") || {
+    tauxReussiteCible: 80,
+    tauxRecouvCible:   95,
+    effectifCible:     Math.max(_execState.hero?.effectif || 0, 100),
+    absenteismeMax:    7,
+  };
+  const peda    = _execState.peda    || {};
+  const finance = _execState.finance || {};
   const obj = [
-    {label:'Taux réussite annuel', target:80, current:78, unit:'%'},
-    {label:'Recouvrement frais', target:95, current:77, unit:'%'},
-    {label:'Effectif inscriptions', target:900, current:842, unit:' élèves'},
-    {label:'Satisfaction parents', target:95, current:91, unit:'%'},
+    { label: "Taux de réussite",       target: cfg.tauxReussiteCible, current: Math.round(peda.tauxReussite || 0),    unit: "%", inverse: false },
+    { label: "Recouvrement frais",     target: cfg.tauxRecouvCible,   current: Math.round(finance.tauxRecouvr || 0),  unit: "%", inverse: false },
+    { label: "Effectif inscriptions",  target: cfg.effectifCible,     current: _execState.hero?.effectif || 0,        unit: " élèves", inverse: false },
+    { label: "Absentéisme (max)",      target: cfg.absenteismeMax,    current: parseFloat((peda.absenteisme||0).toFixed(1)), unit: "%", inverse: true },
   ];
-  cont.innerHTML = obj.map(o=>`<div class="metier-bar">
-    <div class="metier-bar-label"><span>${o.label}</span><span style="font-weight:700;color:${o.current>=o.target?'#059669':'#d97706'}">${o.current}${o.unit} / ${o.target}${o.unit}</span></div>
-    <div class="metier-track"><div class="metier-fill" style="width:${Math.min(100,Math.round(o.current/o.target*100))}%;background:${o.current>=o.target?'#059669':'#d97706'}"></div></div>
-  </div>`).join('');
+  cont.innerHTML = obj.map(o => {
+    const ok = o.inverse ? (o.current <= o.target) : (o.current >= o.target);
+    const pct = o.inverse
+      ? Math.min(100, Math.round(o.target / Math.max(o.current, 0.1) * 100))
+      : Math.min(100, Math.round(o.current / Math.max(o.target, 1) * 100));
+    return `<div class="metier-bar">
+      <div class="metier-bar-label"><span>${o.label}</span><span style="font-weight:700;color:${ok?"#059669":"#d97706"}">${o.current}${o.unit} / ${o.target}${o.unit}</span></div>
+      <div class="metier-track"><div class="metier-fill" style="width:${pct}%;background:${ok?"#059669":"#d97706"}"></div></div>
+    </div>`;
+  }).join("");
 }
 
-function renderExecAgenda() {
-  const cont = document.getElementById('exec-agenda');
+async function renderExecAgenda() {
+  const cont = document.getElementById("exec-agenda");
   if (!cont) return;
-  const events = [
-    {ico:'📅', titre:'Conseil pédagogique', date:'03/04/2026', desc:'Bilan T2 et préparation T3'},
-    {ico:'👨‍👩‍👧', titre:'Réunion parents', date:'05/04/2026', desc:'Résultats du 2ème semestre'},
-    {ico:'🎓', titre:'Remise des bulletins', date:'08/04/2026', desc:'Distribution aux familles'},
-    {ico:'💼', titre:'Conseil d\'administration', date:'15/04/2026', desc:'Budget et stratégie 2026-2027'},
-  ];
-  cont.innerHTML = events.map(e=>`<div style="display:flex;gap:.75rem;align-items:center;padding:.7rem 1.2rem;border-bottom:1px solid #f3f4f6">
-    <span style="font-size:18px">${e.ico}</span>
-    <div style="flex:1"><div style="font-size:12.5px;font-weight:700;color:#111827">${e.titre}</div>
-    <div style="font-size:11px;color:#6b7280">${e.desc}</div></div>
-    <span class="badge amber" style="font-size:10px">${e.date}</span>
-  </div>`).join('');
+  // Lire l'agenda depuis Supabase (table evenements ou agenda) sinon fallback liste vide
+  let events = [];
+  try {
+    const { data, error } = await db.from("evenements").select("titre,description,date_evenement,type")
+      .eq("ecole_id", currentEcoleId)
+      .gte("date_evenement", new Date().toISOString().split("T")[0])
+      .order("date_evenement", { ascending: true }).limit(6);
+    if (!error && data) events = data;
+  } catch(e) { /* table absente : on continue */ }
+  _execState.agenda = events;
+
+  if (!events.length) {
+    cont.innerHTML = '<div style="padding:1.2rem;text-align:center;color:#9ca3af;font-size:13px">Aucun événement à venir.<br><span style="font-size:11px">Créez des événements dans le module Calendrier.</span></div>';
+    return;
+  }
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const icoForType = t => ({
+    "reunion":"💼", "conseil":"📅", "remise":"🎓", "examen":"📝", "fete":"🎉", "autre":"📌"
+  }[String(t||"").toLowerCase()] || "📅");
+  cont.innerHTML = events.map(e => `<div style="display:flex;gap:.75rem;align-items:center;padding:.7rem 1.2rem;border-bottom:1px solid #f3f4f6">
+    <span style="font-size:18px">${icoForType(e.type)}</span>
+    <div style="flex:1"><div style="font-size:12.5px;font-weight:700;color:#111827">${esc(e.titre)}</div>
+    <div style="font-size:11px;color:#6b7280">${esc(e.description||"")}</div></div>
+    <span class="badge amber" style="font-size:10px">${e.date_evenement ? new Date(e.date_evenement).toLocaleDateString("fr-FR") : ""}</span>
+  </div>`).join("");
 }
 
-function renderExecFinance() {
-  const kpis = document.getElementById('exec-finance-kpis');
-  if (kpis) kpis.innerHTML = [
-    {ico:'💰',bg:'#dcfce7',v:'15.4M F',l:'Recette du mois',t:'↑ +8.3%',c:'#059669'},
-    {ico:'💸',bg:'#fee2e2',v:'8.2M F',l:'Charges du mois',t:'↓ -2.1%',c:'#dc2626'},
-    {ico:'📈',bg:'#dbeafe',v:'7.2M F',l:'Résultat net',t:'↑ Excédent',c:'#1d4ed8'},
-  ].map(k=>`<div class="exec-scorecard"><div class="exec-sc-ico" style="background:${k.bg}">${k.ico}</div>
-    <div><div class="exec-sc-val" style="color:${k.c}">${k.v}</div><div class="exec-sc-lbl">${k.l}</div>
-    <div class="exec-sc-trend up">${k.t}</div></div></div>`).join('');
+async function renderExecFinance() {
+  const finance = _execState.finance || {};
+  // KPI Finance : recette, charges (depuis personnel/enseignants salaire), résultat
+  const masseSalariale = (_execState.rh?.dataPersonnel || []).reduce((s,p) => s + (parseFloat(p.salaire)||0), 0)
+                       + (_execState.rh?.dataEnseig    || []).reduce((s,p) => s + (parseFloat(p.salaire)||0), 0);
+  const resultat = (finance.recetteMois || 0) - masseSalariale;
 
-  const bvr = document.getElementById('exec-budget-vs-reel');
+  const kpis = document.getElementById("exec-finance-kpis");
+  if (kpis) kpis.innerHTML = [
+    { ico: "💰", bg: "#dcfce7", v: execFmtMontant(finance.recetteMois || 0),    l: "Recette du mois", c: "#059669" },
+    { ico: "💸", bg: "#fee2e2", v: execFmtMontant(masseSalariale),               l: "Masse salariale (mensuelle)", c: "#dc2626" },
+    { ico: resultat >= 0 ? "📈" : "📉", bg: "#dbeafe", v: execFmtMontant(resultat), l: "Résultat estimé", c: resultat >= 0 ? "#059669" : "#dc2626" },
+  ].map(k => `<div class="exec-scorecard"><div class="exec-sc-ico" style="background:${k.bg}">${k.ico}</div>
+    <div><div class="exec-sc-val" style="color:${k.c}">${k.v}</div><div class="exec-sc-lbl">${k.l}</div></div></div>`).join("");
+
+  // Budget vs Réalisé : par type de frais (depuis factures)
+  const bvr = document.getElementById("exec-budget-vs-reel");
   if (bvr) {
-    const lignes = [
-      {cat:'Frais de scolarité', budget:45000000, reel:38500000},
-      {cat:'Frais examens', budget:8000000, reel:6200000},
-      {cat:'Subventions', budget:5000000, reel:4800000},
-    ];
-    bvr.innerHTML = lignes.map(l=>{
-      const pct = Math.round(l.reel/l.budget*100);
-      return `<div class="metier-bar"><div class="metier-bar-label">
-        <span>${l.cat}</span>
-        <span style="color:${pct>=80?'#059669':'#d97706'};font-weight:700">${(l.reel/1000000).toFixed(1)}M / ${(l.budget/1000000).toFixed(1)}M F</span>
-      </div><div class="metier-track"><div class="metier-fill" style="width:${pct}%;background:${pct>=80?'#059669':'#d97706'}"></div></div></div>`;
-    }).join('');
+    const byType = {};
+    const { data: dataFact } = await db.from("factures").select("type_frais,montant_total,montant_paye").eq("ecole_id", currentEcoleId);
+    (dataFact || []).forEach(f => {
+      const t = f.type_frais || "Autres";
+      if (!byType[t]) byType[t] = { budget: 0, reel: 0 };
+      byType[t].budget += (parseFloat(f.montant_total)||0);
+      byType[t].reel   += (parseFloat(f.montant_paye)||0);
+    });
+    const lignes = Object.entries(byType).sort((a,b) => b[1].budget - a[1].budget).slice(0, 5);
+    if (!lignes.length) {
+      bvr.innerHTML = '<div style="padding:.8rem;text-align:center;color:#9ca3af;font-size:13px">Aucune facture enregistrée.</div>';
+    } else {
+      bvr.innerHTML = lignes.map(([cat, v]) => {
+        const pct = v.budget > 0 ? Math.round(v.reel / v.budget * 100) : 0;
+        const color = pct >= 80 ? "#059669" : pct >= 50 ? "#d97706" : "#dc2626";
+        return `<div class="metier-bar"><div class="metier-bar-label">
+          <span>${cat}</span>
+          <span style="color:${color};font-weight:700">${execFmtMontant(v.reel)} / ${execFmtMontant(v.budget)}</span>
+        </div><div class="metier-track"><div class="metier-fill" style="width:${pct}%;background:${color}"></div></div></div>`;
+      }).join("");
+    }
   }
 
-  const creances = document.getElementById('exec-creances');
-  if (creances) creances.innerHTML = [
-    {label:'0–30 jours',v:'850 000 F',cls:'amber'},
-    {label:'31–60 jours',v:'620 000 F',cls:'red'},
-    {label:'61–90 jours',v:'480 000 F',cls:'red'},
-  ].map(l=>`<div class="kpi-row"><span class="kpi-label">${l.label}</span><span class="badge ${l.cls}">${l.v}</span></div>`).join('');
+  // Créances par tranche
+  const creances = finance.creances || { "0-30":0, "31-60":0, "61-90":0, "91+":0 };
+  const cr = document.getElementById("exec-creances");
+  if (cr) cr.innerHTML = [
+    { label: "0–30 jours",  v: execFmtMontant(creances["0-30"]),  cls: "amber" },
+    { label: "31–60 jours", v: execFmtMontant(creances["31-60"]), cls: "red" },
+    { label: "61–90 jours", v: execFmtMontant(creances["61-90"]), cls: "red" },
+    { label: "+ de 90 j",   v: execFmtMontant(creances["91+"]),   cls: "red" },
+  ].map(l => `<div class="kpi-row"><span class="kpi-label">${l.label}</span><span class="badge ${l.cls}">${l.v}</span></div>`).join("");
+
+  // Chart évolution recettes 12 mois
+  await renderExecChartRecettes();
+}
+
+async function renderExecChartRecettes() {
+  const canvas = document.getElementById("exec-chart-recettes");
+  if (!canvas || typeof Chart === "undefined") return;
+  // Récupérer paiements 12 derniers mois
+  const il12m = new Date(); il12m.setMonth(il12m.getMonth() - 11); il12m.setDate(1);
+  const { data, error } = await db.from("paiements")
+    .select("montant_paye,created_at")
+    .eq("ecole_id", currentEcoleId)
+    .gte("created_at", il12m.toISOString());
+  if (error) return;
+  // Bucket par mois
+  const buckets = {};
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(); d.setMonth(d.getMonth() - i); d.setDate(1);
+    const k = d.toISOString().slice(0,7);
+    buckets[k] = 0;
+  }
+  (data || []).forEach(p => {
+    const k = (p.created_at || "").slice(0,7);
+    if (k in buckets) buckets[k] += (parseFloat(p.montant_paye)||0);
+  });
+  const labels = Object.keys(buckets).map(k => {
+    const [y,m] = k.split("-");
+    return new Date(parseInt(y), parseInt(m)-1, 1).toLocaleDateString("fr-FR", {month:"short", year:"2-digit"});
+  });
+  const values = Object.values(buckets);
+  if (_execChartRecettes) { try { _execChartRecettes.destroy(); } catch(e){} }
+  _execChartRecettes = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{ label: "Recettes (F)", data: values, borderColor: "#059669", backgroundColor: "rgba(5,150,105,.12)", fill: true, tension: 0.3, borderWidth: 2 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => execFmtMontant(v) } } },
+    },
+  });
 }
 
 function renderExecPedagogie() {
-  const kpis = document.getElementById('exec-peda-kpis');
+  const peda = _execState.peda || {};
+  const kpis = document.getElementById("exec-peda-kpis");
   if (kpis) kpis.innerHTML = [
-    {ico:'📊',bg:'#dbeafe',v:'13.4/20',l:'Moyenne générale',t:'↑ +0.4 pts',c:'#1d4ed8'},
-    {ico:'✅',bg:'#dcfce7',v:'78%',l:'Taux de réussite',t:'↑ +3.2%',c:'#059669'},
-    {ico:'🚫',bg:'#fee2e2',v:'8.2%',l:'Absentéisme',t:'↓ À surveiller',c:'#dc2626'},
-  ].map(k=>`<div class="exec-scorecard"><div class="exec-sc-ico" style="background:${k.bg}">${k.ico}</div>
-    <div><div class="exec-sc-val" style="color:${k.c}">${k.v}</div><div class="exec-sc-lbl">${k.l}</div>
-    <div class="exec-sc-trend up">${k.t}</div></div></div>`).join('');
+    { ico: "📊", bg: "#dbeafe", v: (peda.moyGen||0).toFixed(1)+"/20",       l: "Moyenne générale", c: "#1d4ed8" },
+    { ico: "✅", bg: "#dcfce7", v: (peda.tauxReussite||0).toFixed(0)+"%",   l: "Taux de réussite", c: "#059669" },
+    { ico: "🚫", bg: "#fee2e2", v: (peda.absenteisme||0).toFixed(1)+"%",    l: "Absentéisme (30j)", c: "#dc2626" },
+  ].map(k => `<div class="exec-scorecard"><div class="exec-sc-ico" style="background:${k.bg}">${k.ico}</div>
+    <div><div class="exec-sc-val" style="color:${k.c}">${k.v}</div><div class="exec-sc-lbl">${k.l}</div></div></div>`).join("");
 
-  const tbody = document.getElementById('exec-perf-classes');
-  if (tbody) tbody.innerHTML = [
-    {classe:'Terminale D', eff:28, moy:13.4, taux:78, abs:8.2, t:'↑'},
-    {classe:'Terminale C', eff:25, moy:14.1, taux:82, abs:6.1, t:'↑'},
-    {classe:'1ère A', eff:30, moy:15.2, taux:88, abs:4.3, t:'↑'},
-    {classe:'2nde B', eff:32, moy:12.8, taux:71, abs:10.5, t:'↓'},
-  ].map(c=>`<tr>
-    <td><strong>${c.classe}</strong></td><td>${c.eff}</td>
-    <td><span class="badge ${c.moy>=14?'green':'amber'}">${c.moy}/20</span></td>
-    <td><span class="badge ${c.taux>=80?'green':'amber'}">${c.taux}%</span></td>
-    <td><span class="badge ${c.abs<=7?'green':'red'}">${c.abs}%</span></td>
-    <td style="font-size:18px">${c.t==='↑'?'📈':'📉'}</td>
-  </tr>`).join('');
+  const tbody = document.getElementById("exec-perf-classes");
+  if (tbody) {
+    const rows = (peda.perfClasses || []).filter(c => c.eff > 0);
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1rem;color:#9ca3af;font-size:13px">Aucune classe avec étudiants.</td></tr>';
+    } else {
+      const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      tbody.innerHTML = rows.map(c => `<tr>
+        <td><strong>${esc(c.nom)}</strong></td>
+        <td>${c.eff}</td>
+        <td><span class="badge ${c.moy>=14?"green":c.moy>=10?"amber":"red"}">${c.notes.length ? c.moy.toFixed(1)+"/20" : "—"}</span></td>
+        <td><span class="badge ${c.reussite>=80?"green":c.reussite>=60?"amber":"red"}">${c.notes.length ? c.reussite.toFixed(0)+"%" : "—"}</span></td>
+        <td><span class="badge ${c.tauxAbs<=7?"green":c.tauxAbs<=10?"amber":"red"}">${c.tauxAbs.toFixed(1)}%</span></td>
+        <td style="font-size:18px">${c.moy>=10 ? "📈" : "📉"}</td>
+      </tr>`).join("");
+    }
+  }
 
-  const diff = document.getElementById('exec-eleves-diff');
-  if (diff) diff.innerHTML = [
-    {nom:'Koffi Adjaho', classe:'Tle C', moy:7.2, abs:22},
-    {nom:'Aïcha Sossa', classe:'2nde B', moy:8.1, abs:15},
-    {nom:'René Dakpo', classe:'Tle D', moy:8.9, abs:12},
-  ].map(e=>`<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1.2rem;border-bottom:1px solid #f3f4f6">
-    <span style="font-size:20px">⚠️</span>
-    <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#111827">${e.nom}</div>
-    <div style="font-size:11.5px;color:#6b7280">${e.classe} · ${e.abs}% absences</div></div>
-    <span class="badge red">${e.moy}/20</span>
-    <button class="btn-sm btn-blue" onclick="showToast('📋 Fiche de suivi ouverte','info')">Suivre</button>
-  </div>`).join('');
+  const diff = document.getElementById("exec-eleves-diff");
+  if (diff) {
+    const list = peda.elevesDiff || [];
+    if (!list.length) {
+      diff.innerHTML = '<div style="padding:1.2rem;text-align:center;color:#9ca3af;font-size:13px">✅ Aucun élève en difficulté détecté</div>';
+    } else {
+      const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      diff.innerHTML = list.map(e => `<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1.2rem;border-bottom:1px solid #f3f4f6">
+        <span style="font-size:20px">⚠️</span>
+        <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#111827">${esc(e.nom)}</div>
+        <div style="font-size:11.5px;color:#6b7280">${esc(e.classe)} · ${e.abs} absence(s)</div></div>
+        <span class="badge red">${e.moy.toFixed(1)}/20</span>
+        <button class="btn-sm btn-blue" onclick="execOuvrirFicheEtudiant('${e.id}')">Suivre</button>
+      </div>`).join("");
+    }
+  }
+
+  // Chart progression annuelle (moyenne par mois)
+  renderExecChartProgression();
+}
+
+async function renderExecChartProgression() {
+  const canvas = document.getElementById("exec-chart-prog");
+  if (!canvas || typeof Chart === "undefined") return;
+  const il12m = new Date(); il12m.setMonth(il12m.getMonth() - 11); il12m.setDate(1);
+  const { data, error } = await db.from("notes")
+    .select("note,coefficient,created_at")
+    .eq("ecole_id", currentEcoleId)
+    .gte("created_at", il12m.toISOString());
+  if (error) return;
+  const buckets = {};
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(); d.setMonth(d.getMonth() - i); d.setDate(1);
+    const k = d.toISOString().slice(0,7);
+    buckets[k] = { sum: 0, coef: 0 };
+  }
+  (data || []).forEach(n => {
+    const k = (n.created_at || "").slice(0,7);
+    if (k in buckets && n.note != null) {
+      buckets[k].sum  += parseFloat(n.note) * (n.coefficient || 1);
+      buckets[k].coef += (n.coefficient || 1);
+    }
+  });
+  const labels = Object.keys(buckets).map(k => {
+    const [y,m] = k.split("-");
+    return new Date(parseInt(y), parseInt(m)-1, 1).toLocaleDateString("fr-FR", {month:"short"});
+  });
+  const values = Object.values(buckets).map(b => b.coef ? +(b.sum/b.coef).toFixed(2) : null);
+  if (_execChartProg) { try { _execChartProg.destroy(); } catch(e){} }
+  _execChartProg = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{ label: "Moyenne /20", data: values, borderColor: "#1d4ed8", backgroundColor: "rgba(29,78,216,.12)", fill: true, tension: 0.3, borderWidth: 2, spanGaps: true }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { min: 0, max: 20 } },
+    },
+  });
 }
 
 function renderExecRH() {
-  const kpis = document.getElementById('exec-rh-kpis');
+  const rh = _execState.rh || {};
+  const kpis = document.getElementById("exec-rh-kpis");
+  const masseSalariale = (rh.dataPersonnel || []).reduce((s,p) => s + (parseFloat(p.salaire)||0), 0)
+                       + (rh.dataEnseig    || []).reduce((s,p) => s + (parseFloat(p.salaire)||0), 0);
   if (kpis) kpis.innerHTML = [
-    {ico:'👥',bg:'#dbeafe',v:'86',l:'Total personnel',t:'→ Stable',c:'#1d4ed8'},
-    {ico:'💰',bg:'#dcfce7',v:'12.8M F',l:'Masse salariale',t:'↑ +3%',c:'#059669'},
-    {ico:'📋',bg:'#fef9c3',v:'3',l:'Contrats à renouveler',t:'⚠️ Avant le 31/05',c:'#d97706'},
-  ].map(k=>`<div class="exec-scorecard"><div class="exec-sc-ico" style="background:${k.bg}">${k.ico}</div>
-    <div><div class="exec-sc-val" style="color:${k.c}">${k.v}</div><div class="exec-sc-lbl">${k.l}</div>
-    <div class="exec-sc-trend up">${k.t}</div></div></div>`).join('');
+    { ico: "👥", bg: "#dbeafe", v: rh.totalPersonnel || 0,           l: "Total personnel", c: "#1d4ed8" },
+    { ico: "💰", bg: "#dcfce7", v: execFmtMontant(masseSalariale),  l: "Masse salariale", c: "#059669" },
+    { ico: "👨‍🏫", bg: "#fef9c3", v: rh.nbEnseignants || 0,           l: "Enseignants",      c: "#d97706" },
+  ].map(k => `<div class="exec-scorecard"><div class="exec-sc-ico" style="background:${k.bg}">${k.ico}</div>
+    <div><div class="exec-sc-val" style="color:${k.c}">${k.v}</div><div class="exec-sc-lbl">${k.l}</div></div></div>`).join("");
 
-  const tbody = document.getElementById('exec-rh-table');
-  if (tbody) tbody.innerHTML = [
-    {cat:'Enseignants', nb:64, pct:74, salaire:'9.4M F', abs:2},
-    {cat:'Administration', nb:12, pct:14, salaire:'1.8M F', abs:1},
-    {cat:'Personnel de service', nb:8, pct:9, salaire:'960K F', abs:0},
-    {cat:'Direction', nb:2, pct:2, salaire:'640K F', abs:0},
-  ].map(r=>`<tr>
-    <td><strong>${r.cat}</strong></td><td>${r.nb}</td>
-    <td><span class="badge blue">${r.pct}%</span></td>
-    <td><strong style="color:#059669">${r.salaire}</strong></td>
-    <td><span class="badge ${r.abs>0?'amber':'green'}">${r.abs}</span></td>
-    <td><span class="badge green">Actif</span></td>
-  </tr>`).join('');
+  const tbody = document.getElementById("exec-rh-table");
+  if (tbody) {
+    // Regrouper personnel par catégorie/poste
+    const byCat = {};
+    (rh.dataEnseig || []).forEach(p => {
+      const cat = "Enseignants";
+      if (!byCat[cat]) byCat[cat] = { nb: 0, salaire: 0 };
+      byCat[cat].nb++; byCat[cat].salaire += (parseFloat(p.salaire)||0);
+    });
+    (rh.dataPersonnel || []).forEach(p => {
+      const cat = p.poste || p.fonction || "Autre";
+      if (!byCat[cat]) byCat[cat] = { nb: 0, salaire: 0 };
+      byCat[cat].nb++; byCat[cat].salaire += (parseFloat(p.salaire)||0);
+    });
+    const total = Object.values(byCat).reduce((s,v) => s + v.nb, 0);
+    const lignes = Object.entries(byCat).sort((a,b) => b[1].nb - a[1].nb);
+    if (!lignes.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1rem;color:#9ca3af;font-size:13px">Aucun personnel enregistré.</td></tr>';
+    } else {
+      const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      tbody.innerHTML = lignes.map(([cat, v]) => `<tr>
+        <td><strong>${esc(cat)}</strong></td>
+        <td>${v.nb}</td>
+        <td><span class="badge blue">${total ? Math.round(v.nb/total*100) : 0}%</span></td>
+        <td><strong style="color:#059669">${execFmtMontant(v.salaire)}</strong></td>
+        <td><span class="badge green">—</span></td>
+        <td><span class="badge green">Actif</span></td>
+      </tr>`).join("");
+    }
+  }
 }
 
 function renderExecRapports() {
-  const list = document.getElementById('exec-rapports-list');
+  const list = document.getElementById("exec-rapports-list");
   if (!list) return;
+  // Liste de rapports vraiment exportables en CSV
   const rapports = [
-    {ico:'📊',bg:'#dbeafe',titre:'Rapport mensuel de direction',desc:'Synthèse KPIs · Mars 2026',date:'01/04/2026'},
-    {ico:'💳',bg:'#dcfce7',titre:'Bilan financier T2',desc:'Recettes, charges, résultat net',date:'28/03/2026'},
-    {ico:'🎓',bg:'#ede9fe',titre:'Rapport pédagogique S1',desc:'Résultats, moyennes, taux de réussite',date:'25/03/2026'},
-    {ico:'👥',bg:'#fef9c3',titre:'Rapport RH annuel',desc:'Effectifs, masse salariale, congés',date:'15/03/2026'},
+    { ico: "📊", bg: "#dbeafe", titre: "Rapport mensuel de direction",       desc: "Synthèse KPIs du mois en cours",        action: "exporterRapportDirecteur()" },
+    { ico: "💳", bg: "#dcfce7", titre: "Bilan financier",                    desc: "Recettes, factures, créances",          action: "exporterRapportFinance()" },
+    { ico: "🎓", bg: "#ede9fe", titre: "Rapport pédagogique",                desc: "Moyennes, réussite par classe",         action: "exporterRapportPedagogie()" },
+    { ico: "👥", bg: "#fef9c3", titre: "Rapport RH",                          desc: "Effectifs, masse salariale",            action: "exporterRapportRH()" },
   ];
-  list.innerHTML = rapports.map(r=>`<div class="exec-rapport-item">
+  list.innerHTML = rapports.map(r => `<div class="exec-rapport-item">
     <div class="eri-ico" style="background:${r.bg}">${r.ico}</div>
     <div class="eri-body"><div class="eri-titre">${r.titre}</div><div class="eri-desc">${r.desc}</div></div>
-    <div class="eri-date">${r.date}</div>
-    <button class="btn-sm btn-secondary" onclick="showToast('📥 Téléchargement du rapport...','info')">📥</button>
-  </div>`).join('');
+    <div class="eri-date">${new Date().toLocaleDateString("fr-FR")}</div>
+    <button class="btn-sm btn-secondary" onclick="${r.action}">📥</button>
+  </div>`).join("");
 }
 
 function execSwitchTab(tab, btn) {
-  ['vue-gen','finance','pedagogie','rh-exec','rapports-dir'].forEach(t=>{
-    const el=document.getElementById('exec-tab-'+t); if(el) el.style.display=t===tab?'block':'none';
+  ["vue-gen","finance","pedagogie","rh-exec","rapports-dir"].forEach(t => {
+    const el = document.getElementById("exec-tab-"+t); if (el) el.style.display = (t===tab ? "block" : "none");
   });
-  document.querySelectorAll('#page-exec-dashboard .tab').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
+  document.querySelectorAll("#page-exec-dashboard .tab").forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
 }
 
-function actualiserExec() { chargerExecDashboard(); showToast('🔄 Dashboard actualisé','success'); }
-function exporterRapportDirecteur() { showToast('📥 Rapport direction en cours de génération PDF...','info'); }
+async function actualiserExec() {
+  showToast("🔄 Actualisation...", "info");
+  await chargerExecDashboard();
+  showToast("✅ Dashboard actualisé", "success");
+}
+
+function execOuvrirFicheEtudiant(id) {
+  // Ouvre le portail étudiant ciblé sur cet élève
+  if (typeof showPage === "function") showPage("portail-etudiant");
+  if (typeof setPortailEtudiantId === "function") setPortailEtudiantId(id);
+  else if (typeof chargerPortailEtudiant === "function") chargerPortailEtudiant(id);
+}
+
+// ── Exports CSV par section ──
+function exporterRapportDirecteur() {
+  const h    = _execState.hero    || {};
+  const peda = _execState.peda    || {};
+  const fin  = _execState.finance || {};
+  const rh   = _execState.rh      || {};
+  const header = ["Section","Indicateur","Valeur"];
+  const rows = [
+    ["Vue générale","Élèves inscrits",          h.effectif || 0],
+    ["Vue générale","Taux de réussite (%)",     (peda.tauxReussite||0).toFixed(1)],
+    ["Vue générale","Recette du mois (F)",      Math.round(fin.recetteMois || 0)],
+    ["Vue générale","Alertes actives",          h.alertesActives || 0],
+    ["Pédagogie","Moyenne générale (/20)",       (peda.moyGen || 0).toFixed(2)],
+    ["Pédagogie","Absentéisme 30j (%)",          (peda.absenteisme || 0).toFixed(2)],
+    ["Finance","Total facturé (F)",              Math.round(fin.totalFacture || 0)],
+    ["Finance","Total payé (F)",                 Math.round(fin.totalPaye || 0)],
+    ["Finance","Impayés (F)",                    Math.round(fin.impayes || 0)],
+    ["Finance","Taux recouvrement (%)",          (fin.tauxRecouvr || 0).toFixed(1)],
+    ["RH","Total personnel",                     rh.totalPersonnel || 0],
+    ["RH","Enseignants",                         rh.nbEnseignants || 0],
+  ];
+  // Top 5 étudiants
+  (peda.top5 || []).forEach((e,i) => rows.push([`Top ${i+1}`, e.nom, `${e.classe} · ${e.moy.toFixed(1)}/20`]));
+  // Alertes
+  (_execState.alertes || []).forEach(a => rows.push(["Alerte", a.titre, a.detail]));
+  csvDownload(`EduLink-Direction-${new Date().toISOString().split("T")[0]}.csv`, header, rows);
+  showToast("📥 Rapport direction exporté", "success");
+}
+
+function exporterRapportFinance() {
+  const fin = _execState.finance || {};
+  const c   = fin.creances || {};
+  const header = ["Indicateur","Valeur (F)"];
+  const rows = [
+    ["Recette du mois",      Math.round(fin.recetteMois || 0)],
+    ["Total facturé",        Math.round(fin.totalFacture || 0)],
+    ["Total payé",           Math.round(fin.totalPaye || 0)],
+    ["Impayés",              Math.round(fin.impayes || 0)],
+    ["Taux recouvrement %",  (fin.tauxRecouvr || 0).toFixed(1)],
+    ["Créances 0–30 j",      Math.round(c["0-30"] || 0)],
+    ["Créances 31–60 j",     Math.round(c["31-60"] || 0)],
+    ["Créances 61–90 j",     Math.round(c["61-90"] || 0)],
+    ["Créances + de 90 j",   Math.round(c["91+"] || 0)],
+  ];
+  csvDownload(`EduLink-Finance-${new Date().toISOString().split("T")[0]}.csv`, header, rows);
+  showToast("📥 Bilan financier exporté", "success");
+}
+
+function exporterRapportPedagogie() {
+  const peda = _execState.peda || {};
+  const header = ["Classe","Effectif","Moyenne /20","Taux réussite %","Absentéisme % (30j)"];
+  const rows = (peda.perfClasses || []).filter(c => c.eff > 0).map(c => [
+    c.nom, c.eff,
+    c.notes.length ? c.moy.toFixed(2) : "—",
+    c.notes.length ? c.reussite.toFixed(1) : "—",
+    c.tauxAbs.toFixed(2),
+  ]);
+  // Top et difficultés
+  rows.push(["—","—","—","—","—"]);
+  (peda.top5 || []).forEach((e,i) => rows.push([`Top ${i+1}: ${e.nom}`, e.classe, e.moy.toFixed(2), "—", "—"]));
+  rows.push(["—","—","—","—","—"]);
+  (peda.elevesDiff || []).forEach(e => rows.push([`Difficulté: ${e.nom}`, e.classe, e.moy.toFixed(2), "—", e.abs+" abs"]));
+  csvDownload(`EduLink-Pedagogie-${new Date().toISOString().split("T")[0]}.csv`, header, rows);
+  showToast("📥 Rapport pédagogique exporté", "success");
+}
+
+function exporterRapportRH() {
+  const rh = _execState.rh || {};
+  const header = ["Catégorie","Nom","Salaire (F)"];
+  const rows = [];
+  (rh.dataEnseig || []).forEach(e => rows.push(["Enseignant", `${e.prenom||""} ${e.nom||""}`.trim(), Math.round(parseFloat(e.salaire)||0)]));
+  (rh.dataPersonnel || []).forEach(p => rows.push([p.poste || p.fonction || "Personnel", `${p.prenom||""} ${p.nom||""}`.trim(), Math.round(parseFloat(p.salaire)||0)]));
+  csvDownload(`EduLink-RH-${new Date().toISOString().split("T")[0]}.csv`, header, rows);
+  showToast("📥 Rapport RH exporté", "success");
+}
 
 /* ══════════════════════════════════════════════════════════════════
    SUITE 12 — PORTAIL WEB PUBLIC ★ JOUR 39
