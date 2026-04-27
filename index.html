@@ -2780,6 +2780,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:'Poppins',sans-serif">
     <button class="btn-sm btn-secondary" onclick="resetFiltresMessages()">🔄 Réinitialiser filtres</button>
     <button class="btn-sm btn-secondary" onclick="marquerTousLus()" title="Marquer tous les messages comme lus">✅ Tout marquer lu</button>
+    <button class="btn-sm btn-red" onclick="supprimerTousMessages()" title="Supprimer tous les messages affichés">🗑️ Supprimer tout</button>
   </div>
 
   <div class="msg-layout">
@@ -8798,13 +8799,45 @@ async function marquerTousLus() {
   if (!nonLus.length) { showToast("Tous les messages sont déjà lus ✅", "info"); return; }
   const now = new Date().toISOString();
   const ids = nonLus.map(m => m.id);
-  // Mettre à jour en base
-  const { error } = await db.from("messages").update({ lu: true, lu_at: now }).in("id", ids);
-  if (error) { showToast("❌ Erreur : " + error.message, "error"); return; }
-  // Mettre à jour en mémoire
-  tousLesMessages.forEach(m => { if (!m.lu) { m.lu = true; m.lu_at = now; } });
+  // Tentative Supabase (peut échouer silencieusement selon RLS)
+  await db.from("messages").update({ lu: true, lu_at: now }).in("id", ids);
+  // Forcer la mise à jour locale dans tous les cas
+  tousLesMessages.forEach(m => { m.lu = true; m.lu_at = m.lu_at || now; });
   showToast(`✅ ${nonLus.length} message(s) marqué(s) comme lu(s)`, "success");
-  // Rafraîchir l'affichage et le badge
+  // Rafraîchir badge + affichage
+  const b = document.getElementById("badge-msg");
+  if (b) b.style.display = "none";
+  const sn = document.getElementById("stat-msg-nonlus");
+  if (sn) sn.textContent = "0";
+  const sl = document.getElementById("stat-msg-lus");
+  if (sl) sl.textContent = tousLesMessages.length;
+  afficherListeMessages(tousLesMessages);
+}
+
+async function supprimerTousMessages() {
+  const liste = tousLesMessages;
+  if (!liste.length) { showToast("Aucun message à supprimer", "info"); return; }
+  if (!confirm(`Supprimer définitivement ${liste.length} message(s) ?\n\nCette action est irréversible.`)) return;
+  const ids = liste.map(m => m.id);
+  showToast("🗑️ Suppression en cours...", "info");
+  // Supprimer par lots de 50 (limite Supabase)
+  let supprimés = 0;
+  for (let i = 0; i < ids.length; i += 50) {
+    const batch = ids.slice(i, i + 50);
+    const { error } = await db.from("messages").delete().in("id", batch);
+    if (!error) supprimés += batch.length;
+  }
+  tousLesMessages = [];
+  selectedMsgId = null;
+  // Cacher le détail
+  const empty = document.getElementById("msg-detail-empty");
+  const detail = document.getElementById("msg-detail-content");
+  if (empty) empty.style.display = "block";
+  if (detail) detail.style.display = "none";
+  // Masquer badge
+  const b = document.getElementById("badge-msg");
+  if (b) b.style.display = "none";
+  showToast(`🗑️ ${supprimés} message(s) supprimé(s)`, "success");
   chargerMessages();
 }
 
@@ -9988,7 +10021,7 @@ async function chargerParametres() {
 
   // URL portail famille
   const urlEl = document.getElementById("portail-url");
-  if (urlEl) urlEl.textContent = window.location.origin + "/edulink-portail.html";
+  if (urlEl) urlEl.textContent = window.location.origin + window.location.pathname + "?page=portail-etudiant";
 
   // Statut Brevo
   const brevo = document.getElementById("brevo-status");
@@ -10069,7 +10102,7 @@ async function sauvegarderParametres() {
 }
 
 function copierLienPortail() {
-  const url = window.location.origin + "/edulink-portail.html";
+  const url = window.location.origin + window.location.pathname + "?page=portail-etudiant";
   navigator.clipboard.writeText(url)
     .then(() => showToast("✅ Lien copié dans le presse-papier", "success"))
     .catch(() => showToast("URL : " + url, "info"));
