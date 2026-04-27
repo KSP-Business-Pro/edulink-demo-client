@@ -2778,7 +2778,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     </select>
     <input type="text" id="search-msg" placeholder="🔍 Rechercher..." oninput="filtrerMessages()"
       style="padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:'Poppins',sans-serif">
-    <button class="btn-sm btn-secondary" onclick="resetFiltresMessages()">🔄 Réinitialiser</button>
+    <button class="btn-sm btn-secondary" onclick="resetFiltresMessages()">🔄 Réinitialiser filtres</button>
+    <button class="btn-sm btn-secondary" onclick="marquerTousLus()" title="Marquer tous les messages comme lus">✅ Tout marquer lu</button>
   </div>
 
   <div class="msg-layout">
@@ -8790,6 +8791,21 @@ function filtrerMessages() {
 function resetFiltresMessages() {
   ['filter-msg-statut','filter-msg-role','search-msg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   afficherListeMessages(tousLesMessages);
+}
+
+async function marquerTousLus() {
+  const nonLus = tousLesMessages.filter(m => !m.lu);
+  if (!nonLus.length) { showToast("Tous les messages sont déjà lus ✅", "info"); return; }
+  const now = new Date().toISOString();
+  const ids = nonLus.map(m => m.id);
+  // Mettre à jour en base
+  const { error } = await db.from("messages").update({ lu: true, lu_at: now }).in("id", ids);
+  if (error) { showToast("❌ Erreur : " + error.message, "error"); return; }
+  // Mettre à jour en mémoire
+  tousLesMessages.forEach(m => { if (!m.lu) { m.lu = true; m.lu_at = now; } });
+  showToast(`✅ ${nonLus.length} message(s) marqué(s) comme lu(s)`, "success");
+  // Rafraîchir l'affichage et le badge
+  chargerMessages();
 }
 
 async function supprimerMessageActif() {
