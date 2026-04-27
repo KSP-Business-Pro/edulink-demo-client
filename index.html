@@ -16623,34 +16623,88 @@ async function sauvegarderRole() {
 const BREVO_API_KEY_DEFAULT = ''; // Configurer via Paramètres Avancés → Intégrations
 
 function getBrevoConfig() {
-  const saved = JSON.parse(localStorage.getItem('edulink_brevo_' + (currentEcoleId||'')) || '{}');
+  const saved = JSON.parse(localStorage.getItem("edulink_brevo_" + (currentEcoleId||"")) || "{}");
   return {
-    apiKey:    saved.apiKey    || '',
-    fromEmail: saved.fromEmail || 'kinnou1er@yahoo.fr',
-    fromName:  saved.fromName  || 'AI Conseil Benin — EduLink'
+    apiKey:    (saved.apiKey    || "").trim(),
+    fromEmail: (saved.fromEmail || "").trim(),
+    fromName:  (saved.fromName  || "EduLink").trim() || "EduLink",
   };
+}
+
+// Cache du résultat de vérification du sender (par email) — évite d'appeler /v3/senders à chaque envoi
+let _brevoSenderCache = { email: null, valid: null, fetchedAt: 0 };
+
+// Vérifie via l'API Brevo /v3/senders que l'expéditeur configuré existe bien et est vérifié.
+// Renvoie : { ok: true } si tout va bien, sinon { ok: false, reason: "..." } avec un diagnostic clair.
+async function verifierSenderBrevo(force = false) {
+  const cfg = getBrevoConfig();
+  if (!cfg.apiKey)    return { ok: false, reason: "Clé API Brevo manquante" };
+  if (!cfg.fromEmail) return { ok: false, reason: "Email expéditeur non configuré" };
+
+  // Cache 5 minutes
+  const now = Date.now();
+  if (!force && _brevoSenderCache.email === cfg.fromEmail && (now - _brevoSenderCache.fetchedAt) < 5*60*1000) {
+    return _brevoSenderCache.valid ? { ok: true } : { ok: false, reason: _brevoSenderCache.reason };
+  }
+
+  try {
+    const resp = await fetch("https://api.brevo.com/v3/senders", {
+      headers: { "api-key": cfg.apiKey, "accept": "application/json" }
+    });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      return { ok: false, reason: "API Brevo : " + (data.message || resp.status) };
+    }
+    const data = await resp.json();
+    const senders = data.senders || [];
+    const match = senders.find(s => (s.email||"").toLowerCase().trim() === cfg.fromEmail.toLowerCase());
+    if (!match) {
+      const dispo = senders.map(s => s.email).join(", ") || "(aucun)";
+      const reason = `L'expéditeur "${cfg.fromEmail}" n'est PAS enregistré dans votre compte Brevo. Senders existants : ${dispo}. Vérifiez l'orthographe du domaine et ajoutez-le sur app.brevo.com → Senders.`;
+      _brevoSenderCache = { email: cfg.fromEmail, valid: false, reason, fetchedAt: now };
+      return { ok: false, reason };
+    }
+    if (match.active === false) {
+      const reason = `L'expéditeur "${cfg.fromEmail}" existe mais n'est PAS validé/actif dans Brevo. Cliquez le lien de validation reçu par email.`;
+      _brevoSenderCache = { email: cfg.fromEmail, valid: false, reason, fetchedAt: now };
+      return { ok: false, reason };
+    }
+    _brevoSenderCache = { email: cfg.fromEmail, valid: true, reason: null, fetchedAt: now };
+    return { ok: true, sender: match };
+  } catch(e) {
+    return { ok: false, reason: "Erreur réseau : " + e.message };
+  }
 }
 
 // Fonction globale d'envoi d'email via Brevo API
 async function envoyerEmailBrevo({ to, toName, subject, html, text }) {
   const cfg = getBrevoConfig();
+  if (!cfg.apiKey)    return { ok: false, error: "Clé API Brevo non configurée" };
+  if (!cfg.fromEmail) return { ok: false, error: "Email expéditeur non configuré" };
   try {
-    const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: { 'api-key': cfg.apiKey, 'Content-Type': 'application/json' },
+    const resp = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { "api-key": cfg.apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
         sender:      { name: cfg.fromName, email: cfg.fromEmail },
         to:          [{ email: to, name: toName || to }],
         subject,
-        htmlContent: html || `<p>${(text||'').replace(/\n/g,'<br>')}</p>`
+        htmlContent: html || `<p>${(text||"").replace(/\n/g,"<br>")}</p>`
       })
     });
     const data = await resp.json();
-    if (!resp.ok) throw new Error(data.message || 'Erreur Brevo ' + resp.status);
-    console.log('[Brevo] ✅ Email envoyé à', to);
+    if (!resp.ok) {
+      // Détecter les erreurs de sender invalide pour invalider le cache
+      const msg = data.message || ("Erreur Brevo " + resp.status);
+      if (/sender/i.test(msg) && /(not valid|invalid|not authentified|not authenticated)/i.test(msg)) {
+        _brevoSenderCache = { email: null, valid: null, fetchedAt: 0 };
+      }
+      throw new Error(msg);
+    }
+    console.log("[Brevo] ✅ Email envoyé à", to);
     return { ok: true, messageId: data.messageId };
   } catch(e) {
-    console.warn('[Brevo] ❌ Erreur:', e.message);
+    console.warn("[Brevo] ❌ Erreur:", e.message);
     return { ok: false, error: e.message };
   }
 }
@@ -16844,7 +16898,7 @@ function ouvrirConfigBrevo() {
   if (panel.style.display === "block") brancherDmarcWatcher();
 }
 
-function sauvegarderConfigBrevo() {
+async function sauvegarderConfigBrevo() {
   const apiKey    = document.getElementById("brevo-api-key")?.value.trim();
   const fromEmail = document.getElementById("brevo-from-email")?.value.trim();
   if (!apiKey) { showToast("Clé API Brevo obligatoire", "error"); return; }
@@ -16855,11 +16909,20 @@ function sauvegarderConfigBrevo() {
     if (!ok) return;
   }
   localStorage.setItem("edulink_brevo_" + (currentEcoleId||""), JSON.stringify({ apiKey, fromEmail }));
-  showToast("✅ Configuration Brevo sauvegardée !", "success");
+  // Invalider le cache pour forcer une nouvelle vérification
+  _brevoSenderCache = { email: null, valid: null, fetchedAt: 0 };
+  showToast("✅ Configuration sauvegardée. Vérification du sender en cours...", "info");
   document.getElementById("config-brevo-panel").style.display = "none";
+  // Vérifier immédiatement que le sender existe vraiment dans Brevo
+  const check = await verifierSenderBrevo(true);
+  if (check.ok) {
+    showToast(`✅ Sender "${fromEmail}" validé dans Brevo — prêt à envoyer !`, "success");
+  } else {
+    showToast("⚠️ Configuration sauvegardée MAIS : " + check.reason, "error");
+  }
   // Mettre à jour le statut dans la carte
   const card = document.querySelector('[data-integ="brevo"]');
-  if (card) card.innerHTML = '<span class="badge green">✅ Configuré</span>';
+  if (card) card.innerHTML = check.ok ? '<span class="badge green">✅ Configuré</span>' : '<span class="badge red">⚠️ Sender invalide</span>';
 }
 
 async function testerBrevo() {
@@ -17890,6 +17953,15 @@ async function envoyerSMS() {
   const cfg = getBrevoConfig();
   if (!cfg.apiKey) { showToast("⚠️ Configurez Brevo dans Paramètres Avancés → Intégrations", "error"); return; }
 
+  // ── Pré-flight : vérifier que l'expéditeur est bien validé dans Brevo ──
+  // Évite de consommer le quota Brevo si la config est mauvaise (ex. faute de frappe domaine).
+  showToast("🔍 Vérification de l'expéditeur Brevo...", "info");
+  const senderCheck = await verifierSenderBrevo();
+  if (!senderCheck.ok) {
+    showToast("❌ " + senderCheck.reason, "error");
+    return;
+  }
+
   // Déterminer les destinataires (déduplication par id pour éviter les doublons)
   const contactsMap = new Map();
   const ajouter = (arr) => arr.forEach(c => { if (c && c.id && !contactsMap.has(c.id)) contactsMap.set(c.id, c); });
@@ -18187,6 +18259,9 @@ async function envoyerEmailParent(etudiantId, parentNom, parentEmail) {
   if (!msg) { showToast("Rédigez d'abord un message dans l'onglet Composer", "info"); return; }
   const cfg = getBrevoConfig();
   if (!cfg.apiKey) { showToast("⚠️ Configurez Brevo dans Paramètres Avancés → Intégrations", "error"); return; }
+  // Pré-flight : vérifier le sender (utilise le cache si déjà validé récemment)
+  const senderCheck = await verifierSenderBrevo();
+  if (!senderCheck.ok) { showToast("❌ " + senderCheck.reason, "error"); return; }
   const etu = _smsContactsCache.find(c => c.id === etudiantId);
   const msgP = msg.replace(/{nom_parent}/g, parentNom)
     .replace(/{nom_eleve}/g, etu ? `${etu.prenom} ${etu.nom}` : "")
