@@ -17088,11 +17088,24 @@ async function syncEcoleCouranteVersReseau() {
 async function chargerReseau() {
   if (!reseauInitialized) {
     reseauRestaurer();
-    // Si réseau vide → pré-peupler avec l'école courante depuis Supabase
     if (!tousLesEtablissements.length && currentEcoleId) {
       await syncEcoleCouranteVersReseau();
     }
     reseauInitialized = true;
+  }
+
+  // Re-sync automatique des vrais chiffres depuis Supabase pour l'école courante
+  if (currentEcoleId) {
+    const idx = tousLesEtablissements.findIndex(e => String(e.id) === String(currentEcoleId));
+    if (idx >= 0) {
+      const [{ count: nbEt }, { count: nbEns }] = await Promise.all([
+        db.from('etudiants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
+        db.from('enseignants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
+      ]);
+      tousLesEtablissements[idx].eleves      = nbEt  || 0;
+      tousLesEtablissements[idx].enseignants = nbEns || 0;
+      reseauSauvegarder();
+    }
   }
 
   const ecoles = tousLesEtablissements;
@@ -17122,7 +17135,7 @@ function renderEtablissements(etabs) {
   const grid = document.getElementById('reseau-grid-etablissements');
   if(!etabs.length){grid.innerHTML='<div class="empty-state">🏫 Aucun établissement</div>';return;}
   grid.innerHTML = etabs.map(e=>`<div class="reseau-card ${e.type}">
-    <div class="reseau-card-header" onclick="voirDetailEtablissement(${e.id})" style="cursor:pointer">
+    <div class="reseau-card-header" onclick="voirDetailEtablissement('${e.id}')" style="cursor:pointer">
       <div class="reseau-card-ico" style="background:${e.color}15;border:2px solid ${e.color}30">${e.ico}</div>
       <div style="flex:1">
         <div class="reseau-card-nom">${e.nom}</div>
@@ -17143,8 +17156,8 @@ function renderEtablissements(etabs) {
       <span style="font-size:12px;font-weight:700;color:#059669">${(e.recette_mois/1000).toFixed(0)}K F/mois</span>
     </div>
     <div style="display:flex;gap:6px;margin-top:8px;border-top:1px solid #f3f4f6;padding-top:8px">
-      <button class="btn-sm btn-secondary" style="flex:1" onclick="ouvrirModificationEtablissement(${e.id})">${"✏️ Modifier"}</button>
-      <button class="btn-sm btn-red" style="flex:1" onclick="supprimerEtablissement(${e.id})">${"🗑️ Suppr"}</button>
+      <button class="btn-sm btn-secondary" style="flex:1" onclick="ouvrirModificationEtablissement('${e.id}')">${"✏️ Modifier"}</button>
+      <button class="btn-sm btn-red" style="flex:1" onclick="supprimerEtablissement('${e.id}')">${"🗑️ Suppr"}</button>
     </div>
   </div>`).join('');
 }
@@ -17272,7 +17285,7 @@ function ouvrirModalAddEtablissement() {
 }
 
 function ouvrirModificationEtablissement(id) {
-  const e = tousLesEtablissements.find(et=>et.id===id);
+  const e = tousLesEtablissements.find(et => String(et.id) === String(id));
   if(!e) return;
   document.getElementById('etab-nom').value        = e.nom||'';
   document.getElementById('etab-ville').value      = e.ville||'';
@@ -17298,7 +17311,7 @@ function ajouterEtablissement() {
   const icos   = {lycee:'🏫',college:'🏛️',primaire:'⭐',universite:'🎓'};
   const colors = {lycee:'#1e3a5f',college:'#059669',primaire:'#d97706',universite:'#7c3aed'};
   const modal  = document.getElementById('modal-add-etab');
-  const editId = modal?.dataset?.editId ? parseInt(modal.dataset.editId) : 0;
+  const editId = modal?.dataset?.editId || '';
 
   const vals = {
     nom, ville, type, statut,
@@ -17310,7 +17323,7 @@ function ajouterEtablissement() {
   };
 
   if (editId) {
-    const idx = tousLesEtablissements.findIndex(e=>e.id===editId);
+    const idx = tousLesEtablissements.findIndex(e => String(e.id) === String(editId));
     if(idx<0){showToast("Établissement introuvable",'error');return;}
     tousLesEtablissements[idx] = { ...tousLesEtablissements[idx], ...vals };
     showToast(`✅ ${nom} mis à jour !`,'success');
@@ -17324,10 +17337,10 @@ function ajouterEtablissement() {
 }
 
 function supprimerEtablissement(id) {
-  const e = tousLesEtablissements.find(et=>et.id===id);
+  const e = tousLesEtablissements.find(et => String(et.id) === String(id));
   if(!e) return;
   if(!confirm(`Retirer "${e.nom}" du réseau ? Cette action est irréversible.`)) return;
-  tousLesEtablissements = tousLesEtablissements.filter(et=>et.id!==id);
+  tousLesEtablissements = tousLesEtablissements.filter(et => String(et.id) !== String(id));
   reseauSauvegarder();
   chargerReseau();
   showToast('🗑️ Établissement retiré du réseau.','success');
