@@ -5110,7 +5110,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <button class="tab active" onclick="pwaSwitchTab('installation',this)">📲 Installation</button>
     <button class="tab" onclick="pwaSwitchTab('performance',this)">⚡ Performance</button>
     <button class="tab" onclick="pwaSwitchTab('cache',this)">💾 Cache & Hors-ligne</button>
-    <button class="tab" onclick="pwaSwitchTab('push',this)">🔔 Notifications Push</button>
   </div>
 
   <!-- Layout PWA -->
@@ -5161,29 +5160,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div class="pwa-block" style="margin-top:1rem">
           <div class="pwa-block-header"><span>🔄 Synchronisation hors-ligne</span></div>
           <div style="padding:1rem" id="pwa-sync-list"></div>
-        </div>
-      </div>
-
-      <!-- TAB Notifications Push -->
-      <div id="pwa-tab-push" style="display:none">
-        <div class="pwa-block">
-          <div class="pwa-block-header">
-            <span>🔔 Statistiques notifications push</span>
-          </div>
-          <div class="push-stat-grid" id="pwa-push-stats"></div>
-        </div>
-        <div class="pwa-block" style="margin-top:1rem">
-          <div class="pwa-block-header">
-            <span>📤 Envoyer une notification push test</span>
-          </div>
-          <div style="padding:1rem">
-            <div class="form-group"><label>Titre</label><input id="push-titre" value="EduLink — Notification test" /></div>
-            <div class="form-group"><label>Message</label><textarea id="push-message" rows="2" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none">Ceci est un test de notification push EduLink !</textarea></div>
-            <div style="display:flex;gap:8px;justify-content:flex-end">
-              <button class="btn-purple" onclick="envoyerPushTest()">📤 Test local</button>
-              <button class="btn-blue" onclick="envoyerPushATous()">📢 Envoyer à tous</button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -18535,8 +18511,7 @@ let _pwaState = {
   devices:   [],   // Depuis la table pwa_devices (Supabase) ou détection navigateur
   cacheInfo: null, // { caches: [{name, count, sizeBytes}], totalBytes, quotaBytes }
   perfTimes: null, // { fcp, tti, load, swReady } en ms (mesurés via Performance API)
-  pushStats: null, // Stats push réelles depuis localStorage
-  envInfo:   null, // Manifest, SW, HTTPS, version, permissions
+  envInfo:   null, // Manifest, SW, HTTPS, version
 };
 
 // Détection des informations système RÉELLES (pas mensongères)
@@ -18565,9 +18540,6 @@ async function pwaDetecterEnvironnement() {
     const r = await fetch("manifest.json", { cache: "no-store" });
     if (r.ok) { const m = await r.json(); manifestStatus = m.name ? `✅ ${m.name}` : "✅ Valide"; }
   } catch(e) { manifestStatus = "❌ Inaccessible"; }
-  // Permissions notification
-  let pushPerm = "default";
-  if ("Notification" in window) pushPerm = Notification.permission;
   // HTTPS
   const httpsActive = window.location.protocol === "https:" || window.location.hostname === "localhost";
   return {
@@ -18576,7 +18548,6 @@ async function pwaDetecterEnvironnement() {
     isStandalone,
     swStatus, swActive,
     manifestStatus,
-    pushPerm,
     httpsActive,
     appVersion: "2.10.0 (Suite 11)",
     hostname: window.location.hostname,
@@ -18635,22 +18606,6 @@ function pwaMesurerPerformance() {
     }
   } catch(e) { /* ignore */ }
   return out;
-}
-
-// Stats push réelles : compteur cumulatif local + permission navigateur
-function pwaLirePushStats() {
-  const k = "edulink_pwa_pushstats_" + (currentEcoleId || "global");
-  const stats = JSON.parse(localStorage.getItem(k) || '{"total":0,"today":0,"lastDay":""}');
-  const today = new Date().toISOString().split("T")[0];
-  if (stats.lastDay !== today) { stats.today = 0; stats.lastDay = today; }
-  return stats;
-}
-function pwaIncrementerPushStats() {
-  const k = "edulink_pwa_pushstats_" + (currentEcoleId || "global");
-  const s = pwaLirePushStats();
-  s.total++; s.today++;
-  localStorage.setItem(k, JSON.stringify(s));
-  return s;
 }
 
 // Charge la liste des appareils depuis Supabase (table pwa_devices) avec auto-retry colonnes
@@ -18742,7 +18697,6 @@ async function chargerPWAAvancee() {
   _pwaState.devices   = devices;
   _pwaState.cacheInfo = cacheInfo;
   _pwaState.perfTimes = pwaMesurerPerformance();
-  _pwaState.pushStats = pwaLirePushStats();
 
   // Enregistrer cet appareil silencieusement (en arrière-plan)
   pwaEnregistrerAppareilCourant().catch(() => {});
@@ -18763,7 +18717,6 @@ async function chargerPWAAvancee() {
     { l: "Service Worker",       v: envInfo.swStatus },
     { l: "Manifest",             v: envInfo.manifestStatus },
     { l: "Mode standalone",      v: envInfo.isStandalone ? "✅ Oui" : "🌐 Navigateur" },
-    { l: "Permission notif.",    v: envInfo.pushPerm === "granted" ? "✅ Accordée" : envInfo.pushPerm === "denied" ? "❌ Refusée" : "⏳ Non demandée" },
     { l: "Système détecté",      v: envInfo.os },
   ].map(k => `<div class="kpi-row"><span class="kpi-label">${k.l}</span><span class="kpi-value" style="font-size:12px">${k.v}</span></div>`).join("");
 
@@ -18772,7 +18725,6 @@ async function chargerPWAAvancee() {
   if (sec) sec.innerHTML = [
     { l: "HTTPS",     v: envInfo.httpsActive ? "✅ Activé" : "❌ HTTP",     c: envInfo.httpsActive ? "#059669" : "#dc2626" },
     { l: "Domaine",   v: envInfo.hostname,                                  c: "#1d4ed8" },
-    { l: "Notif. permission", v: envInfo.pushPerm,                          c: envInfo.pushPerm === "granted" ? "#059669" : "#d97706" },
     { l: "Quota cache", v: cacheInfo.quotaBytes ? pwaFormatBytes(cacheInfo.quotaBytes) : "n/a", c: "#1d4ed8" },
   ].map(k => `<div class="kpi-row"><span class="kpi-label">${k.l}</span><span style="font-size:12px;font-weight:700;color:${k.c};word-break:break-all">${k.v}</span></div>`).join("");
 
@@ -18780,7 +18732,6 @@ async function chargerPWAAvancee() {
   renderPWADevicesTable();
   renderPWAPerformance();
   renderPWACache();
-  renderPWAPush();
 
   // Aperçu QR dynamique pointant vers l'URL réelle
   const qrPrev = document.getElementById("pwa-qr-preview");
@@ -18937,22 +18888,8 @@ function renderPWACache() {
   }
 }
 
-function renderPWAPush() {
-  const stats = document.getElementById("pwa-push-stats");
-  if (!stats) return;
-  const env = _pwaState.envInfo || {};
-  const ps  = _pwaState.pushStats || { total: 0, today: 0 };
-  const devices = _pwaState.devices || [];
-  stats.innerHTML = [
-    { val: devices.length,                                 lbl: "Appareils détectés" },
-    { val: ps.total,                                        lbl: "Notifs envoyées (total)" },
-    { val: env.pushPerm === "granted" ? "✅" : env.pushPerm === "denied" ? "❌" : "⏳", lbl: "Permission " + (env.pushPerm||"—") },
-    { val: ps.today,                                        lbl: "Notifs aujourd'hui" },
-  ].map(s => `<div class="push-stat-card"><div class="psc-val">${s.val}</div><div class="psc-lbl">${s.lbl}</div></div>`).join("");
-}
-
 function pwaSwitchTab(tab, btn) {
-  ["installation","performance","cache","push"].forEach(t => {
+  ["installation","performance","cache"].forEach(t => {
     const el = document.getElementById("pwa-tab-"+t); if (el) el.style.display = (t===tab ? "block" : "none");
   });
   document.querySelectorAll("#page-pwa-avancee .tab").forEach(b => b.classList.remove("active"));
@@ -18961,15 +18898,35 @@ function pwaSwitchTab(tab, btn) {
 
 async function viderCache() {
   if (!("caches" in window)) { showToast("Cache API non disponible", "error"); return; }
-  if (!confirm("Vider tous les caches PWA ? L'app rechargera ensuite les ressources depuis le réseau.")) return;
+  if (!confirm("Vider tous les caches PWA ?\n\nCela va :\n• Supprimer tous les caches du navigateur\n• Désinscrire le Service Worker (il se ré-enregistrera ensuite)\n• Recharger la page pour repartir propre\n\nContinuer ?")) return;
   try {
+    // 1) Vider tous les caches
     const keys = await caches.keys();
     await Promise.all(keys.map(k => caches.delete(k)));
-    showToast(`🗑️ ${keys.length} cache(s) vidé(s)`, "success");
-    // Rafraîchir l'affichage
-    _pwaState.cacheInfo = await pwaInspecterCaches();
-    renderPWACache();
-  } catch(e) { showToast("Erreur : " + e.message, "error"); }
+    // 2) Demander au SW de vider ses propres caches internes (il interceptera le message)
+    if (navigator.serviceWorker?.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: "EDULINK_CLEAR_CACHE" });
+    }
+    // 3) Désinscrire le SW pour forcer une re-installation propre
+    const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
+    await Promise.all(regs.map(r => r.unregister()));
+    // 4) Vider IndexedDB EduLink (si utilisée par le SW pour offline queue)
+    try {
+      if (window.indexedDB?.databases) {
+        const dbs = await indexedDB.databases();
+        for (const d of dbs) {
+          if (d.name && /edulink|firebase|workbox/i.test(d.name)) {
+            indexedDB.deleteDatabase(d.name);
+          }
+        }
+      }
+    } catch(e) { /* ignore */ }
+    showToast(`🗑️ ${keys.length} cache(s) vidé(s) — rechargement...`, "success");
+    // 5) Hard reload après un court délai
+    setTimeout(() => { location.reload(); }, 800);
+  } catch(e) {
+    showToast("Erreur : " + e.message, "error");
+  }
 }
 
 async function actualiserPWA() {
@@ -18983,7 +18940,6 @@ function exporterRapportPWA() {
   const env = _pwaState.envInfo || {};
   const ci  = _pwaState.cacheInfo || { caches: [] };
   const t   = _pwaState.perfTimes || {};
-  const ps  = _pwaState.pushStats || { total: 0, today: 0 };
   const devices = _pwaState.devices || [];
   // Section 1 : environnement
   const header1 = ["Section","Clé","Valeur"];
@@ -18995,83 +18951,18 @@ function exporterRapportPWA() {
     ["Environnement","Mode standalone",        env.isStandalone ? "Oui" : "Non"],
     ["Environnement","Service Worker",         env.swStatus||""],
     ["Environnement","Manifest",               env.manifestStatus||""],
-    ["Environnement","Permission notification", env.pushPerm||""],
     ["Performance","FCP (ms)",   t.fcp ?? ""],
     ["Performance","TTI (ms)",   t.tti ?? ""],
     ["Performance","Load (ms)",  t.load ?? ""],
     ["Cache","Total (bytes)",    ci.totalBytes||0],
     ["Cache","Quota (bytes)",    ci.quotaBytes||0],
     ["Cache","Nombre de caches", ci.caches.length],
-    ["Push","Total cumulé",      ps.total||0],
-    ["Push","Aujourd'hui",       ps.today||0],
     ["Devices","Appareils enregistrés", devices.length],
   ];
   ci.caches.forEach(c => rows.push(["Cache détail", c.name, `${c.count} entrées · ${pwaFormatBytes(c.sizeBytes)}`]));
   devices.forEach(d => rows.push(["Device", d.user_nom||"", `${d.os||""} · ${d.device_label||""} · sync ${pwaFormatRelative(d.last_sync_at)}`]));
   csvDownload(`EduLink-PWA-Rapport-${new Date().toISOString().split("T")[0]}.csv`, header1, rows);
   showToast("📥 Rapport PWA exporté", "success");
-}
-
-async function envoyerPushTest() {
-  const titre = document.getElementById("push-titre")?.value.trim();
-  const msg   = document.getElementById("push-message")?.value.trim();
-  if (!titre || !msg) { showToast("Titre et message requis", "error"); return; }
-  if (!("Notification" in window)) { showToast("Notifications non supportées", "error"); return; }
-  let perm = Notification.permission;
-  if (perm === "default") {
-    perm = await Notification.requestPermission();
-  }
-  if (perm !== "granted") { showToast("⚠️ Permission notifications refusée", "error"); return; }
-  try {
-    // Préférer l'envoi via SW (gère le cas standalone et background)
-    const reg = await navigator.serviceWorker?.getRegistration();
-    if (reg && reg.showNotification) {
-      await reg.showNotification(titre, { body: msg, icon: "/icons/icon-192.png", tag: "edulink-test", badge: "/icons/icon-192.png" });
-    } else {
-      new Notification(titre, { body: msg, icon: "/icons/icon-192.png" });
-    }
-    pwaIncrementerPushStats();
-    showToast("✅ Notification de test envoyée", "success");
-    _pwaState.pushStats = pwaLirePushStats();
-    renderPWAPush();
-  } catch(e) { showToast("Erreur : " + e.message, "error"); }
-}
-
-async function envoyerPushATous() {
-  const titre = document.getElementById("push-titre")?.value.trim();
-  const msg   = document.getElementById("push-message")?.value.trim();
-  if (!titre || !msg) { showToast("Titre et message requis", "error"); return; }
-  // Sans backend Push, on peut au mieux envoyer une notification locale + tracer l'intention
-  // dans la table messages pour les autres utilisateurs (chargée par leur app au prochain refresh)
-  if (!confirm("Envoyer cette notification à tous les appareils enregistrés ? Note : sans backend Web Push, le message sera distribué via la messagerie EduLink.")) return;
-  const devices = _pwaState.devices || [];
-  // 1) Notification locale immédiate
-  try {
-    if (Notification.permission === "granted") {
-      const reg = await navigator.serviceWorker?.getRegistration();
-      if (reg?.showNotification) await reg.showNotification(titre, { body: msg, icon: "/icons/icon-192.png" });
-      else new Notification(titre, { body: msg });
-    }
-  } catch(e) {}
-  // 2) Trace dans messages pour propager (les apps d'autres users la liront au prochain refresh)
-  try {
-    await db.from("messages").insert([{
-      ecole_id:          currentEcoleId,
-      objet:             "🔔 " + titre,
-      contenu:           msg,
-      destinataire_nom:  "Tous les utilisateurs",
-      destinataire_role: "all",
-      expediteur_nom:    "Administration",
-      expediteur_role:   "admin",
-      lu:                false,
-    }]);
-    pwaIncrementerPushStats();
-    showToast(`✅ Notification distribuée à ${devices.length} appareil(s) via messagerie`, "success");
-    _pwaState.pushStats = pwaLirePushStats();
-    renderPWAPush();
-  } catch(e) {
-    showToast("⚠️ " + e.message, "error");
-  }
 }
 
 // Génération QR Code SVG simple (encodage minimal, pas de lib externe)
