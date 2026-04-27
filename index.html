@@ -5351,7 +5351,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <!-- Hero portail public -->
   <div class="portail-pub-hero">
     <div>
-      <h2>🌎 Votre site web scolaire</h2>
+      <h2>🌎 Votre site web</h2>
       <p>Gérez la présence en ligne de votre établissement</p>
     </div>
     <div class="portail-pub-kpis">
@@ -7652,6 +7652,16 @@ window.addEventListener('load', async () => {
     // ★ Suite 13 — Realtime après chargement
     if (typeof initialiserRealtime === 'function') setTimeout(initialiserRealtime, 1000);
     initOfflineMode();
+    // Routing par querystring : ?page=XXX → bascule vers cette page si elle existe
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const wanted = params.get('page');
+      if (wanted && document.getElementById('page-' + wanted) && typeof showPage === 'function') {
+        setTimeout(() => showPage(wanted), 200);
+        // Nettoyer l'URL pour éviter le rebond infini en cas de refresh
+        history.replaceState(null, '', window.location.pathname);
+      }
+    } catch(e) { /* ignore */ }
   }
 });
 
@@ -20224,21 +20234,45 @@ function previsualiserSitePublic() {
   const sections = (_ppState.sections || []).filter(s => s.visible);
   const actus    = (_ppState.actualites || []).filter(a => a.statut === "publie").slice(0, 3);
   const photos   = _ppState.galerie || [];
+  // Bouton retour vers EduLink (page Portail Public)
+  const retourUrl = (typeof window !== "undefined" && window.location)
+    ? window.location.origin + window.location.pathname + "?page=portail-public"
+    : "#";
   const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  // JSON-encode : safer que d'inliner directement les valeurs dans des strings JS
+  const cfgJson = JSON.stringify({
+    supabaseUrl: SUPABASE_URL,
+    supabaseKey: SUPABASE_KEY,
+    ecoleId:     currentEcoleId || null,
+    retourUrl:   retourUrl,
+  }).replace(/</g, "\\u003c"); // sécurité XSS basique
+
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>${esc(nom)}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
   body{background:#f9fafb;color:#111827}
+  .topbar{position:sticky;top:0;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);
+    border-bottom:1px solid #e5e7eb;padding:.7rem 1.2rem;display:flex;align-items:center;gap:1rem;
+    z-index:1000;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .topbar .back{background:#1e3a5f;color:#fff;text-decoration:none;padding:.5rem 1rem;border-radius:8px;
+    font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:background .15s}
+  .topbar .back:hover{background:#059669}
+  .topbar .preview-label{font-size:12px;color:#6b7280;margin-left:auto;font-weight:500}
   .hero{background:linear-gradient(135deg,#1e3a5f,#059669);color:#fff;padding:4rem 2rem;text-align:center}
   .hero h1{font-size:48px;margin-bottom:.5rem;font-weight:800}
   .hero p{font-size:18px;opacity:.85}
-  .cta{display:inline-block;margin-top:1.5rem;padding:.85rem 1.8rem;background:#fff;color:#1e3a5f;border-radius:30px;font-weight:700;text-decoration:none;font-size:14px}
+  .cta{display:inline-block;margin:.5rem .3rem 0;padding:.85rem 1.8rem;background:#fff;color:#1e3a5f;
+    border-radius:30px;font-weight:700;text-decoration:none;font-size:14px;cursor:pointer;border:none;transition:transform .15s}
+  .cta:hover{transform:translateY(-2px)}
+  .cta.outline{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.5)}
   .container{max-width:1100px;margin:0 auto;padding:3rem 2rem}
-  section{background:#fff;border-radius:14px;padding:2rem;margin-bottom:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  section{background:#fff;border-radius:14px;padding:2rem;margin-bottom:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.05);scroll-margin-top:80px}
   section h2{font-size:24px;margin-bottom:1rem;color:#1e3a5f}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1rem}
-  .card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:1rem}
+  .card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:1rem;cursor:pointer;
+    transition:all .15s;text-decoration:none;color:inherit;display:block}
+  .card:hover{border-color:#059669;transform:translateY(-2px);box-shadow:0 4px 12px rgba(5,150,105,.1)}
   .card h3{font-size:15px;margin-bottom:.4rem;color:#111827}
   .card p{font-size:13px;color:#6b7280}
   .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.75rem}
@@ -20247,30 +20281,231 @@ function previsualiserSitePublic() {
   .actu:last-child{border:none}
   .actu .meta{font-size:12px;color:#6b7280;margin-bottom:.3rem}
   footer{background:#1e3a5f;color:rgba(255,255,255,.8);padding:2rem;text-align:center;font-size:13px}
+  .back-top{position:fixed;bottom:24px;right:24px;width:48px;height:48px;border-radius:50%;
+    background:#1e3a5f;color:#fff;border:none;font-size:22px;font-weight:700;cursor:pointer;
+    box-shadow:0 4px 12px rgba(0,0,0,.25);opacity:0;visibility:hidden;
+    transition:opacity .25s,visibility .25s,transform .15s;z-index:999}
+  .back-top.show{opacity:1;visibility:visible}
+  .back-top:hover{transform:translateY(-3px);background:#059669}
+  html{scroll-behavior:smooth}
+  /* Modal inscription */
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;
+    align-items:center;justify-content:center;padding:1rem;overflow-y:auto}
+  .modal-bg.show{display:flex}
+  .modal-box{background:#fff;border-radius:14px;max-width:560px;width:100%;
+    box-shadow:0 20px 50px rgba(0,0,0,.25);overflow:hidden;margin:auto}
+  .modal-head{padding:1.2rem 1.5rem;background:linear-gradient(135deg,#1e3a5f,#059669);color:#fff}
+  .modal-head h3{font-size:18px;margin-bottom:.2rem}
+  .modal-head p{font-size:12.5px;opacity:.85}
+  .modal-body{padding:1.3rem 1.5rem;max-height:60vh;overflow-y:auto}
+  .modal-foot{padding:1rem 1.5rem;background:#f9fafb;border-top:1px solid #e5e7eb;
+    display:flex;gap:8px;justify-content:flex-end}
+  .modal-foot button{padding:.65rem 1.3rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px}
+  .modal-foot .submit{background:#059669;color:#fff}
+  .modal-foot .submit:hover{background:#047857}
+  .modal-foot .submit:disabled{opacity:.6;cursor:wait}
+  .modal-foot .cancel{background:#e5e7eb;color:#374151}
+  .modal-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:.8rem}
+  .field{margin-bottom:.8rem}
+  .field label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:4px}
+  .field label .req{color:#dc2626}
+  .field input,.field select,.field textarea{width:100%;padding:.6rem .8rem;border:1px solid #e5e7eb;
+    border-radius:8px;font-size:13px;font-family:inherit;outline:none;transition:border-color .15s}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:#059669}
+  .field textarea{resize:vertical;min-height:80px}
+  .form-msg{padding:.85rem 1rem;border-radius:8px;margin-bottom:1rem;font-size:13px;display:none}
+  .form-msg.show{display:block}
+  .form-msg.ok{background:#dcfce7;color:#065f46;border:1px solid #bbf7d0}
+  .form-msg.err{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
 </style></head><body>
-  <div class="hero">
+  <div class="topbar">
+    <a class="back" href="#" id="btnRetourEduLink">← Retour à EduLink</a>
+    <span class="preview-label">🔍 Mode aperçu — non publié</span>
+  </div>
+  <div class="hero" id="top">
     <h1>🏫 ${esc(nom)}</h1>
     ${slogan ? `<p>${esc(slogan)}</p>` : ""}
-    <a href="#inscription" class="cta">📝 Demander une inscription</a>
+    <div style="margin-top:1.2rem">
+      <button class="cta" id="ctaInscrire">📝 S'inscrire</button>
+      <a href="#apropos" class="cta outline">ℹ️ En savoir plus</a>
+    </div>
   </div>
   <div class="container">
-    ${desc ? `<section><h2>ℹ️ À propos</h2><p style="line-height:1.7;color:#374151">${esc(desc)}</p></section>` : ""}
-    ${sections.length ? `<section><h2>📚 Nos sections</h2><div class="grid">
-      ${sections.map(s => `<div class="card"><h3>${s.ico||""} ${esc(s.titre)}</h3><p>${esc(s.desc||"")}</p></div>`).join("")}
+    ${desc ? `<section id="apropos"><h2>ℹ️ À propos</h2><p style="line-height:1.7;color:#374151">${esc(desc)}</p></section>` : ""}
+    ${sections.length ? `<section id="sections"><h2>📚 Nos sections</h2><div class="grid">
+      ${sections.map(s => {
+        // Mapping section → ancre (avec fallback intelligent)
+        const t = (s.titre || "").toLowerCase();
+        let href = "#";
+        if (t.includes("accueil") || t.includes("page d"))     href = "#top";
+        else if (t.includes("propos") || t.includes("à propos") || t.includes("a propos")) href = "#apropos";
+        else if (t.includes("formation") || t.includes("filière") || t.includes("filiere")) href = "#sections";
+        else if (t.includes("inscription") || t.includes("admission")) href = "#inscription-form";
+        else if (t.includes("actualité") || t.includes("actualite") || t.includes("news")) href = "#actualites";
+        else if (t.includes("galerie") || t.includes("photo")) href = "#galerie";
+        else if (t.includes("contact") || t.includes("localisation")) href = "#contact";
+        return `<a class="card" href="${href}"><h3>${s.ico||""} ${esc(s.titre)}</h3><p>${esc(s.desc||"")}</p></a>`;
+      }).join("")}
     </div></section>` : ""}
-    ${actus.length ? `<section><h2>📰 Dernières actualités</h2>
+    ${actus.length ? `<section id="actualites"><h2>📰 Dernières actualités</h2>
       ${actus.map(a => `<div class="actu"><div class="meta">${esc(a.categorie||"")} · ${a.publie_le ? new Date(a.publie_le).toLocaleDateString("fr-FR") : ""}</div><h3>${esc(a.titre||"")}</h3><p style="color:#6b7280;font-size:13px;margin-top:.3rem">${esc((a.extrait||a.contenu||"").substring(0,200))}</p></div>`).join("")}
     </section>` : ""}
-    ${photos.length ? `<section><h2>🖼️ Galerie</h2><div class="gallery">
+    ${photos.length ? `<section id="galerie"><h2>🖼️ Galerie</h2><div class="gallery">
       ${photos.map(u => `<img src="${esc(u)}" alt="" loading="lazy">`).join("")}
     </div></section>` : ""}
-    <section id="inscription"><h2>📞 Contact & Inscription</h2>
-      ${adresse ? `<p>📍 ${esc(adresse)}</p>` : ""}
-      ${tel     ? `<p>📞 ${esc(tel)}</p>` : ""}
-      ${email   ? `<p>✉️ <a href="mailto:${esc(email)}" style="color:#059669">${esc(email)}</a></p>` : ""}
+    <section id="inscription-form">
+      <h2>📝 Inscription en ligne</h2>
+      <p style="color:#6b7280;font-size:14px;line-height:1.6;margin-bottom:1.2rem">
+        Remplissez le formulaire ci-dessous pour soumettre votre demande d'inscription.
+        Notre équipe vous recontactera rapidement.
+      </p>
+      <button class="cta" style="background:#059669;color:#fff" id="ctaInscrire2">📝 Ouvrir le formulaire d'inscription</button>
+    </section>
+    <section id="contact">
+      <h2>📞 Contact</h2>
+      ${adresse ? `<p style="margin-bottom:.5rem">📍 ${esc(adresse)}</p>` : ""}
+      ${tel     ? `<p style="margin-bottom:.5rem">📞 <a href="tel:${esc(tel.replace(/\s+/g,""))}" style="color:#059669;text-decoration:none">${esc(tel)}</a></p>` : ""}
+      ${email   ? `<p>✉️ <a href="mailto:${esc(email)}" style="color:#059669;text-decoration:none">${esc(email)}</a></p>` : ""}
     </section>
   </div>
   <footer>© ${new Date().getFullYear()} ${esc(nom)} · Site propulsé par EduLink</footer>
+  <button class="back-top" id="backTop" title="Retour en haut">↑</button>
+  <!-- Modal Inscription -->
+  <div class="modal-bg" id="modalInscr">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>📝 Demande d'inscription</h3>
+        <p>Tous les champs marqués d'un * sont obligatoires</p>
+      </div>
+      <form id="formInscr">
+        <div class="modal-body">
+          <div class="form-msg" id="formMsg"></div>
+          <div class="modal-row">
+            <div class="field"><label>Nom <span class="req">*</span></label><input name="nom" required maxlength="100"></div>
+            <div class="field"><label>Prénom <span class="req">*</span></label><input name="prenom" required maxlength="100"></div>
+          </div>
+          <div class="modal-row">
+            <div class="field"><label>Email <span class="req">*</span></label><input type="email" name="email" required maxlength="150"></div>
+            <div class="field"><label>Téléphone</label><input type="tel" name="telephone" placeholder="+229 ..." maxlength="30"></div>
+          </div>
+          <div class="modal-row">
+            <div class="field"><label>Niveau actuel</label><input name="niveau_actuel" placeholder="Ex : Terminale, BAC+2..." maxlength="60"></div>
+            <div class="field"><label>Niveau souhaité <span class="req">*</span></label><input name="niveau_demande" required placeholder="Ex : Licence 1, Master 1..." maxlength="60"></div>
+          </div>
+          <div class="field"><label>Filière souhaitée</label><input name="filiere" placeholder="Ex : Finance, Gestion, Droit..." maxlength="100"></div>
+          <div class="field"><label>Message complémentaire</label><textarea name="message" rows="3" maxlength="800" placeholder="Précisions, motivation, questions..."></textarea></div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="cancel" id="btnCancel">Annuler</button>
+          <button type="submit" class="submit" id="btnSubmit">Envoyer ma demande</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script id="cfgScript" type="application/json">${cfgJson}</scr` + `ipt>
+  <script>
+    (function(){
+      var cfg = JSON.parse(document.getElementById("cfgScript").textContent);
+      var btnTop  = document.getElementById("backTop");
+      var btnRet  = document.getElementById("btnRetourEduLink");
+      var modal   = document.getElementById("modalInscr");
+      var form    = document.getElementById("formInscr");
+      var msg     = document.getElementById("formMsg");
+      var btnSub  = document.getElementById("btnSubmit");
+      var btnCan  = document.getElementById("btnCancel");
+      // Retour en haut
+      btnTop.onclick = function(){ window.scrollTo({top:0,behavior:"smooth"}); };
+      window.addEventListener("scroll", function(){
+        if (window.scrollY > 300) btnTop.classList.add("show");
+        else btnTop.classList.remove("show");
+      });
+      // Retour vers EduLink
+      btnRet.href = cfg.retourUrl;
+      btnRet.onclick = function(e){
+        // window.opener existe si la fenêtre vient d'un window.open()
+        if (window.opener && !window.opener.closed) {
+          e.preventDefault();
+          try { window.opener.focus(); } catch(_){}
+          window.close();
+        }
+      };
+      // Ouvrir modal inscription
+      function openModal(){
+        msg.classList.remove("show","ok","err");
+        msg.textContent = "";
+        form.reset();
+        modal.classList.add("show");
+        document.body.style.overflow = "hidden";
+      }
+      function closeModal(){
+        modal.classList.remove("show");
+        document.body.style.overflow = "";
+      }
+      var ctas = document.querySelectorAll("#ctaInscrire,#ctaInscrire2");
+      ctas.forEach(function(b){ b.onclick = openModal; });
+      btnCan.onclick = closeModal;
+      modal.onclick = function(e){ if (e.target === modal) closeModal(); };
+      document.addEventListener("keydown", function(e){
+        if (e.key === "Escape" && modal.classList.contains("show")) closeModal();
+      });
+      // Soumission
+      form.onsubmit = async function(e){
+        e.preventDefault();
+        msg.classList.remove("show","ok","err");
+        if (!cfg.ecoleId) {
+          msg.textContent = "⚠️ Aucune école sélectionnée dans EduLink. Sélectionnez une école avant la prévisualisation.";
+          msg.className = "form-msg show err"; return;
+        }
+        if (!cfg.supabaseUrl || !cfg.supabaseKey) {
+          msg.textContent = "⚠️ Configuration Supabase indisponible.";
+          msg.className = "form-msg show err"; return;
+        }
+        var data = new FormData(form);
+        var payload = {
+          ecole_id:        cfg.ecoleId,
+          nom:             (data.get("nom")||"").trim(),
+          prenom:          (data.get("prenom")||"").trim(),
+          email:           (data.get("email")||"").trim(),
+          telephone:       (data.get("telephone")||"").trim(),
+          niveau_actuel:   (data.get("niveau_actuel")||"").trim(),
+          niveau_demande:  (data.get("niveau_demande")||"").trim(),
+          filiere:         (data.get("filiere")||"").trim(),
+          message:         (data.get("message")||"").trim(),
+          statut:          "nouveau"
+        };
+        if (!payload.nom || !payload.prenom || !payload.email || !payload.niveau_demande) {
+          msg.textContent = "Merci de remplir tous les champs obligatoires.";
+          msg.className = "form-msg show err"; return;
+        }
+        btnSub.disabled = true; btnSub.textContent = "Envoi...";
+        try {
+          var resp = await fetch(cfg.supabaseUrl + "/rest/v1/inscriptions_demandes", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": cfg.supabaseKey,
+              "Authorization": "Bearer " + cfg.supabaseKey,
+              "Prefer": "return=minimal"
+            },
+            body: JSON.stringify(payload)
+          });
+          if (!resp.ok) {
+            var errTxt = await resp.text();
+            throw new Error(errTxt || ("HTTP " + resp.status));
+          }
+          msg.textContent = "✅ Votre demande a bien été envoyée ! Nous vous recontacterons rapidement.";
+          msg.className = "form-msg show ok";
+          form.reset();
+          setTimeout(closeModal, 2500);
+        } catch(err) {
+          msg.textContent = "❌ Erreur lors de l'envoi : " + (err.message || err);
+          msg.className = "form-msg show err";
+        } finally {
+          btnSub.disabled = false; btnSub.textContent = "Envoyer ma demande";
+        }
+      };
+    })();
+  </scr` + `ipt>
 </body></html>`;
   // Ouvrir dans une nouvelle fenêtre via blob URL (pas de cache, pas de tracking)
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
