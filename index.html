@@ -5473,7 +5473,17 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <h3>📰 Nouvel article</h3>
     <div class="form-group"><label>Titre *</label><input id="actu-titre" placeholder="Titre de l'article..." /></div>
     <div class="form-group"><label>Catégorie</label>
-      <select id="actu-cat"><option>Actualités</option><opti<div class="page" id="page-parametres">
+      <select id="actu-cat"><option>Actualités</option><option>Événements</option><option>Annonces</option><option>Résultats</option></select>
+    </div>
+    <div class="form-group"><label>Contenu *</label><textarea id="actu-contenu" rows="5" placeholder="Contenu de l'article..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="fermerModal('modal-actualite')">Annuler</button>
+      <button onclick="publierActualite()">📰 Publier</button>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-parametres">
   <div class="top">
     <div><h2>⚙️ Paramètres</h2><p class="page-subtitle">Configuration de l'établissement et préférences personnelles</p></div>
     <div class="top-actions">
