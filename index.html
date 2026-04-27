@@ -10484,8 +10484,9 @@ function paramExporterConfig() {
 async function paramExporterRGPD() {
   if (!currentEcoleId) { showToast("Aucune école sélectionnée", "error"); return; }
   showToast("📥 Export en cours...", "info");
-  // Charger toutes les tables liées à cette école
-  const [etud, notes, abs, fact, paie, ens, pers, inc] = await Promise.all([
+
+  // Charger toutes les tables liées + référentiels pour résoudre les foreign keys
+  const [etud, notes, abs, fact, paie, ens, pers, inc, classes, matieres] = await Promise.all([
     db.from("etudiants").select("*").eq("ecole_id", currentEcoleId),
     db.from("notes").select("*").eq("ecole_id", currentEcoleId),
     db.from("absences").select("*").eq("ecole_id", currentEcoleId),
@@ -10494,28 +10495,215 @@ async function paramExporterRGPD() {
     db.from("enseignants").select("*").eq("ecole_id", currentEcoleId),
     db.from("personnel").select("*").eq("ecole_id", currentEcoleId),
     db.from("incidents").select("*").eq("ecole_id", currentEcoleId),
+    db.from("classes").select("id,nom,filiere,niveau").eq("ecole_id", currentEcoleId),
+    db.from("matieres").select("id,nom").eq("ecole_id", currentEcoleId),
   ]);
+
+  const dataEtud = etud.data || [];
+  const dataEns  = ens.data  || [];
+  const dataCl   = classes.data || [];
+  const dataMat  = matieres.data || [];
+
+  // ── Index pour résolution rapide des FK ──
+  const idxEtud = new Map(dataEtud.map(e => [e.id, `${(e.nom||"").toUpperCase()} ${e.prenom||""}`.trim() + (e.matricule ? ` (${e.matricule})` : "")]));
+  const idxEns  = new Map(dataEns.map(e => [e.id, `${(e.nom||"").toUpperCase()} ${e.prenom||""}`.trim()]));
+  const idxCl   = new Map(dataCl.map(c => [c.id, c.nom || `${c.filiere||""} ${c.niveau||""}`.trim()]));
+  const idxMat  = new Map(dataMat.map(m => [m.id, m.nom]));
+
+  // ── Helpers de formatage ──
+  const fmtDate = v => {
+    if (!v) return "";
+    const d = new Date(v);
+    if (isNaN(d)) return v;
+    return d.toLocaleDateString("fr-FR");
+  };
+  const fmtDateHeure = v => {
+    if (!v) return "";
+    const d = new Date(v);
+    if (isNaN(d)) return v;
+    return d.toLocaleDateString("fr-FR") + " " + d.toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
+  };
+  const fmtBool = v => v === true || v === "true" ? "Oui" : (v === false || v === "false" ? "Non" : "");
+  const fmtArr  = v => {
+    if (!v) return "";
+    if (Array.isArray(v)) return v.join(", ");
+    if (typeof v === "string") {
+      try { const p = JSON.parse(v); if (Array.isArray(p)) return p.join(", "); } catch(e) {}
+    }
+    return String(v);
+  };
+  const fmtMontant = v => v == null || v === "" ? "" : Number(v).toLocaleString("fr-FR");
+
+  // ── Schémas par table : libellés FR + transformations ──
+  const SCHEMAS = {
+    etudiants: {
+      titre: "Étudiants",
+      cols: [
+        ["matricule",        "Matricule"],
+        ["nom",              "Nom"],
+        ["prenom",           "Prénom"],
+        ["sexe",             "Sexe", v => v === "M" ? "Masculin" : v === "F" ? "Féminin" : v],
+        ["date_naissance",   "Date de naissance", fmtDate],
+        ["lieu_naissance",   "Lieu de naissance"],
+        ["classe_id",        "Classe", v => idxCl.get(v) || ""],
+        ["filiere",          "Filière"],
+        ["niveau",           "Niveau"],
+        ["nom_parent",       "Parent / Tuteur"],
+        ["telephone_parent", "Téléphone parent"],
+        ["email_parent",     "Email parent"],
+        ["adresse",          "Adresse"],
+        ["statut",           "Statut"],
+        ["date_inscription", "Date d'inscription", fmtDate],
+        ["annee_scolaire",   "Année académique"],
+      ],
+    },
+    notes: {
+      titre: "Notes",
+      cols: [
+        ["etudiant_id",   "Étudiant", v => idxEtud.get(v) || ""],
+        ["matiere",       "Matière",  (v, r) => v || idxMat.get(r.matiere_id) || ""],
+        ["enseignant_id", "Enseignant", v => idxEns.get(v) || ""],
+        ["note",          "Note /20"],
+        ["coefficient",   "Coefficient"],
+        ["type_evaluation","Type d'évaluation"],
+        ["trimestre",     "Période"],
+        ["periode",       "Période détaillée"],
+        ["annee_scolaire","Année académique"],
+        ["commentaire",   "Commentaire"],
+        ["created_at",    "Saisi le", fmtDateHeure],
+      ],
+    },
+    absences: {
+      titre: "Absences",
+      cols: [
+        ["etudiant_id",     "Étudiant", v => idxEtud.get(v) || ""],
+        ["date_absence",    "Date", fmtDate],
+        ["heure_debut",     "Début"],
+        ["heure_fin",       "Fin"],
+        ["matiere",         "Matière"],
+        ["statut",          "Statut"],
+        ["motif",           "Motif"],
+        ["justifiee",       "Justifiée", fmtBool],
+        ["justification",   "Justification"],
+        ["parent_notifie",  "Parent notifié", fmtBool],
+        ["created_at",      "Enregistrée le", fmtDateHeure],
+      ],
+    },
+    factures: {
+      titre: "Factures",
+      cols: [
+        ["numero",         "N° facture"],
+        ["etudiant_id",    "Étudiant", v => idxEtud.get(v) || ""],
+        ["type_frais",     "Type de frais"],
+        ["montant_total",  "Montant total", fmtMontant],
+        ["montant_paye",   "Montant payé",  fmtMontant],
+        ["statut",         "Statut"],
+        ["date_emission",  "Date d'émission",  fmtDate],
+        ["date_echeance",  "Échéance",         fmtDate],
+        ["created_at",     "Créée le",         fmtDateHeure],
+      ],
+    },
+    paiements: {
+      titre: "Paiements",
+      cols: [
+        ["etudiant_id",   "Étudiant", v => idxEtud.get(v) || ""],
+        ["montant_paye",  "Montant", fmtMontant],
+        ["mode_paiement", "Mode"],
+        ["reference",     "Référence"],
+        ["created_at",    "Date du paiement", fmtDateHeure],
+      ],
+    },
+    enseignants: {
+      titre: "Enseignants",
+      cols: [
+        ["matricule",      "Matricule"],
+        ["nom",            "Nom"],
+        ["prenom",         "Prénom"],
+        ["email",          "Email"],
+        ["telephone",      "Téléphone"],
+        ["specialite",     "Spécialité"],
+        ["matieres",       "Matières enseignées", fmtArr],
+        ["grade",          "Grade"],
+        ["statut",         "Statut"],
+        ["heures_semaine", "Heures/semaine"],
+        ["date_embauche",  "Date d'embauche", fmtDate],
+        ["salaire",        "Salaire", fmtMontant],
+      ],
+    },
+    personnel: {
+      titre: "Personnel",
+      cols: [
+        ["matricule",     "Matricule"],
+        ["nom",           "Nom"],
+        ["prenom",        "Prénom"],
+        ["poste",         "Poste"],
+        ["fonction",      "Fonction"],
+        ["email",         "Email"],
+        ["telephone",     "Téléphone"],
+        ["statut",        "Statut"],
+        ["date_embauche", "Date d'embauche", fmtDate],
+        ["salaire",       "Salaire", fmtMontant],
+      ],
+    },
+    incidents: {
+      titre: "Incidents",
+      cols: [
+        ["etudiant_id",     "Étudiant", v => idxEtud.get(v) || ""],
+        ["type_incident",   "Type d'incident", (v, r) => v || r.type || ""],
+        ["severite",        "Sévérité", (v, r) => v || r.gravite || ""],
+        ["description",     "Description"],
+        ["date_incident",   "Date de l'incident", fmtDate],
+        ["sanction",        "Sanction"],
+        ["statut",          "Statut"],
+        ["resolu_par",      "Résolu par",      v => idxEns.get(v) || idxEtud.get(v) || ""],
+        ["date_resolution", "Date de résolution", fmtDate],
+        ["note_resolution", "Note de résolution"],
+        ["created_at",      "Signalé le", fmtDateHeure],
+      ],
+    },
+  };
+
+  // ── Génération ──
   const tables = [
-    { nom: "etudiants",   data: etud.data   || [] },
-    { nom: "notes",       data: notes.data  || [] },
-    { nom: "absences",    data: abs.data    || [] },
-    { nom: "factures",    data: fact.data   || [] },
-    { nom: "paiements",   data: paie.data   || [] },
-    { nom: "enseignants", data: ens.data    || [] },
-    { nom: "personnel",   data: pers.data   || [] },
-    { nom: "incidents",   data: inc.data    || [] },
+    { key: "etudiants",   data: dataEtud           },
+    { key: "notes",       data: notes.data || []   },
+    { key: "absences",    data: abs.data   || []   },
+    { key: "factures",    data: fact.data  || []   },
+    { key: "paiements",   data: paie.data  || []   },
+    { key: "enseignants", data: dataEns            },
+    { key: "personnel",   data: pers.data  || []   },
+    { key: "incidents",   data: inc.data   || []   },
   ];
   let totalLignes = 0;
+  let totalFichiers = 0;
+
   tables.forEach(t => {
     if (!t.data.length) return;
+    const schema = SCHEMAS[t.key];
+    if (!schema) return;
     totalLignes += t.data.length;
-    const headers = Object.keys(t.data[0]);
-    const rows = t.data.map(r => headers.map(h => r[h] !== null && r[h] !== undefined ? (typeof r[h] === "object" ? JSON.stringify(r[h]) : r[h]) : ""));
+    totalFichiers++;
+    const headers = schema.cols.map(c => c[1]);
+    const rows = t.data.map(r => schema.cols.map(c => {
+      const [field, , transformer] = c;
+      const raw = r[field];
+      if (transformer) {
+        try { return transformer(raw, r); } catch(e) { return raw ?? ""; }
+      }
+      if (raw === null || raw === undefined) return "";
+      return raw;
+    }));
+    const today = new Date().toISOString().split("T")[0];
     if (typeof csvDownload === "function") {
-      csvDownload(`EduLink-export-${t.nom}-${new Date().toISOString().split("T")[0]}.csv`, headers, rows);
+      csvDownload(`EduLink-${schema.titre.replace(/\s+/g,"-")}-${today}.csv`, headers, rows);
     }
   });
-  showToast(`📥 Export RGPD terminé : ${totalLignes} lignes exportées sur ${tables.length} tables`, "success");
+
+  if (totalFichiers === 0) {
+    showToast("ℹ️ Aucune donnée à exporter", "info");
+  } else {
+    showToast(`📥 Export terminé : ${totalLignes} ligne(s) sur ${totalFichiers} fichier(s)`, "success");
+  }
 }
 
 async function paramPurgerDemo() {
