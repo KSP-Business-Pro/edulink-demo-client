@@ -10778,13 +10778,75 @@ async function paramExporterRGPDExcel() {
 
 async function paramPurgerDemo() {
   if (!currentEcoleId) { showToast("Aucune école sélectionnée", "error"); return; }
-  const c1 = prompt('Pour confirmer la purge des données démo, tapez "PURGER" :');
-  if (c1 !== "PURGER") { showToast("Action annulée", "info"); return; }
+
+  // 1. Compter ce qui sera supprimé
+  showToast("🔍 Comptage des données démo...", "info");
+  const tables = ["etudiants","notes","absences","factures","paiements","enseignants","incidents","actualites","classes"];
+  const comptes = {};
+  let total = 0;
+  for (const tbl of tables) {
+    try {
+      const { count } = await db.from(tbl).select("*", { count:"exact", head:true })
+        .eq("ecole_id", currentEcoleId).eq("is_demo", true);
+      comptes[tbl] = count || 0;
+      total += count || 0;
+    } catch(e) { comptes[tbl] = 0; }
+  }
+  // Compter aussi les établissements démo (autres écoles marquées is_demo)
+  try {
+    const { count } = await db.from("ecoles").select("*", { count:"exact", head:true })
+      .eq("is_demo", true).neq("id", currentEcoleId);
+    comptes["autres_ecoles"] = count || 0;
+    total += count || 0;
+  } catch(e) { comptes["autres_ecoles"] = 0; }
+
+  if (total === 0) {
+    showToast("ℹ️ Aucune donnée marquée is_demo = true trouvée.", "info");
+    return;
+  }
+
+  // 2. Afficher le détail et demander confirmation
+  const detail = Object.entries(comptes)
+    .filter(([, v]) => v > 0)
+    .map(([k, v]) => `• ${k} : ${v} enregistrement(s)`)
+    .join("\n");
+  const c1 = prompt(
+    `⚠️ PURGE DES DONNÉES DÉMO\n\nLes enregistrements suivants marqués is_demo = true seront supprimés :\n\n${detail}\n\nTotal : ${total} enregistrement(s)\n\nLes données réelles de l'ESM (is_demo = false) ne seront PAS touchées.\n\nTapez "PURGER" pour confirmer :`,
+    ""
+  );
+  if (c1 !== "PURGER") { showToast("Purge annulée", "info"); return; }
+
+  // 3. Suppression dans l'ordre (FK : notes/absences/factures/paiements avant étudiants)
   showToast("🗑️ Purge en cours...", "info");
-  // Tables à purger : on ne supprime que les enregistrements marqués comme demo
-  // (présence d'une colonne is_demo=true OU note dans la description). Mode prudent.
-  // En l'absence d'un marqueur clair, on ne fait rien et on informe l'utilisateur.
-  showToast("⚠️ Aucune donnée marquée comme démo trouvée. Pour ajouter un marqueur is_demo, contactez l'admin.", "info");
+  const ordre = ["notes","absences","paiements","factures","incidents","actualites","etudiants","enseignants","classes"];
+  let supprimés = 0;
+  const erreurs = [];
+
+  for (const tbl of ordre) {
+    if (!comptes[tbl]) continue;
+    const { error } = await db.from(tbl).delete()
+      .eq("ecole_id", currentEcoleId).eq("is_demo", true);
+    if (error) erreurs.push(`${tbl}: ${error.message}`);
+    else supprimés += comptes[tbl];
+  }
+
+  // Supprimer les établissements démo (autres écoles)
+  if (comptes["autres_ecoles"] > 0) {
+    const { error } = await db.from("ecoles").delete().eq("is_demo", true).neq("id", currentEcoleId);
+    if (error) erreurs.push(`autres_ecoles: ${error.message}`);
+    else supprimés += comptes["autres_ecoles"];
+  }
+
+  if (erreurs.length) {
+    showToast(`⚠️ Purge partielle : ${supprimés}/${total} supprimés. Erreurs : ${erreurs.join(" | ")}`, "error");
+  } else {
+    showToast(`✅ Purge terminée : ${supprimés} enregistrement(s) démo supprimé(s)`, "success");
+  }
+
+  // Invalider le cache et rafraîchir la page active
+  ["etudiants","notes","absences","factures","paiements","enseignants","incidents"].forEach(t => {
+    if (typeof invalidateData === "function") invalidateData(t);
+  });
 }
 
 async function paramSupprimerEcole() {
