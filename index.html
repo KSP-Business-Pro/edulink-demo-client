@@ -5092,7 +5092,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div><h2>📱 PWA Avancée</h2><p class="page-subtitle">Installation mobile, performances, cache hors-ligne et notifications push</p></div>
     <div class="top-actions">
       <button class="btn-secondary" onclick="actualiserPWA()">🔄 Actualiser</button>
-      <button class="btn-purple" onclick="showToast('📤 Rapport PWA exporté','success')">📥 Rapport</button>
+      <button class="btn-purple" onclick="exporterRapportPWA()">📥 Rapport CSV</button>
     </div>
   </div>
 
@@ -5180,8 +5180,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
             <div class="form-group"><label>Titre</label><input id="push-titre" value="EduLink — Notification test" /></div>
             <div class="form-group"><label>Message</label><textarea id="push-message" rows="2" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none">Ceci est un test de notification push EduLink !</textarea></div>
             <div style="display:flex;gap:8px;justify-content:flex-end">
-              <button class="btn-purple" onclick="envoyerPushTest()">📤 Envoyer test</button>
-              <button class="btn-blue" onclick="showToast('📤 Push envoyé à tous les appareils !','success')">📢 Envoyer à tous</button>
+              <button class="btn-purple" onclick="envoyerPushTest()">📤 Test local</button>
+              <button class="btn-blue" onclick="envoyerPushATous()">📢 Envoyer à tous</button>
             </div>
           </div>
         </div>
@@ -5202,10 +5202,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div class="pwa-block">
         <div class="pwa-block-header"><span>📱 QR Code d'installation</span></div>
         <div style="padding:1.5rem;text-align:center">
-          <div style="width:120px;height:120px;border:2px solid #e5e7eb;border-radius:12px;margin:0 auto 1rem;display:flex;align-items:center;justify-content:center;font-size:56px;background:#f9fafb">📱</div>
+          <div id="pwa-qr-preview" style="width:140px;height:140px;border:2px solid #e5e7eb;border-radius:12px;margin:0 auto 1rem;display:flex;align-items:center;justify-content:center;background:#f9fafb;overflow:hidden"><span style="font-size:48px">📱</span></div>
           <div style="font-size:12.5px;font-weight:600;color:#374151;margin-bottom:.4rem">Scanner pour installer</div>
-          <div style="font-size:11px;color:#9ca3af">app.afryx.io</div>
-          <button class="btn-sm btn-blue" style="margin-top:.75rem;width:100%" onclick="showToast('📥 QR Code téléchargé !','success')">📥 Télécharger QR</button>
+          <div id="pwa-qr-url" style="font-size:11px;color:#9ca3af;word-break:break-all">—</div>
+          <button class="btn-sm btn-blue" style="margin-top:.75rem;width:100%" onclick="pwaTelechargerQR()">📥 Télécharger QR</button>
         </div>
       </div>
     </div>
@@ -7690,13 +7690,14 @@ let ficheEnsActif      = null;
 // Quand un module modifie des données Supabase, il appelle invalidateData(table)
 // pour forcer le rechargement de tous les modules qui consomment cette table.
 const DATA_CONSUMERS = {
-  notes:     ["notes","portail-etudiant","rapports","analytics","dashboard"],
-  absences:  ["presences","portail-etudiant","rapports","analytics","dashboard"],
-  paiements: ["paiements","portail-etudiant","comptabilite","dashboard"],
-  messages:  ["messages","portail-etudiant","sms-parents"],
-  etudiants: ["etudiants","portail-etudiant","presences","notes","paiements","certificats","documents","discipline","sms-parents"],
-  examens:   ["examens","portail-etudiant"],
-  incidents: ["discipline"],
+  notes:        ["notes","portail-etudiant","rapports","analytics","dashboard"],
+  absences:     ["presences","portail-etudiant","rapports","analytics","dashboard"],
+  paiements:    ["paiements","portail-etudiant","comptabilite","dashboard"],
+  messages:     ["messages","portail-etudiant","sms-parents"],
+  etudiants:    ["etudiants","portail-etudiant","presences","notes","paiements","certificats","documents","discipline","sms-parents"],
+  examens:      ["examens","portail-etudiant"],
+  incidents:    ["discipline"],
+  pwa_devices:  ["pwa-avancee"],
 };
 
 function invalidateData(table) {
@@ -7719,6 +7720,7 @@ function invalidateData(table) {
     dashboard:       () => { chargerDashboard && chargerDashboard(); },
     "portail-etudiant": () => { chargerPortailEtudiant && chargerPortailEtudiant(getPortailEtudiantId()); },
     "sms-parents":   () => { chargerSMSParents && chargerSMSParents(); },
+    "pwa-avancee":   () => { chargerPWAAvancee && chargerPWAAvancee(); },
   };
   if (loaders[currentPage]) loaders[currentPage]();
 }
@@ -18525,185 +18527,568 @@ function envoyerConvocationParents() { showToast('📅 98 convocations envoyées
 function envoyerResultatsBulletins() { showToast('📊 115 notifications bulletins envoyées','success'); }
 
 /* ══════════════════════════════════════════════════════════════════
-   SUITE 11 — PWA AVANCÉE ★ JOUR 37
+   SUITE 11 — PWA AVANCÉE ★ JOUR 37 (réécrit : données live)
 ══════════════════════════════════════════════════════════════════ */
-const PWA_DEVICES_INSTALLED = [
-  {user:'Samou Adambi', role:'Administrateur', device:'Samsung Galaxy A53', os:'Android 13', date:'15/03/2026', synchro:'Il y a 2h'},
-  {user:'Prof. Kpossou', role:'Enseignant', device:'iPhone 14', os:'iOS 17', date:'20/03/2026', synchro:'Il y a 5h'},
-  {user:'Compta. AGB', role:'Comptable', device:'Xiaomi Redmi 10', os:'Android 12', date:'22/03/2026', synchro:'Hier'},
-  {user:'Mme Hounkpè', role:'Secrétaire', device:'Samsung Galaxy A23', os:'Android 11', date:'28/03/2026', synchro:'Il y a 1j'},
-  {user:'M. Sogbo', role:'Enseignant', device:'Tecno Spark 10', os:'Android 13', date:'30/03/2026', synchro:'Il y a 3h'},
-];
 
-const PWA_CACHE_ITEMS = [
-  {ico:'📄',nom:'Pages HTML', size:'2.4 MB', pct:60, color:'#1d4ed8'},
-  {ico:'🖼️',nom:'Images & Icônes', size:'1.1 MB', pct:28, color:'#059669'},
-  {ico:'⚡',nom:'Scripts JS', size:'0.8 MB', pct:20, color:'#7c3aed'},
-  {ico:'🎨',nom:'Styles CSS', size:'0.2 MB', pct:5, color:'#d97706'},
-  {ico:'📊',nom:'Données offline', size:'1.8 MB', pct:45, color:'#dc2626'},
-];
+// Cache local des données PWA chargées (évite les recalculs entre onglets)
+let _pwaState = {
+  devices:   [],   // Depuis la table pwa_devices (Supabase) ou détection navigateur
+  cacheInfo: null, // { caches: [{name, count, sizeBytes}], totalBytes, quotaBytes }
+  perfTimes: null, // { fcp, tti, load, swReady } en ms (mesurés via Performance API)
+  pushStats: null, // Stats push réelles depuis localStorage
+  envInfo:   null, // Manifest, SW, HTTPS, version, permissions
+};
 
-const PWA_SYNC_ITEMS = [
-  {ico:'✅',nom:'Absences en attente de synchro', nb:3, statut:'pending'},
-  {ico:'✅',nom:'Notes saisies hors-ligne', nb:12, statut:'synced'},
-  {ico:'✅',nom:'Paiements enregistrés offline', nb:1, statut:'pending'},
-  {ico:'✅',nom:'Messages non envoyés', nb:0, statut:'synced'},
-];
+// Détection des informations système RÉELLES (pas mensongères)
+async function pwaDetecterEnvironnement() {
+  const ua = navigator.userAgent || "";
+  const isAndroid = /Android/i.test(ua);
+  const isIOS     = /iPhone|iPad|iPod/i.test(ua);
+  const isMac     = /Macintosh/i.test(ua) && !isIOS;
+  const isWindows = /Windows/i.test(ua);
+  const osDetected = isAndroid ? "Android" : isIOS ? "iOS" : isMac ? "macOS" : isWindows ? "Windows" : "Linux/Autre";
+  // Mode standalone = installé en PWA
+  const isStandalone = window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  // Service Worker
+  let swStatus = "❌ Non disponible", swActive = false;
+  if ("serviceWorker" in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg && reg.active) { swStatus = "✅ Actif"; swActive = true; }
+      else if (reg)          { swStatus = "⏳ En cours d'enregistrement"; }
+      else                   { swStatus = "⚠️ Non enregistré"; }
+    } catch(e) { swStatus = "❌ Erreur"; }
+  }
+  // Manifest
+  let manifestStatus = "❌ Absent";
+  try {
+    const r = await fetch("manifest.json", { cache: "no-store" });
+    if (r.ok) { const m = await r.json(); manifestStatus = m.name ? `✅ ${m.name}` : "✅ Valide"; }
+  } catch(e) { manifestStatus = "❌ Inaccessible"; }
+  // Permissions notification
+  let pushPerm = "default";
+  if ("Notification" in window) pushPerm = Notification.permission;
+  // HTTPS
+  const httpsActive = window.location.protocol === "https:" || window.location.hostname === "localhost";
+  return {
+    os: osDetected,
+    ua,
+    isStandalone,
+    swStatus, swActive,
+    manifestStatus,
+    pushPerm,
+    httpsActive,
+    appVersion: "2.10.0 (Suite 11)",
+    hostname: window.location.hostname,
+  };
+}
 
-function chargerPWAAvancee() {
-  // Hero KPIs
-  const heroKpis = document.getElementById('pwa-hero-kpis');
+// Inspection RÉELLE des caches via Cache API
+async function pwaInspecterCaches() {
+  if (!("caches" in window)) return { caches: [], totalBytes: 0, quotaBytes: 0, supported: false };
+  const out = { caches: [], totalBytes: 0, quotaBytes: 0, supported: true };
+  try {
+    const keys = await caches.keys();
+    for (const name of keys) {
+      const c = await caches.open(name);
+      const reqs = await c.keys();
+      let bytes = 0;
+      for (const req of reqs) {
+        try {
+          const resp = await c.match(req);
+          if (resp) {
+            const blob = await resp.clone().blob();
+            bytes += blob.size;
+          }
+        } catch(e) { /* skip */ }
+      }
+      out.caches.push({ name, count: reqs.length, sizeBytes: bytes });
+      out.totalBytes += bytes;
+    }
+    if (navigator.storage?.estimate) {
+      const est = await navigator.storage.estimate();
+      out.quotaBytes = est.quota || 0;
+      // Si l'estimation totale dépasse notre comptage (autres origines/IDB), on s'aligne
+      if (est.usage && est.usage > out.totalBytes) out.totalBytes = est.usage;
+    }
+  } catch(e) { console.warn("[PWA] Cache inspect:", e.message); }
+  return out;
+}
+
+// Mesure des temps de chargement RÉELS via Performance API
+function pwaMesurerPerformance() {
+  const out = { fcp: null, tti: null, load: null, swReady: null };
+  try {
+    const nav = performance.getEntriesByType?.("navigation")?.[0];
+    if (nav) {
+      out.load = Math.round(nav.loadEventEnd - nav.startTime);
+      out.tti  = Math.round(nav.domInteractive - nav.startTime);
+    }
+    const paint = performance.getEntriesByType?.("paint") || [];
+    const fcp = paint.find(p => p.name === "first-contentful-paint");
+    if (fcp) out.fcp = Math.round(fcp.startTime);
+    if (navigator.serviceWorker?.ready) {
+      const t0 = performance.now();
+      navigator.serviceWorker.ready.then(() => {
+        out.swReady = Math.round(performance.now() - t0);
+      });
+    }
+  } catch(e) { /* ignore */ }
+  return out;
+}
+
+// Stats push réelles : compteur cumulatif local + permission navigateur
+function pwaLirePushStats() {
+  const k = "edulink_pwa_pushstats_" + (currentEcoleId || "global");
+  const stats = JSON.parse(localStorage.getItem(k) || '{"total":0,"today":0,"lastDay":""}');
+  const today = new Date().toISOString().split("T")[0];
+  if (stats.lastDay !== today) { stats.today = 0; stats.lastDay = today; }
+  return stats;
+}
+function pwaIncrementerPushStats() {
+  const k = "edulink_pwa_pushstats_" + (currentEcoleId || "global");
+  const s = pwaLirePushStats();
+  s.total++; s.today++;
+  localStorage.setItem(k, JSON.stringify(s));
+  return s;
+}
+
+// Charge la liste des appareils depuis Supabase (table pwa_devices) avec auto-retry colonnes
+async function pwaChargerDevices() {
+  if (!currentEcoleId) return [];
+  // 1er essai : schéma complet
+  let res = await db.from("pwa_devices")
+    .select("id,user_nom,user_role,device_label,os,installed_at,last_sync_at")
+    .eq("ecole_id", currentEcoleId).order("last_sync_at", { ascending: false });
+  if (res.error) {
+    // Auto-retry sans colonnes optionnelles
+    if (/column .* does not exist/i.test(res.error.message)) {
+      res = await db.from("pwa_devices").select("*").eq("ecole_id", currentEcoleId);
+    }
+    if (res.error) {
+      // Table absente : on retourne juste l'appareil courant détecté
+      console.warn("[PWA] Table pwa_devices indisponible:", res.error.message);
+      return [];
+    }
+  }
+  return res.data || [];
+}
+
+// Auto-enregistrement de l'appareil courant à l'ouverture de la page (idempotent)
+async function pwaEnregistrerAppareilCourant() {
+  if (!currentEcoleId) return;
+  const env = _pwaState.envInfo || await pwaDetecterEnvironnement();
+  // Identifiant stable de l'appareil (anonyme, par navigateur)
+  let deviceId = localStorage.getItem("edulink_device_id");
+  if (!deviceId) {
+    deviceId = "dev_" + Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+    localStorage.setItem("edulink_device_id", deviceId);
+  }
+  const userNom  = (currentUser?.nom || currentUser?.email || "Anonyme");
+  const userRole = (currentUser?.role || "user");
+  const ua = env.ua;
+  // Extraire un label lisible de l'appareil
+  let label = "Appareil";
+  const m = ua.match(/\(([^)]+)\)/);
+  if (m) label = m[1].split(";")[0].trim().substring(0, 60);
+  const payload = {
+    ecole_id:      currentEcoleId,
+    device_id:     deviceId,
+    user_nom:      userNom,
+    user_role:     userRole,
+    device_label:  label,
+    os:            env.os,
+    is_standalone: env.isStandalone,
+    last_sync_at:  new Date().toISOString(),
+  };
+  // Upsert idempotent par device_id + ecole_id
+  let res = await db.from("pwa_devices").upsert(payload, { onConflict: "ecole_id,device_id" });
+  if (res.error && /column .* does not exist/i.test(res.error.message)) {
+    // Auto-retry minimal
+    res = await db.from("pwa_devices").upsert({
+      ecole_id: currentEcoleId, device_id: deviceId, user_nom: userNom, os: env.os, last_sync_at: payload.last_sync_at,
+    }, { onConflict: "ecole_id,device_id" });
+  }
+  if (!res.error) invalidateData("pwa_devices");
+}
+
+// Convertit des bytes en libellé lisible
+function pwaFormatBytes(b) {
+  if (!b || b < 1024) return (b||0) + " B";
+  if (b < 1024*1024) return (b/1024).toFixed(1) + " KB";
+  if (b < 1024*1024*1024) return (b/1024/1024).toFixed(2) + " MB";
+  return (b/1024/1024/1024).toFixed(2) + " GB";
+}
+function pwaFormatRelative(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return "À l'instant";
+  if (diff < 3600) return "Il y a " + Math.floor(diff/60) + " min";
+  if (diff < 86400) return "Il y a " + Math.floor(diff/3600) + " h";
+  if (diff < 86400*7) return "Il y a " + Math.floor(diff/86400) + " j";
+  return d.toLocaleDateString("fr-FR");
+}
+
+async function chargerPWAAvancee() {
+  // Charger toutes les données réelles en parallèle
+  const [envInfo, devices, cacheInfo] = await Promise.all([
+    pwaDetecterEnvironnement(),
+    pwaChargerDevices(),
+    pwaInspecterCaches(),
+  ]);
+  _pwaState.envInfo   = envInfo;
+  _pwaState.devices   = devices;
+  _pwaState.cacheInfo = cacheInfo;
+  _pwaState.perfTimes = pwaMesurerPerformance();
+  _pwaState.pushStats = pwaLirePushStats();
+
+  // Enregistrer cet appareil silencieusement (en arrière-plan)
+  pwaEnregistrerAppareilCourant().catch(() => {});
+
+  // Hero KPIs avec données RÉELLES
+  const heroKpis = document.getElementById("pwa-hero-kpis");
   if (heroKpis) heroKpis.innerHTML = [
-    {v:PWA_DEVICES_INSTALLED.length, l:'Appareils installés'},
-    {v:'98/100', l:'Score Lighthouse'},
-    {v:'6.4 MB', l:'Cache total'},
-    {v:'99.2%', l:'Disponibilité'},
-  ].map(k=>`<div class="pwa-kpi"><div class="wk-val">${k.v}</div><div class="wk-lbl">${k.l}</div></div>`).join('');
+    { v: devices.length, l: "Appareils enregistrés" },
+    { v: envInfo.isStandalone ? "✅ Installée" : "🌐 Web", l: "Mode actuel" },
+    { v: pwaFormatBytes(cacheInfo.totalBytes), l: "Cache local" },
+    { v: envInfo.swActive ? "✅ Actif" : "⚠️ Inactif", l: "Service Worker" },
+  ].map(k => `<div class="pwa-kpi"><div class="wk-val">${k.v}</div><div class="wk-lbl">${k.l}</div></div>`).join("");
 
   // Résumé sidebar
-  const resume = document.getElementById('pwa-resume');
+  const resume = document.getElementById("pwa-resume");
   if (resume) resume.innerHTML = [
-    {l:'Version app', v:'2.10.0 (Suite 11)'},
-    {l:'Service Worker', v:'✅ Actif'},
-    {l:'Manifest', v:'✅ Valide'},
-    {l:'Mode hors-ligne', v:'✅ Activé'},
-    {l:'Notifications push', v:'✅ Configurées'},
-  ].map(k=>`<div class="kpi-row"><span class="kpi-label">${k.l}</span><span class="kpi-value" style="font-size:12px">${k.v}</span></div>`).join('');
+    { l: "Version app",         v: envInfo.appVersion },
+    { l: "Service Worker",       v: envInfo.swStatus },
+    { l: "Manifest",             v: envInfo.manifestStatus },
+    { l: "Mode standalone",      v: envInfo.isStandalone ? "✅ Oui" : "🌐 Navigateur" },
+    { l: "Permission notif.",    v: envInfo.pushPerm === "granted" ? "✅ Accordée" : envInfo.pushPerm === "denied" ? "❌ Refusée" : "⏳ Non demandée" },
+    { l: "Système détecté",      v: envInfo.os },
+  ].map(k => `<div class="kpi-row"><span class="kpi-label">${k.l}</span><span class="kpi-value" style="font-size:12px">${k.v}</span></div>`).join("");
 
   // Sécurité
-  const sec = document.getElementById('pwa-securite');
+  const sec = document.getElementById("pwa-securite");
   if (sec) sec.innerHTML = [
-    {l:'HTTPS', v:'✅ Activé', c:'#059669'},
-    {l:'Certificat SSL', v:'✅ Valide', c:'#059669'},
-    {l:'Content-Security-Policy', v:'✅ Définie', c:'#059669'},
-    {l:'Expiration SSL', v:'2027-03-15', c:'#1d4ed8'},
-  ].map(k=>`<div class="kpi-row"><span class="kpi-label">${k.l}</span><span style="font-size:12px;font-weight:700;color:${k.c}">${k.v}</span></div>`).join('');
+    { l: "HTTPS",     v: envInfo.httpsActive ? "✅ Activé" : "❌ HTTP",     c: envInfo.httpsActive ? "#059669" : "#dc2626" },
+    { l: "Domaine",   v: envInfo.hostname,                                  c: "#1d4ed8" },
+    { l: "Notif. permission", v: envInfo.pushPerm,                          c: envInfo.pushPerm === "granted" ? "#059669" : "#d97706" },
+    { l: "Quota cache", v: cacheInfo.quotaBytes ? pwaFormatBytes(cacheInfo.quotaBytes) : "n/a", c: "#1d4ed8" },
+  ].map(k => `<div class="kpi-row"><span class="kpi-label">${k.l}</span><span style="font-size:12px;font-weight:700;color:${k.c};word-break:break-all">${k.v}</span></div>`).join("");
 
   renderPWAInstallDevices();
   renderPWADevicesTable();
   renderPWAPerformance();
   renderPWACache();
   renderPWAPush();
+
+  // Aperçu QR dynamique pointant vers l'URL réelle
+  const qrPrev = document.getElementById("pwa-qr-preview");
+  const qrUrl  = document.getElementById("pwa-qr-url");
+  const url    = window.location.origin || "https://app.afryx.io";
+  if (qrPrev) {
+    const src = "https://quickchart.io/qr?text=" + encodeURIComponent(url) + "&size=140&margin=1";
+    qrPrev.innerHTML = `<img src="${src}" alt="QR" style="width:100%;height:100%;object-fit:contain" onerror="this.parentNode.innerHTML='<span style=&quot;font-size:48px&quot;>📱</span>'">`;
+  }
+  if (qrUrl) qrUrl.textContent = url.replace(/^https?:\/\//, "");
 }
 
 function renderPWAInstallDevices() {
-  const cont = document.getElementById('pwa-install-devices');
+  const cont = document.getElementById("pwa-install-devices");
   if (!cont) return;
+  // Apostrophes échappées proprement (template strings, pas d'imbrication)
   const devices = [
-    {ico:'🤖', nom:'Android', desc:'Chrome / Edge', color:'#dcfce7', steps:['Ouvrez app.afryx.io dans Chrome', 'Appuyez sur le menu ⋮ (3 points)', 'Sélectionnez "Ajouter à l\'écran d\'accueil"', 'Confirmez l\'installation']},
-    {ico:'🍎', nom:'iPhone / iPad', desc:'Safari', color:'#dbeafe', steps:['Ouvrez app.afryx.io dans Safari', 'Appuyez sur l\'icône Partager (⬆)', 'Sélectionnez "Sur l\'écran d\'accueil"', 'Appuyez sur "Ajouter"']},
-    {ico:'🖥️', nom:'PC Windows / Mac', desc:'Chrome / Edge', color:'#ede9fe', steps:['Ouvrez app.afryx.io dans Chrome', 'Cliquez sur l\'icône 💻 dans la barre d\'adresse', 'Cliquez "Installer EduLink"', 'Confirmez l\'installation']},
+    { ico: "🤖", nom: "Android", desc: "Chrome / Edge", color: "#dcfce7", steps: [
+      "Ouvrir l'app dans Chrome",
+      "Appuyer sur le menu ⋮ (3 points)",
+      'Sélectionner "Ajouter à l\u2019écran d\u2019accueil"',
+      "Confirmer l'installation",
+    ]},
+    { ico: "🍎", nom: "iPhone / iPad", desc: "Safari", color: "#dbeafe", steps: [
+      "Ouvrir l'app dans Safari",
+      "Appuyer sur l'icône Partager (⬆)",
+      'Sélectionner "Sur l\u2019écran d\u2019accueil"',
+      'Appuyer sur "Ajouter"',
+    ]},
+    { ico: "🖥️", nom: "PC Windows / Mac", desc: "Chrome / Edge", color: "#ede9fe", steps: [
+      "Ouvrir l'app dans Chrome ou Edge",
+      "Cliquer sur l'icône 💻 dans la barre d'adresse",
+      'Cliquer "Installer EduLink"',
+      "Confirmer l'installation",
+    ]},
   ];
-  cont.innerHTML = devices.map(d=>`<div class="install-device-card">
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  cont.innerHTML = devices.map(d => `<div class="install-device-card">
     <div class="idc-ico" style="background:${d.color}">${d.ico}</div>
     <div class="idc-body">
-      <div class="idc-nom">${d.nom} <span style="font-size:11px;color:#9ca3af">— ${d.desc}</span></div>
+      <div class="idc-nom">${esc(d.nom)} <span style="font-size:11px;color:#9ca3af">— ${esc(d.desc)}</span></div>
       <div class="idc-steps">
-        ${d.steps.map((s,i)=>`<div class="idc-step"><span style="width:18px;height:18px;border-radius:50%;background:#dcfce7;border:1.5px solid #bbf7d0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${i+1}</span>${s}</div>`).join('')}
+        ${d.steps.map((s,i)=>`<div class="idc-step"><span style="width:18px;height:18px;border-radius:50%;background:#dcfce7;border:1.5px solid #bbf7d0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${i+1}</span>${esc(s)}</div>`).join("")}
       </div>
     </div>
-  </div>`).join('');
+  </div>`).join("");
 }
 
 function renderPWADevicesTable() {
-  const tbody = document.getElementById('pwa-devices-tbody');
+  const tbody = document.getElementById("pwa-devices-tbody");
   if (!tbody) return;
-  tbody.innerHTML = PWA_DEVICES_INSTALLED.map(d=>`<tr>
-    <td><strong>${d.user}</strong></td>
-    <td><span class="badge blue">${d.role}</span></td>
-    <td>${d.device}</td>
-    <td>${d.os}</td>
-    <td>${d.date}</td>
-    <td><span class="badge green">${d.synchro}</span></td>
-  </tr>`).join('');
+  const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const devices = _pwaState.devices || [];
+  if (!devices.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:#9ca3af;font-size:13px">Aucun appareil enregistré pour le moment. Les appareils apparaîtront ici dès qu'un utilisateur ouvrira EduLink.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = devices.map(d => `<tr>
+    <td><strong>${esc(d.user_nom||"—")}</strong></td>
+    <td><span class="badge blue">${esc(d.user_role||"—")}</span></td>
+    <td style="font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(d.device_label||"—")}</td>
+    <td>${esc(d.os||"—")}</td>
+    <td style="font-size:12px">${d.installed_at ? new Date(d.installed_at).toLocaleDateString("fr-FR") : "—"}</td>
+    <td><span class="badge green">${pwaFormatRelative(d.last_sync_at)}</span></td>
+  </tr>`).join("");
 }
 
 function renderPWAPerformance() {
-  const scores = document.getElementById('pwa-perf-scores');
+  const scores = document.getElementById("pwa-perf-scores");
   if (!scores) return;
+  const env = _pwaState.envInfo || {};
+  const t   = _pwaState.perfTimes || {};
+  // Score réel basé sur les capacités détectées (pas un faux Lighthouse)
+  let baseScore = 0;
+  if (env.httpsActive)     baseScore += 25;
+  if (env.swActive)        baseScore += 25;
+  if (env.manifestStatus.startsWith("✅")) baseScore += 20;
+  if (env.isStandalone)    baseScore += 15;
+  if ("Notification" in window) baseScore += 10;
+  if (navigator.storage)   baseScore += 5;
+  // Score perf basé sur FCP réel (FCP < 1800ms = bon)
+  let perfScore = 50;
+  if (t.fcp != null) {
+    if (t.fcp < 1000) perfScore = 95;
+    else if (t.fcp < 1800) perfScore = 85;
+    else if (t.fcp < 3000) perfScore = 65;
+    else perfScore = 40;
+  }
+  const cls = s => s >= 90 ? "excellent" : s >= 70 ? "good" : "warn";
   const metrics = [
-    {label:'Performance', score:98, cls:'excellent'},
-    {label:'Accessibilité', score:94, cls:'excellent'},
-    {label:'Bonnes pratiques', score:96, cls:'excellent'},
-    {label:'SEO', score:88, cls:'good'},
+    { label: "Performance",     score: perfScore },
+    { label: "PWA Capabilities", score: baseScore },
+    { label: "Sécurité",        score: env.httpsActive ? 95 : 30 },
+    { label: "Connectivité",    score: navigator.onLine ? 100 : 0 },
   ];
-  scores.innerHTML = metrics.map(m=>`<div class="perf-item">
-    <div class="perf-ring ${m.cls}" style="--pct:${m.score*3.6}deg">
+  scores.innerHTML = metrics.map(m => `<div class="perf-item">
+    <div class="perf-ring ${cls(m.score)}" style="--pct:${m.score*3.6}deg">
       <div class="perf-ring-inner">${m.score}</div>
     </div>
     <div class="perf-label">${m.label}</div>
-  </div>`).join('');
+  </div>`).join("");
 
-  const loadTimes = document.getElementById('pwa-load-times');
-  if (loadTimes) loadTimes.innerHTML = [
-    {label:'Premier rendu (FCP)', val:'0.8s', cls:'green'},
-    {label:'Interactif (TTI)', val:'1.2s', cls:'green'},
-    {label:'Chargement complet', val:'2.1s', cls:'blue'},
-    {label:'Service Worker activé', val:'0.3s', cls:'green'},
-  ].map(l=>`<div class="kpi-row"><span class="kpi-label">${l.label}</span><span class="badge ${l.cls}">${l.val}</span></div>`).join('');
+  const loadTimes = document.getElementById("pwa-load-times");
+  if (loadTimes) {
+    const fmt = ms => ms != null ? (ms < 1000 ? ms + " ms" : (ms/1000).toFixed(2) + " s") : "—";
+    const cls = ms => ms == null ? "blue" : ms < 1500 ? "green" : ms < 3000 ? "amber" : "red";
+    loadTimes.innerHTML = [
+      { label: "Premier rendu (FCP)",        val: fmt(t.fcp),     cls: cls(t.fcp) },
+      { label: "Interactif (TTI)",           val: fmt(t.tti),     cls: cls(t.tti) },
+      { label: "Chargement complet (Load)",  val: fmt(t.load),    cls: cls(t.load) },
+      { label: "Service Worker prêt",        val: fmt(t.swReady), cls: cls(t.swReady) },
+    ].map(l => `<div class="kpi-row"><span class="kpi-label">${l.label}</span><span class="badge ${l.cls}">${l.val}</span></div>`).join("");
+  }
 }
 
 function renderPWACache() {
-  const list = document.getElementById('pwa-cache-list');
+  const list = document.getElementById("pwa-cache-list");
   if (!list) return;
-  const total = PWA_CACHE_ITEMS.reduce((s,c)=>s+parseFloat(c.size),0).toFixed(1);
-  const totalEl = document.getElementById('pwa-cache-total');
-  if (totalEl) totalEl.textContent = total+' MB total';
-  list.innerHTML = PWA_CACHE_ITEMS.map(c=>`<div class="cache-item">
-    <div class="cache-ico" style="background:#f3f4f6">${c.ico}</div>
-    <div class="cache-body">
-      <div class="cache-nom">${c.nom}</div>
-      <div class="cache-size">${c.size}</div>
-      <div class="cache-bar"><div class="cache-fill" style="width:${c.pct}%;background:${c.color}"></div></div>
-    </div>
-    <span style="font-size:12px;font-weight:700;color:${c.color}">${c.pct}%</span>
-  </div>`).join('');
-
-  const syncList = document.getElementById('pwa-sync-list');
-  if (syncList) syncList.innerHTML = PWA_SYNC_ITEMS.map(s=>`<div class="kpi-row">
-    <span class="kpi-label">${s.nom}</span>
-    <span class="badge ${s.statut==='synced'?'green':'amber'}">${s.statut==='synced'?'✅ Synchronisé':'⏳ '+s.nb+' en attente'}</span>
-  </div>`).join('');
+  const info = _pwaState.cacheInfo || { caches: [], totalBytes: 0, supported: true };
+  const totalEl = document.getElementById("pwa-cache-total");
+  if (totalEl) totalEl.textContent = pwaFormatBytes(info.totalBytes) + " total";
+  if (!info.supported) {
+    list.innerHTML = '<div style="padding:1.5rem;color:#9ca3af;font-size:13px;text-align:center">Cache API non supportée par ce navigateur.</div>';
+  } else if (!info.caches.length) {
+    list.innerHTML = '<div style="padding:1.5rem;color:#9ca3af;font-size:13px;text-align:center">Aucun cache actif. Les ressources seront mises en cache lors de la prochaine visite.</div>';
+  } else {
+    const max = Math.max(...info.caches.map(c => c.sizeBytes), 1);
+    const colors = ["#1d4ed8","#059669","#7c3aed","#d97706","#dc2626","#0891b2"];
+    const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    list.innerHTML = info.caches.map((c,i) => {
+      const pct = Math.round(c.sizeBytes / max * 100);
+      const color = colors[i % colors.length];
+      return `<div class="cache-item">
+        <div class="cache-ico" style="background:#f3f4f6">📦</div>
+        <div class="cache-body">
+          <div class="cache-nom">${esc(c.name)} <span style="font-size:11px;color:#9ca3af">(${c.count} entrée${c.count>1?"s":""})</span></div>
+          <div class="cache-size">${pwaFormatBytes(c.sizeBytes)}</div>
+          <div class="cache-bar"><div class="cache-fill" style="width:${pct}%;background:${color}"></div></div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:${color}">${pct}%</span>
+      </div>`;
+    }).join("");
+  }
+  const syncList = document.getElementById("pwa-sync-list");
+  if (syncList) {
+    const online = navigator.onLine;
+    const items = [
+      { lbl: "Connexion réseau", status: online ? "✅ En ligne" : "❌ Hors ligne", cls: online ? "green" : "red" },
+      { lbl: "Background Sync API", status: ("sync" in (navigator.serviceWorker?.ready||{}) || "SyncManager" in window) ? "✅ Supportée" : "⚠️ Non supportée", cls: "blue" },
+      { lbl: "Service Worker actif", status: _pwaState.envInfo?.swActive ? "✅ Oui" : "❌ Non", cls: _pwaState.envInfo?.swActive ? "green" : "red" },
+      { lbl: "IndexedDB", status: ("indexedDB" in window) ? "✅ Disponible" : "⚠️ Indisponible", cls: "blue" },
+    ];
+    syncList.innerHTML = items.map(s => `<div class="kpi-row"><span class="kpi-label">${s.lbl}</span><span class="badge ${s.cls}">${s.status}</span></div>`).join("");
+  }
 }
 
 function renderPWAPush() {
-  const stats = document.getElementById('pwa-push-stats');
+  const stats = document.getElementById("pwa-push-stats");
   if (!stats) return;
+  const env = _pwaState.envInfo || {};
+  const ps  = _pwaState.pushStats || { total: 0, today: 0 };
+  const devices = _pwaState.devices || [];
   stats.innerHTML = [
-    {val:'5', lbl:'Appareils abonnés'},
-    {val:'247', lbl:'Notifs envoyées'},
-    {val:'89%', lbl:'Taux d\'ouverture'},
-    {val:'3', lbl:'Notifs aujourd\'hui'},
-  ].map(s=>`<div class="push-stat-card"><div class="psc-val">${s.val}</div><div class="psc-lbl">${s.lbl}</div></div>`).join('');
+    { val: devices.length,                                 lbl: "Appareils détectés" },
+    { val: ps.total,                                        lbl: "Notifs envoyées (total)" },
+    { val: env.pushPerm === "granted" ? "✅" : env.pushPerm === "denied" ? "❌" : "⏳", lbl: "Permission " + (env.pushPerm||"—") },
+    { val: ps.today,                                        lbl: "Notifs aujourd'hui" },
+  ].map(s => `<div class="push-stat-card"><div class="psc-val">${s.val}</div><div class="psc-lbl">${s.lbl}</div></div>`).join("");
 }
 
 function pwaSwitchTab(tab, btn) {
-  ['installation','performance','cache','push'].forEach(t=>{
-    const el=document.getElementById('pwa-tab-'+t); if(el) el.style.display=t===tab?'block':'none';
+  ["installation","performance","cache","push"].forEach(t => {
+    const el = document.getElementById("pwa-tab-"+t); if (el) el.style.display = (t===tab ? "block" : "none");
   });
-  document.querySelectorAll('#page-pwa-avancee .tab').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
+  document.querySelectorAll("#page-pwa-avancee .tab").forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
 }
 
-function viderCache() {
-  if ('caches' in window) { caches.keys().then(keys=>keys.forEach(k=>caches.delete(k))); }
-  showToast('🗑️ Cache vidé — 0 MB','success');
+async function viderCache() {
+  if (!("caches" in window)) { showToast("Cache API non disponible", "error"); return; }
+  if (!confirm("Vider tous les caches PWA ? L'app rechargera ensuite les ressources depuis le réseau.")) return;
+  try {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+    showToast(`🗑️ ${keys.length} cache(s) vidé(s)`, "success");
+    // Rafraîchir l'affichage
+    _pwaState.cacheInfo = await pwaInspecterCaches();
+    renderPWACache();
+  } catch(e) { showToast("Erreur : " + e.message, "error"); }
 }
 
-function actualiserPWA() { chargerPWAAvancee(); showToast('🔄 Données PWA actualisées','success'); }
+async function actualiserPWA() {
+  showToast("🔄 Actualisation des données PWA...", "info");
+  await chargerPWAAvancee();
+  showToast("✅ Données PWA actualisées", "success");
+}
 
-function envoyerPushTest() {
-  const titre = document.getElementById('push-titre').value;
-  const msg = document.getElementById('push-message').value;
-  if (!titre||!msg) { showToast('Titre et message requis','error'); return; }
-  if ('Notification' in window) {
-    Notification.requestPermission().then(perm=>{
-      if (perm==='granted') {
-        new Notification(titre, {body:msg, icon:'/icons/icon-192.png'});
-        showToast('✅ Notification push envoyée !','success');
-      } else { showToast('✅ Test envoyé (notifications bloquées dans ce navigateur)','info'); }
-    });
-  } else { showToast('✅ Notification push test envoyée aux 5 appareils !','success'); }
+// Export rapport PWA en CSV (vraies données)
+function exporterRapportPWA() {
+  const env = _pwaState.envInfo || {};
+  const ci  = _pwaState.cacheInfo || { caches: [] };
+  const t   = _pwaState.perfTimes || {};
+  const ps  = _pwaState.pushStats || { total: 0, today: 0 };
+  const devices = _pwaState.devices || [];
+  // Section 1 : environnement
+  const header1 = ["Section","Clé","Valeur"];
+  const rows = [
+    ["Environnement","Version app",            env.appVersion||""],
+    ["Environnement","Domaine",                env.hostname||""],
+    ["Environnement","HTTPS",                  env.httpsActive ? "Oui" : "Non"],
+    ["Environnement","OS détecté",             env.os||""],
+    ["Environnement","Mode standalone",        env.isStandalone ? "Oui" : "Non"],
+    ["Environnement","Service Worker",         env.swStatus||""],
+    ["Environnement","Manifest",               env.manifestStatus||""],
+    ["Environnement","Permission notification", env.pushPerm||""],
+    ["Performance","FCP (ms)",   t.fcp ?? ""],
+    ["Performance","TTI (ms)",   t.tti ?? ""],
+    ["Performance","Load (ms)",  t.load ?? ""],
+    ["Cache","Total (bytes)",    ci.totalBytes||0],
+    ["Cache","Quota (bytes)",    ci.quotaBytes||0],
+    ["Cache","Nombre de caches", ci.caches.length],
+    ["Push","Total cumulé",      ps.total||0],
+    ["Push","Aujourd'hui",       ps.today||0],
+    ["Devices","Appareils enregistrés", devices.length],
+  ];
+  ci.caches.forEach(c => rows.push(["Cache détail", c.name, `${c.count} entrées · ${pwaFormatBytes(c.sizeBytes)}`]));
+  devices.forEach(d => rows.push(["Device", d.user_nom||"", `${d.os||""} · ${d.device_label||""} · sync ${pwaFormatRelative(d.last_sync_at)}`]));
+  csvDownload(`EduLink-PWA-Rapport-${new Date().toISOString().split("T")[0]}.csv`, header1, rows);
+  showToast("📥 Rapport PWA exporté", "success");
+}
+
+async function envoyerPushTest() {
+  const titre = document.getElementById("push-titre")?.value.trim();
+  const msg   = document.getElementById("push-message")?.value.trim();
+  if (!titre || !msg) { showToast("Titre et message requis", "error"); return; }
+  if (!("Notification" in window)) { showToast("Notifications non supportées", "error"); return; }
+  let perm = Notification.permission;
+  if (perm === "default") {
+    perm = await Notification.requestPermission();
+  }
+  if (perm !== "granted") { showToast("⚠️ Permission notifications refusée", "error"); return; }
+  try {
+    // Préférer l'envoi via SW (gère le cas standalone et background)
+    const reg = await navigator.serviceWorker?.getRegistration();
+    if (reg && reg.showNotification) {
+      await reg.showNotification(titre, { body: msg, icon: "/icons/icon-192.png", tag: "edulink-test", badge: "/icons/icon-192.png" });
+    } else {
+      new Notification(titre, { body: msg, icon: "/icons/icon-192.png" });
+    }
+    pwaIncrementerPushStats();
+    showToast("✅ Notification de test envoyée", "success");
+    _pwaState.pushStats = pwaLirePushStats();
+    renderPWAPush();
+  } catch(e) { showToast("Erreur : " + e.message, "error"); }
+}
+
+async function envoyerPushATous() {
+  const titre = document.getElementById("push-titre")?.value.trim();
+  const msg   = document.getElementById("push-message")?.value.trim();
+  if (!titre || !msg) { showToast("Titre et message requis", "error"); return; }
+  // Sans backend Push, on peut au mieux envoyer une notification locale + tracer l'intention
+  // dans la table messages pour les autres utilisateurs (chargée par leur app au prochain refresh)
+  if (!confirm("Envoyer cette notification à tous les appareils enregistrés ? Note : sans backend Web Push, le message sera distribué via la messagerie EduLink.")) return;
+  const devices = _pwaState.devices || [];
+  // 1) Notification locale immédiate
+  try {
+    if (Notification.permission === "granted") {
+      const reg = await navigator.serviceWorker?.getRegistration();
+      if (reg?.showNotification) await reg.showNotification(titre, { body: msg, icon: "/icons/icon-192.png" });
+      else new Notification(titre, { body: msg });
+    }
+  } catch(e) {}
+  // 2) Trace dans messages pour propager (les apps d'autres users la liront au prochain refresh)
+  try {
+    await db.from("messages").insert([{
+      ecole_id:          currentEcoleId,
+      objet:             "🔔 " + titre,
+      contenu:           msg,
+      destinataire_nom:  "Tous les utilisateurs",
+      destinataire_role: "all",
+      expediteur_nom:    "Administration",
+      expediteur_role:   "admin",
+      lu:                false,
+    }]);
+    pwaIncrementerPushStats();
+    showToast(`✅ Notification distribuée à ${devices.length} appareil(s) via messagerie`, "success");
+    _pwaState.pushStats = pwaLirePushStats();
+    renderPWAPush();
+  } catch(e) {
+    showToast("⚠️ " + e.message, "error");
+  }
+}
+
+// Génération QR Code SVG simple (encodage minimal, pas de lib externe)
+function pwaTelechargerQR() {
+  const url = window.location.origin || "https://app.afryx.io";
+  // SVG QR minimaliste (placeholder visible) — pour un vrai QR il faudrait une lib qrcode.js
+  // Approche pragmatique : on utilise l'API publique gratuite quickchart pour générer un QR
+  const qrUrl = "https://quickchart.io/qr?text=" + encodeURIComponent(url) + "&size=400&margin=2";
+  // Télécharger l'image
+  const a = document.createElement("a");
+  a.href = qrUrl;
+  a.download = "EduLink-QR-Installation.png";
+  a.target = "_blank";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => a.remove(), 200);
+  showToast("📥 QR Code généré pour " + url, "success");
 }
 
 /* — Hook showPage Suite 11 — */
