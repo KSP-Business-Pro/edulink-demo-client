@@ -1865,9 +1865,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
 @media(max-width:900px){ .portail-pub-hero{flex-direction:column} }
 
-/* ══════════════════════════════════════════════
-   CONTRÔLE D'ACCÈS & SÉCURITÉ CAMPUS  ★ JOUR 40
-══════════════════════════════════════════════ */
+
 .acces-hero { background:linear-gradient(135deg,#dc2626 0%,#7c3aed 50%,#1e3a5f 100%); border-radius:18px; padding:1.5rem 2rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; position:relative; overflow:hidden; }
 .acces-hero::after { content:'🔒'; position:absolute; right:2rem; top:50%; transform:translateY(-50%); font-size:80px; opacity:.07; }
 .acces-hero h2 { font-size:18px; font-weight:800; color:#fff; margin-bottom:4px; }
@@ -2320,7 +2318,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <a onclick="showPage('pwa-avancee')" id="nav-pwa-avancee"><span class="ico">📱</span> PWA Avancée <span class="badge blue" style="margin-left:auto;font-size:9px;padding:1px 5px">J37</span></a>
   <a onclick="showPage('exec-dashboard')" id="nav-exec-dashboard"><span class="ico">📊</span> Dashboard Directeur <span class="badge blue" style="margin-left:auto;font-size:9px;padding:1px 5px">J38</span></a>
   <a onclick="showPage('portail-public')" id="nav-portail-public"><span class="ico">🌎</span> Portail Public <span class="badge green" style="margin-left:auto;font-size:9px;padding:1px 5px">J39</span></a>
-  <a onclick="showPage('controle-acces')" id="nav-controle-acces"><span class="ico">🔒</span> Contrôle Accès <span class="badge red" style="margin-left:auto;font-size:9px;padding:1px 5px">J40</span></a>
   <a onclick="showPage('parametres')" id="nav-parametres"><span class="ico">⚙️</span> Paramètres</a>
 
   <div class="nav-bottom">
@@ -5491,12 +5488,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════
-     CONTRÔLE D'ACCÈS & SÉCURITÉ CAMPUS  ★ JOUR 40
-═══════════════════════════════════════ -->
-<div class="page" id="page-controle-acces">
-  <div class="top">
-    <div><h2>🔒 Contrôle d'accès & Sécurité</h2><p class="page-subtitle">Entrées/sorties, badges, zones sécurisées et incidents</p></div>
     <div class="top-actions">
       <button class="btn-red" onclick="declencherAlerteSecurite()">🚨 Alerte urgence</button>
       <button class="btn-blue" onclick="genererBadge()">🪪 Générer badge</button>
@@ -7902,12 +7893,12 @@ const MODULES_INACTIFS = ['cantine','transport','infirmerie','orientation'];
 
 // Permissions par rôle
 const ROLE_PERMISSIONS = {
-  admin:      ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','documents','certificats','rapports','analytics','messages','rh','bibliotheque','bibliotheque-num','cantine','transport','infirmerie','orientation','reseau','portail-etudiant','dashboard-reseau','parametres-avances','assistant-ia','sms-parents','pwa-avancee','exec-dashboard','portail-public','controle-acces','parametres','utilisateurs','calendrier'],
+  admin:      ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','documents','certificats','rapports','analytics','messages','rh','bibliotheque','bibliotheque-num','cantine','transport','infirmerie','orientation','reseau','portail-etudiant','dashboard-reseau','parametres-avances','assistant-ia','sms-parents','pwa-avancee','exec-dashboard','portail-public','parametres','utilisateurs','calendrier'],
   directeur:  ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','rapports','analytics','messages','exec-dashboard','dashboard-reseau','portail-public','parametres'],
   enseignant: ['dashboard','etudiants','notes','presences','emploi','examens','messages','assistant-ia','portail-etudiant'],
   comptable:  ['dashboard','paiements','comptabilite','rapports','messages','etudiants'],
   secretaire: ['dashboard','etudiants','documents','certificats','messages','classes'],
-  surveillance:['dashboard','presences','discipline','messages','controle-acces'],
+  surveillance:['dashboard','presences','discipline','messages'],
 };
 // tousLesEnseignants déclaré plus haut (Jour 13)
 
@@ -7994,7 +7985,6 @@ function showPage(p) {
     'pwa-avancee':       chargerPWAAvancee,
     'exec-dashboard':    chargerExecDashboard,
     'portail-public':    chargerPortailPublic,
-    'controle-acces':    chargerControleAcces,
   };
   if (p === 'certificats') { chargerBranding(); }
   if (loaders[p]) loaders[p]();
@@ -21430,248 +21420,6 @@ async function ppSupprimerActualite(id) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   SUITE 12 — CONTRÔLE D'ACCÈS ★ JOUR 40
-══════════════════════════════════════════════════════════════════ */
-let accesJournalData = [];
-let accesIntervalId = null;
-
-const ACCES_ZONES = [
-  {ico:'🚪',nom:'Entrée principale',code:'ZONE-01',actif:true,nb:245,statut:'ouverte'},
-  {ico:'📚',nom:'Bibliothèque',code:'ZONE-02',actif:true,nb:32,statut:'ouverte'},
-  {ico:'🔬',nom:'Laboratoire Sciences',code:'ZONE-03',actif:true,nb:18,statut:'ouverte'},
-  {ico:'💻',nom:'Salle Informatique',code:'ZONE-04',actif:true,nb:24,statut:'ouverte'},
-  {ico:'🏃',nom:'Gymnase',code:'ZONE-05',actif:false,nb:0,statut:'fermee'},
-  {ico:'🍽️',nom:'Cantine',code:'ZONE-06',actif:true,nb:89,statut:'ouverte'},
-  {ico:'🅿️',nom:'Parking personnel',code:'ZONE-07',actif:true,nb:12,statut:'alerte'},
-  {ico:'🏛️',nom:'Direction',code:'ZONE-08',actif:true,nb:4,statut:'fermee'},
-];
-
-const ACCES_BADGES_DATA = [
-  {nom:'Samou Adambi', role:'Directeur', num:'EDU-DIR-001', expire:'31/12/2026', zones:'Toutes', statut:'actif', color:'#1e3a5f'},
-  {nom:'Prof. Kpossou', role:'Enseignant', num:'EDU-ENS-042', expire:'31/08/2026', zones:'Classes, Salle profs', statut:'actif', color:'#059669'},
-  {nom:'Kofi Mensah', role:'Étudiant', num:'EDU-STD-197', expire:'30/06/2026', zones:'Classes, Bibliothèque', statut:'actif', color:'#7c3aed'},
-  {nom:'Compta. AGB', role:'Comptable', num:'EDU-ADM-015', expire:'31/12/2026', zones:'Admin, Direction', statut:'actif', color:'#d97706'},
-  {nom:'M. Inconnu', role:'Visiteur', num:'EDU-VIS-TMP', expire:'01/04/2026 18:00', zones:'Hall uniquement', statut:'expire', color:'#dc2626'},
-];
-
-const ACCES_INCIDENTS = [
-  {ico:'⚠️', bg:'#fef9c3', titre:'Badge inconnu détecté', desc:'Tentative d\'accès — Zone parking', heure:'10:42', gravite:'moyen'},
-  {ico:'🚨', bg:'#fee2e2', titre:'Alarme incendie déclenchée', desc:'Fausse alarme — Laboratoire chimie', heure:'09:15', gravite:'critique'},
-  {ico:'ℹ️', bg:'#dbeafe', titre:'Porte laissée ouverte', desc:'Salle informatique 204 — 15 min', heure:'08:33', gravite:'faible'},
-];
-
-const NOMS_DEMO = ['Kofi Mensah','Afi Dossou','Prof. Kpossou','Samou Adambi','Brice Gbedo','Flore Akpo','Compta. AGB','Marius Sime','Sonia Ahoton','M. Visiteur'];
-const ZONES_DEMO = ['Entrée principale','Bibliothèque','Laboratoire','Salle Informatique','Cantine','Direction'];
-
-function genererEvenementAleatoire() {
-  const nom = NOMS_DEMO[Math.floor(Math.random()*NOMS_DEMO.length)];
-  const zone = ZONES_DEMO[Math.floor(Math.random()*ZONES_DEMO.length)];
-  const type = Math.random() > 0.3 ? 'entree' : 'sortie';
-  const now = new Date();
-  return { id:Date.now(), nom, zone, type, heure:now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}), badge:'EDU-'+Math.floor(1000+Math.random()*9000) };
-}
-
-function chargerControleAcces() {
-  // Initialiser journal
-  accesJournalData = Array.from({length:8},(_,i)=>{
-    const e = genererEvenementAleatoire();
-    const t = new Date(Date.now()-(8-i)*120000);
-    e.heure = t.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    return e;
-  });
-
-  // Hero KPIs
-  const heroKpis = document.getElementById('acces-hero-kpis');
-  if (heroKpis) heroKpis.innerHTML = [
-    {v:'284', l:'Personnes sur site'},
-    {v:ACCES_ZONES.filter(z=>z.actif).length, l:'Zones actives'},
-    {v:ACCES_BADGES_DATA.filter(b=>b.statut==='actif').length, l:'Badges actifs'},
-    {v:'3', l:'Alertes sécurité'},
-  ].map(k=>`<div class="acces-kpi"><div class="ak2-val">${k.v}</div><div class="ak2-lbl">${k.l}</div></div>`).join('');
-
-  // KPI bar
-  const kpiBar = document.getElementById('acces-kpi-bar');
-  if (kpiBar) kpiBar.innerHTML = [
-    {ico:'🚪',bg:'#dcfce7',v:'247',l:'Entrées aujourd\'hui',c:'#059669'},
-    {ico:'🚶',bg:'#dbeafe',v:'189',l:'Sorties aujourd\'hui',c:'#1d4ed8'},
-    {ico:'⚠️',bg:'#fef9c3',v:'3',l:'Alertes actives',c:'#d97706'},
-    {ico:'🪪',bg:'#ede9fe',v:ACCES_BADGES_DATA.length,l:'Badges enregistrés',c:'#7c3aed'},
-  ].map(k=>`<div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:1.1rem 1.2rem;display:flex;align-items:center;gap:.85rem">
-    <div style="width:44px;height:44px;border-radius:12px;background:${k.bg};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${k.ico}</div>
-    <div><div style="font-size:22px;font-weight:700;color:${k.c}">${k.v}</div><div style="font-size:11px;color:#6b7280">${k.l}</div></div>
-  </div>`).join('');
-
-  renderAccesJournal();
-  renderAccesZones();
-  renderAccesBadges();
-  renderAccesIncidents();
-  renderAccesPresenceLive();
-  renderAccesZonesStatus();
-
-  // Simuler flux temps réel
-  if (accesIntervalId) clearInterval(accesIntervalId);
-  accesIntervalId = setInterval(()=>{
-    const page = document.getElementById('page-controle-acces');
-    if (!page || !page.classList.contains('active')) { clearInterval(accesIntervalId); return; }
-    const evt = genererEvenementAleatoire();
-    accesJournalData.unshift(evt);
-    if (accesJournalData.length > 30) accesJournalData.pop();
-    renderAccesJournal();
-  }, 4000);
-}
-
-function renderAccesJournal(filtre='', type='') {
-  const list = document.getElementById('acces-journal-list');
-  if (!list) return;
-  let data = [...accesJournalData];
-  if (type) data = data.filter(e=>e.type===type);
-  if (filtre) data = data.filter(e=>e.nom.toLowerCase().includes(filtre.toLowerCase())||e.zone.toLowerCase().includes(filtre.toLowerCase()));
-  list.innerHTML = data.map(e=>`<div class="acces-log-item">
-    <div class="acces-log-ico ${e.type}">${e.type==='entree'?'✅':e.type==='sortie'?'🚪':'⚠️'}</div>
-    <div class="acces-log-body">
-      <div class="acces-log-nom">${e.nom}</div>
-      <div class="acces-log-meta">Badge: ${e.badge}</div>
-    </div>
-    <div class="acces-log-right">
-      <div class="acces-log-heure">${e.heure}</div>
-      <div class="acces-log-porte">${e.zone}</div>
-    </div>
-    <span class="badge ${e.type==='entree'?'green':'blue'}" style="margin-left:.5rem">${e.type==='entree'?'↵ Entrée':'↳ Sortie'}</span>
-  </div>`).join('');
-}
-
-function filtrerJournal() {
-  const filtre = document.getElementById('acces-search-journal').value;
-  const type = document.getElementById('acces-filter-type').value;
-  renderAccesJournal(filtre, type);
-}
-
-function renderAccesZones() {
-  const list = document.getElementById('acces-zones-list');
-  if (!list) return;
-  list.innerHTML = ACCES_ZONES.map(z=>`<div class="porte-item">
-    <div class="porte-ico" style="background:${z.statut==='ouverte'?'#dcfce7':z.statut==='alerte'?'#fef9c3':'#fee2e2'}">${z.ico}</div>
-    <div class="porte-body">
-      <div class="porte-nom">${z.nom} <span style="font-size:10px;color:#9ca3af">${z.code}</span></div>
-      <div class="porte-meta">${z.actif?z.nb+' personnes présentes':'Zone fermée'}</div>
-    </div>
-    <span class="porte-statut ${z.statut}">${z.statut==='ouverte'?'✅ Ouverte':z.statut==='alerte'?'⚠️ Alerte':'🔒 Fermée'}</span>
-    <button class="btn-sm btn-secondary" onclick="showToast('${z.statut==='ouverte'?'🔒 Zone fermée':'✅ Zone ouverte'}','${z.statut==='ouverte'?'info':'success'}')" style="margin-left:.5rem">${z.statut==='ouverte'?'🔒':'✅'}</button>
-  </div>`).join('');
-}
-
-function renderAccesBadges() {
-  const tbody = document.getElementById('acces-badges-tbody');
-  if (!tbody) return;
-  tbody.innerHTML = ACCES_BADGES_DATA.map(b=>`<tr>
-    <td><strong>${b.nom}</strong></td>
-    <td><span class="badge blue">${b.role}</span></td>
-    <td><code style="font-size:11px">${b.num}</code></td>
-    <td>${b.expire}</td>
-    <td style="font-size:12px;color:#6b7280">${b.zones}</td>
-    <td><span class="badge ${b.statut==='actif'?'green':'red'}">${b.statut}</span></td>
-  </tr>`).join('');
-
-  // Preview badge
-  const preview = document.getElementById('acces-badge-preview');
-  if (!preview) return;
-  const b = ACCES_BADGES_DATA[0];
-  preview.innerHTML = `<div class="badge-card">
-    <div class="bc-logo">🎓</div>
-    <div class="bc-nom">${b.nom}</div>
-    <div class="bc-role">${b.role}</div>
-    <div class="bc-classe">EduLink Bénin</div>
-    <div class="bc-id">${b.num}</div>
-    <div class="bc-qr">📱</div>
-  </div>`;
-}
-
-function renderAccesIncidents() {
-  const list = document.getElementById('acces-incidents-list');
-  if (!list) return;
-  list.innerHTML = ACCES_INCIDENTS.map(i=>`<div class="incident-sec-item">
-    <div class="isi-ico" style="background:${i.bg}">${i.ico}</div>
-    <div class="isi-body">
-      <div class="isi-titre">${i.titre}</div>
-      <div class="isi-desc">${i.desc}</div>
-    </div>
-    <div class="isi-right">
-      <div class="isi-heure">${i.heure}</div>
-      <span class="badge ${i.gravite==='critique'?'red':i.gravite==='moyen'?'amber':'blue'}" style="font-size:10px;margin-top:3px;display:block">${i.gravite}</span>
-    </div>
-    <button class="btn-sm btn-secondary" onclick="showToast('✅ Incident traité','success')" style="margin-left:.5rem">Traiter</button>
-  </div>`).join('');
-
-  // Alertes récentes sidebar
-  const alertes = document.getElementById('acces-alertes-recentes');
-  if (alertes) alertes.innerHTML = ACCES_INCIDENTS.map(i=>`<div style="display:flex;gap:.75rem;padding:.65rem 1.2rem;border-bottom:1px solid #f3f4f6;align-items:flex-start">
-    <span style="font-size:16px">${i.ico}</span>
-    <div><div style="font-size:12px;font-weight:700;color:#111827">${i.titre}</div>
-    <div style="font-size:11px;color:#9ca3af">${i.heure}</div></div>
-  </div>`).join('');
-}
-
-function renderAccesPresenceLive() {
-  const grid = document.getElementById('acces-presence-live');
-  if (!grid) return;
-  grid.innerHTML = [
-    {v:'198', l:'Élèves sur site'},
-    {v:'52', l:'Enseignants'},
-    {v:'34', l:'Personnel admin.'},
-    {v:'0', l:'Visiteurs actifs'},
-  ].map(p=>`<div class="plg-item"><div class="plg-val">${p.v}</div><div class="plg-lbl">${p.l}</div></div>`).join('');
-}
-
-function renderAccesZonesStatus() {
-  const cont = document.getElementById('acces-zones-status');
-  if (!cont) return;
-  cont.innerHTML = ACCES_ZONES.slice(0,5).map(z=>`<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem 1.2rem;border-bottom:1px solid #f3f4f6">
-    <div style="width:8px;height:8px;border-radius:50%;background:${z.statut==='ouverte'?'#059669':z.statut==='alerte'?'#d97706':'#dc2626'};flex-shrink:0"></div>
-    <span style="font-size:12px;flex:1;color:#374151">${z.nom}</span>
-    <span style="font-size:11px;font-weight:600;color:${z.statut==='ouverte'?'#059669':z.statut==='alerte'?'#d97706':'#dc2626'}">${z.nb}</span>
-  </div>`).join('');
-}
-
-function accesSwitchTab(tab, btn) {
-  ['journal','zones','badges','incidents','statistiques'].forEach(t=>{
-    const el=document.getElementById('acces-tab-'+t); if(el) el.style.display=t===tab?'block':'none';
-  });
-  document.querySelectorAll('#page-controle-acces .tab').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-}
-
-function declencherAlerteSecurite() {
-  showToast('🚨 ALERTE URGENCE déclenchée — Administration notifiée !','error');
-  const statut = document.getElementById('acces-campus-statut');
-  if (statut) { statut.textContent = '🚨 ALERTE EN COURS — Personnel notifié'; statut.style.color='#F87171'; }
-  setTimeout(()=>{ if(statut){statut.textContent='Campus sécurisé · Surveillance active'; statut.style.color='';} }, 5000);
-}
-
-function genererBadge() {
-  accesSwitchTab('badges', document.querySelectorAll('#page-controle-acces .tab')[2]);
-  showToast('🪪 Nouveau badge — Sélectionnez un titulaire dans la liste','info');
-}
-
-function signalerIncident() { showToast('⚠️ Incident signalé et enregistré dans le journal','error'); }
-function exporterJournal() { showToast('📥 Export du journal en cours (CSV)...','info'); }
-
-/* — Hook showPage Suite 12 — */
-(function() {
-  window.addEventListener('load', function() {
-    if (typeof window.showPage === 'function') {
-      const _b = window.showPage;
-      window.showPage = function(id) {
-        _b(id);
-        if (id==='exec-dashboard') setTimeout(chargerExecDashboard, 50);
-        if (id==='portail-public')  setTimeout(chargerPortailPublic, 50);
-        if (id==='controle-acces')  setTimeout(chargerControleAcces, 50);
-      };
-    }
-  });
-})();
-
-
-/* ══════════════════════════════════════════════════════════════════
    SUITE 13 — RECHERCHE GLOBALE ★ J41
 ══════════════════════════════════════════════════════════════════ */
 let searchIndex = -1;
@@ -21697,7 +21445,6 @@ const SEARCH_MODULES = [
   {ico:'🤖',bg:'#ede9fe',titre:'Assistant IA',module:'assistant-ia',cat:'Navigation'},
   {ico:'📞',bg:'#dcfce7',titre:'Email Parents',module:'sms-parents',cat:'Navigation'},
   {ico:'📱',bg:'#dbeafe',titre:'PWA Avancée',module:'pwa-avancee',cat:'Navigation'},
-  {ico:'🔒',bg:'#fee2e2',titre:'Contrôle Accès',module:'controle-acces',cat:'Navigation'},
   {ico:'🌎',bg:'#dcfce7',titre:'Portail Public',module:'portail-public',cat:'Navigation'},
   {ico:'📊',bg:'#dbeafe',titre:'Dashboard Directeur',module:'exec-dashboard',cat:'Navigation'},
   {ico:'🔧',bg:'#fef9c3',titre:'Paramètres Avancés',module:'parametres-avances',cat:'Navigation'},
