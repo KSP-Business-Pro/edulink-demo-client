@@ -8757,7 +8757,9 @@ function renderGrilleEDT() {
 
   const index = {};
   tousLesCreneaux.forEach(c => {
-    const k = c.jour + '|' + c.heure_debut;
+    // Normaliser heure_debut : PostgreSQL retourne "07:00:00", HEURES contient "07:00"
+    const heureNorm = (c.heure_debut || '').substring(0, 5);
+    const k = c.jour + '|' + heureNorm;
     if (!index[k]) index[k] = [];
     index[k].push(c);
   });
@@ -8791,7 +8793,7 @@ function voirCreneau(id) {
   // Popup de détail avec options modifier/supprimer
   const typeLabel = {cours:'Cours magistral', td:'Travaux dirigés', tp:'Travaux pratiques', exam:'Examen/Contrôle'}[s.type] || s.type;
   if (confirm(
-    `📅 ${s.jour} ${s.heure_debut}–${s.heure_fin}\n` +
+    `📅 ${s.jour} ${(s.heure_debut||'').substring(0,5)}–${(s.heure_fin||'').substring(0,5)}\n` +
     `📚 ${s.matiere}\n` +
     `🏷️ ${typeLabel}\n` +
     `${s.professeur ? '👤 '+s.professeur+'\n' : ''}` +
@@ -8818,8 +8820,8 @@ function ouvrirModifierCreneau(id) {
   const s = tousLesCreneaux.find(c => c.id === id);
   if (!s) return;
   document.getElementById('input-edt-jour').value   = s.jour;
-  document.getElementById('input-edt-debut').value  = s.heure_debut;
-  document.getElementById('input-edt-fin').value    = s.heure_fin;
+  document.getElementById('input-edt-debut').value  = (s.heure_debut||'').substring(0,5);
+  document.getElementById('input-edt-fin').value    = (s.heure_fin||'').substring(0,5);
   document.getElementById('input-edt-matiere').value= s.matiere;
   document.getElementById('input-edt-prof').value   = s.professeur || '';
   document.getElementById('input-edt-salle').value  = s.salle || '';
