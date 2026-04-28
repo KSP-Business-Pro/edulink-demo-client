@@ -7984,14 +7984,39 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
 // ══ MULTI-ÉTABLISSEMENTS ══════════════════════
 async function chargerEcoles() {
   const { data } = await db.from('ecoles').select('*').order('nom');
-  tousLesEcoles = data || [];
+  const ecolesSupabase = data || [];
+
+  // Récupérer aussi les établissements du Réseau (localStorage)
+  // et les fusionner si ils ont un id Supabase valide
+  if (typeof reseauRestaurer === 'function') reseauRestaurer(); // charge tousLesEtablissements depuis localStorage
+  const idsSupabase = new Set(ecolesSupabase.map(e => e.id));
+  const ecolesReseau = (tousLesEtablissements || []).filter(e =>
+    e.id && !idsSupabase.has(e.id)
+  ).map(e => ({
+    // Normaliser au format ecoles Supabase
+    id:          e.id,
+    nom:         e.nom || 'Établissement',
+    type:        e.type || 'université',
+    ville:       e.ville || '—',
+    telephone:   e.telephone || '',
+    email:       e.email || '',
+    pays:        e.pays || 'Bénin',
+    _from_reseau: true, // marqueur interne
+  }));
+
+  tousLesEcoles = [...ecolesSupabase, ...ecolesReseau];
+
   const sel = document.getElementById('ecole-selector');
   if (tousLesEcoles.length > 0) {
-    sel.innerHTML = tousLesEcoles.map(e => `<option value="${e.id}">${e.nom}</option>`).join('');
+    sel.innerHTML = tousLesEcoles.map(e =>
+      `<option value="${e.id}">${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
+    ).join('');
     currentEcoleId = tousLesEcoles[0].id;
     mettreAJourBadgeEcole(tousLesEcoles[0]);
     // Synchroniser le sélecteur du Dashboard Directeur
     peuplerExecSelector();
+    // Sync complète avec les établissements réseau
+    _syncSelecteursEcoles();
   } else {
     sel.innerHTML = '<option value="">Aucun établissement</option>';
   }
@@ -8037,7 +8062,7 @@ function peuplerExecSelector() {
   const sel = document.getElementById('exec-ecole-selector');
   if (!sel || !tousLesEcoles.length) return;
   sel.innerHTML = tousLesEcoles.map(e =>
-    `<option value="${e.id}" style="background:#1e3a5f" ${e.id === currentEcoleId ? 'selected' : ''}>${e.nom}</option>`
+    `<option value="${e.id}" style="background:#1e3a5f" ${e.id === currentEcoleId ? 'selected' : ''}>${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
   ).join('');
 }
 function mettreAJourBadgeEcole(ecole) {
@@ -16934,6 +16959,28 @@ let reseauAlertes = [];
 
 function reseauSauvegarder() {
   try { localStorage.setItem(RESEAU_STORE_KEY, JSON.stringify({ etabs: tousLesEtablissements, alertes: reseauAlertes })); } catch(e) {}
+  // Repeupler les sélecteurs sans requête réseau
+  _syncSelecteursEcoles();
+}
+
+// Met à jour les sélecteurs nav + Dashboard Directeur avec les données en mémoire
+function _syncSelecteursEcoles() {
+  // Fusionner tousLesEcoles (Supabase) + tousLesEtablissements (réseau) sans doublon
+  const idsSupabase = new Set((tousLesEcoles || []).map(e => e.id));
+  const ecolesReseau = (tousLesEtablissements || []).filter(e => e.id && !idsSupabase.has(e.id))
+    .map(e => ({ id:e.id, nom:e.nom||'Établissement', type:e.type||'université', ville:e.ville||'—', _from_reseau:true }));
+  const toutesEcoles = [...(tousLesEcoles || []), ...ecolesReseau];
+  if (!toutesEcoles.length) return;
+  // Nav gauche
+  const navSel = document.getElementById('ecole-selector');
+  if (navSel) navSel.innerHTML = toutesEcoles.map(e =>
+    `<option value="${e.id}" ${e.id === currentEcoleId ? 'selected' : ''}>${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
+  ).join('');
+  // Dashboard Directeur
+  const execSel = document.getElementById('exec-ecole-selector');
+  if (execSel) execSel.innerHTML = toutesEcoles.map(e =>
+    `<option value="${e.id}" style="background:#1e3a5f" ${e.id === currentEcoleId ? 'selected' : ''}>${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
+  ).join('');
 }
 function reseauRestaurer() {
   try {
