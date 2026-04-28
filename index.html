@@ -5539,6 +5539,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>⚙️ Paramètres</h2><p class="page-subtitle">Configuration de l'établissement et préférences personnelles</p></div>
     <div class="top-actions">
+      <button class="btn-secondary" onclick="viderChampsParametres()">🗑️ Vider les champs</button>
       <button class="btn-secondary" onclick="paramExporterConfig()">📦 Exporter config</button>
       <button onclick="sauvegarderParametres()">💾 Enregistrer</button>
     </div>
@@ -10197,34 +10198,35 @@ async function chargerParametres() {
 
 async function sauvegarderParametres() {
   const nom = document.getElementById("param-nom")?.value.trim();
-  if (!nom) { showToast("Le nom est obligatoire.", "error"); return; }
+  if (!nom) { showToast("⚠️ Le nom de l'établissement est obligatoire.", "error"); return; }
   const data = {};
   ["nom","type","ville","pays","adresse","tel","email","site","annee","notation","debut","fin","devise","agrement"].forEach(field => {
     const el = document.getElementById("param-" + field);
-    if (el) data[field] = el.value;
+    if (el) data[field] = el.value.trim();
   });
 
-  // Sauvegarde locale (fallback)
+  // Sauvegarde locale (fallback immédiat)
   const prefix = "edulink_param_" + (currentEcoleId || "global");
   localStorage.setItem(prefix, JSON.stringify(data));
 
   if (currentEcoleId) {
-    // Payload Supabase complet (toutes les colonnes possibles)
+    // Payload Supabase : champs vides → null (pas de chaîne vide)
+    const orNull = v => (v && v.trim()) ? v.trim() : null;
     const payload = {
       nom:               data.nom,
-      type:              data.type,
-      ville:             data.ville,
-      pays:              data.pays,
-      adresse:           data.adresse,
-      telephone:         data.tel,
-      email:             data.email,
-      site_web:          data.site,
-      annee_scolaire:    data.annee,
-      systeme_notation:  data.notation,
-      date_debut:        data.debut || null,
-      date_fin:          data.fin   || null,
-      devise:            data.devise,
-      agrement:          data.agrement,
+      type:              orNull(data.type),
+      ville:             orNull(data.ville),
+      pays:              orNull(data.pays),
+      adresse:           orNull(data.adresse),
+      telephone:         orNull(data.tel),
+      email:             orNull(data.email),
+      site_web:          orNull(data.site),
+      annee_scolaire:    orNull(data.annee),
+      systeme_notation:  orNull(data.notation),
+      date_debut:        orNull(data.debut),
+      date_fin:          orNull(data.fin),
+      devise:            orNull(data.devise),
+      agrement:          orNull(data.agrement),
     };
     // Auto-retry : retirer les colonnes absentes du schéma
     let { error } = await db.from("ecoles").update(payload).eq("id", currentEcoleId);
@@ -10236,7 +10238,11 @@ async function sauvegarderParametres() {
       ({ error } = await db.from("ecoles").update(payload).eq("id", currentEcoleId));
       guard++;
     }
-    if (error) { showToast("Paramètres sauvés localement — Erreur Supabase : " + error.message, "error"); return; }
+    if (error) {
+      showToast("❌ Erreur Supabase : " + error.message, "error");
+      console.error("[Paramètres]", error);
+      return;
+    }
 
     // Mise à jour en mémoire
     const ecole = tousLesEcoles.find(e => e.id === currentEcoleId);
@@ -10248,6 +10254,16 @@ async function sauvegarderParametres() {
   showToast("✅ Paramètres enregistrés !", "success");
   if (typeof reseauInitialized !== "undefined" && reseauInitialized && typeof forcerSyncReseau === "function") forcerSyncReseau();
   if (typeof invalidateData === "function") invalidateData("ecoles");
+}
+
+// Vider tous les champs optionnels de l'onglet Établissement (garde le nom)
+function viderChampsParametres() {
+  if (!confirm("Vider tous les champs optionnels ?\n(Le nom sera conservé, les autres champs seront remis à zéro)")) return;
+  ["param-adresse","param-tel","param-email","param-site","param-agrement",
+   "param-debut","param-fin"].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = "";
+  });
+  showToast("🗑️ Champs vidés — cliquez 💾 Enregistrer pour sauvegarder", "info");
 }
 
 function copierLienPortail() {
