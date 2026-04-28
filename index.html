@@ -7361,47 +7361,55 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
 
 // ══ MULTI-ÉTABLISSEMENTS ══════════════════════
 async function chargerEcoles() {
-  const { data } = await db.from('ecoles').select('*').order('nom');
+  // Charger toutes les écoles depuis Supabase (source de vérité unique)
+  // Tri par created_at ASC : la première école créée = établissement principal
+  const { data, error } = await db.from('ecoles').select('*').order('created_at', { ascending: true });
+  if (error) console.warn('[chargerEcoles]', error.message);
   const ecolesSupabase = data || [];
 
-  // Récupérer aussi les établissements du Réseau (localStorage)
-  // et les fusionner si ils ont un id Supabase valide
-  if (typeof reseauRestaurer === 'function') reseauRestaurer(); // charge tousLesEtablissements depuis localStorage
+  // Fusionner avec les établissements réseau SEULEMENT s'ils n'ont pas encore d'entrée Supabase
+  if (typeof reseauRestaurer === 'function') reseauRestaurer();
   const idsSupabase = new Set(ecolesSupabase.map(e => e.id));
-  const ecolesReseau = (tousLesEtablissements || []).filter(e =>
-    e.id && !idsSupabase.has(e.id)
+  const ecolesReseauOrphelins = (tousLesEtablissements || []).filter(e =>
+    e.id && !idsSupabase.has(e.id) && e.nom && e.nom.trim()
   ).map(e => ({
-    // Normaliser au format ecoles Supabase
-    id:          e.id,
-    nom:         e.nom || 'Établissement',
-    type:        e.type || 'université',
-    ville:       e.ville || '—',
-    telephone:   e.telephone || '',
-    email:       e.email || '',
-    pays:        e.pays || 'Bénin',
-    _from_reseau: true, // marqueur interne
+    id: e.id, nom: e.nom, type: e.type || 'université',
+    ville: e.ville || '', pays: e.pays || 'Bénin',
+    telephone: e.telephone || '', email: e.email || '',
+    _from_reseau: true,
   }));
 
-  tousLesEcoles = [...ecolesSupabase, ...ecolesReseau];
+  tousLesEcoles = [...ecolesSupabase, ...ecolesReseauOrphelins];
 
   const sel = document.getElementById('ecole-selector');
+  if (!sel) return;
+
   if (tousLesEcoles.length > 0) {
     sel.innerHTML = tousLesEcoles.map(e =>
       `<option value="${e.id}">${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
     ).join('');
-    currentEcoleId = tousLesEcoles[0].id;
-    // Fenêtre 1 = principal (premier Supabase), Fenêtre 2 = actif (aussi le premier au démarrage)
-    mettreAJourBadgeEcole(tousLesEcoles[0]);
-    // Synchroniser le sélecteur du Dashboard Directeur
+    // Garder la sélection courante si elle existe encore, sinon prendre la première
+    const existingOption = tousLesEcoles.find(e => e.id === currentEcoleId);
+    if (!existingOption) currentEcoleId = tousLesEcoles[0].id;
+    sel.value = currentEcoleId;
+    const ecoleActive = tousLesEcoles.find(e => e.id === currentEcoleId) || tousLesEcoles[0];
+    mettreAJourBadgeEcole(ecoleActive);
     peuplerExecSelector();
-    // Sync complète avec les établissements réseau
     _syncSelecteursEcoles();
+    // Nettoyer le localStorage réseau : retirer les fiches orphelines dont l'id est dans Supabase
+    if (tousLesEtablissements && tousLesEtablissements.length) {
+      const avant = tousLesEtablissements.length;
+      tousLesEtablissements = tousLesEtablissements.filter(e => e.id && !idsSupabase.has(e.id));
+      if (tousLesEtablissements.length !== avant) {
+        try { localStorage.setItem('edulink_reseau_data', JSON.stringify({ etabs: tousLesEtablissements, alertes: reseauAlertes || [] })); } catch(e2) {}
+        console.info('[chargerEcoles] Fiches réseau obsolètes nettoyées du localStorage');
+      }
+    }
   } else {
     sel.innerHTML = '<option value="">Aucun établissement</option>';
+    currentEcoleId = null;
   }
   chargerDashboard();
-  // Auto-init FCM après chargement de l'école
-  // initFCM supprimé — Messagerie est le canal unique
 }
 function changerEcole() {
   currentEcoleId = document.getElementById('ecole-selector').value;
@@ -9473,13 +9481,17 @@ async function chargerDashboardCharts() {
 
 // ══ PARAMÈTRES  ★ JOUR 6 ══════════════════════
 async function chargerParametres() {
-  const prefix = "edulink_param_" + (currentEcoleId || "global");
+  // Paramètres = toujours l'établissement PRINCIPAL (premier Supabase, non réseau)
+  const principalEcole = (tousLesEcoles || []).find(e => !e._from_reseau) || null;
+  const principalId    = principalEcole?.id || currentEcoleId;
+
+  const prefix = "edulink_param_" + (principalId || "global");
   const saved  = JSON.parse(localStorage.getItem(prefix) || "{}");
 
   // Lire les données complètes depuis Supabase
   let ecoleDb = null;
-  if (currentEcoleId) {
-    const { data } = await db.from("ecoles").select("*").eq("id", currentEcoleId).single();
+  if (principalId) {
+    const { data } = await db.from("ecoles").select("*").eq("id", principalId).single();
     ecoleDb = data;
   }
 
@@ -9532,6 +9544,11 @@ async function chargerParametres() {
 async function sauvegarderParametres() {
   const nom = document.getElementById("param-nom")?.value.trim();
   if (!nom) { showToast("⚠️ Le nom de l'établissement est obligatoire.", "error"); return; }
+
+  // Paramètres = toujours l'établissement PRINCIPAL (premier Supabase, non réseau)
+  const principalEcole = (tousLesEcoles || []).find(e => !e._from_reseau) || null;
+  const principalId    = principalEcole?.id || currentEcoleId;
+
   const data = {};
   ["nom","type","ville","pays","adresse","tel","email","site","annee","notation","debut","fin","devise","agrement"].forEach(field => {
     const el = document.getElementById("param-" + field);
@@ -9539,10 +9556,10 @@ async function sauvegarderParametres() {
   });
 
   // Sauvegarde locale (fallback immédiat)
-  const prefix = "edulink_param_" + (currentEcoleId || "global");
+  const prefix = "edulink_param_" + (principalId || "global");
   localStorage.setItem(prefix, JSON.stringify(data));
 
-  if (currentEcoleId) {
+  if (principalId) {
     // Payload Supabase : champs vides → null (pas de chaîne vide)
     const orNull = v => (v && v.trim()) ? v.trim() : null;
     const payload = {
@@ -9562,13 +9579,13 @@ async function sauvegarderParametres() {
       agrement:          orNull(data.agrement),
     };
     // Auto-retry : retirer les colonnes absentes du schéma
-    let { error } = await db.from("ecoles").update(payload).eq("id", currentEcoleId);
+    let { error } = await db.from("ecoles").update(payload).eq("id", principalId);
     let guard = 0;
     while (error && guard < 15) {
       const m = /Could not find the '([^']+)' column/.exec(error.message || "");
       if (!m || !(m[1] in payload)) break;
       delete payload[m[1]];
-      ({ error } = await db.from("ecoles").update(payload).eq("id", currentEcoleId));
+      ({ error } = await db.from("ecoles").update(payload).eq("id", principalId));
       guard++;
     }
     if (error) {
@@ -9578,10 +9595,11 @@ async function sauvegarderParametres() {
     }
 
     // Mise à jour en mémoire
-    const ecole = tousLesEcoles.find(e => e.id === currentEcoleId);
+    const ecole = tousLesEcoles.find(e => e.id === principalId);
     if (ecole) Object.assign(ecole, { nom: data.nom, type: data.type, ville: data.ville });
-    if (typeof mettreAJourBadgeEcole === "function") mettreAJourBadgeEcole({ nom: data.nom, type: data.type });
-    const opt = [...document.getElementById("ecole-selector").options].find(o => o.value === currentEcoleId);
+    if (typeof mettreAJourBadgeEcole === "function") mettreAJourBadgeEcole(ecole || { nom: data.nom, type: data.type });
+    // Mettre à jour le nom dans le sélecteur si l'école principale est sélectionnée
+    const opt = [...document.getElementById("ecole-selector").options].find(o => o.value === principalId);
     if (opt) opt.textContent = data.nom;
   }
   showToast("✅ Paramètres enregistrés !", "success");
