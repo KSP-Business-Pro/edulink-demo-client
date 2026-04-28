@@ -7056,6 +7056,55 @@ let tousLesEnseignants = [];
 let toutesMatieres     = [];
 let ficheEnsActif      = null;
 
+// ── Module Réseau : déclarations sûres ────────────────────────────────────
+// Ces variables et fonctions étaient utilisées sans être définies, ce qui
+// faisait planter ajouterEtablissement et chargerEcoles. On les déclare
+// explicitement ici pour éviter les ReferenceError, et on fournit des stubs
+// no-op pour les fonctions manquantes (reseauRestaurer / reseauSauvegarder /
+// _syncSelecteursEcoles). Si un vrai module Réseau les redéfinit plus loin,
+// les définitions ci-dessous seront simplement écrasées.
+if (typeof window.tousLesEtablissements === 'undefined') window.tousLesEtablissements = [];
+var tousLesEtablissements = window.tousLesEtablissements;
+if (typeof window.reseauAlertes === 'undefined') window.reseauAlertes = [];
+var reseauAlertes = window.reseauAlertes;
+const RESEAU_STORE_KEY = 'edulink_reseau_data';
+
+// Restaure depuis localStorage (si une ancienne session a sauvegardé le réseau)
+function reseauRestaurer() {
+  try {
+    const raw = localStorage.getItem(RESEAU_STORE_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    if (Array.isArray(obj?.etabs))    { tousLesEtablissements = obj.etabs;    window.tousLesEtablissements = tousLesEtablissements; }
+    if (Array.isArray(obj?.alertes))  { reseauAlertes         = obj.alertes;  window.reseauAlertes         = reseauAlertes; }
+  } catch (e) { console.warn('[reseauRestaurer]', e?.message || e); }
+}
+// Persiste vers localStorage
+function reseauSauvegarder() {
+  try {
+    localStorage.setItem(RESEAU_STORE_KEY, JSON.stringify({
+      etabs:   tousLesEtablissements || [],
+      alertes: reseauAlertes         || [],
+    }));
+  } catch (e) { console.warn('[reseauSauvegarder]', e?.message || e); }
+}
+// Synchronise tous les <select> qui listent les écoles dans la page
+function _syncSelecteursEcoles() {
+  try {
+    const selectors = ['ecole-selector', 'exec-ecole-selector'];
+    selectors.forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel || !tousLesEcoles?.length) return;
+      const cur = sel.value;
+      sel.innerHTML = tousLesEcoles.map(e =>
+        `<option value="${e.id}">${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
+      ).join('');
+      if (cur && tousLesEcoles.some(e => e.id === cur)) sel.value = cur;
+      else if (currentEcoleId) sel.value = currentEcoleId;
+    });
+  } catch (e) { console.warn('[_syncSelecteursEcoles]', e?.message || e); }
+}
+
 // ── Bus d'événements data ─────────────────────────────────────────────────
 // Quand un module modifie des données Supabase, il appelle invalidateData(table)
 // pour forcer le rechargement de tous les modules qui consomment cette table.
@@ -7364,74 +7413,92 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
 
 // ══ MULTI-ÉTABLISSEMENTS ══════════════════════
 async function chargerEcoles() {
-  // Charger toutes les écoles depuis Supabase (source de vérité unique)
-  // Tri par created_at ASC : la première école créée = établissement principal
-  const { data, error } = await db.from('ecoles').select('*').order('created_at', { ascending: true });
-  if (error) console.warn('[chargerEcoles]', error.message);
-  const ecolesSupabase = data || [];
+  console.info('[chargerEcoles] Démarrage…');
+  try {
+    // Charger toutes les écoles depuis Supabase (source de vérité unique)
+    // Tri par created_at ASC : la première école créée = établissement principal
+    const { data, error } = await db.from('ecoles').select('*').order('created_at', { ascending: true });
+    if (error) console.warn('[chargerEcoles] Supabase error:', error.message, error);
+    const ecolesSupabase = data || [];
+    console.info('[chargerEcoles] Supabase a renvoyé', ecolesSupabase.length, 'école(s)');
 
-  // Fusionner avec les établissements réseau SEULEMENT s'ils n'ont pas encore d'entrée Supabase
-  if (typeof reseauRestaurer === 'function') reseauRestaurer();
-  const idsSupabase = new Set(ecolesSupabase.map(e => e.id));
-  const ecolesReseauOrphelins = (tousLesEtablissements || []).filter(e =>
-    e.id && !idsSupabase.has(e.id) && e.nom && e.nom.trim()
-  ).map(e => ({
-    id: e.id, nom: e.nom, type: e.type || 'université',
-    ville: e.ville || '', pays: e.pays || 'Bénin',
-    telephone: e.telephone || '', email: e.email || '',
-    _from_reseau: true,
-  }));
+    // Fusionner avec les établissements réseau SEULEMENT s'ils n'ont pas encore d'entrée Supabase
+    if (typeof reseauRestaurer === 'function') reseauRestaurer();
+    const idsSupabase = new Set(ecolesSupabase.map(e => e.id));
+    const ecolesReseauOrphelins = (tousLesEtablissements || []).filter(e =>
+      e.id && !idsSupabase.has(e.id) && e.nom && e.nom.trim()
+    ).map(e => ({
+      id: e.id, nom: e.nom, type: e.type || 'université',
+      ville: e.ville || '', pays: e.pays || 'Bénin',
+      telephone: e.telephone || '', email: e.email || '',
+      _from_reseau: true,
+    }));
 
-  tousLesEcoles = [...ecolesSupabase, ...ecolesReseauOrphelins];
+    tousLesEcoles = [...ecolesSupabase, ...ecolesReseauOrphelins];
 
-  const sel = document.getElementById('ecole-selector');
-  if (!sel) return;
+    const sel = document.getElementById('ecole-selector');
+    if (!sel) { console.warn('[chargerEcoles] #ecole-selector introuvable'); return; }
 
-  if (tousLesEcoles.length > 0) {
-    sel.innerHTML = tousLesEcoles.map(e =>
-      `<option value="${e.id}">${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
-    ).join('');
-    // Garder la sélection courante si elle existe encore, sinon prendre la première
-    const existingOption = tousLesEcoles.find(e => e.id === currentEcoleId);
-    if (!existingOption) currentEcoleId = tousLesEcoles[0].id;
-    sel.value = currentEcoleId;
-    const ecoleActive = tousLesEcoles.find(e => e.id === currentEcoleId) || tousLesEcoles[0];
-    mettreAJourBadgeEcole(ecoleActive);
-    peuplerExecSelector();
-    _syncSelecteursEcoles();
-    // Nettoyer le localStorage réseau : retirer les fiches orphelines dont l'id est dans Supabase
-    if (tousLesEtablissements && tousLesEtablissements.length) {
-      const avant = tousLesEtablissements.length;
-      tousLesEtablissements = tousLesEtablissements.filter(e => e.id && !idsSupabase.has(e.id));
-      if (tousLesEtablissements.length !== avant) {
-        try { localStorage.setItem('edulink_reseau_data', JSON.stringify({ etabs: tousLesEtablissements, alertes: reseauAlertes || [] })); } catch(e2) {}
-        console.info('[chargerEcoles] Fiches réseau obsolètes nettoyées du localStorage');
+    if (tousLesEcoles.length > 0) {
+      sel.innerHTML = tousLesEcoles.map(e =>
+        `<option value="${e.id}">${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
+      ).join('');
+      // Garder la sélection courante si elle existe encore, sinon prendre la première
+      const existingOption = tousLesEcoles.find(e => e.id === currentEcoleId);
+      if (!existingOption) currentEcoleId = tousLesEcoles[0].id;
+      sel.value = currentEcoleId;
+      const ecoleActive = tousLesEcoles.find(e => e.id === currentEcoleId) || tousLesEcoles[0];
+      try { mettreAJourBadgeEcole(ecoleActive); } catch(e) { console.warn('[mettreAJourBadgeEcole]', e); }
+      try { peuplerExecSelector(); }            catch(e) { console.warn('[peuplerExecSelector]', e); }
+      try { _syncSelecteursEcoles(); }          catch(e) { console.warn('[_syncSelecteursEcoles]', e); }
+      // Nettoyer le localStorage réseau : retirer les fiches orphelines dont l'id est dans Supabase
+      if (tousLesEtablissements && tousLesEtablissements.length) {
+        const avant = tousLesEtablissements.length;
+        tousLesEtablissements = tousLesEtablissements.filter(e => e.id && !idsSupabase.has(e.id));
+        if (tousLesEtablissements.length !== avant) {
+          try { localStorage.setItem('edulink_reseau_data', JSON.stringify({ etabs: tousLesEtablissements, alertes: reseauAlertes || [] })); } catch(e2) {}
+          console.info('[chargerEcoles] Fiches réseau obsolètes nettoyées du localStorage');
+        }
+      }
+    } else {
+      console.info('[chargerEcoles] Aucune école → écran d\'accueil');
+      sel.innerHTML = '<option value="">Aucun établissement</option>';
+      currentEcoleId = null;
+      // Mettre à jour l'UI navigation pour montrer l'état "premier démarrage"
+      try { mettreAJourBadgeEcole(null); } catch(e) { console.warn('[mettreAJourBadgeEcole(null)]', e); }
+      // Petit bouton de raccourci dans la nav pour créer le premier établissement
+      const navWrap = document.getElementById('nav-principal-wrap');
+      if (navWrap && !navWrap.querySelector('.btn-first-etab')) {
+        const btn = document.createElement('button');
+        btn.className = 'btn-first-etab';
+        btn.style.cssText = 'width:100%;margin-top:6px;background:rgba(255,255,255,.18);color:#fff;border:1px dashed rgba(255,255,255,.4);border-radius:8px;padding:6px 8px;font-size:11px;font-weight:600;cursor:pointer';
+        btn.textContent = '＋ Créer mon établissement';
+        btn.onclick = () => ouvrirModalCreerPremierEtablissement();
+        navWrap.appendChild(btn);
+      }
+      // Afficher l'écran d'accueil "Bienvenue / Créez votre premier établissement"
+      if (typeof afficherEcranBienvenue === 'function') {
+        try { afficherEcranBienvenue(); } catch(e) { console.warn('[afficherEcranBienvenue]', e); }
       }
     }
-  } else {
-    sel.innerHTML = '<option value="">Aucun établissement</option>';
-    currentEcoleId = null;
-    // Mettre à jour l'UI navigation pour montrer l'état "premier démarrage"
-    mettreAJourBadgeEcole(null);
-    // Petit bouton de raccourci dans la nav pour créer le premier établissement
-    const navWrap = document.getElementById('nav-principal-wrap');
-    if (navWrap && !navWrap.querySelector('.btn-first-etab')) {
-      const btn = document.createElement('button');
-      btn.className = 'btn-first-etab';
-      btn.style.cssText = 'width:100%;margin-top:6px;background:rgba(255,255,255,.18);color:#fff;border:1px dashed rgba(255,255,255,.4);border-radius:8px;padding:6px 8px;font-size:11px;font-weight:600;cursor:pointer';
-      btn.textContent = '＋ Créer mon établissement';
-      btn.onclick = () => ouvrirModalCreerPremierEtablissement();
-      navWrap.appendChild(btn);
+    // Quand on a au moins une école, retirer le bouton de raccourci s'il existe
+    if (tousLesEcoles.length > 0) {
+      const btnFirst = document.querySelector('.btn-first-etab');
+      if (btnFirst) btnFirst.remove();
     }
-    // Afficher l'écran d'accueil "Bienvenue / Créez votre premier établissement"
-    if (typeof afficherEcranBienvenue === 'function') afficherEcranBienvenue();
+    try { await chargerDashboard(); } catch(e) { console.warn('[chargerDashboard]', e); }
+  } catch (err) {
+    console.error('[chargerEcoles] Exception non rattrapée:', err);
+    // Fallback minimal : montrer "Aucun établissement" plutôt que de laisser "Chargement..."
+    try {
+      const nomEl  = document.getElementById('ecole-nom-nav');
+      const typeEl = document.getElementById('ecole-type-nav');
+      if (nomEl)  nomEl.textContent  = 'Erreur de chargement';
+      if (typeEl) typeEl.textContent = 'Voir la console';
+      const sel = document.getElementById('ecole-selector');
+      if (sel) sel.innerHTML = '<option value="">— erreur —</option>';
+    } catch(_e) {}
   }
-  // Quand on a au moins une école, retirer le bouton de raccourci s'il existe
-  if (tousLesEcoles.length > 0) {
-    const btnFirst = document.querySelector('.btn-first-etab');
-    if (btnFirst) btnFirst.remove();
-  }
-  chargerDashboard();
 }
 function changerEcole() {
   currentEcoleId = document.getElementById('ecole-selector').value;
@@ -15864,102 +15931,138 @@ async function ajouterEtablissement() {
     return;
   }
   const btn = document.getElementById('btn-save-etab');
+  const errBox = document.getElementById('modal-etab-error');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Enregistrement...'; }
+  if (errBox) errBox.style.display = 'none';
 
-  const icos   = {'université':'🎓','lycée':'🏫','collège':'🏛️','école_primaire':'⭐','institut':'📚','centre_formation':'🔧'};
-  const colors = {'université':'#7c3aed','lycée':'#1e3a5f','collège':'#059669','école_primaire':'#d97706','institut':'#dc2626','centre_formation':'#059669'};
-  const type   = document.getElementById('etab-type')?.value  || 'université';
-  const statut = document.getElementById('etab-statut')?.value || 'actif';
-  const modal  = document.getElementById('modal-add-etab');
-  const editId = modal?.dataset?.editId || '';
-
-  const payload = {
-    nom,
-    type,
-    ville,
-    pays:            document.getElementById('etab-pays')?.value.trim()      || 'Bénin',
-    adresse:         document.getElementById('etab-adresse')?.value.trim()   || null,
-    telephone:       document.getElementById('etab-tel')?.value.trim()       || null,
-    email:           document.getElementById('etab-email')?.value.trim()     || null,
-    site_web:        document.getElementById('etab-site')?.value.trim()      || null,
-    annee_scolaire:  document.getElementById('etab-annee')?.value.trim()     || '2025-2026',
-    devise:          document.getElementById('etab-devise')?.value           || 'FCFA',
-    agrement:        document.getElementById('etab-agrement')?.value.trim()  || null,
-    statut,
-    is_demo:         false,
+  // Texte de bouton à restaurer en fin de fonction (dépend du mode édition)
+  const _modalForBtn = document.getElementById('modal-add-etab');
+  const _isEdit = !!(_modalForBtn?.dataset?.editId);
+  const restoreBtn = () => {
+    if (!btn) return;
+    btn.disabled = false;
+    btn.textContent = _isEdit ? '💾 Sauvegarder'
+      : (tousLesEcoles && tousLesEcoles.length === 0 ? '🚀 Créer mon établissement'
+         : '🏫 Enregistrer l\'annexe');
   };
 
-  // Données locales enrichies (pour le réseau localStorage)
-  const localData = {
-    ...payload,
-    directeur:    document.getElementById('etab-directeur')?.value.trim() || '—',
-    eleves:       0, enseignants: 0, taux_reussite: 0, recette_mois: 0,
-    moy_notes:    0, classes: 0, absences_taux: 0,
-    ico:          icos[type]   || '🎓',
-    color:        colors[type] || '#7c3aed',
-    _from_reseau: true,
-  };
+  try {
+    const icos   = {'université':'🎓','lycée':'🏫','collège':'🏛️','école_primaire':'⭐','institut':'📚','centre_formation':'🔧'};
+    const colors = {'université':'#7c3aed','lycée':'#1e3a5f','collège':'#059669','école_primaire':'#d97706','institut':'#dc2626','centre_formation':'#059669'};
+    const type   = document.getElementById('etab-type')?.value  || 'université';
+    const statut = document.getElementById('etab-statut')?.value || 'actif';
+    const modal  = document.getElementById('modal-add-etab');
+    const editId = modal?.dataset?.editId || '';
 
-  let ecoleId = editId;
+    const payload = {
+      nom,
+      type,
+      ville,
+      pays:            document.getElementById('etab-pays')?.value.trim()      || 'Bénin',
+      adresse:         document.getElementById('etab-adresse')?.value.trim()   || null,
+      telephone:       document.getElementById('etab-tel')?.value.trim()       || null,
+      email:           document.getElementById('etab-email')?.value.trim()     || null,
+      site_web:        document.getElementById('etab-site')?.value.trim()      || null,
+      annee_scolaire:  document.getElementById('etab-annee')?.value.trim()     || '2025-2026',
+      devise:          document.getElementById('etab-devise')?.value           || 'FCFA',
+      agrement:        document.getElementById('etab-agrement')?.value.trim()  || null,
+      statut,
+      is_demo:         false,
+    };
 
-  if (editId) {
-    // ── Modification ──
-    // 1. Supabase update (auto-retry colonnes)
-    let { error } = await db.from('ecoles').update(payload).eq('id', editId);
-    let guard = 0;
-    while (error && guard < 10) {
-      const m = /Could not find the '([^']+)' column/.exec(error.message || '');
-      if (!m || !(m[1] in payload)) break;
-      delete payload[m[1]];
-      ({ error } = await db.from('ecoles').update(payload).eq('id', editId));
-      guard++;
+    // Données locales enrichies (pour le réseau localStorage)
+    const localData = {
+      ...payload,
+      directeur:    document.getElementById('etab-directeur')?.value.trim() || '—',
+      eleves:       0, enseignants: 0, taux_reussite: 0, recette_mois: 0,
+      moy_notes:    0, classes: 0, absences_taux: 0,
+      ico:          icos[type]   || '🎓',
+      color:        colors[type] || '#7c3aed',
+      _from_reseau: true,
+    };
+
+    // Sécurité : s'assurer que le tableau réseau existe (anti-ReferenceError)
+    if (!Array.isArray(tousLesEtablissements)) {
+      tousLesEtablissements = [];
+      window.tousLesEtablissements = tousLesEtablissements;
     }
-    // 2. Mise à jour localStorage
-    const idx = tousLesEtablissements.findIndex(e => String(e.id) === String(editId));
-    if (idx >= 0) tousLesEtablissements[idx] = { ...tousLesEtablissements[idx], ...localData, id: editId };
-    showToast(`✅ ${nom} mis à jour !`, 'success');
-  } else {
-    // ── Création ──
-    // 1. Créer dans Supabase pour avoir un vrai UUID persistant
-    let supaPayload = { ...payload };
-    let { data: newEcole, error } = await db.from('ecoles').insert([supaPayload]).select('id').single();
-    let guard = 0;
-    while (error && guard < 10) {
-      const m = /Could not find the '([^']+)' column/.exec(error.message || '');
-      if (!m) break;
-      delete supaPayload[m[1]];
-      ({ data: newEcole, error } = await db.from('ecoles').insert([supaPayload]).select('id').single());
-      guard++;
-    }
-    if (newEcole?.id) {
-      ecoleId = newEcole.id;
-      showToast(`🏫 ${nom} créée et enregistrée dans Supabase !`, 'success');
+
+    let ecoleId = editId;
+
+    if (editId) {
+      // ── Modification ──
+      let { error } = await db.from('ecoles').update(payload).eq('id', editId);
+      let guard = 0;
+      while (error && guard < 10) {
+        const m = /Could not find the '([^']+)' column/.exec(error.message || '');
+        if (!m || !(m[1] in payload)) break;
+        delete payload[m[1]];
+        ({ error } = await db.from('ecoles').update(payload).eq('id', editId));
+        guard++;
+      }
+      if (error) throw new Error('Supabase update : ' + (error.message || 'erreur inconnue'));
+      const idx = tousLesEtablissements.findIndex(e => String(e.id) === String(editId));
+      if (idx >= 0) tousLesEtablissements[idx] = { ...tousLesEtablissements[idx], ...localData, id: editId };
+      showToast(`✅ ${nom} mis à jour !`, 'success');
     } else {
-      // Fallback : UUID local si Supabase échoue
-      ecoleId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID()
-        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16);});
-      showToast(`🏫 ${nom} ajoutée localement (Supabase : ${error?.message || 'erreur'})`, 'info');
+      // ── Création ──
+      let supaPayload = { ...payload };
+      let { data: newEcole, error } = await db.from('ecoles').insert([supaPayload]).select('id').single();
+      let guard = 0;
+      while (error && guard < 10) {
+        const m = /Could not find the '([^']+)' column/.exec(error.message || '');
+        if (!m) break;
+        delete supaPayload[m[1]];
+        ({ data: newEcole, error } = await db.from('ecoles').insert([supaPayload]).select('id').single());
+        guard++;
+      }
+      if (newEcole?.id) {
+        ecoleId = newEcole.id;
+        showToast(`🏫 ${nom} créée et enregistrée dans Supabase !`, 'success');
+      } else {
+        // L'INSERT a vraiment échoué (RLS, schéma, réseau) → afficher l'erreur
+        const errMsg = error?.message || 'Erreur Supabase inconnue';
+        console.error('[ajouterEtablissement][INSERT]', error);
+        if (errBox) {
+          errBox.textContent = '❌ Échec Supabase : ' + errMsg
+            + (errMsg.includes('row-level security') || errMsg.includes('RLS')
+               ? ' (RLS bloque l\'insertion — vérifiez les policies de la table ecoles)' : '');
+          errBox.style.display = 'block';
+        }
+        // On NE crée PAS d'UUID local : ça provoquait des écoles fantômes côté UI
+        // sans correspondance Supabase → on laisse l'utilisateur corriger et réessayer.
+        restoreBtn();
+        return;
+      }
+      tousLesEtablissements.push({ ...localData, id: ecoleId });
+      tousLesEcoles.push({ ...payload, id: ecoleId, _from_reseau: false });
     }
-    // 2. Ajouter dans tousLesEtablissements (réseau)
-    tousLesEtablissements.push({ ...localData, id: ecoleId });
-    // 3. Ajouter dans tousLesEcoles (sélecteur)
-    tousLesEcoles.push({ ...payload, id: ecoleId, _from_reseau: false });
-  }
 
-  fermerModal('modal-add-etab');
-  reseauSauvegarder();
-  _syncSelecteursEcoles();
-  if (typeof invalidateData === 'function') invalidateData('ecoles');
-  chargerReseau();
-  // Si c'est la première école → définir comme courante et recharger toute l'UI
-  // (nav, dashboard, sortir de l'écran d'accueil "Bienvenue").
-  if (!editId) {
-    if (!currentEcoleId) currentEcoleId = ecoleId;
-    if (typeof chargerEcoles === 'function') {
-      try { await chargerEcoles(); } catch(_e) {}
+    fermerModal('modal-add-etab');
+    try { reseauSauvegarder(); } catch(e) { console.warn('[reseauSauvegarder]', e); }
+    try { _syncSelecteursEcoles(); } catch(e) { console.warn('[_syncSelecteursEcoles]', e); }
+    if (typeof invalidateData === 'function') invalidateData('ecoles');
+    if (typeof chargerReseau === 'function') {
+      try { await chargerReseau(); } catch(e) { console.warn('[chargerReseau]', e); }
     }
+    // Si c'est la première école → définir comme courante et recharger toute l'UI
+    if (!editId) {
+      if (!currentEcoleId) currentEcoleId = ecoleId;
+      if (typeof chargerEcoles === 'function') {
+        try { await chargerEcoles(); } catch(e) { console.warn('[chargerEcoles]', e); }
+      }
+    }
+  } catch (err) {
+    console.error('[ajouterEtablissement]', err);
+    if (errBox) {
+      errBox.textContent = '❌ Erreur : ' + (err?.message || 'voir la console');
+      errBox.style.display = 'block';
+    } else {
+      showToast('❌ Erreur lors de l\'enregistrement : ' + (err?.message || ''), 'error');
+    }
+  } finally {
+    restoreBtn();
   }
-  if (btn) { btn.disabled = false; btn.textContent = '🏫 Enregistrer l\'annexe'; }
 }
 
 function supprimerEtablissement(id) {
