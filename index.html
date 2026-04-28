@@ -4199,33 +4199,64 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
 </div>
 
-<!-- Modal Ajout établissement -->
+<!-- Modal Ajout/Modification Établissement Annexe -->
 <div class="modal-overlay" id="modal-add-etab">
-  <div class="modal modal-lg">
-    <h3 id="modal-add-etab-titre">🏫 Ajouter un établissement au réseau</h3>
-    <div class="form-grid">
-      <div class="form-group"><label>Nom de l'établissement *</label><input id="etab-nom" placeholder="Lycée Technique de Cotonou" /></div>
+  <div class="modal" style="max-width:680px;width:95%">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;padding-bottom:.8rem;border-bottom:2px solid #f3f4f6">
+      <div>
+        <h3 id="modal-add-etab-titre" style="margin:0;font-size:16px;font-weight:700;color:#1e3a5f">🏫 Ajouter une annexe</h3>
+        <p style="margin:4px 0 0;font-size:11px;color:#6b7280">Les données saisies seront enregistrées dans Supabase et le sélecteur d'école</p>
+      </div>
+      <button onclick="fermerModal('modal-add-etab')" style="background:none;border:none;font-size:18px;cursor:pointer;color:#9ca3af;padding:4px">✕</button>
+    </div>
+
+    <!-- Identité -->
+    <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem">Identité de l'annexe</div>
+    <div class="form-grid" style="margin-bottom:1rem">
+      <div class="form-group"><label>Nom de l'annexe <span style="color:#dc2626">*</span></label><input id="etab-nom" placeholder="Ex: ESM-Porto-Novo"></div>
       <div class="form-group"><label>Type</label>
         <select id="etab-type">
-          <option value="lycee">Lycée</option><option value="college">Collège</option><option value="primaire">École Primaire</option><option value="universite">Université</option>
+          <option value="université">Université</option><option value="lycée">Lycée</option>
+          <option value="collège">Collège</option><option value="école_primaire">École primaire</option>
+          <option value="institut">Institut</option><option value="centre_formation">Centre de formation</option>
         </select>
       </div>
-      <div class="form-group"><label>Ville *</label><input id="etab-ville" placeholder="Cotonou, Porto-Novo..." /></div>
-      <div class="form-group"><label>Directeur / Responsable</label><input id="etab-directeur" placeholder="Nom du directeur" /></div>
-      <div class="form-group"><label>Nombre d'élèves</label><input type="number" id="etab-eleves" placeholder="0" min="0" /></div>
-      <div class="form-group"><label>Nombre d'enseignants</label><input type="number" id="etab-enseignants" placeholder="0" min="0" /></div>
-      <div class="form-group"><label>Taux de réussite (%)</label><input type="number" id="etab-reussite" placeholder="80" min="0" max="100" /></div>
-      <div class="form-group"><label>Recette mensuelle (F CFA)</label><input type="number" id="etab-recette" placeholder="2000000" min="0" /></div>
-      <div class="form-group"><label>Email</label><input id="etab-email" placeholder="contact@ecole.bj" /></div>
+      <div class="form-group"><label>Ville <span style="color:#dc2626">*</span></label><input id="etab-ville" placeholder="Porto-Novo, Parakou..."></div>
+      <div class="form-group"><label>Pays</label><input id="etab-pays" value="Bénin"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Adresse complète</label><input id="etab-adresse" placeholder="Quartier, rue, repère..."></div>
+    </div>
+
+    <!-- Contacts -->
+    <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem">Contacts</div>
+    <div class="form-grid" style="margin-bottom:1rem">
+      <div class="form-group"><label>Téléphone</label><input id="etab-tel" placeholder="+229 ..."></div>
+      <div class="form-group"><label>Email</label><input type="email" id="etab-email" placeholder="contact@annexe.bj"></div>
+      <div class="form-group"><label>Site web</label><input id="etab-site" placeholder="https://..."></div>
+      <div class="form-group"><label>Directeur / Responsable</label><input id="etab-directeur" placeholder="Nom complet"></div>
+    </div>
+
+    <!-- Académique -->
+    <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem">Informations académiques</div>
+    <div class="form-grid" style="margin-bottom:1rem">
+      <div class="form-group"><label>Année académique</label><input id="etab-annee" placeholder="2025-2026" value="2025-2026"></div>
+      <div class="form-group"><label>Devise</label>
+        <select id="etab-devise">
+          <option value="FCFA">FCFA</option><option value="EUR">EUR</option><option value="USD">USD</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Numéro d'agrément</label><input id="etab-agrement" placeholder="N° officiel"></div>
       <div class="form-group"><label>Statut</label>
         <select id="etab-statut">
           <option value="actif">Actif</option><option value="alerte">En alerte</option><option value="inactif">Inactif</option>
         </select>
       </div>
     </div>
+
+    <div id="modal-etab-error" style="display:none;background:#fee2e2;border-radius:8px;padding:.7rem 1rem;font-size:12px;color:#dc2626;margin-bottom:.8rem"></div>
+
     <div class="modal-footer">
       <button class="btn-secondary" onclick="fermerModal('modal-add-etab')">Annuler</button>
-      <button class="btn-blue" onclick="ajouterEtablissement()">🏫 Enregistrer</button>
+      <button class="btn-blue" onclick="ajouterEtablissement()" id="btn-save-etab">🏫 Enregistrer l'annexe</button>
     </div>
   </div>
 </div>
@@ -17343,79 +17374,161 @@ function voirDetailEtablissement(id) {
 function ouvrirModalAddEtablissement() {
   const modal = document.getElementById('modal-add-etab');
   if (modal) delete modal.dataset.editId;
-  const h3 = document.getElementById('modal-add-etab-titre'); if(h3) h3.textContent = '🏫 Ajouter un établissement au réseau';
-  ['etab-nom','etab-ville','etab-directeur','etab-eleves','etab-enseignants','etab-reussite','etab-recette'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.value='';
+  document.getElementById('modal-add-etab-titre').textContent = '🏫 Ajouter une annexe';
+  document.getElementById('btn-save-etab').textContent = '🏫 Enregistrer l\'annexe';
+  // Vider tous les champs
+  ['etab-nom','etab-ville','etab-pays','etab-adresse','etab-tel','etab-email',
+   'etab-site','etab-directeur','etab-agrement'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
   });
+  const pays = document.getElementById('etab-pays'); if (pays) pays.value = 'Bénin';
+  const annee = document.getElementById('etab-annee'); if (annee) annee.value = '2025-2026';
+  const type = document.getElementById('etab-type'); if (type) type.value = 'université';
+  const devise = document.getElementById('etab-devise'); if (devise) devise.value = 'FCFA';
+  const statut = document.getElementById('etab-statut'); if (statut) statut.value = 'actif';
+  const errEl = document.getElementById('modal-etab-error'); if (errEl) errEl.style.display = 'none';
   ouvrirModal('modal-add-etab');
 }
 
 function ouvrirModificationEtablissement(id) {
   const e = tousLesEtablissements.find(et => String(et.id) === String(id));
-  if(!e) return;
-  document.getElementById('etab-nom').value        = e.nom||'';
-  document.getElementById('etab-ville').value      = e.ville||'';
-  document.getElementById('etab-type').value       = e.type||'lycee';
-  document.getElementById('etab-directeur').value  = e.directeur||'';
-  document.getElementById('etab-statut').value     = e.statut||'actif';
-  const elv=document.getElementById('etab-eleves');       if(elv) elv.value=e.eleves||0;
-  const ens=document.getElementById('etab-enseignants');  if(ens) ens.value=e.enseignants||0;
-  const rus=document.getElementById('etab-reussite');     if(rus) rus.value=e.taux_reussite||0;
-  const rec=document.getElementById('etab-recette');      if(rec) rec.value=e.recette_mois||0;
+  if (!e) { showToast("Établissement introuvable", 'error'); return; }
+  const f = (elId, val) => { const el = document.getElementById(elId); if (el && val != null) el.value = val; };
+  f('etab-nom',       e.nom       || '');
+  f('etab-type',      e.type      || 'université');
+  f('etab-ville',     e.ville     || '');
+  f('etab-pays',      e.pays      || 'Bénin');
+  f('etab-adresse',   e.adresse   || '');
+  f('etab-tel',       e.telephone || '');
+  f('etab-email',     e.email     || '');
+  f('etab-site',      e.site_web  || '');
+  f('etab-directeur', e.directeur || '');
+  f('etab-annee',     e.annee_scolaire || '2025-2026');
+  f('etab-devise',    e.devise    || 'FCFA');
+  f('etab-agrement',  e.agrement  || '');
+  f('etab-statut',    e.statut    || 'actif');
   const modal = document.getElementById('modal-add-etab');
   modal.dataset.editId = String(id);
-  const h3 = document.getElementById('modal-add-etab-titre'); if(h3) h3.textContent = "✏️ Modifier l'établissement";
+  document.getElementById('modal-add-etab-titre').textContent = "✏️ Modifier l'annexe";
+  document.getElementById('btn-save-etab').textContent = '💾 Sauvegarder';
+  const errEl = document.getElementById('modal-etab-error'); if (errEl) errEl.style.display = 'none';
   ouvrirModal('modal-add-etab');
 }
 
-function ajouterEtablissement() {
-  const nom   = document.getElementById('etab-nom').value.trim();
-  const ville = document.getElementById('etab-ville').value.trim();
-  if(!nom||!ville){showToast('Nom et ville requis','error');return;}
-  const type   = document.getElementById('etab-type').value;
-  const statut = document.getElementById('etab-statut').value;
-  const icos   = {lycee:'🏫',college:'🏛️',primaire:'⭐',universite:'🎓'};
-  const colors = {lycee:'#1e3a5f',college:'#059669',primaire:'#d97706',universite:'#7c3aed'};
+async function ajouterEtablissement() {
+  const nom   = document.getElementById('etab-nom')?.value.trim();
+  const ville = document.getElementById('etab-ville')?.value.trim();
+  if (!nom || !ville) {
+    const errEl = document.getElementById('modal-etab-error');
+    if (errEl) { errEl.textContent = '⚠️ Le nom et la ville sont obligatoires.'; errEl.style.display = 'block'; }
+    return;
+  }
+  const btn = document.getElementById('btn-save-etab');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Enregistrement...'; }
+
+  const icos   = {'université':'🎓','lycée':'🏫','collège':'🏛️','école_primaire':'⭐','institut':'📚','centre_formation':'🔧'};
+  const colors = {'université':'#7c3aed','lycée':'#1e3a5f','collège':'#059669','école_primaire':'#d97706','institut':'#dc2626','centre_formation':'#059669'};
+  const type   = document.getElementById('etab-type')?.value  || 'université';
+  const statut = document.getElementById('etab-statut')?.value || 'actif';
   const modal  = document.getElementById('modal-add-etab');
   const editId = modal?.dataset?.editId || '';
 
-  const vals = {
-    nom, ville, type, statut,
-    directeur:    document.getElementById('etab-directeur').value.trim()||'—',
-    eleves:       parseInt(document.getElementById('etab-eleves')?.value)||0,
-    enseignants:  parseInt(document.getElementById('etab-enseignants')?.value)||0,
-    taux_reussite:parseInt(document.getElementById('etab-reussite')?.value)||0,
-    recette_mois: parseInt(document.getElementById('etab-recette')?.value)||0,
+  const payload = {
+    nom,
+    type,
+    ville,
+    pays:            document.getElementById('etab-pays')?.value.trim()      || 'Bénin',
+    adresse:         document.getElementById('etab-adresse')?.value.trim()   || null,
+    telephone:       document.getElementById('etab-tel')?.value.trim()       || null,
+    email:           document.getElementById('etab-email')?.value.trim()     || null,
+    site_web:        document.getElementById('etab-site')?.value.trim()      || null,
+    annee_scolaire:  document.getElementById('etab-annee')?.value.trim()     || '2025-2026',
+    devise:          document.getElementById('etab-devise')?.value           || 'FCFA',
+    agrement:        document.getElementById('etab-agrement')?.value.trim()  || null,
+    statut,
+    is_demo:         false,
   };
 
+  // Données locales enrichies (pour le réseau localStorage)
+  const localData = {
+    ...payload,
+    directeur:    document.getElementById('etab-directeur')?.value.trim() || '—',
+    eleves:       0, enseignants: 0, taux_reussite: 0, recette_mois: 0,
+    moy_notes:    0, classes: 0, absences_taux: 0,
+    ico:          icos[type]   || '🎓',
+    color:        colors[type] || '#7c3aed',
+    _from_reseau: true,
+  };
+
+  let ecoleId = editId;
+
   if (editId) {
+    // ── Modification ──
+    // 1. Supabase update (auto-retry colonnes)
+    let { error } = await db.from('ecoles').update(payload).eq('id', editId);
+    let guard = 0;
+    while (error && guard < 10) {
+      const m = /Could not find the '([^']+)' column/.exec(error.message || '');
+      if (!m || !(m[1] in payload)) break;
+      delete payload[m[1]];
+      ({ error } = await db.from('ecoles').update(payload).eq('id', editId));
+      guard++;
+    }
+    // 2. Mise à jour localStorage
     const idx = tousLesEtablissements.findIndex(e => String(e.id) === String(editId));
-    if(idx<0){showToast("Établissement introuvable",'error');return;}
-    tousLesEtablissements[idx] = { ...tousLesEtablissements[idx], ...vals };
-    showToast(`✅ ${nom} mis à jour !`,'success');
+    if (idx >= 0) tousLesEtablissements[idx] = { ...tousLesEtablissements[idx], ...localData, id: editId };
+    showToast(`✅ ${nom} mis à jour !`, 'success');
   } else {
-    // Générer un vrai UUID pour compatibilité avec Supabase (type uuid)
-    const newId = (typeof crypto !== 'undefined' && crypto.randomUUID)
-      ? crypto.randomUUID()
-      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-          const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16);
-        });
-    tousLesEtablissements.push({ id: newId, ...vals, classes:0, absences_taux:0, moy_notes:13.5, ico:icos[type]||'🏫', color:colors[type]||'#6b7280' });
-    showToast(`🏫 ${nom} ajouté au réseau !`,'success');
+    // ── Création ──
+    // 1. Créer dans Supabase pour avoir un vrai UUID persistant
+    let supaPayload = { ...payload };
+    let { data: newEcole, error } = await db.from('ecoles').insert([supaPayload]).select('id').single();
+    let guard = 0;
+    while (error && guard < 10) {
+      const m = /Could not find the '([^']+)' column/.exec(error.message || '');
+      if (!m) break;
+      delete supaPayload[m[1]];
+      ({ data: newEcole, error } = await db.from('ecoles').insert([supaPayload]).select('id').single());
+      guard++;
+    }
+    if (newEcole?.id) {
+      ecoleId = newEcole.id;
+      showToast(`🏫 ${nom} créée et enregistrée dans Supabase !`, 'success');
+    } else {
+      // Fallback : UUID local si Supabase échoue
+      ecoleId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16);});
+      showToast(`🏫 ${nom} ajoutée localement (Supabase : ${error?.message || 'erreur'})`, 'info');
+    }
+    // 2. Ajouter dans tousLesEtablissements (réseau)
+    tousLesEtablissements.push({ ...localData, id: ecoleId });
+    // 3. Ajouter dans tousLesEcoles (sélecteur)
+    tousLesEcoles.push({ ...payload, id: ecoleId, _from_reseau: false });
   }
+
   fermerModal('modal-add-etab');
   reseauSauvegarder();
+  _syncSelecteursEcoles();
+  if (typeof invalidateData === 'function') invalidateData('ecoles');
   chargerReseau();
+  if (btn) { btn.disabled = false; btn.textContent = '🏫 Enregistrer l\'annexe'; }
 }
 
 function supprimerEtablissement(id) {
   const e = tousLesEtablissements.find(et => String(et.id) === String(id));
-  if(!e) return;
-  if(!confirm(`Retirer "${e.nom}" du réseau ? Cette action est irréversible.`)) return;
+  if (!e) return;
+  if (!confirm(`Retirer "${e.nom}" du réseau ?\n\nCette action supprimera aussi l'enregistrement dans Supabase.`)) return;
+  // Supprimer de Supabase
+  db.from('ecoles').delete().eq('id', id).then(({ error }) => {
+    if (error) console.warn('[Réseau] Supabase delete:', error.message);
+  });
+  // Supprimer de la mémoire
   tousLesEtablissements = tousLesEtablissements.filter(et => String(et.id) !== String(id));
+  tousLesEcoles = tousLesEcoles.filter(e => String(e.id) !== String(id));
   reseauSauvegarder();
+  _syncSelecteursEcoles();
   chargerReseau();
-  showToast('🗑️ Établissement retiré du réseau.','success');
+  showToast('🗑️ Annexe supprimée.', 'success');
 }
 
 function exporterRapportReseau() {
