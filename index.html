@@ -2258,15 +2258,28 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 ═══════════════════════════════════════ -->
 <nav>
   <div class="logo">🎓 EduLink</div>
-  <div class="ecole-badge">
-    <span>🏫</span>
-    <div>
-      <div class="eb-nom" id="ecole-nom-nav">Chargement...</div>
-      <div class="eb-type" id="ecole-type-nav">—</div>
+
+  <!-- ── Fenêtre 1 : Établissement Principal (fixe, avec logo) ── -->
+  <div id="nav-principal-wrap" style="margin-bottom:.6rem">
+    <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;padding:0 2px">Établissement principal</div>
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:8px 10px">
+      <div id="nav-principal-logo" style="width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;overflow:hidden">🎓</div>
+      <div style="flex:1;min-width:0">
+        <div id="ecole-nom-nav" style="font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Chargement...</div>
+        <div id="ecole-type-nav" style="font-size:10px;color:rgba(255,255,255,.6)">—</div>
+      </div>
     </div>
   </div>
-  <div class="ecole-selector-wrap">
-    <select id="ecole-selector" onchange="changerEcole()"><option>Chargement...</option></select>
+
+  <!-- ── Fenêtre 2 : Établissement actif / Annexe (sélectable) ── -->
+  <div style="margin-bottom:1rem">
+    <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;padding:0 2px">Établissement actif</div>
+    <div class="ecole-selector-wrap" style="margin-bottom:0">
+      <select id="ecole-selector" onchange="changerEcole()"><option>Chargement...</option></select>
+    </div>
+    <div id="nav-actif-info" style="display:flex;align-items:center;gap:5px;margin-top:4px;padding:0 2px">
+      <span id="nav-actif-ville" style="font-size:10px;color:rgba(255,255,255,.45)">—</span>
+    </div>
   </div>
 
   <div class="nav-section">Vue d'ensemble</div>
@@ -8012,6 +8025,7 @@ async function chargerEcoles() {
       `<option value="${e.id}">${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
     ).join('');
     currentEcoleId = tousLesEcoles[0].id;
+    // Fenêtre 1 = principal (premier Supabase), Fenêtre 2 = actif (aussi le premier au démarrage)
     mettreAJourBadgeEcole(tousLesEcoles[0]);
     // Synchroniser le sélecteur du Dashboard Directeur
     peuplerExecSelector();
@@ -8067,8 +8081,30 @@ function peuplerExecSelector() {
 }
 function mettreAJourBadgeEcole(ecole) {
   if (!ecole) return;
-  document.getElementById('ecole-nom-nav').textContent = ecole.nom || 'EduLink';
-  document.getElementById('ecole-type-nav').textContent = ecole.type || 'Établissement';
+  // Fenêtre 1 : toujours l'établissement PRINCIPAL (premier Supabase = ESM-Cotonou)
+  const principal = tousLesEcoles.find(e => !e._from_reseau) || tousLesEcoles[0];
+  if (principal) {
+    document.getElementById('ecole-nom-nav').textContent  = principal.nom  || 'EduLink';
+    document.getElementById('ecole-type-nav').textContent = principal.type || 'Établissement';
+    // Logo : image si logo_url dispo, sinon initiale
+    const logoEl = document.getElementById('nav-principal-logo');
+    if (logoEl) {
+      if (principal.logo_url) {
+        logoEl.innerHTML = `<img src="${principal.logo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px" onerror="this.parentElement.textContent='🎓'">`;
+      } else {
+        logoEl.textContent = (principal.nom || 'E')[0].toUpperCase();
+        logoEl.style.fontWeight = '700';
+        logoEl.style.color = '#fff';
+      }
+    }
+  }
+  // Fenêtre 2 : l'établissement ACTIF (celui sélectionné)
+  const villeEl = document.getElementById('nav-actif-ville');
+  if (villeEl) {
+    const ville = ecole.ville || '—';
+    const type  = ecole.type  || '';
+    villeEl.textContent = `📍 ${ville}${type ? ' · ' + type : ''}`;
+  }
   document.title = 'EduLink — ' + ecole.nom;
 }
 
@@ -12517,6 +12553,9 @@ async function chargerBranding() {
       tousThemes = themes || [];
       afficherThemes();
     } catch(e) { /* table absente */ }
+    // Mettre à jour le logo de la fenêtre principale avec le logo_url du branding
+    const principal = (tousLesEcoles || []).find(e => !e._from_reseau) || (tousLesEcoles || [])[0];
+    if (principal) mettreAJourBadgeEcole(principal);
   } catch(e) { console.warn("[Branding]", e.message); }
 }
 
