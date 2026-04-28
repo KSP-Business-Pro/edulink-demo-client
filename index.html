@@ -1049,9 +1049,20 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 .reseau-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
 .reseau-card { background:#fff; border-radius:16px; border:1.5px solid #e5e7eb; padding:1.2rem; transition:all .15s; cursor:pointer; position:relative; overflow:hidden; }
 .reseau-card::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; }
-.reseau-card.lycee::before  { background:#1e3a5f; }
-.reseau-card.college::before{ background:#059669; }
-.reseau-card.primaire::before{ background:#d97706; }
+/* Valeurs sans accents (ancien code) */
+.reseau-card.lycee::before          { background:#1e3a5f; }
+.reseau-card.college::before        { background:#059669; }
+.reseau-card.primaire::before       { background:#d97706; }
+.reseau-card.universite::before     { background:#7c3aed; }
+.reseau-card.institut::before       { background:#dc2626; }
+.reseau-card.centre-formation::before { background:#059669; }
+/* Valeurs normalisées générées par normalize('NFD') (nouveau code) */
+.reseau-card.universite::before     { background:#7c3aed; }
+.reseau-card.lycee::before          { background:#1e3a5f; }
+.reseau-card.college::before        { background:#059669; }
+.reseau-card.ecole-primaire::before { background:#d97706; }
+.reseau-card.institut::before       { background:#dc2626; }
+.reseau-card.centre-formation::before { background:#059669; }
 .reseau-card:hover { box-shadow:0 8px 24px rgba(0,0,0,.1); transform:translateY(-3px); }
 .reseau-card-header { display:flex; align-items:center; gap:.85rem; margin-bottom:1rem; }
 .reseau-card-ico { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
@@ -3472,10 +3483,12 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <input id="reseau-search" placeholder="🔍 Rechercher un établissement, ville..." oninput="filtrerEtablissements()" />
       <select id="reseau-filter-type" onchange="filtrerEtablissements()" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none;background:#fff">
         <option value="">Tous types</option>
-        <option value="lycee">Lycée</option>
-        <option value="college">Collège</option>
-        <option value="primaire">Primaire</option>
-        <option value="universite">Université</option>
+        <option value="université">Université</option>
+        <option value="lycée">Lycée</option>
+        <option value="collège">Collège</option>
+        <option value="école_primaire">École primaire</option>
+        <option value="institut">Institut</option>
+        <option value="centre_formation">Centre de formation</option>
       </select>
     </div>
     <div class="reseau-grid" id="reseau-grid-etablissements">
@@ -7114,17 +7127,16 @@ var reseauInitialized = false;
 
 function syncSupabaseVersReseau() {
   if (!Array.isArray(tousLesEcoles) || !tousLesEcoles.length) return;
-  const icos   = {'université':'🎓','lycée':'🏫','collège':'🏛️','école_primaire':'⭐','institut':'📚','centre_formation':'🔧','universite':'🎓','lycee':'🏫','college':'🏛️','ecole_primaire':'⭐'};
-  const colors = {'université':'#7c3aed','lycée':'#1e3a5f','collège':'#059669','école_primaire':'#d97706','institut':'#dc2626','centre_formation':'#059669','universite':'#7c3aed','lycee':'#1e3a5f','college':'#059669','ecole_primaire':'#d97706'};
   const idsReseau = new Set((tousLesEtablissements || []).map(e => String(e.id)));
   let changed = false;
   tousLesEcoles.forEach(e => {
+    const tn = typeNorm(e.type);
     if (!idsReseau.has(String(e.id))) {
       // École Supabase absente du réseau → on l'y ajoute
       tousLesEtablissements.push({
         id:            e.id,
         nom:           e.nom           || '—',
-        type:          e.type          || 'université',
+        type:          tn,
         ville:         e.ville         || '—',
         pays:          e.pays          || 'Bénin',
         adresse:       e.adresse       || '',
@@ -7138,21 +7150,21 @@ function syncSupabaseVersReseau() {
         statut:        e.statut        || 'actif',
         eleves:        0, enseignants: 0, taux_reussite: 0,
         recette_mois:  0, moy_notes: 0, classes: 0, absences_taux: 0,
-        ico:           icos[e.type]   || '🎓',
-        color:         colors[e.type] || '#7c3aed',
+        ico:           typeIco(tn),
+        color:         typeColor(tn),
         _from_reseau:  false,
       });
       changed = true;
     } else {
-      // École déjà présente → mettre à jour les champs de base (nom, ville, statut, type)
+      // École déjà présente → mettre à jour les champs de base
       const existing = tousLesEtablissements.find(r => String(r.id) === String(e.id));
       if (existing) {
         existing.nom    = e.nom    || existing.nom;
         existing.ville  = e.ville  || existing.ville;
-        existing.type   = e.type   || existing.type;
+        existing.type   = tn;
         existing.statut = e.statut || existing.statut;
-        existing.ico    = icos[existing.type]   || existing.ico   || '🎓';
-        existing.color  = colors[existing.type] || existing.color || '#7c3aed';
+        existing.ico    = typeIco(tn);
+        existing.color  = typeColor(tn);
         changed = true;
       }
     }
@@ -7176,11 +7188,74 @@ async function syncEcoleCouranteVersReseau() {
   syncSupabaseVersReseau();
 }
 
-// Peut être appelée depuis n'importe quel module pour forcer une re-sync
+// Forcer une re-sync complète du réseau depuis n'importe quel module
 function forcerSyncReseau() {
   syncSupabaseVersReseau();
   if (typeof chargerReseau === 'function') chargerReseau();
 }
+
+// ── Utilitaires type d'établissement ───────────────────────────────────────
+// Le formulaire de création stocke les types avec accents (ex: "université")
+// tandis que l'ancien code réseau utilisait des valeurs sans accents ("universite").
+// Ces deux fonctions font le pont entre les deux formes et sont utilisées
+// partout dans le module Réseau pour garantir la cohérence.
+const TYPE_NORM_MAP = {
+  'université':       'université',
+  'universite':       'université',
+  'lycée':            'lycée',
+  'lycee':            'lycée',
+  'collège':          'collège',
+  'college':          'collège',
+  'école_primaire':   'école_primaire',
+  'ecole_primaire':   'école_primaire',
+  'primaire':         'école_primaire',
+  'institut':         'institut',
+  'centre_formation': 'centre_formation',
+};
+const TYPE_LABEL_MAP = {
+  'université':       'Université',
+  'lycée':            'Lycée',
+  'collège':          'Collège',
+  'école_primaire':   'École primaire',
+  'primaire':         'École primaire',
+  'institut':         'Institut',
+  'centre_formation': 'Centre de formation',
+};
+const TYPE_ICO_MAP = {
+  'université':       '🎓',
+  'lycée':            '🏫',
+  'collège':          '🏛️',
+  'école_primaire':   '⭐',
+  'primaire':         '⭐',
+  'institut':         '📚',
+  'centre_formation': '🔧',
+};
+const TYPE_COLOR_MAP = {
+  'université':       '#7c3aed',
+  'lycée':            '#1e3a5f',
+  'collège':          '#059669',
+  'école_primaire':   '#d97706',
+  'primaire':         '#d97706',
+  'institut':         '#dc2626',
+  'centre_formation': '#059669',
+};
+// "Élèves" pour le primaire/collège/lycée, "Étudiants" pour université/institut
+const TYPE_EFFECTIF_MAP = {
+  'université':       'Étudiants',
+  'universite':       'Étudiants',
+  'institut':         'Étudiants',
+  'centre_formation': 'Apprenants',
+};
+/** Normalise un type vers sa forme canonique avec accents */
+function typeNorm(t) { return TYPE_NORM_MAP[t] || t || 'université'; }
+/** Retourne le libellé d'affichage d'un type */
+function typeLabel(t) { return TYPE_LABEL_MAP[typeNorm(t)] || TYPE_LABEL_MAP[t] || 'Autre'; }
+/** Retourne l'icône emoji d'un type */
+function typeIco(t) { return TYPE_ICO_MAP[typeNorm(t)] || TYPE_ICO_MAP[t] || '🏫'; }
+/** Retourne la couleur associée à un type */
+function typeColor(t) { return TYPE_COLOR_MAP[typeNorm(t)] || TYPE_COLOR_MAP[t] || '#7c3aed'; }
+/** Retourne le mot pour les effectifs selon le type ("Élèves", "Étudiants", "Apprenants") */
+function typeEffectif(t) { return TYPE_EFFECTIF_MAP[typeNorm(t)] || TYPE_EFFECTIF_MAP[t] || 'Élèves'; }
 
 // ── Bus d'événements data ─────────────────────────────────────────────────
 // Quand un module modifie des données Supabase, il appelle invalidateData(table)
@@ -15825,12 +15900,18 @@ async function chargerReseau() {
 function renderEtablissements(etabs) {
   const grid = document.getElementById('reseau-grid-etablissements');
   if(!etabs.length){grid.innerHTML='<div class="empty-state">🏫 Aucun établissement</div>';return;}
-  grid.innerHTML = etabs.map(e=>`<div class="reseau-card ${e.type}">
+  grid.innerHTML = etabs.map(e=>{
+    const tn  = typeNorm(e.type);
+    const ico = e.ico   || typeIco(tn);
+    const col = e.color || typeColor(tn);
+    // Classe CSS sans accents pour le ::before coloré
+    const cssClass = tn.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/_/g,'-').toLowerCase();
+    return `<div class="reseau-card ${cssClass}">
     <div class="reseau-card-header" onclick="voirDetailEtablissement('${e.id}')" style="cursor:pointer">
-      <div class="reseau-card-ico" style="background:${e.color}15;border:2px solid ${e.color}30">${e.ico}</div>
+      <div class="reseau-card-ico" style="background:${col}15;border:2px solid ${col}30">${ico}</div>
       <div style="flex:1">
         <div class="reseau-card-nom">${e.nom}</div>
-        <div class="reseau-card-ville">📍 ${e.ville} · ${e.type==='lycee'?'Lycée':e.type==='college'?'Collège':e.type==='universite'?'Université':'Primaire'}</div>
+        <div class="reseau-card-ville">📍 ${e.ville} · ${typeLabel(tn)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:5px">
         <div class="status-dot ${e.statut}"></div>
@@ -15838,25 +15919,31 @@ function renderEtablissements(etabs) {
       </div>
     </div>
     <div class="reseau-card-kpis">
-      <div class="rck"><div class="rv" style="color:${e.color}">${e.eleves}</div><div class="rl">Élèves</div></div>
+      <div class="rck"><div class="rv" style="color:${col}">${e.eleves}</div><div class="rl">${typeEffectif(tn)}</div></div>
       <div class="rck"><div class="rv">${e.enseignants}</div><div class="rl">Profs</div></div>
       <div class="rck"><div class="rv" style="color:${e.taux_reussite>=80?'#059669':e.taux_reussite>=70?'#d97706':'#dc2626'}">${e.taux_reussite}%</div><div class="rl">Réussite</div></div>
     </div>
     <div class="reseau-card-footer">
-      <span style="font-size:11.5px;color:#6b7280">👤 ${e.directeur}</span>
+      <span style="font-size:11.5px;color:#6b7280">👤 ${e.directeur||'—'}</span>
       <span style="font-size:12px;font-weight:700;color:#059669">${(e.recette_mois/1000).toFixed(0)}K F/mois</span>
     </div>
     <div style="display:flex;gap:6px;margin-top:8px;border-top:1px solid #f3f4f6;padding-top:8px">
-      <button class="btn-sm btn-secondary" style="flex:1" onclick="ouvrirModificationEtablissement('${e.id}')">${"✏️ Modifier"}</button>
-      <button class="btn-sm btn-red" style="flex:1" onclick="supprimerEtablissement('${e.id}')">${"🗑️ Suppr"}</button>
+      <button class="btn-sm btn-secondary" style="flex:1" onclick="ouvrirModificationEtablissement('${e.id}')">✏️ Modifier</button>
+      <button class="btn-sm btn-red" style="flex:1" onclick="supprimerEtablissement('${e.id}')">🗑️ Suppr</button>
     </div>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 
 function filtrerEtablissements() {
-  const q=(document.getElementById('reseau-search').value||'').toLowerCase();
-  const type=document.getElementById('reseau-filter-type').value;
-  renderEtablissements(tousLesEtablissements.filter(e=>(!q||e.nom.toLowerCase().includes(q)||e.ville.toLowerCase().includes(q))&&(!type||e.type===type)));
+  const q    = (document.getElementById('reseau-search').value || '').toLowerCase();
+  const type = document.getElementById('reseau-filter-type').value;
+  // Normaliser le type du filtre pour comparer avec le type normalisé des établissements
+  const typeN = type ? typeNorm(type) : '';
+  renderEtablissements(tousLesEtablissements.filter(e =>
+    (!q    || e.nom.toLowerCase().includes(q) || e.ville.toLowerCase().includes(q)) &&
+    (!typeN || typeNorm(e.type) === typeN)
+  ));
 }
 
 function renderComparaison() {
@@ -16175,8 +16262,8 @@ function exporterRapportReseau() {
   if(!tousLesEtablissements.length){showToast('Aucun établissement à exporter','error');return;}
   const header = ['Nom','Type','Ville','Directeur','Élèves','Enseignants','Taux réussite (%)','Recette/mois (F)','Statut'];
   const rows = tousLesEtablissements.map(e=>[
-    e.nom, e.type==='lycee'?'Lycée':e.type==='college'?'Collège':e.type==='universite'?'Université':'Primaire',
-    e.ville, e.directeur, e.eleves, e.enseignants, e.taux_reussite, e.recette_mois, e.statut
+    e.nom, typeLabel(e.type),
+    e.ville, e.directeur||'—', e.eleves, e.enseignants, e.taux_reussite, e.recette_mois, e.statut
   ]);
   csvDownload('EduLink-Reseau-Ecoles.csv', header, rows);
   showToast('📥 Export réseau terminé !','success');
