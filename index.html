@@ -8080,7 +8080,9 @@ async function chargerDashboard() {
   document.getElementById('stat-etudiants').textContent = nb || 0;
 
   const today = new Date().toISOString().split('T')[0];
-  const { count: nbAbs } = await db.from('absences').select('*',{count:'exact',head:true}).eq('date_absence', today);
+  let qAbs = db.from('absences').select('*',{count:'exact',head:true}).eq('date_absence', today);
+  if (currentEcoleId) qAbs = qAbs.eq('ecole_id', currentEcoleId);
+  const { count: nbAbs } = await qAbs;
   document.getElementById('stat-absences').textContent = nbAbs || 0;
 
   let qF = db.from('factures').select('*',{count:'exact',head:true}).in('statut',['en_attente','retard']);
@@ -8096,7 +8098,9 @@ async function chargerDashboard() {
   if (nbI > 0) { bd.textContent = nbI; bd.style.display='inline'; } else bd.style.display='none';
 
   // Absences récentes
-  const { data: absences } = await db.from('absences').select('*, etudiants(nom, prenom)').order('created_at',{ascending:false}).limit(5);
+  let qAbsR = db.from('absences').select('*, etudiants(nom, prenom)').order('created_at',{ascending:false}).limit(5);
+  if (currentEcoleId) qAbsR = qAbsR.eq('ecole_id', currentEcoleId);
+  const { data: absences } = await qAbsR;
   document.getElementById('tbody-absences-dashboard').innerHTML = (absences?.length)
     ? absences.map(a => `<tr><td>${a.etudiants?a.etudiants.nom+' '+a.etudiants.prenom:'N/A'}</td><td>${a.matiere}</td><td>${fmtDate(a.date_absence)}</td><td><span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span></td></tr>`).join('')
     : '<tr><td colspan="4" class="loading">Aucune absence.</td></tr>';
