@@ -17099,17 +17099,39 @@ async function chargerReseau() {
     reseauInitialized = true;
   }
 
-  // Re-sync automatique des vrais chiffres depuis Supabase pour l'école courante
-  if (currentEcoleId) {
-    const idx = tousLesEtablissements.findIndex(e => String(e.id) === String(currentEcoleId));
-    if (idx >= 0) {
-      const [{ count: nbEt }, { count: nbEns }] = await Promise.all([
-        db.from('etudiants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
-        db.from('enseignants').select('*', {count:'exact', head:true}).eq('ecole_id', currentEcoleId),
+  // Sync automatique des vrais chiffres Supabase pour TOUTES les écoles du réseau
+  // (remplace les données fictives du localStorage par les vraies données)
+  if (tousLesEtablissements.length) {
+    const ids = tousLesEtablissements.map(e => e.id).filter(Boolean);
+    if (ids.length) {
+      // Compter étudiants et enseignants pour chaque école en parallèle
+      const [etudRes, ensRes, notesRes, factRes] = await Promise.all([
+        db.from('etudiants').select('ecole_id').in('ecole_id', ids),
+        db.from('enseignants').select('ecole_id').in('ecole_id', ids),
+        db.from('notes').select('ecole_id, note').in('ecole_id', ids),
+        db.from('factures').select('ecole_id, montant_paye').in('ecole_id', ids),
       ]);
-      tousLesEtablissements[idx].eleves      = nbEt  || 0;
-      tousLesEtablissements[idx].enseignants = nbEns || 0;
-      reseauSauvegarder();
+      // Construire les maps de comptage
+      const etudMap = {}, ensMap = {}, notesMap = {}, notesCount = {}, factMap = {};
+      (etudRes.data || []).forEach(r => { etudMap[r.ecole_id] = (etudMap[r.ecole_id] || 0) + 1; });
+      (ensRes.data  || []).forEach(r => { ensMap[r.ecole_id]  = (ensMap[r.ecole_id]  || 0) + 1; });
+      (notesRes.data || []).forEach(r => {
+        if (r.note != null) {
+          notesMap[r.ecole_id]  = (notesMap[r.ecole_id]  || 0) + Number(r.note);
+          notesCount[r.ecole_id]= (notesCount[r.ecole_id]|| 0) + 1;
+        }
+      });
+      (factRes.data || []).forEach(r => { factMap[r.ecole_id] = (factMap[r.ecole_id] || 0) + Number(r.montant_paye || 0); });
+      // Mettre à jour chaque établissement avec les vraies données
+      tousLesEtablissements.forEach(e => {
+        e.eleves      = etudMap[e.id]  || 0;
+        e.enseignants = ensMap[e.id]   || 0;
+        e.moy_notes   = notesCount[e.id] ? Math.round((notesMap[e.id] / notesCount[e.id]) * 10) / 10 : 0;
+        e.recette_mois= factMap[e.id]  || 0;
+        // taux_reussite = % notes >= 10
+      });
+      // Sauvegarder sans appeler _syncSelecteursEcoles (évite boucle)
+      try { localStorage.setItem(RESEAU_STORE_KEY, JSON.stringify({ etabs: tousLesEtablissements, alertes: reseauAlertes })); } catch(err) {}
     }
   }
 
