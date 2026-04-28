@@ -16989,6 +16989,22 @@ function reseauRestaurer() {
     const d = JSON.parse(raw);
     tousLesEtablissements = d.etabs || [];
     reseauAlertes = d.alertes || [];
+    // Migrer les vieux IDs timestamp (ex: 1777331118242) vers des UUIDs valides
+    let migrated = false;
+    tousLesEtablissements.forEach(e => {
+      if (e.id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(e.id))) {
+        e.id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+              const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16);
+            });
+        migrated = true;
+      }
+    });
+    if (migrated) {
+      try { localStorage.setItem(RESEAU_STORE_KEY, JSON.stringify({ etabs: tousLesEtablissements, alertes: reseauAlertes })); } catch(e2) {}
+      console.info('[Réseau] IDs timestamp migrés vers UUIDs');
+    }
     return true;
   } catch(e) { return false; }
 }
@@ -17313,7 +17329,13 @@ function ajouterEtablissement() {
     tousLesEtablissements[idx] = { ...tousLesEtablissements[idx], ...vals };
     showToast(`✅ ${nom} mis à jour !`,'success');
   } else {
-    tousLesEtablissements.push({ id:Date.now(), ...vals, classes:0, absences_taux:0, moy_notes:13.5, ico:icos[type]||'🏫', color:colors[type]||'#6b7280' });
+    // Générer un vrai UUID pour compatibilité avec Supabase (type uuid)
+    const newId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16);
+        });
+    tousLesEtablissements.push({ id: newId, ...vals, classes:0, absences_taux:0, moy_notes:13.5, ico:icos[type]||'🏫', color:colors[type]||'#6b7280' });
     showToast(`🏫 ${nom} ajouté au réseau !`,'success');
   }
   fermerModal('modal-add-etab');
