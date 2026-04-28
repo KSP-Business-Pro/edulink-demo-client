@@ -7024,6 +7024,23 @@ let currentRole      = 'admin';
 let currentPage      = 'dashboard';   // page active courante
 let realtimeChannels = [];
 
+// HTML d'origine de la page-dashboard, capturé pour pouvoir le restaurer
+// après l'écran d'accueil "premier établissement".
+let DASHBOARD_INITIAL_HTML = '';
+try {
+  const _dash0 = document.getElementById('page-dashboard');
+  if (_dash0) DASHBOARD_INITIAL_HTML = _dash0.innerHTML;
+} catch(_e) { /* DOM pas encore prêt — sera retenté au DOMContentLoaded */ }
+document.addEventListener('DOMContentLoaded', () => {
+  if (!DASHBOARD_INITIAL_HTML) {
+    const _dash1 = document.getElementById('page-dashboard');
+    // Ne capturer que si l'écran d'accueil n'a pas encore remplacé le contenu
+    if (_dash1 && !_dash1.querySelector('.welcome-empty-state')) {
+      DASHBOARD_INITIAL_HTML = _dash1.innerHTML;
+    }
+  }
+}, { once: true });
+
 let tousLesEcoles    = [];
 let tousLesEtudiants = [];
 let toutesLesNotes   = [];
@@ -7394,6 +7411,25 @@ async function chargerEcoles() {
   } else {
     sel.innerHTML = '<option value="">Aucun établissement</option>';
     currentEcoleId = null;
+    // Mettre à jour l'UI navigation pour montrer l'état "premier démarrage"
+    mettreAJourBadgeEcole(null);
+    // Petit bouton de raccourci dans la nav pour créer le premier établissement
+    const navWrap = document.getElementById('nav-principal-wrap');
+    if (navWrap && !navWrap.querySelector('.btn-first-etab')) {
+      const btn = document.createElement('button');
+      btn.className = 'btn-first-etab';
+      btn.style.cssText = 'width:100%;margin-top:6px;background:rgba(255,255,255,.18);color:#fff;border:1px dashed rgba(255,255,255,.4);border-radius:8px;padding:6px 8px;font-size:11px;font-weight:600;cursor:pointer';
+      btn.textContent = '＋ Créer mon établissement';
+      btn.onclick = () => ouvrirModalCreerPremierEtablissement();
+      navWrap.appendChild(btn);
+    }
+    // Afficher l'écran d'accueil "Bienvenue / Créez votre premier établissement"
+    if (typeof afficherEcranBienvenue === 'function') afficherEcranBienvenue();
+  }
+  // Quand on a au moins une école, retirer le bouton de raccourci s'il existe
+  if (tousLesEcoles.length > 0) {
+    const btnFirst = document.querySelector('.btn-first-etab');
+    if (btnFirst) btnFirst.remove();
   }
   chargerDashboard();
 }
@@ -7439,6 +7475,19 @@ function peuplerExecSelector() {
   ).join('');
 }
 function mettreAJourBadgeEcole(ecole) {
+  // Cas spécial : aucun établissement → afficher état vide au lieu de "Chargement..."
+  if (!ecole && (!tousLesEcoles || tousLesEcoles.length === 0)) {
+    const nomEl  = document.getElementById('ecole-nom-nav');
+    const typeEl = document.getElementById('ecole-type-nav');
+    const logoEl = document.getElementById('nav-principal-logo');
+    const villeEl = document.getElementById('nav-actif-ville');
+    if (nomEl)  nomEl.textContent  = 'Aucun établissement';
+    if (typeEl) typeEl.textContent = 'Cliquez pour créer';
+    if (logoEl) { logoEl.innerHTML = '🏫'; logoEl.style.fontWeight = ''; logoEl.style.color = ''; }
+    if (villeEl) villeEl.textContent = '📍 —';
+    document.title = 'EduLink — Premier démarrage';
+    return;
+  }
   if (!ecole) return;
   // Fenêtre 1 : toujours l'établissement PRINCIPAL (premier Supabase = ESM-Cotonou)
   const principal = tousLesEcoles.find(e => !e._from_reseau) || tousLesEcoles[0];
@@ -7468,35 +7517,108 @@ function mettreAJourBadgeEcole(ecole) {
 }
 
 // ══ DASHBOARD ════════════════════════════════
+// Affichage de l'écran "Bienvenue / créer le premier établissement"
+// quand aucune école n'existe encore dans Supabase.
+function afficherEcranBienvenue() {
+  // Cible le contenu de la page-dashboard (sans toucher la nav)
+  const dash = document.getElementById('page-dashboard');
+  if (!dash) return;
+  // Marquer pour éviter les double-injections
+  if (dash.querySelector('.welcome-empty-state')) return;
+  // Vider et remplacer par l'écran d'accueil
+  dash.innerHTML = `
+    <div class="welcome-empty-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;text-align:center;padding:2rem">
+      <div style="font-size:72px;margin-bottom:1rem">🎓</div>
+      <h1 style="font-size:28px;font-weight:800;color:#1e3a5f;margin:0 0 .5rem">Bienvenue sur EduLink</h1>
+      <p style="font-size:15px;color:#6b7280;max-width:520px;margin:0 0 1.5rem;line-height:1.55">
+        Aucun établissement n'est encore enregistré dans votre base.
+        Pour commencer, créez votre <strong>établissement principal</strong> :
+        ce sera le siège du réseau et la référence pour les paramètres globaux.
+      </p>
+      <button class="btn-blue" style="font-size:14px;padding:.85rem 1.6rem;border-radius:10px;font-weight:700;box-shadow:0 4px 14px rgba(30,58,95,.25)" onclick="ouvrirModalCreerPremierEtablissement()">
+        🏫 Créer mon premier établissement
+      </button>
+      <div style="margin-top:2rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem;max-width:640px;width:100%">
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:1rem;font-size:12px;color:#374151">
+          <div style="font-size:22px;margin-bottom:.3rem">⚙️</div>
+          <strong style="color:#1e3a5f">Paramètres centralisés</strong><br>
+          <span style="color:#6b7280">Devise, année scolaire, agréments…</span>
+        </div>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:1rem;font-size:12px;color:#374151">
+          <div style="font-size:22px;margin-bottom:.3rem">🏢</div>
+          <strong style="color:#1e3a5f">Réseau multi-sites</strong><br>
+          <span style="color:#6b7280">Ajoutez des annexes après coup</span>
+        </div>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:1rem;font-size:12px;color:#374151">
+          <div style="font-size:22px;margin-bottom:.3rem">☁️</div>
+          <strong style="color:#1e3a5f">Synchronisation Supabase</strong><br>
+          <span style="color:#6b7280">Vos données sont sauvegardées en ligne</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Ouvre la modale d'ajout d'établissement en mode "premier établissement"
+function ouvrirModalCreerPremierEtablissement() {
+  if (typeof ouvrirModalAddEtablissement === 'function') {
+    ouvrirModalAddEtablissement();
+  } else {
+    ouvrirModal('modal-add-etab');
+  }
+  // Personnaliser titre et bouton pour ce contexte
+  const titre = document.getElementById('modal-add-etab-titre');
+  const btn   = document.getElementById('btn-save-etab');
+  if (titre) titre.textContent = '🏫 Créer mon établissement principal';
+  if (btn)   btn.textContent   = '🚀 Créer mon établissement';
+  // Sous-titre informatif sous le titre (s'il existe)
+  const sub = titre ? titre.parentElement.querySelector('p') : null;
+  if (sub) sub.textContent = 'Premier établissement = établissement principal (siège du réseau).';
+}
+
 async function chargerDashboard() {
+  // Si aucune école n'existe, on n'interroge pas Supabase et on affiche l'écran d'accueil
+  if (!tousLesEcoles || tousLesEcoles.length === 0) {
+    if (typeof afficherEcranBienvenue === 'function') afficherEcranBienvenue();
+    return;
+  }
+  // Si on est sur la page dashboard et qu'elle a été remplacée par l'écran d'accueil
+  // (cas où on vient de créer la première école), il faut restaurer le HTML d'origine.
+  const dash = document.getElementById('page-dashboard');
+  if (dash && dash.querySelector('.welcome-empty-state') && typeof DASHBOARD_INITIAL_HTML !== 'undefined') {
+    dash.innerHTML = DASHBOARD_INITIAL_HTML;
+  }
+
   let qE = db.from('etudiants').select('*',{count:'exact',head:true});
   if (currentEcoleId) qE = qE.eq('ecole_id', currentEcoleId);
   const { count: nb } = await qE;
-  document.getElementById('stat-etudiants').textContent = nb || 0;
+  const elE = document.getElementById('stat-etudiants'); if (elE) elE.textContent = nb || 0;
 
   const today = new Date().toISOString().split('T')[0];
   let qAbs = db.from('absences').select('*',{count:'exact',head:true}).eq('date_absence', today);
   if (currentEcoleId) qAbs = qAbs.eq('ecole_id', currentEcoleId);
   const { count: nbAbs } = await qAbs;
-  document.getElementById('stat-absences').textContent = nbAbs || 0;
+  const elAbs = document.getElementById('stat-absences'); if (elAbs) elAbs.textContent = nbAbs || 0;
 
   let qF = db.from('factures').select('*',{count:'exact',head:true}).in('statut',['en_attente','retard']);
   if (currentEcoleId) qF = qF.eq('ecole_id', currentEcoleId);
   const { count: nbF } = await qF;
-  document.getElementById('stat-impayés').textContent = nbF || 0;
+  const elF = document.getElementById('stat-impayés'); if (elF) elF.textContent = nbF || 0;
 
   let qI = db.from('incidents').select('*',{count:'exact',head:true}).neq('statut','résolu');
   if (currentEcoleId) qI = qI.eq('ecole_id', currentEcoleId);
   const { count: nbI } = await qI;
-  document.getElementById('stat-incidents').textContent = nbI || 0;
+  const elI = document.getElementById('stat-incidents'); if (elI) elI.textContent = nbI || 0;
   const bd = document.getElementById('badge-disc');
-  if (nbI > 0) { bd.textContent = nbI; bd.style.display='inline'; } else bd.style.display='none';
+  if (bd) {
+    if (nbI > 0) { bd.textContent = nbI; bd.style.display='inline'; } else bd.style.display='none';
+  }
 
   // Absences récentes
   let qAbsR = db.from('absences').select('*, etudiants(nom, prenom)').order('created_at',{ascending:false}).limit(5);
   if (currentEcoleId) qAbsR = qAbsR.eq('ecole_id', currentEcoleId);
   const { data: absences } = await qAbsR;
-  document.getElementById('tbody-absences-dashboard').innerHTML = (absences?.length)
+  const tbAbs = document.getElementById('tbody-absences-dashboard');
+  if (tbAbs) tbAbs.innerHTML = (absences?.length)
     ? absences.map(a => `<tr><td>${a.etudiants?a.etudiants.nom+' '+a.etudiants.prenom:'N/A'}</td><td>${a.matiere}</td><td>${fmtDate(a.date_absence)}</td><td><span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span></td></tr>`).join('')
     : '<tr><td colspan="4" class="loading">Aucune absence.</td></tr>';
 
@@ -7504,12 +7626,14 @@ async function chargerDashboard() {
   let qN = db.from('notes').select('*, etudiants(nom, prenom)').order('created_at',{ascending:false}).limit(5);
   if (currentEcoleId) qN = qN.eq('ecole_id', currentEcoleId);
   const { data: notesR } = await qN;
-  document.getElementById('tbody-notes-dashboard').innerHTML = (notesR?.length)
+  const tbNotes = document.getElementById('tbody-notes-dashboard');
+  if (tbNotes) tbNotes.innerHTML = (notesR?.length)
     ? notesR.map(n => { const a = getApp(n.note); return `<tr><td>${n.etudiants?n.etudiants.nom+' '+n.etudiants.prenom:'N/A'}</td><td>${n.matiere}</td><td><strong>${n.note}/20</strong></td><td><span class="badge ${a.cls}">${a.label}</span></td></tr>`; }).join('')
     : '<tr><td colspan="4" class="loading">Aucune note.</td></tr>';
 
   const ecole = tousLesEcoles.find(e => e.id === currentEcoleId);
-  if (ecole) document.getElementById('dash-subtitle').textContent = 'Vue générale — ' + ecole.nom;
+  const sub = document.getElementById('dash-subtitle');
+  if (ecole && sub) sub.textContent = 'Vue générale — ' + ecole.nom;
   setTimeout(chargerDashboardCharts, 400);
 }
 
@@ -15827,6 +15951,14 @@ async function ajouterEtablissement() {
   _syncSelecteursEcoles();
   if (typeof invalidateData === 'function') invalidateData('ecoles');
   chargerReseau();
+  // Si c'est la première école → définir comme courante et recharger toute l'UI
+  // (nav, dashboard, sortir de l'écran d'accueil "Bienvenue").
+  if (!editId) {
+    if (!currentEcoleId) currentEcoleId = ecoleId;
+    if (typeof chargerEcoles === 'function') {
+      try { await chargerEcoles(); } catch(_e) {}
+    }
+  }
   if (btn) { btn.disabled = false; btn.textContent = '🏫 Enregistrer l\'annexe'; }
 }
 
