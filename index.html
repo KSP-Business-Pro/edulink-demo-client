@@ -7189,11 +7189,6 @@ function getDocIcon(nom) {
 
 // ══ NAVIGATION ════════════════════════════════
 function showPage(p) {
-  // Bloquer l'accès aux modules inactifs pour les non-admins
-  if (MODULES_INACTIFS && MODULES_INACTIFS.includes(p) && currentRole !== 'admin') {
-    showToast('Ce module est désactivé.','error');
-    return;
-  }
   currentPage = p;   // ← tracker la page active pour invalidateData
   document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
   document.querySelectorAll('nav a').forEach(x => x.classList.remove('on'));
@@ -20043,29 +20038,15 @@ document.addEventListener('keydown', e => {
 /* ══════════════════════════════════════════════════════════════════
    SUITE 13 — PERMISSIONS PAR RÔLE ★ J41
 ══════════════════════════════════════════════════════════════════ */
-// ROLE_PERMISSIONS et MODULES_INACTIFS déclarés en tête de fichier (ÉTAT GLOBAL)
+// ROLE_PERMISSIONS déclaré en tête de fichier (ÉTAT GLOBAL)
 
 function appliquerPermissions(role) {
   currentRole = role;
   const perms = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.admin;
 
-  // Cacher les modules non autorisés dans la nav
+  // Afficher/masquer les modules selon les permissions du rôle
   document.querySelectorAll('nav a[id^="nav-"]').forEach(link => {
     const moduleId = link.id.replace('nav-','');
-    const inactif = MODULES_INACTIFS.includes(moduleId);
-
-    if (inactif) {
-      if (role === 'admin') {
-        // Admin : visible mais grisé avec 🔒
-        link.removeAttribute('data-inactive-hidden');
-        link.setAttribute('data-inactive','true');
-      } else {
-        // Tous les autres : complètement invisible
-        link.setAttribute('data-inactive-hidden','true');
-      }
-      return;
-    }
-
     const allowed = perms.includes(moduleId) || role === 'admin';
     link.style.display = allowed ? '' : 'none';
   });
