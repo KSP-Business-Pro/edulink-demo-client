@@ -7105,6 +7105,83 @@ function _syncSelecteursEcoles() {
   } catch (e) { console.warn('[_syncSelecteursEcoles]', e?.message || e); }
 }
 
+// ── Sync Supabase → Réseau ───────────────────────────────────────────────
+// tousLesEcoles (Supabase) est la source de vérité.
+// tousLesEtablissements (réseau/localStorage) doit en être un miroir enrichi.
+// Cette fonction réconcilie les deux tableaux : elle ajoute dans
+// tousLesEtablissements toute école Supabase qui n'y figure pas encore.
+var reseauInitialized = false;
+
+function syncSupabaseVersReseau() {
+  if (!Array.isArray(tousLesEcoles) || !tousLesEcoles.length) return;
+  const icos   = {'université':'🎓','lycée':'🏫','collège':'🏛️','école_primaire':'⭐','institut':'📚','centre_formation':'🔧','universite':'🎓','lycee':'🏫','college':'🏛️','ecole_primaire':'⭐'};
+  const colors = {'université':'#7c3aed','lycée':'#1e3a5f','collège':'#059669','école_primaire':'#d97706','institut':'#dc2626','centre_formation':'#059669','universite':'#7c3aed','lycee':'#1e3a5f','college':'#059669','ecole_primaire':'#d97706'};
+  const idsReseau = new Set((tousLesEtablissements || []).map(e => String(e.id)));
+  let changed = false;
+  tousLesEcoles.forEach(e => {
+    if (!idsReseau.has(String(e.id))) {
+      // École Supabase absente du réseau → on l'y ajoute
+      tousLesEtablissements.push({
+        id:            e.id,
+        nom:           e.nom           || '—',
+        type:          e.type          || 'université',
+        ville:         e.ville         || '—',
+        pays:          e.pays          || 'Bénin',
+        adresse:       e.adresse       || '',
+        telephone:     e.telephone     || '',
+        email:         e.email         || '',
+        site_web:      e.site_web      || '',
+        directeur:     e.directeur     || '—',
+        annee_scolaire:e.annee_scolaire|| '2025-2026',
+        devise:        e.devise        || 'FCFA',
+        agrement:      e.agrement      || '',
+        statut:        e.statut        || 'actif',
+        eleves:        0, enseignants: 0, taux_reussite: 0,
+        recette_mois:  0, moy_notes: 0, classes: 0, absences_taux: 0,
+        ico:           icos[e.type]   || '🎓',
+        color:         colors[e.type] || '#7c3aed',
+        _from_reseau:  false,
+      });
+      changed = true;
+    } else {
+      // École déjà présente → mettre à jour les champs de base (nom, ville, statut, type)
+      const existing = tousLesEtablissements.find(r => String(r.id) === String(e.id));
+      if (existing) {
+        existing.nom    = e.nom    || existing.nom;
+        existing.ville  = e.ville  || existing.ville;
+        existing.type   = e.type   || existing.type;
+        existing.statut = e.statut || existing.statut;
+        existing.ico    = icos[existing.type]   || existing.ico   || '🎓';
+        existing.color  = colors[existing.type] || existing.color || '#7c3aed';
+        changed = true;
+      }
+    }
+  });
+  if (changed) {
+    window.tousLesEtablissements = tousLesEtablissements;
+    try { reseauSauvegarder(); } catch(e) {}
+  }
+}
+
+// Wrapper appelé par chargerReseau() à l'initialisation
+async function syncEcoleCouranteVersReseau() {
+  // Ré-interroger Supabase pour être sûr d'avoir la liste à jour
+  try {
+    const { data } = await db.from('ecoles').select('*').order('created_at', { ascending: true });
+    if (data && data.length) {
+      // Mettre à jour tousLesEcoles si besoin
+      if (!tousLesEcoles.length) tousLesEcoles = data;
+    }
+  } catch(e) { console.warn('[syncEcoleCouranteVersReseau] Supabase:', e); }
+  syncSupabaseVersReseau();
+}
+
+// Peut être appelée depuis n'importe quel module pour forcer une re-sync
+function forcerSyncReseau() {
+  syncSupabaseVersReseau();
+  if (typeof chargerReseau === 'function') chargerReseau();
+}
+
 // ── Bus d'événements data ─────────────────────────────────────────────────
 // Quand un module modifie des données Supabase, il appelle invalidateData(table)
 // pour forcer le rechargement de tous les modules qui consomment cette table.
@@ -7451,6 +7528,8 @@ async function chargerEcoles() {
       try { mettreAJourBadgeEcole(ecoleActive); } catch(e) { console.warn('[mettreAJourBadgeEcole]', e); }
       try { peuplerExecSelector(); }            catch(e) { console.warn('[peuplerExecSelector]', e); }
       try { _syncSelecteursEcoles(); }          catch(e) { console.warn('[_syncSelecteursEcoles]', e); }
+      // Synchroniser les nouvelles écoles Supabase vers le module Réseau
+      try { syncSupabaseVersReseau(); }         catch(e) { console.warn('[syncSupabaseVersReseau]', e); }
       // Nettoyer le localStorage réseau : retirer les fiches orphelines dont l'id est dans Supabase
       if (tousLesEtablissements && tousLesEtablissements.length) {
         const avant = tousLesEtablissements.length;
@@ -15668,16 +15747,24 @@ const ABONNES_DEMO = [
 ];
 
 async function chargerReseau() {
+  console.info('[chargerReseau] Démarrage, tousLesEtablissements:', tousLesEtablissements.length);
+
   if (!reseauInitialized) {
     reseauRestaurer();
-    if (!tousLesEtablissements.length && currentEcoleId) {
+    // Si tousLesEcoles (Supabase) est déjà chargé, on l'utilise directement
+    // Sinon on re-interroge Supabase via syncEcoleCouranteVersReseau
+    if (!tousLesEtablissements.length) {
       await syncEcoleCouranteVersReseau();
     }
     reseauInitialized = true;
   }
 
+  // Toujours synchroniser Supabase → Réseau avant le rendu
+  // (ajoute les nouvelles écoles Supabase dans tousLesEtablissements si absentes)
+  syncSupabaseVersReseau();
+  console.info('[chargerReseau] Après sync, tousLesEtablissements:', tousLesEtablissements.length);
+
   // Sync automatique des vrais chiffres Supabase pour TOUTES les écoles du réseau
-  // (remplace les données fictives du localStorage par les vraies données)
   if (tousLesEtablissements.length) {
     const ids = tousLesEtablissements.map(e => e.id).filter(Boolean);
     if (ids.length) {
@@ -16042,6 +16129,8 @@ async function ajouterEtablissement() {
     try { reseauSauvegarder(); } catch(e) { console.warn('[reseauSauvegarder]', e); }
     try { _syncSelecteursEcoles(); } catch(e) { console.warn('[_syncSelecteursEcoles]', e); }
     if (typeof invalidateData === 'function') invalidateData('ecoles');
+    // Forcer une re-sync complète du module Réseau
+    reseauInitialized = false;
     if (typeof chargerReseau === 'function') {
       try { await chargerReseau(); } catch(e) { console.warn('[chargerReseau]', e); }
     }
