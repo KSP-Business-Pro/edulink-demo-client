@@ -22400,18 +22400,28 @@ function lireExcelEnseignants(file) {
   lireExcel(file, function(rows) {
     var valides = [], erreurs = [];
     rows.forEach(function(row, i) {
-      var nom    = xlsVal(row, ['nom','Nom','NOM']);
-      var prenom = xlsVal(row, ['prenom','Prenom','Prénom','prénom']);
+      var nom    = xlsVal(row, ['Nom *','nom','Nom','NOM']);
+      var prenom = xlsVal(row, ['Prénom *','prenom','Prenom','Prénom','prénom']);
+      // Ignorer la ligne de notes/exemple si nom ressemble à un en-tête ou note
       if (!nom || !prenom) { erreurs.push(i+2); return; }
+      if (nom === 'Obligatoire' || nom === 'Ex:') return; // ligne de notes
+      // Matières : accepter séparateur virgule OU point-virgule
+      var matiereRaw = xlsVal(row, ['Matières enseignées (séparées par virgule)','matieres','Matières','matières','Matieres']) || '';
+      var matieres = matiereRaw.split(/[;,]/).map(function(m){ return m.trim(); }).filter(Boolean);
+      // Grade : normaliser les valeurs françaises → valeurs attendues
+      var gradeRaw = (xlsVal(row, ['Grade','grade']) || 'vacataire').toLowerCase();
+      var grade = gradeRaw.includes('perm') ? 'Permanent'
+                : gradeRaw.includes('assoc') ? 'Associé'
+                : 'Vacataire';
       valides.push({
         nom: nom, prenom: prenom,
-        email:          xlsVal(row, ['email','Email']),
-        telephone:      xlsVal(row, ['telephone','Téléphone','tel']),
-        specialite:     xlsVal(row, ['specialite','Spécialité','specialité']),
-        grade:          xlsVal(row, ['grade','Grade']) || 'vacataire',
-        heures_semaine: parseInt(xlsVal(row, ['heures_semaine','H/semaine','heures']) || '12') || 12,
-        statut:         (xlsVal(row, ['statut','Statut']) || 'actif').toLowerCase(),
-        matieres:       (xlsVal(row, ['matieres','Matières','matières']) || '').split(';').map(function(m){ return m.trim(); }).filter(Boolean),
+        email:          xlsVal(row, ['Email *','email','Email']) || null,
+        telephone:      xlsTel(xlsVal(row, ['Téléphone','Telephone','telephone','tel']) || '') || null,
+        specialite:     xlsVal(row, ['Spécialité *','Specialite','specialite','Spécialité','specialité']) || null,
+        grade:          grade,
+        heures_semaine: parseInt(xlsVal(row, ['Heures/semaine','heures_semaine','H/semaine','heures']) || '12') || 12,
+        statut:         (xlsVal(row, ['Statut','statut']) || 'actif').toLowerCase(),
+        matieres:       matieres,
       });
     });
     _enseignantsAImporter = valides;
@@ -22462,14 +22472,19 @@ function resetImportEns() {
 
 function telechargerModeleEnseignantsExcel() {
   if (!window.XLSX) { showToast('SheetJS non chargé','error'); return; }
-  var ws = XLSX.utils.aoa_to_sheet([
-    ['nom','prenom','email','telephone','specialite','grade','heures_semaine','matieres','statut'],
-    ['KOFI','Jean','jkofi@ecole.bj','+22997000001','Mathématiques','titulaire','18','Mathématiques;Statistiques','actif'],
-    ['AMEVI','Marie','mamevi@ecole.bj','+22997000002','Littérature','vacataire','12','Français;Littérature','actif'],
-  ]);
-  ws['!cols'] = [12,10,22,14,16,12,8,25,8].map(function(w){ return {wch:w}; });
-  var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Enseignants');
-  XLSX.writeFile(wb, 'modele_import_enseignants.xlsx');
+  // Colonnes alignées sur le payload réel de sauvegarderEnseignant
+  // et sur le mapping lireExcelEnseignants (xlsVal)
+  var header  = ['Nom *','Prénom *','Email *','Téléphone','Spécialité *','Grade','Heures/semaine','Statut','Matières enseignées (séparées par virgule)'];
+  var notes   = ['Obligatoire','Obligatoire','Obligatoire — unique','Format: +229XXXXXXXX','Ex: Informatique','Permanent, Vacataire, Associé','Nombre entier (ex: 20)','actif ou inactif','Ex: Maths, Physique, Chimie'];
+  var ex1 = ['AGBOJAN','Prince','pagbojan@ucao.bj','+22997010101','Droit','Permanent',20,'actif','Droit Privé, Droit Public, Droit International'];
+  var ex2 = ['KOUDOSSOU','Marie','mkoudossou@ucao.bj','+22961111222','Informatique','Permanent',18,'actif','Algorithmes, Programmation Python, Bases de données'];
+  var ex3 = ['ZINSOU','Théodore','tzinsou@ucao.bj','+22972334455','Finance','Vacataire',12,'actif','Comptabilité, Finance d\'entreprise'];
+  var ws = XLSX.utils.aoa_to_sheet([header, notes, ex1, ex2, ex3]);
+  ws['!cols'] = [18,18,26,18,18,14,16,10,40].map(function(w){ return {wch:w}; });
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Enseignants');
+  XLSX.writeFile(wb, 'EduLink-Modele-Import-Enseignants.xlsx');
+  showToast('📥 Modèle enseignants téléchargé !', 'success');
 }
 
 </script>
