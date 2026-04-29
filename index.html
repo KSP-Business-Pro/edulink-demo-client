@@ -7440,18 +7440,18 @@ function exporterEtudiantsCSV() {
 }
 
 function exporterEtudiantsModele() {
-  // Colonnes alignées sur le schéma réel de la table etudiants Supabase
-  const header = ['Matricule','Nom','Prénom','Sexe (M/F)','Filière','Niveau','Statut (actif/inactif)','Email parent','Téléphone parent','Nom parent'];
-  const exemple = ['ETU-001','AHOUANSOU','Koffi','M','Informatique','L1','actif','parent@ex.bj','+22961000001','AHOUANSOU Père'];
+  const header  = ['Matricule','Nom','Prénom','Sexe (M/F)','Filière','Niveau','Statut (actif/inactif)','Email parent','Téléphone parent','Nom parent'];
+  const exemple = ['ETU-001','AHOUANSOU','Koffi','M','Informatique','L1','actif','ahouansou@ex.bj','+22961000001','AHOUANSOU Père'];
   xlsxModele('EduLink-Modele-Import-Etudiants.xlsx', header, exemple, 'Modèle Étudiants',
     [12,18,18,10,18,10,20,28,16,22]);
 }
 
 var _etudiantsAImporter = [];
+var _etudiantsAImporter = [];
+
 function ouvrirImportExcelEtudiants() {
   const inp = document.getElementById('csv-file-input');
   if (!inp) return;
-  // Étendre l'accept pour xlsx
   inp.accept = '.csv,.txt,.xlsx,.xls';
   inp.onchange = e => {
     const file = e.target.files[0];
@@ -7467,21 +7467,16 @@ function ouvrirImportExcelEtudiants() {
           filiere:         xlsVal(r,['Filière','Filiere','filiere','FILIERE'])                       || '',
           niveau:          xlsVal(r,['Niveau','niveau','NIVEAU'])                                    || '',
           statut:          xlsVal(r,['Statut (actif/inactif)','Statut','statut','STATUT'])           || 'actif',
-          // Champs parent (colonnes réelles de la table)
           email_parent:    xlsVal(r,['Email parent','email_parent','Email Parent','EmailParent'])    || '',
           telephone_parent:xlsTel(xlsVal(r,['Téléphone parent','telephone_parent','Tel parent','TelParent'])),
           nom_parent:      xlsVal(r,['Nom parent','nom_parent','Nom Parent','NomParent'])            || '',
-          // Champs optionnels (envoyés seulement si la colonne existe dans le schéma Supabase)
-          // — seront retirés automatiquement par l'auto-retry si la colonne n'existe pas
-          email:           xlsVal(r,['Email','email','EMAIL','E-mail'])                              || undefined,
-          telephone:       xlsVal(r,['Téléphone','Telephone','tel','TEL','Phone']) ? xlsTel(xlsVal(r,['Téléphone','Telephone','tel','TEL','Phone'])) : undefined,
-          date_naissance:  xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance']) ? xlsDate(xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance'])) : undefined,
-          nationalite:     xlsVal(r,['Nationalité','Nationalite','nationalite'])                     || undefined,
+          ...(xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance']) ? { date_naissance: xlsDate(xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance'])) } : {}),
+          ...(xlsVal(r,['Nationalité','Nationalite','nationalite']) ? { nationalite: xlsVal(r,['Nationalité','Nationalite','nationalite']) } : {}),
         })).filter(e => e.nom && e.nom.trim() !== '');
         previewImportEtudiants(_etudiantsAImporter);
       });
     } else {
-      lireCSV(file);   // ancien chemin CSV
+      lireCSV(file);
     }
   };
   inp.click();
@@ -7491,18 +7486,18 @@ function previewImportEtudiants(liste) {
   const prevEl = document.getElementById('preview-import');
   if (!prevEl) { confirmerImportExcelEtudiants(liste); return; }
   prevEl.innerHTML = `<p style="color:#059669;font-weight:600">✅ ${liste.length} étudiant(s) prêt(s) à importer</p>`
-    + `<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#f3f4f6"><th style="padding:4px 8px">Nom</th><th>Prénom</th><th>Email</th><th>Filière</th><th>Niveau</th></tr></thead><tbody>`
-    + liste.slice(0,10).map(e => `<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">${e.nom}</td><td>${e.prenom}</td><td>${e.email}</td><td>${e.filiere}</td><td>${e.niveau}</td></tr>`).join('')
+    + `<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#f3f4f6"><th style="padding:4px 8px">Nom</th><th>Prénom</th><th>Filière</th><th>Niveau</th><th>Statut</th></tr></thead><tbody>`
+    + liste.slice(0,10).map(e => `<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">${e.nom}</td><td>${e.prenom}</td><td>${e.filiere}</td><td>${e.niveau}</td><td>${e.statut}</td></tr>`).join('')
     + (liste.length > 10 ? `<tr><td colspan="5" style="padding:4px 8px;color:#6b7280">... et ${liste.length-10} autres</td></tr>` : '')
     + '</tbody></table>';
   const btn = document.getElementById('btn-import-confirm');
   if (btn) {
     btn.disabled = false;
     btn.style.opacity = '1';
+    btn.textContent = `🚀 Importer ${liste.length} étudiant(s)`;
     btn.onclick = () => confirmerImportExcelEtudiants(_etudiantsAImporter);
   }
 }
-
 async function confirmerImportExcelEtudiants(liste) {
   if (!liste?.length) return;
   const btn = document.getElementById('btn-import-confirm');
