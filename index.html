@@ -6992,8 +6992,9 @@ async function seConnecter() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-main').style.display = 'flex';
     await chargerEcoles();
-    // ★ Suite 13 — Initialiser realtime après écoles chargées
-    if (typeof initialiserRealtime === 'function') setTimeout(initialiserRealtime, 1000);
+    // Realtime désactivé au démarrage pour éviter la latence des WebSockets
+    // — à activer manuellement si nécessaire via le bouton "Temps réel"
+    // if (typeof initialiserRealtime === 'function') setTimeout(initialiserRealtime, 1000);
     initOfflineMode();
     initSuite8?.();
   } catch(e) {
@@ -7026,8 +7027,8 @@ window.addEventListener('load', async () => {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-main').style.display = 'flex';
     await chargerEcoles();
-    // ★ Suite 13 — Realtime après chargement
-    if (typeof initialiserRealtime === 'function') setTimeout(initialiserRealtime, 1000);
+    // Realtime désactivé au démarrage pour performances
+    // if (typeof initialiserRealtime === 'function') setTimeout(initialiserRealtime, 1000);
     initOfflineMode();
     // Routing par querystring : ?page=XXX → bascule vers cette page si elle existe
     try {
@@ -8632,64 +8633,82 @@ async function chargerDashboard() {
     if (typeof afficherEcranBienvenue === 'function') afficherEcranBienvenue();
     return;
   }
-  // Si on est sur la page dashboard et qu'elle a été remplacée par l'écran d'accueil
-  // (cas où on vient de créer la première école), il faut restaurer le HTML d'origine.
   const dash = document.getElementById('page-dashboard');
   if (dash && dash.querySelector('.welcome-empty-state') && typeof DASHBOARD_INITIAL_HTML !== 'undefined') {
     dash.innerHTML = DASHBOARD_INITIAL_HTML;
   }
 
-  let qE = db.from('etudiants').select('*',{count:'exact',head:true});
-  if (currentEcoleId) qE = qE.eq('ecole_id', currentEcoleId);
-  const { count: nb } = await qE;
-  const elE = document.getElementById('stat-etudiants'); if (elE) elE.textContent = nb || 0;
-
   const today = new Date().toISOString().split('T')[0];
-  let qAbs = db.from('absences').select('*',{count:'exact',head:true}).eq('date_absence', today);
-  if (currentEcoleId) qAbs = qAbs.eq('ecole_id', currentEcoleId);
-  const { count: nbAbs } = await qAbs;
-  const elAbs = document.getElementById('stat-absences'); if (elAbs) elAbs.textContent = nbAbs || 0;
+  const eid   = currentEcoleId;
 
-  let qF = db.from('factures').select('*',{count:'exact',head:true}).in('statut',['en_attente','retard']);
-  if (currentEcoleId) qF = qF.eq('ecole_id', currentEcoleId);
-  const { count: nbF } = await qF;
-  const elF = document.getElementById('stat-impayés'); if (elF) elF.textContent = nbF || 0;
+  // ── Toutes les requêtes COUNT en parallèle (4× plus rapide) ──────────
+  let qE    = db.from('etudiants').select('*',{count:'exact',head:true});
+  let qAbs  = db.from('absences').select('*',{count:'exact',head:true}).eq('date_absence', today);
+  let qF    = db.from('factures').select('*',{count:'exact',head:true}).in('statut',['en_attente','retard']);
+  let qI    = db.from('incidents').select('*',{count:'exact',head:true}).neq('statut','résolu');
+  let qAbsR = db.from('absences').select('date_absence,matiere,statut,etudiants(nom,prenom)').order('created_at',{ascending:false}).limit(5);
+  let qN    = db.from('notes').select('note,matiere,created_at,etudiants(nom,prenom)').order('created_at',{ascending:false}).limit(5);
+  if (eid) { qE=qE.eq('ecole_id',eid); qAbs=qAbs.eq('ecole_id',eid); qF=qF.eq('ecole_id',eid); qI=qI.eq('ecole_id',eid); qAbsR=qAbsR.eq('ecole_id',eid); qN=qN.eq('ecole_id',eid); }
 
-  let qI = db.from('incidents').select('*',{count:'exact',head:true}).neq('statut','résolu');
-  if (currentEcoleId) qI = qI.eq('ecole_id', currentEcoleId);
-  const { count: nbI } = await qI;
-  const elI = document.getElementById('stat-incidents'); if (elI) elI.textContent = nbI || 0;
-  const bd = document.getElementById('badge-disc');
-  if (bd) {
-    if (nbI > 0) { bd.textContent = nbI; bd.style.display='inline'; } else bd.style.display='none';
-  }
+  const [resE, resAbs, resF, resI, resAbsR, resN] = await Promise.all([qE, qAbs, qF, qI, qAbsR, qN]);
+
+  // Stats KPI
+  const elE = document.getElementById('stat-etudiants'); if (elE) elE.textContent = resE.count || 0;
+  const elAbs = document.getElementById('stat-absences'); if (elAbs) elAbs.textContent = resAbs.count || 0;
+  const elF = document.getElementById('stat-impayés'); if (elF) elF.textContent = resF.count || 0;
+  const nbI = resI.count || 0;
+  const elI = document.getElementById('stat-incidents'); if (elI) elI.textContent = nbI;
+  const bd  = document.getElementById('badge-disc');
+  if (bd) { if (nbI > 0) { bd.textContent = nbI; bd.style.display='inline'; } else bd.style.display='none'; }
 
   // Absences récentes
-  let qAbsR = db.from('absences').select('*, etudiants(nom, prenom)').order('created_at',{ascending:false}).limit(5);
-  if (currentEcoleId) qAbsR = qAbsR.eq('ecole_id', currentEcoleId);
-  const { data: absences } = await qAbsR;
   const tbAbs = document.getElementById('tbody-absences-dashboard');
-  if (tbAbs) tbAbs.innerHTML = (absences?.length)
-    ? absences.map(a => `<tr><td>${a.etudiants?a.etudiants.nom+' '+a.etudiants.prenom:'N/A'}</td><td>${a.matiere}</td><td>${fmtDate(a.date_absence)}</td><td><span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span></td></tr>`).join('')
+  if (tbAbs) tbAbs.innerHTML = (resAbsR.data?.length)
+    ? resAbsR.data.map(a => `<tr><td>${a.etudiants?a.etudiants.nom+' '+a.etudiants.prenom:'N/A'}</td><td>${a.matiere}</td><td>${fmtDate(a.date_absence)}</td><td><span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span></td></tr>`).join('')
     : '<tr><td colspan="4" class="loading">Aucune absence.</td></tr>';
 
   // Notes récentes
-  let qN = db.from('notes').select('*, etudiants(nom, prenom)').order('created_at',{ascending:false}).limit(5);
-  if (currentEcoleId) qN = qN.eq('ecole_id', currentEcoleId);
-  const { data: notesR } = await qN;
   const tbNotes = document.getElementById('tbody-notes-dashboard');
-  if (tbNotes) tbNotes.innerHTML = (notesR?.length)
-    ? notesR.map(n => { const a = getApp(n.note); return `<tr><td>${n.etudiants?n.etudiants.nom+' '+n.etudiants.prenom:'N/A'}</td><td>${n.matiere}</td><td><strong>${n.note}/20</strong></td><td><span class="badge ${a.cls}">${a.label}</span></td></tr>`; }).join('')
+  if (tbNotes) tbNotes.innerHTML = (resN.data?.length)
+    ? resN.data.map(n => { const a = getApp(n.note); return `<tr><td>${n.etudiants?n.etudiants.nom+' '+n.etudiants.prenom:'N/A'}</td><td>${n.matiere}</td><td><strong>${n.note}/20</strong></td><td><span class="badge ${a.cls}">${a.label}</span></td></tr>`; }).join('')
     : '<tr><td colspan="4" class="loading">Aucune note.</td></tr>';
 
   const ecole = tousLesEcoles.find(e => e.id === currentEcoleId);
   const sub = document.getElementById('dash-subtitle');
   if (ecole && sub) sub.textContent = 'Vue générale — ' + ecole.nom;
-  setTimeout(chargerDashboardCharts, 400);
+  setTimeout(chargerDashboardCharts, 200);
 }
 
 // ══ ÉTUDIANTS ════════════════════════════════
+// ══ CACHE DE DONNÉES — évite les rechargements inutiles ══════════════
+// Chaque module stocke son timestamp de dernier chargement.
+// Si les données ont moins de TTL_MS, on ne re-interroge pas Supabase.
+// invalidateCache(key) force le prochain chargement à ignorer le cache.
+const _cache = {};
+const CACHE_TTL_MS = 30_000; // 30 secondes
+
+function _cacheValide(key) {
+  return _cache[key] && (Date.now() - _cache[key]) < CACHE_TTL_MS;
+}
+function _cacheMaj(key) { _cache[key] = Date.now(); }
+function invalidateCache(...keys) { keys.forEach(k => { delete _cache[k]; }); }
+
+// Invalider le cache d'une table quand des données sont modifiées
+const _origInvalidateData = typeof invalidateData === 'function' ? invalidateData : null;
+function invalidateData(table) {
+  const map = {
+    etudiants: 'etudiants', enseignants: 'enseignants',
+    factures: 'paiements', messages: 'messages', incidents: 'incidents',
+    notes: 'notes', emploi_du_temps: 'edt', examens: 'examens',
+    livres: 'livres', personnel: 'rh',
+  };
+  if (map[table]) invalidateCache(map[table]);
+  if (_origInvalidateData) _origInvalidateData(table);
+}
+
 async function chargerEtudiants() {
+  // Cache 30s : évite de re-charger à chaque navigation si les données sont fraîches
+  if (_cacheValide('etudiants') && tousLesEtudiants?.length) { afficherEtudiants(tousLesEtudiants); return; }
   document.getElementById('tbody-etudiants').innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
   let data=null;
   try {
@@ -8699,6 +8718,7 @@ async function chargerEtudiants() {
   } catch(e){}
   if(!data){let q=db.from('etudiants').select('*').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const res=await q;data=res.data||[];}
   tousLesEtudiants=data;
+  _cacheMaj('etudiants');
   // Stats
   const st=document.getElementById('stat-etu-total');   if(st)st.textContent=tousLesEtudiants.length;
   const sa=document.getElementById('stat-etu-actifs');  if(sa)sa.textContent=tousLesEtudiants.filter(e=>e.statut==='actif').length;
@@ -9615,6 +9635,7 @@ async function envoyerReponse() {
 
 // ══ PAIEMENTS  ★ JOUR 3 ══════════════════════
 async function chargerPaiements() {
+  if (_cacheValide('paiements') && toutesLesFactures?.length) return;
   await chargerFactures();
   // Stats comptage
   let q = db.from('factures').select('statut,montant_total,montant_paye');
@@ -9669,6 +9690,7 @@ async function chargerFactures() {
   if (fe) q = q.eq('etudiant_id', fe);
   const { data } = await q;
   toutesLesFactures = data || [];
+  _cacheMaj('paiements');
   document.getElementById('tbody-factures').innerHTML = toutesLesFactures.length
     ? toutesLesFactures.map(f => {
         const pct = f.montant_total > 0 ? Math.min(100, Math.round((f.montant_paye||0) / f.montant_total * 100)) : 0;
@@ -11907,10 +11929,15 @@ function syncFiliereNiveauExamen(sel) {
 // ══ ENSEIGNANTS  ★ JOUR 13 ═══════════════════════════════════════════
 
 async function chargerEnseignants() {
+  if (_cacheValide('enseignants') && tousLesEnseignants?.length) {
+    // Réafficher depuis le cache
+    if (typeof afficherEnseignants === 'function') { afficherEnseignants(tousLesEnseignants); return; }
+  }
   let q = db.from('enseignants').select('*').order('nom');
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
   const { data } = await q;
   tousLesEnseignants = data || [];
+  _cacheMaj('enseignants');
 
   // Stats
   const nbMat = [...new Set(tousLesEnseignants.flatMap(e => (e.matieres||[]) ))].length;
