@@ -7459,18 +7459,18 @@ function ouvrirImportExcelEtudiants() {
     if (ext === 'xlsx' || ext === 'xls') {
       lireExcel(file, rows => {
         _etudiantsAImporter = rows.map(r => ({
-          nom:           xlsVal(r,['Nom','nom','NOM'])               || '',
-          prenom:        xlsVal(r,['Prénom','Prenom','prenom'])      || '',
-          email:         xlsVal(r,['Email','email','EMAIL'])         || '',
-          telephone:     xlsVal(r,['Téléphone','Telephone','tel'])   || '',
-          sexe:          xlsVal(r,['Sexe (M/F)','Sexe','sexe'])      || '',
-          date_naissance:xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance']) || '',
-          nationalite:   xlsVal(r,['Nationalité','Nationalite','nationalite']) || '',
-          filiere:       xlsVal(r,['Filière','Filiere','filiere'])   || '',
-          niveau:        xlsVal(r,['Niveau','niveau'])               || '',
-          matricule:     xlsVal(r,['Matricule','matricule'])         || '',
-          statut:        xlsVal(r,['Statut (actif/inactif)','Statut','statut']) || 'actif',
-        })).filter(e => e.nom);
+          nom:           xlsVal(r,['Nom','nom','NOM'])                                     || '',
+          prenom:        xlsVal(r,['Prénom','Prenom','prenom','PRENOM'])                   || '',
+          email:         xlsVal(r,['Email','email','EMAIL','E-mail','e-mail'])              || '',
+          telephone:     xlsTel(xlsVal(r,['Téléphone','Telephone','tel','TEL','Phone'])),
+          sexe:          xlsVal(r,['Sexe (M/F)','Sexe','sexe','SEXE','Genre'])             || '',
+          date_naissance:xlsDate(xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance','DateNaissance','Date de naissance'])),
+          nationalite:   xlsVal(r,['Nationalité','Nationalite','nationalite','NATIONALITE'])|| '',
+          filiere:       xlsVal(r,['Filière','Filiere','filiere','FILIERE'])               || '',
+          niveau:        xlsVal(r,['Niveau','niveau','NIVEAU'])                            || '',
+          matricule:     xlsVal(r,['Matricule','matricule','MATRICULE','N° Matricule'])    || '',
+          statut:        xlsVal(r,['Statut (actif/inactif)','Statut','statut','STATUT'])   || 'actif',
+        })).filter(e => e.nom && e.nom.trim() !== '');
         previewImportEtudiants(_etudiantsAImporter);
       });
     } else {
@@ -7575,7 +7575,7 @@ function ouvrirImportExcelExamens() {
     _examensAImporter = rows.map(r => ({
       matiere:      xlsVal(r,['Matière','Matiere','matiere'])        || '',
       type:         xlsVal(r,['Type (controle/partiel/examen_final)','Type','type']) || 'partiel',
-      date:         xlsVal(r,['Date (YYYY-MM-DD)','Date','date'])    || '',
+      date:         xlsDate(xlsVal(r,['Date (YYYY-MM-DD)','Date','date'])),
       heure_debut:  xlsVal(r,['Heure début (HH:MM)','Heure debut','heure_debut']) || '',
       heure_fin:    xlsVal(r,['Heure fin (HH:MM)','Heure fin','heure_fin']) || '',
       salle:        xlsVal(r,['Salle','salle'])                      || '',
@@ -7859,11 +7859,11 @@ function ouvrirImportExcelPersonnel() {
       prenom:       xlsVal(r,['Prénom','Prenom','prenom'])           || '',
       nom:          xlsVal(r,['Nom','nom','NOM'])                    || '',
       email:        xlsVal(r,['Email','email'])                      || '',
-      telephone:    xlsVal(r,['Téléphone','Telephone','tel'])        || '',
+      telephone:    xlsTel(xlsVal(r,['Téléphone','Telephone','tel','Phone'])),
       poste:        xlsVal(r,['Poste','poste'])                      || '',
       departement:  xlsVal(r,['Département','Departement','departement']) || '',
       type_contrat: xlsVal(r,['Type contrat (cdi/cdd/vacataire)','Type contrat','type_contrat']) || 'cdd',
-      date_embauche:xlsVal(r,['Date embauche (YYYY-MM-DD)','Date embauche','date_embauche'])     || '',
+      date_embauche:xlsDate(xlsVal(r,['Date embauche (YYYY-MM-DD)','Date embauche','date_embauche'])),
       salaire_brut: Number(xlsVal(r,['Salaire brut','salaire_brut'])||0),
       statut:       xlsVal(r,['Statut (actif/inactif)','Statut','statut']) || 'actif',
     })).filter(p => p.nom && p.prenom);
@@ -22069,19 +22069,86 @@ function lireExcel(file, callback) {
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
-      var wb = XLSX.read(e.target.result, { type:'array', raw:false });
-      var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'', raw:false });
-      callback(rows);
+      // raw:true pour avoir les valeurs brutes (nombres, dates serial Excel)
+      // puis on normalise dans xlsVal
+      var wb   = XLSX.read(e.target.result, { type:'array', raw:false, cellDates:true });
+      var ws   = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, { defval:'', raw:false, dateNF:'yyyy-mm-dd' });
+      // Normaliser les clés : trim + toLowerCase pour la recherche interne
+      var normalized = rows.map(function(row) {
+        var out = {};
+        Object.keys(row).forEach(function(k) {
+          // Stocker sous la clé originale ET sous une clé normalisée
+          out[k] = row[k];
+          out[k.trim()] = row[k];                       // trim espaces
+          out[k.trim().toLowerCase()] = row[k];         // lowercase
+          // Supprimer les accents pour la clé normalisée
+          var kn = k.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+          out[kn] = row[k];
+        });
+        return out;
+      });
+      callback(normalized);
     } catch(err) { showToast('Erreur lecture : '+err.message,'error'); }
   };
   reader.readAsArrayBuffer(file);
 }
+
 function xlsVal(row, keys) {
-  for (var i=0; i<keys.length; i++) {
-    var v = row[keys[i]];
-    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    // Essayer la clé exacte
+    var v = row[k];
+    if (v === undefined || v === null) {
+      // Essayer normalisée (sans accents, lowercase, trimmed)
+      var kn = k.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+      v = row[kn];
+    }
+    if (v === undefined || v === null) {
+      // Essayer trim seulement
+      v = row[k.trim()];
+    }
+    if (v !== undefined && v !== null) {
+      var s = String(v).trim();
+      if (s === '') continue;
+      return s;
+    }
   }
   return null;
+}
+
+// Normalise une date Excel vers 'YYYY-MM-DD'
+// Gère : objet Date JS, string 'YYYY-MM-DD', string 'DD/MM/YYYY', numéro serial Excel
+function xlsDate(raw) {
+  if (!raw) return '';
+  // Déjà au bon format YYYY-MM-DD
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0,10);
+  // Format français DD/MM/YYYY
+  if (typeof raw === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+    var p = raw.split('/');
+    return p[2]+'-'+p[1]+'-'+p[0];
+  }
+  // Objet Date JS
+  if (raw instanceof Date || (typeof raw === 'object' && raw !== null && typeof raw.toISOString === 'function')) {
+    try { return raw.toISOString().slice(0,10); } catch(e) {}
+  }
+  // Nombre serial Excel (jours depuis 1900-01-00)
+  if (!isNaN(raw)) {
+    try {
+      var d = XLSX.SSF.parse_date_code(Number(raw));
+      return String(d.y)+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0');
+    } catch(e) {}
+  }
+  return String(raw).slice(0,10);
+}
+
+// Normalise un téléphone : convertit nombre → string, ajoute + si manquant
+function xlsTel(raw) {
+  if (!raw) return '';
+  var s = String(raw).trim().replace(/\s+/g,'');
+  // Nombre pur (genre 22963616362) → ajouter +
+  if (/^\d{8,}$/.test(s)) return '+' + s;
+  return s;
 }
 
 // ══════════════════════════════════════════════════════════════════════
