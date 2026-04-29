@@ -6004,7 +6004,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <button class="btn-sm btn-secondary" onclick="resetImportEns()">🔄 Réinitialiser</button>
       </div>
       <div style="overflow-x:auto;max-height:240px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
-        <table style="font-size:11.5px"><thead><tr><th>#</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Spécialité</th><th>Grade</th><th>H/sem</th><th>Statut</th></tr></thead>
+        <table style="font-size:11.5px"><thead><tr><th>#</th><th>Matricule</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Spécialité</th><th>Grade</th><th>Statut</th></tr></thead>
         <tbody id="ens-import-tbody"></tbody></table>
       </div>
       <div id="ens-import-progress" style="display:none;margin-top:.75rem">
@@ -22401,49 +22401,135 @@ function gererDropExcelEns(e) {
   var f = e.dataTransfer.files[0]; if (f) lireExcelEnseignants(f);
 }
 
+// Référentiels alignés sur le modèle Excel + CHECK Supabase
+var ENS_GRADES_VALIDES  = ['Assistant','Maître-Assistant','Maître de Conférences','Professeur'];
+var ENS_STATUTS_VALIDES = ['Permanent','Vacataire','Visiteur'];
+var ENS_GENRES_VALIDES  = ['M','F'];
+
 function lireExcelEnseignants(file) {
   if (!file) return;
   lireExcel(file, function(rows) {
-    var valides = [], erreurs = [];
+    var valides = [], erreursMessages = [], matriculesVus = {};
     rows.forEach(function(row, i) {
-      var nom    = xlsVal(row, ['Nom *','nom','Nom','NOM']);
-      var prenom = xlsVal(row, ['Prénom *','prenom','Prenom','Prénom','prénom']);
-      // Ignorer lignes vides, en-têtes répétés, ou ligne de notes
-      if (!nom || !prenom) { erreurs.push(i+2); return; }
-      var nomLow = nom.toLowerCase();
+      var numLigne = i + 2;  // +1 pour l'en-tête, +1 pour 1-indexé
+
+      // Champs obligatoires : matricule, nom, prénom, grade, statut
+      var matricule = xlsVal(row, ['matricule','Matricule','matricule *','Matricule *']);
+      var nom       = xlsVal(row, ['nom','Nom','nom *','Nom *','NOM']);
+      var prenom    = xlsVal(row, ['prenom','Prenom','Prénom','prénom','prenom *','Prénom *']);
+
+      // Ignorer lignes totalement vides
+      if (!matricule && !nom && !prenom) return;
+
+      // Ignorer ligne de notes / en-têtes répétés
+      var nomLow = (nom || '').toLowerCase();
       if (nomLow === 'obligatoire' || nomLow === 'nom *' || nomLow === 'nom' ||
           nomLow.startsWith('ex:') || nomLow.startsWith('format')) return;
-      // Matières : accepter séparateur virgule OU point-virgule
-      var matiereRaw = xlsVal(row, ['Matières enseignées (séparées par virgule)','matieres','Matières','matières','Matieres']) || '';
-      var matieres = matiereRaw.split(/[;,]/).map(function(m){ return m.trim(); }).filter(Boolean);
-      // Grade : normaliser les valeurs françaises → valeurs attendues
-      var gradeRaw = (xlsVal(row, ['Grade','grade']) || 'vacataire').toLowerCase();
-      var grade = gradeRaw.includes('perm') ? 'Permanent'
-                : gradeRaw.includes('assoc') ? 'Associé'
-                : 'Vacataire';
+
+      // Validation champs obligatoires
+      var manque = [];
+      if (!matricule) manque.push('matricule');
+      if (!nom)       manque.push('nom');
+      if (!prenom)    manque.push('prenom');
+
+      var grade  = xlsVal(row, ['grade','Grade']);
+      var statut = xlsVal(row, ['statut','Statut']);
+      if (!grade)  manque.push('grade');
+      if (!statut) manque.push('statut');
+
+      if (manque.length) {
+        erreursMessages.push('Ligne '+numLigne+' : champ(s) obligatoire(s) manquant(s) : '+manque.join(', '));
+        return;
+      }
+
+      // Doublons matricule dans le fichier
+      if (matriculesVus[matricule]) {
+        erreursMessages.push('Ligne '+numLigne+' : matricule "'+matricule+'" déjà utilisé ligne '+matriculesVus[matricule]);
+        return;
+      }
+      matriculesVus[matricule] = numLigne;
+
+      // Validation grade
+      if (ENS_GRADES_VALIDES.indexOf(grade) === -1) {
+        erreursMessages.push('Ligne '+numLigne+' : grade "'+grade+'" invalide. Valeurs : '+ENS_GRADES_VALIDES.join(', '));
+        return;
+      }
+
+      // Validation statut
+      if (ENS_STATUTS_VALIDES.indexOf(statut) === -1) {
+        erreursMessages.push('Ligne '+numLigne+' : statut "'+statut+'" invalide. Valeurs : '+ENS_STATUTS_VALIDES.join(', '));
+        return;
+      }
+
+      // Genre (optionnel)
+      var genre = xlsVal(row, ['genre','Genre']);
+      if (genre && ENS_GENRES_VALIDES.indexOf(genre) === -1) {
+        erreursMessages.push('Ligne '+numLigne+' : genre "'+genre+'" invalide (M ou F attendu)');
+        return;
+      }
+
+      // Email basique
+      var email = xlsVal(row, ['email','Email','email *','Email *']);
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        erreursMessages.push('Ligne '+numLigne+' : email "'+email+'" mal formé');
+        return;
+      }
+
+      // Dates
+      var dateNaissance = xlsDate(xlsVal(row, ['date_naissance','Date_naissance','Date naissance','date naissance']));
+      var dateEmbauche  = xlsDate(xlsVal(row, ['date_embauche','Date_embauche','Date embauche','date embauche']));
+
       valides.push({
-        nom: nom, prenom: prenom,
-        email:          xlsVal(row, ['Email *','email','Email']) || null,
-        telephone:      xlsTel(xlsVal(row, ['Téléphone','Telephone','telephone','tel']) || '') || null,
-        specialite:     xlsVal(row, ['Spécialité *','Specialite','specialite','Spécialité','specialité']) || null,
+        matricule:      matricule,
+        nom:            nom,
+        prenom:         prenom,
+        genre:          genre || null,
+        date_naissance: dateNaissance || null,
+        email:          email || null,
+        telephone:      xlsTel(xlsVal(row, ['telephone','Téléphone','Telephone','tel']) || '') || null,
         grade:          grade,
-        heures_semaine: parseInt(xlsVal(row, ['Heures/semaine','heures_semaine','H/semaine','heures']) || '12') || 12,
-        statut:         (xlsVal(row, ['Statut','statut']) || 'actif').toLowerCase(),
-        matieres:       matieres,
+        specialite:     xlsVal(row, ['specialite','Spécialité','Specialite','specialité']) || null,
+        statut:         statut,
+        date_embauche:  dateEmbauche || null,
       });
     });
+
     _enseignantsAImporter = valides;
     document.getElementById('ens-import-count').textContent  = valides.length;
-    document.getElementById('ens-import-errors').textContent = erreurs.length;
+    document.getElementById('ens-import-errors').textContent = erreursMessages.length;
+
+    // Afficher détail des erreurs si présentes
+    var detailErreurs = '';
+    if (erreursMessages.length > 0) {
+      detailErreurs = '<div style="margin-top:8px;padding:10px;background:#fef2f2;border-left:3px solid #dc2626;border-radius:4px;font-size:12px;color:#991b1b;max-height:160px;overflow-y:auto">'
+        + '<strong>Erreurs détectées :</strong><br>'
+        + erreursMessages.slice(0,20).map(function(m){ return '• '+m; }).join('<br>')
+        + (erreursMessages.length > 20 ? '<br>... et '+(erreursMessages.length-20)+' autre(s)' : '')
+        + '</div>';
+    }
+
     document.getElementById('ens-import-tbody').innerHTML = valides.slice(0,50).map(function(e,i){
-      return '<tr><td style="color:#9ca3af">'+(i+1)+'</td><td><strong>'+e.nom+'</strong></td><td>'+e.prenom+'</td>'
+      return '<tr><td style="color:#9ca3af">'+(i+1)+'</td>'
+        +'<td style="font-family:monospace;font-size:11px">'+e.matricule+'</td>'
+        +'<td><strong>'+e.nom+'</strong></td><td>'+e.prenom+'</td>'
         +'<td style="font-size:11px;color:#6b7280">'+(e.email||'—')+'</td>'
         +'<td>'+(e.specialite||'—')+'</td>'
         +'<td><span class="badge blue" style="font-size:10px">'+e.grade+'</span></td>'
-        +'<td>'+e.heures_semaine+'h</td>'
-        +'<td><span class="badge '+(e.statut==='actif'?'green':'gray')+'" style="font-size:10px">'+e.statut+'</span></td></tr>';
+        +'<td><span class="badge green" style="font-size:10px">'+e.statut+'</span></td></tr>';
     }).join('') + (valides.length>50?'<tr><td colspan="8" style="text-align:center;color:#9ca3af;font-size:11px">... et '+(valides.length-50)+' autres</td></tr>':'');
-    document.getElementById('ens-import-preview').style.display = 'block';
+
+    // Injection détail erreurs sous le tableau
+    var preview = document.getElementById('ens-import-preview');
+    var existingErr = document.getElementById('ens-import-erreurs-detail');
+    if (existingErr) existingErr.remove();
+    if (detailErreurs) {
+      var div = document.createElement('div');
+      div.id = 'ens-import-erreurs-detail';
+      div.innerHTML = detailErreurs;
+      preview.appendChild(div);
+    }
+
+    preview.style.display = 'block';
     var btn = document.getElementById('btn-import-ens-confirm');
     btn.disabled = !valides.length; btn.style.opacity = valides.length ? '1' : '.5';
   });
@@ -22454,49 +22540,60 @@ async function confirmerImportEnseignants() {
   var btn = document.getElementById('btn-import-ens-confirm');
   btn.disabled = true; btn.textContent = '⏳ Import en cours...';
   document.getElementById('ens-import-progress').style.display = 'block';
-  var ok = 0, errors = 0, total = _enseignantsAImporter.length;
-  var firstErr = '';
-  // Colonnes minimales garanties (sans FK risquées)
-  var COLONNES_SURES = ['ecole_id','nom','prenom','email','telephone','specialite','grade','heures_semaine','statut'];
 
-  for (var i = 0; i < total; i++) {
-    var payload = Object.assign({}, _enseignantsAImporter[i], { ecole_id: currentEcoleId });
+  var total = _enseignantsAImporter.length;
+  var ok = 0, errors = 0, firstErr = '';
 
-    var res = await db.from('enseignants').insert([payload]);
+  // Préparation des payloads : ecole_id + colonnes hors modèle vidées
+  var payloads = _enseignantsAImporter.map(function(ens) {
+    return Object.assign({}, ens, {
+      ecole_id:        currentEcoleId,
+      // Colonnes hors modèle Excel — vidées explicitement
+      auth_id:         null,
+      salaire:         null,
+      photo_url:       null,
+      heures_semaine:  null,
+      bio:             null,
+      matieres:        [],
+      is_demo:         false,
+    });
+  });
 
-    // Stack depth = FK en double → essayer payload minimal
-    if (res.error && /stack depth/i.test(res.error.message)) {
-      console.warn('[Import Ens] Stack depth → payload minimal pour:', payload.nom);
-      var payloadMin = {};
-      COLONNES_SURES.forEach(function(k) {
-        if (payload[k] !== undefined && payload[k] !== null) payloadMin[k] = payload[k];
-      });
-      res = await db.from('enseignants').insert([payloadMin]);
-    }
+  // UPSERT par lots de 50 sur (ecole_id, matricule)
+  var BATCH_SIZE = 50;
+  for (var start = 0; start < total; start += BATCH_SIZE) {
+    var batch = payloads.slice(start, start + BATCH_SIZE);
 
-    // Colonne inconnue → auto-retry
-    var guard = 0;
-    while (res.error && guard < 8) {
-      var m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(res.error.message || '');
-      var col = (m && (m[1] || m[2]));
-      if (!col || !(col in payload)) break;
-      console.warn('[Import Ens] Retrait colonne:', col);
-      delete payload[col];
-      res = await db.from('enseignants').insert([payload]);
-      guard++;
-    }
+    var res = await db.from('enseignants')
+      .upsert(batch, { onConflict: 'ecole_id,matricule', ignoreDuplicates: false })
+      .select();
 
+    // Si le batch échoue, on retombe en insertion ligne par ligne pour identifier les coupables
     if (res.error) {
-      errors++;
-      if (!firstErr) firstErr = res.error.message;
-      console.error('[Import Ens]', payload.nom, res.error.message);
+      console.warn('[Import Ens] Batch échoué, fallback ligne par ligne :', res.error.message);
+      for (var j = 0; j < batch.length; j++) {
+        var resOne = await db.from('enseignants')
+          .upsert([batch[j]], { onConflict: 'ecole_id,matricule', ignoreDuplicates: false })
+          .select();
+        if (resOne.error) {
+          errors++;
+          if (!firstErr) firstErr = resOne.error.message;
+          console.error('[Import Ens]', batch[j].matricule, batch[j].nom, resOne.error.message);
+        } else {
+          ok++;
+        }
+        var pctOne = Math.round((start + j + 1) / total * 100);
+        document.getElementById('ens-import-bar').style.width = pctOne + '%';
+        document.getElementById('ens-import-label').textContent =
+          (start + j + 1) + '/' + total + ' — ' + batch[j].nom + ' ' + batch[j].prenom;
+      }
     } else {
-      ok++;
+      ok += batch.length;
+      var pct = Math.round((start + batch.length) / total * 100);
+      document.getElementById('ens-import-bar').style.width = pct + '%';
+      document.getElementById('ens-import-label').textContent =
+        Math.min(start + batch.length, total) + '/' + total + ' — lot importé';
     }
-
-    var pct = Math.round((i+1)/total*100);
-    document.getElementById('ens-import-bar').style.width = pct+'%';
-    document.getElementById('ens-import-label').textContent = (i+1)+'/'+total+' — '+payload.nom+' '+payload.prenom;
   }
 
   fermerModal('modal-import-enseignants');
@@ -22504,12 +22601,18 @@ async function confirmerImportEnseignants() {
   invalidateCache('enseignants');
 
   if (ok > 0) {
-    showToast('✅ '+ok+' enseignant(s) importé(s)'+(errors?' · ⚠️ '+errors+' erreur(s)':''), 'success');
+    showToast('✅ ' + ok + ' enseignant(s) importé(s)' + (errors ? ' · ⚠️ ' + errors + ' erreur(s)' : ''), 'success');
   } else {
-    var hint = /stack depth/i.test(firstErr)
-      ? 'FK en double sur la table enseignants. Exécutez dans Supabase : ALTER TABLE enseignants DROP CONSTRAINT IF EXISTS fk_enseignants_classe; — puis réessayez.'
+    var hint = /violates check constraint.*grade/i.test(firstErr)
+      ? 'Grade invalide. Valeurs acceptées : ' + ENS_GRADES_VALIDES.join(', ')
+      : /violates check constraint.*statut/i.test(firstErr)
+      ? 'Statut invalide. Valeurs acceptées : ' + ENS_STATUTS_VALIDES.join(', ')
+      : /violates check constraint.*genre/i.test(firstErr)
+      ? 'Genre invalide. Valeurs acceptées : M, F'
+      : /duplicate key.*matricule/i.test(firstErr)
+      ? 'Matricule déjà existant pour cet établissement.'
       : /row-level security|RLS/i.test(firstErr)
-      ? 'RLS bloque l\'INSERT. Ajoutez une policy INSERT sur la table enseignants dans Supabase.'
+      ? 'RLS bloque l\'INSERT. Vérifier les policies sur la table enseignants.'
       : (firstErr || 'Voir console F12 pour le détail');
     showToast('❌ 0 enseignant importé — ' + hint, 'error');
     console.error('[Import Ens] Erreur Supabase:', firstErr);
@@ -22529,17 +22632,43 @@ function resetImportEns() {
 
 function telechargerModeleEnseignantsExcel() {
   if (!window.XLSX) { showToast('SheetJS non chargé','error'); return; }
-  // Colonnes alignées sur le payload réel de sauvegarderEnseignant
-  // et sur le mapping lireExcelEnseignants (xlsVal)
-  var header  = ['Nom *','Prénom *','Email *','Téléphone','Spécialité *','Grade','Heures/semaine','Statut','Matières enseignées (séparées par virgule)'];
-  var notes   = ['Obligatoire','Obligatoire','Obligatoire — unique','Format: +229XXXXXXXX','Ex: Informatique','Permanent, Vacataire, Associé','Nombre entier (ex: 20)','actif ou inactif','Ex: Maths, Physique, Chimie'];
-  var ex1 = ['AGBOJAN','Prince','pagbojan@ucao.bj','+22997010101','Droit','Permanent',20,'actif','Droit Privé, Droit Public, Droit International'];
-  var ex2 = ['KOUDOSSOU','Marie','mkoudossou@ucao.bj','+22961111222','Informatique','Permanent',18,'actif','Algorithmes, Programmation Python, Bases de données'];
-  var ex3 = ['ZINSOU','Théodore','tzinsou@ucao.bj','+22972334455','Finance','Vacataire',12,'actif','Comptabilité, Finance d\'entreprise'];
+  // Colonnes alignées sur le modèle officiel (5 obligatoires : matricule, nom, prenom, grade, statut)
+  var header = ['matricule *','nom *','prenom *','genre','date_naissance','email','telephone','grade *','specialite','statut *','date_embauche'];
+  var notes  = [
+    'Obligatoire — unique',
+    'Obligatoire',
+    'Obligatoire',
+    'M ou F',
+    'JJ/MM/AAAA',
+    'Email professionnel',
+    '+229 XX XX XX XX',
+    'Assistant / Maître-Assistant / Maître de Conférences / Professeur',
+    'Discipline principale',
+    'Permanent / Vacataire / Visiteur',
+    'JJ/MM/AAAA'
+  ];
+  var ex1 = ['ENS001','KOUASSI','Jean-Marc','M','15/03/1975','jm.kouassi@ucao.bj','+229 01 97 12 34 56','Maître de Conférences','Mathématiques appliquées','Permanent','01/09/2010'];
+  var ex2 = ['ENS002','DOSSOU','Marie','F','22/07/1982','m.dossou@ucao.bj','+229 01 96 78 90 12','Assistant','Sciences économiques','Vacataire','15/10/2018'];
+  var ex3 = ['ENS003','ZINSOU','Théodore','M','08/11/1968','t.zinsou@ucao.bj','+229 01 95 33 44 55','Professeur','Droit international','Permanent','01/09/2005'];
+
   var ws = XLSX.utils.aoa_to_sheet([header, notes, ex1, ex2, ex3]);
-  ws['!cols'] = [18,18,26,18,18,14,16,10,40].map(function(w){ return {wch:w}; });
+  ws['!cols'] = [14,16,16,8,14,26,20,28,26,14,14].map(function(w){ return {wch:w}; });
+
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Enseignants');
+
+  // Onglet Listes pour référence
+  var listes = [
+    ['GRADES','STATUTS','GENRES'],
+    ['Assistant','Permanent','M'],
+    ['Maître-Assistant','Vacataire','F'],
+    ['Maître de Conférences','Visiteur',''],
+    ['Professeur','','']
+  ];
+  var wsListes = XLSX.utils.aoa_to_sheet(listes);
+  wsListes['!cols'] = [{wch:24},{wch:14},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, wsListes, 'Listes');
+
   XLSX.writeFile(wb, 'EduLink-Modele-Import-Enseignants.xlsx');
   showToast('📥 Modèle enseignants téléchargé !', 'success');
 }
