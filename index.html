@@ -12150,7 +12150,7 @@ async function sauvegarderEnseignant() {
   const matStr = document.getElementById('input-ens-matieres').value.trim();
   const matieres = matStr ? matStr.split(',').map(m=>m.trim()).filter(Boolean) : [];
   const id = document.getElementById('input-ens-id').value;
-  const payload = {
+  let payload = {
     ecole_id:       currentEcoleId,
     nom, prenom, email,
     telephone:      document.getElementById('input-ens-tel').value.trim()||null,
@@ -12164,11 +12164,47 @@ async function sauvegarderEnseignant() {
   let error;
   if (id) {
     ({ error } = await db.from('enseignants').update(payload).eq('id', id));
+    // Auto-retry colonnes inconnues
+    let guard = 0;
+    while (error && guard < 8) {
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
+      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
+      delete payload[col];
+      ({ error } = await db.from('enseignants').update(payload).eq('id', id)); guard++;
+    }
   } else {
     ({ error } = await db.from('enseignants').insert([payload]));
+    // Stack depth = FK en double sur enseignants → essayer payload minimal
+    if (error && /stack depth/i.test(error.message)) {
+      console.warn('[Enseignant] Stack depth → payload minimal');
+      const COLONNES_SURES = ['ecole_id','nom','prenom','email','telephone','specialite','grade','statut','heures_semaine'];
+      const payloadMin = {};
+      COLONNES_SURES.forEach(k => { if (payload[k] !== undefined && payload[k] !== null) payloadMin[k] = payload[k]; });
+      ({ error } = await db.from('enseignants').insert([payloadMin]));
+      console.error('[Enseignant] Erreur stack depth — exécutez dans Supabase SQL Editor :\nSELECT constraint_name FROM information_schema.table_constraints WHERE table_name=\'enseignants\' AND constraint_type=\'FOREIGN KEY\';\n-- Si doublon FK → ALTER TABLE enseignants DROP CONSTRAINT IF EXISTS <nom_doublon>;');
+    }
+    // Auto-retry colonnes inconnues
+    let guard = 0;
+    while (error && guard < 8) {
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
+      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
+      console.warn('[Enseignant] Retrait colonne:', col);
+      delete payload[col];
+      ({ error } = await db.from('enseignants').insert([payload])); guard++;
+    }
   }
-  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  if (error) {
+    const msg = error.message || '';
+    const hint = /stack depth/i.test(msg)
+      ? 'Erreur FK Supabase (stack depth). Vérifiez les contraintes de la table enseignants — voir console.'
+      : /unique/i.test(msg) ? 'Cet email est déjà utilisé par un autre enseignant.'
+      : msg.slice(0, 120);
+    showToast('Erreur : ' + hint, 'error');
+    console.error('[sauvegarderEnseignant]', msg);
+    return;
+  }
   fermerModal('modal-enseignant');
+  invalidateCache('enseignants');
   showToast(id ? '✅ Enseignant modifié !' : '✅ Enseignant ajouté !', 'success');
   chargerEnseignants();
 }
