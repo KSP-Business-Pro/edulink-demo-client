@@ -7685,8 +7685,9 @@ function exporterExamensExcel() {
 }
 
 function exporterExamensModele() {
-  const header = ['Matière','Type (controle/partiel/examen_final)','Date (YYYY-MM-DD)','Heure début (HH:MM)','Heure fin (HH:MM)','Salle','Filière','Niveau','Surveillant','Statut (planifie/en_cours/termine)'];
-  const exemple = ['Mathématiques','partiel','2025-11-15','08:00','11:00','Amphi A','Informatique','L2','Prof. AGBO','planifie'];
+  // Colonnes alignées sur le schéma réel de la table examens Supabase
+  const header = ['Matière','Type examen (controle/partiel/examen_final)','Date examen (YYYY-MM-DD)','Heure début (HH:MM)','Heure fin (HH:MM)','Durée (minutes)','Salle','Filière','Niveau','Surveillant','Statut (planifie/en_cours/termine)'];
+  const exemple = ['Mathématiques','partiel','2025-11-15','08:00','11:00','180','Amphi A','Informatique','L2','Prof. AGBO','planifie'];
   xlsxModele('EduLink-Modele-Import-Examens.xlsx', header, exemple, 'Modèle Examens');
 }
 
@@ -7694,18 +7695,19 @@ var _examensAImporter = [];
 function ouvrirImportExcelExamens() {
   ouvrirImportExcel('input-import-examens-file', rows => {
     _examensAImporter = rows.map(r => ({
-      matiere:      xlsVal(r,['Matière','Matiere','matiere'])        || '',
-      type:         xlsVal(r,['Type (controle/partiel/examen_final)','Type','type']) || 'partiel',
-      date:         xlsDate(xlsVal(r,['Date (YYYY-MM-DD)','Date','date'])),
-      heure_debut:  xlsVal(r,['Heure début (HH:MM)','Heure debut','heure_debut']) || '',
-      heure_fin:    xlsVal(r,['Heure fin (HH:MM)','Heure fin','heure_fin']) || '',
-      salle:        xlsVal(r,['Salle','salle'])                      || '',
-      filiere:      xlsVal(r,['Filière','Filiere','filiere'])        || '',
-      niveau:       xlsVal(r,['Niveau','niveau'])                    || '',
-      surveillant:  xlsVal(r,['Surveillant','surveillant'])          || '',
-      statut:       xlsVal(r,['Statut (planifie/en_cours/termine)','Statut','statut']) || 'planifie',
-    })).filter(e => e.matiere && e.date);
-    if (!_examensAImporter.length) { showToast('Aucune ligne valide trouvée', 'error'); return; }
+      matiere:      xlsVal(r,['Matière','Matiere','matiere'])                                         || '',
+      type_examen:  xlsVal(r,['Type examen (controle/partiel/examen_final)','Type examen','type_examen','Type','type']) || 'partiel',
+      date_examen:  xlsDate(xlsVal(r,['Date examen (YYYY-MM-DD)','Date examen','date_examen','Date','date'])),
+      heure_debut:  xlsVal(r,['Heure début (HH:MM)','Heure debut','heure_debut'])                    || '',
+      heure_fin:    xlsVal(r,['Heure fin (HH:MM)','Heure fin','heure_fin'])                          || '',
+      duree:        Number(xlsVal(r,['Durée (minutes)','Duree','duree'])||120),
+      salle:        xlsVal(r,['Salle','salle'])                                                       || '',
+      filiere:      xlsVal(r,['Filière','Filiere','filiere'])                                         || '',
+      niveau:       xlsVal(r,['Niveau','niveau'])                                                     || '',
+      surveillant:  xlsVal(r,['Surveillant','surveillant'])                                           || '',
+      statut:       xlsVal(r,['Statut (planifie/en_cours/termine)','Statut','statut'])               || 'planifie',
+    })).filter(e => e.matiere && e.date_examen);
+    if (!_examensAImporter.length) { showToast('Aucune ligne valide (matière + date requises)', 'error'); return; }
     showToast(`✅ ${_examensAImporter.length} examen(s) prêts — cliquez Confirmer`, 'info');
     const btn = document.getElementById('btn-import-examens-confirm');
     if (btn) { btn.disabled = false; btn.style.display = 'inline-block'; }
@@ -7714,13 +7716,23 @@ function ouvrirImportExcelExamens() {
 
 async function confirmerImportExcelExamens() {
   if (!_examensAImporter.length) return;
-  let ok = 0, err = 0;
-  for (const e of _examensAImporter) {
-    const { error } = await db.from('examens').insert([{ ...e, ecole_id: currentEcoleId }]);
-    if (error) err++; else ok++;
+  let ok = 0, err = 0, firstErr = '';
+  for (let item of _examensAImporter) {
+    let payload = { ...item, ecole_id: currentEcoleId };
+    let { error } = await db.from('examens').insert([payload]);
+    let guard = 0;
+    while (error && guard < 8) {
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
+      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
+      console.warn('[Import examens] Retrait colonne:', col);
+      delete payload[col];
+      ({ error } = await db.from('examens').insert([payload])); guard++;
+    }
+    if (error) { err++; if (!firstErr) firstErr = error.message; console.error('[Import examens]', error.message); } else ok++;
   }
   _examensAImporter = [];
-  showToast(`✅ ${ok} examen(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  if (ok > 0) showToast(`✅ ${ok} examen(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, 'success');
+  else showToast(`❌ 0 examen importé — ${firstErr?.slice(0,100)||'Voir console'}`, 'error');
   if (typeof chargerExamens === 'function') chargerExamens();
 }
 
@@ -7757,8 +7769,9 @@ function exporterPaiementsExcel() {
 }
 
 function exporterPaiementsModele() {
-  const header = ['Référence','Étudiant (matricule)','Type frais','Montant total','Montant payé','Statut (en_attente/paye/retard)','Échéance (YYYY-MM-DD)'];
-  const exemple = ['FACT-001','ETU-001','Scolarité',150000,75000,'en_attente','2025-12-31'];
+  // Colonnes alignées sur le schéma réel de la table factures Supabase
+  const header = ['Type frais','Description','Montant total','Date échéance (YYYY-MM-DD)','Statut (en_attente/payée/partiellement_payée)'];
+  const exemple = ['Scolarité','Frais de scolarité 2025-2026',150000,'2025-12-31','en_attente'];
   xlsxModele('EduLink-Modele-Import-Paiements.xlsx', header, exemple, 'Modèle Paiements');
 }
 
@@ -7766,15 +7779,15 @@ var _paiementsAImporter = [];
 function ouvrirImportExcelPaiements() {
   ouvrirImportExcel('input-import-paiements-file', rows => {
     _paiementsAImporter = rows.map(r => ({
-      reference:    xlsVal(r,['Référence','Reference','reference'])   || '',
-      type_frais:   xlsVal(r,['Type frais','type_frais'])             || '',
-      montant_total:Number(xlsVal(r,['Montant total','montant_total'])||0),
-      montant_paye: Number(xlsVal(r,['Montant payé','Montant paye','montant_paye'])||0),
-      statut:       xlsVal(r,['Statut (en_attente/paye/retard)','Statut','statut']) || 'en_attente',
-      echeance:     xlsVal(r,['Échéance (YYYY-MM-DD)','Echeance','echeance']) || '',
-    })).filter(e => e.montant_total > 0);
-    if (!_paiementsAImporter.length) { showToast('Aucune ligne valide trouvée', 'error'); return; }
-    showToast(`✅ ${_paiementsAImporter.length} paiement(s) prêts — cliquez Confirmer`, 'info');
+      type_frais:    xlsVal(r,['Type frais','type_frais','Type'])                                       || '',
+      description:   xlsVal(r,['Description','description'])                                            || '',
+      montant_total: Number(xlsVal(r,['Montant total','montant_total','Montant'])||0),
+      date_echeance: xlsDate(xlsVal(r,['Date échéance (YYYY-MM-DD)','Date echeance','date_echeance','Échéance','Echeance'])),
+      statut:        xlsVal(r,['Statut (en_attente/payée/partiellement_payée)','Statut','statut'])      || 'en_attente',
+      montant_paye:  0,
+    })).filter(f => f.montant_total > 0 && f.type_frais);
+    if (!_paiementsAImporter.length) { showToast('Aucune ligne valide (type frais + montant requis)', 'error'); return; }
+    showToast(`✅ ${_paiementsAImporter.length} facture(s) prête(s) — cliquez Confirmer`, 'info');
     const btn = document.getElementById('btn-import-paiements-confirm');
     if (btn) { btn.disabled = false; btn.style.display = 'inline-block'; }
   });
@@ -7782,13 +7795,23 @@ function ouvrirImportExcelPaiements() {
 
 async function confirmerImportExcelPaiements() {
   if (!_paiementsAImporter.length) return;
-  let ok = 0, err = 0;
+  let ok = 0, err = 0, firstErr = '';
   for (const f of _paiementsAImporter) {
-    const { error } = await db.from('factures').insert([{ ...f, ecole_id: currentEcoleId }]);
-    if (error) err++; else ok++;
+    const ref = 'FAC-' + Date.now() + '-' + Math.random().toString(36).slice(2,6).toUpperCase();
+    let payload = { ...f, ecole_id: currentEcoleId, reference: ref };
+    let { error } = await db.from('factures').insert([payload]);
+    let guard = 0;
+    while (error && guard < 8) {
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
+      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
+      delete payload[col];
+      ({ error } = await db.from('factures').insert([payload])); guard++;
+    }
+    if (error) { err++; if (!firstErr) firstErr = error.message; } else ok++;
   }
   _paiementsAImporter = [];
-  showToast(`✅ ${ok} paiement(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  if (ok > 0) showToast(`✅ ${ok} facture(s) importée(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  else showToast(`❌ Échec import — ${firstErr.slice(0,100)}`, 'error');
   if (typeof chargerPaiements === 'function') chargerPaiements();
 }
 
@@ -7882,13 +7905,23 @@ function ouvrirImportExcelUtilisateurs() {
 
 async function confirmerImportExcelUtilisateurs() {
   if (!_utilisateursAImporter.length) return;
-  let ok = 0, err = 0;
-  for (const u of _utilisateursAImporter) {
-    const { error } = await db.from('utilisateurs').insert([{ ...u, ecole_id: currentEcoleId }]);
-    if (error) err++; else ok++;
+  let ok = 0, err = 0, firstErr = '';
+  for (let item of _utilisateursAImporter) {
+    let payload = { ...item, ecole_id: currentEcoleId };
+    let { error } = await db.from('utilisateurs').insert([payload]);
+    let guard = 0;
+    while (error && guard < 8) {
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
+      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
+      console.warn('[Import utilisateurs] Retrait colonne:', col);
+      delete payload[col];
+      ({ error } = await db.from('utilisateurs').insert([payload])); guard++;
+    }
+    if (error) { err++; if (!firstErr) firstErr = error.message; console.error('[Import utilisateurs]', error.message); } else ok++;
   }
   _utilisateursAImporter = [];
-  showToast(`✅ ${ok} utilisateur(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  if (ok > 0) showToast(`✅ ${ok} utilisateur(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, 'success');
+  else showToast(`❌ 0 utilisateur importé — ${firstErr?.slice(0,100)||'Voir console'}`, 'error');
   if (typeof chargerUtilisateurs === 'function') chargerUtilisateurs();
 }
 
@@ -7913,26 +7946,27 @@ function exporterBiblioExcel() {
 }
 
 function exporterBiblioModele() {
-  const header = ['Titre','Auteur','ISBN','Année','Catégorie','Exemplaires','Cote'];
-  const exemple = ['Introduction à l\'algorithmique','CORMEN Thomas','978-0262033848','2009','Informatique',3,'INF-001'];
+  // Colonnes alignées sur le schéma réel de la table livres Supabase
+  const header = ['Titre','Auteur','ISBN','Année édition','Catégorie','Exemplaires','Cote','Description'];
+  const exemple = ['Introduction à l\'algorithmique','CORMEN Thomas','978-0262033848','2009','Informatique',3,'INF-001','Manuel de référence en algorithmique'];
   xlsxModele('EduLink-Modele-Import-Livres.xlsx', header, exemple, 'Modèle Catalogue',
-    [40,25,18,8,18,12,12]);
+    [40,25,18,12,18,12,12,40]);
 }
 
 var _livresAImporter = [];
 function ouvrirImportExcelLivres() {
   ouvrirImportExcel('input-import-livres-file', rows => {
     _livresAImporter = rows.map(r => ({
-      titre:       xlsVal(r,['Titre','titre'])                || '',
-      auteur:      xlsVal(r,['Auteur','auteur'])              || '',
-      isbn:        xlsVal(r,['ISBN','isbn'])                  || '',
-      annee:       xlsVal(r,['Année','Annee','annee'])        || '',
-      categorie:   xlsVal(r,['Catégorie','Categorie','categorie']) || '',
-      exemplaires: Number(xlsVal(r,['Exemplaires','exemplaires'])||1),
-      disponibles: Number(xlsVal(r,['Disponibles','disponibles'])||1),
-      cote:        xlsVal(r,['Cote','cote'])                  || '',
+      titre:         xlsVal(r,['Titre','titre'])                                 || '',
+      auteur:        xlsVal(r,['Auteur','auteur'])                               || '',
+      isbn:          xlsVal(r,['ISBN','isbn'])                                   || '',
+      annee_edition: Number(xlsVal(r,['Année édition','Annee edition','annee_edition','Année','Annee','annee'])||0) || null,
+      categorie:     xlsVal(r,['Catégorie','Categorie','categorie'])             || '',
+      exemplaires:   Number(xlsVal(r,['Exemplaires','exemplaires'])||1),
+      cote:          xlsVal(r,['Cote','cote'])                                   || '',
+      description:   xlsVal(r,['Description','description'])                    || '',
     })).filter(l => l.titre);
-    if (!_livresAImporter.length) { showToast('Aucune ligne valide trouvée', 'error'); return; }
+    if (!_livresAImporter.length) { showToast('Aucune ligne valide (titre requis)', 'error'); return; }
     showToast(`✅ ${_livresAImporter.length} ouvrage(s) prêts — cliquez Confirmer`, 'info');
     const btn = document.getElementById('btn-import-livres-confirm');
     if (btn) { btn.disabled = false; btn.style.display = 'inline-block'; }
@@ -7941,13 +7975,23 @@ function ouvrirImportExcelLivres() {
 
 async function confirmerImportExcelLivres() {
   if (!_livresAImporter.length) return;
-  let ok = 0, err = 0;
-  for (const l of _livresAImporter) {
-    const { error } = await db.from('livres').insert([{ ...l, ecole_id: currentEcoleId }]);
-    if (error) err++; else ok++;
+  let ok = 0, err = 0, firstErr = '';
+  for (let item of _livresAImporter) {
+    let payload = { ...item, ecole_id: currentEcoleId };
+    let { error } = await db.from('livres').insert([payload]);
+    let guard = 0;
+    while (error && guard < 8) {
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
+      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
+      console.warn('[Import livres] Retrait colonne:', col);
+      delete payload[col];
+      ({ error } = await db.from('livres').insert([payload])); guard++;
+    }
+    if (error) { err++; if (!firstErr) firstErr = error.message; console.error('[Import livres]', error.message); } else ok++;
   }
   _livresAImporter = [];
-  showToast(`✅ ${ok} ouvrage(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  if (ok > 0) showToast(`✅ ${ok} ouvrage(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, 'success');
+  else showToast(`❌ 0 ouvrage importé — ${firstErr?.slice(0,100)||'Voir console'}`, 'error');
   if (typeof chargerBibliotheque === 'function') chargerBibliotheque();
 }
 
@@ -7997,13 +8041,23 @@ function ouvrirImportExcelPersonnel() {
 
 async function confirmerImportExcelPersonnel() {
   if (!_personnelAImporter.length) return;
-  let ok = 0, err = 0;
-  for (const p of _personnelAImporter) {
-    const { error } = await db.from('personnel').insert([{ ...p, ecole_id: currentEcoleId }]);
-    if (error) err++; else ok++;
+  let ok = 0, err = 0, firstErr = '';
+  for (let item of _personnelAImporter) {
+    let payload = { ...item, ecole_id: currentEcoleId };
+    let { error } = await db.from('personnel').insert([payload]);
+    let guard = 0;
+    while (error && guard < 8) {
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
+      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
+      console.warn('[Import personnel] Retrait colonne:', col);
+      delete payload[col];
+      ({ error } = await db.from('personnel').insert([payload])); guard++;
+    }
+    if (error) { err++; if (!firstErr) firstErr = error.message; console.error('[Import personnel]', error.message); } else ok++;
   }
   _personnelAImporter = [];
-  showToast(`✅ ${ok} agent(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  if (ok > 0) showToast(`✅ ${ok} agent(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, 'success');
+  else showToast(`❌ 0 agent importé — ${firstErr?.slice(0,100)||'Voir console'}`, 'error');
   if (typeof chargerRH === 'function') chargerRH();
 }
 
