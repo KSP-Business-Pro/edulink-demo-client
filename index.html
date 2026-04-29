@@ -2314,8 +2314,9 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 <div class="page" id="page-etudiants">
   <div class="top"><h2>Étudiants</h2>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterEtudiantsCSV()">⬇️ Export CSV</button>
-      <button class="btn-secondary" onclick="ouvrirModal('modal-import-csv')">📥 Import CSV</button>
+      <button class="btn-outline" onclick="exporterEtudiantsCSV()">📊 Export Excel</button>
+      <button class="btn-outline" onclick="exporterEtudiantsModele()">📥 Modèle Excel</button>
+      <button class="btn-secondary" onclick="ouvrirModal('modal-import-csv')">📤 Import Excel/CSV</button>
       <button onclick="ouvrirModal('modal-etudiant')">+ Ajouter étudiant</button>
     </div>
   </div>
@@ -2347,7 +2348,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 <div class="page" id="page-presences">
   <div class="top"><h2>Présences & Absences</h2>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterAbsencesCSV()">⬇️ Export CSV</button>
+      <button class="btn-outline" onclick="exporterAbsencesCSV()">📊 Export Excel</button>
       <button onclick="ouvrirModal('modal-absence')">+ Enregistrer absence</button>
     </div>
   </div>
@@ -2432,7 +2433,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <h2>Emploi du temps</h2>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterEdtCSV()">⬇️ Export CSV</button>
+      <button class="btn-outline" onclick="exporterEdtCSV()">📊 Export Excel</button>
       <button onclick="ouvrirModal('modal-emploi')">+ Ajouter créneau</button>
     </div>
   </div>
@@ -2483,7 +2484,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Planification et suivi des sessions d'examens</p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterExamensCSV()">&#11015; Export CSV</button>
+      <button class="btn-outline" onclick="exporterExamensCSV()">📊 Export Excel</button>
+      <button class="btn-outline" onclick="exporterExamensModele()">📥 Modèle Excel</button>
       <button onclick="ouvrirModal('modal-examen')">+ Planifier un examen</button>
     </div>
   </div>
@@ -2583,7 +2585,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Gestion du corps professoral — <span id="sub-ens-ecole"></span></p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterEnseignantsCSV()">⬇️ Export CSV</button>
+      <button class="btn-outline" onclick="exporterEnseignantsCSV()">📊 Export Excel</button>
       <button class="btn-secondary" onclick="ouvrirModal('modal-import-enseignants')">📥 Import Excel</button>
       <button onclick="ouvrirModal('modal-enseignant')">+ Ajouter enseignant</button>
     </div>
@@ -2666,7 +2668,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <h2>Messagerie</h2>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterMessagesCSV()">⬇️ Export CSV</button>
+      <button class="btn-outline" onclick="exporterMessagesCSV()">📊 Export Excel</button>
       <button onclick="ouvrirModal('modal-message')">+ Nouveau message</button>
     </div>
   </div>
@@ -2741,7 +2743,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Suivi des frais scolaires et des paiements</p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterPaiementsCSV()">⬇️ Export CSV</button>
+      <button class="btn-outline" onclick="exporterPaiementsCSV()">📊 Export Excel</button>
+      <button class="btn-outline" onclick="exporterPaiementsModele()">📥 Modèle Excel</button>
       <button class="btn-secondary btn-sm" onclick="envoyerRappelsPaiement()" style="background:#fef9c3;color:#d97706;border:1px solid #fde68a">📧 Rappels email</button>
       <button onclick="ouvrirModal('modal-facture')">+ Nouvelle facture</button>
     </div>
@@ -2823,7 +2826,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <option value="virement">Virement</option>
         <option value="chèque">Chèque</option>
       </select>
-      <button class="btn-sm btn-outline" onclick="exporterHistoriqueCSV()">⬇️ Export CSV</button>
+      <button class="btn-sm btn-outline" onclick="exporterHistoriqueCSV()">📊 Export Excel</button>
     </div>
     <table>
       <tr><th>Date</th><th>Référence facture</th><th>Étudiant</th><th>Montant payé</th><th>Mode</th><th>Référence</th></tr>
@@ -2842,7 +2845,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Gestion des incidents et sanctions</p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterIncidentsCSV()">⬇️ Export CSV</button>
+      <button class="btn-outline" onclick="exporterIncidentsCSV()">📊 Export Excel</button>
       <button onclick="ouvrirModal('modal-incident')">+ Nouvel incident</button>
     </div>
   </div>
@@ -2898,7 +2901,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Bibliothèque de documents de l'établissement</p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterDocumentsCSV()">⬇️ Export CSV</button>
+      <button class="btn-outline" onclick="exporterDocumentsCSV()">📊 Export Excel</button>
       <button onclick="ouvrirModal('modal-document')">+ Ajouter document</button>
     </div>
   </div>
@@ -3014,7 +3017,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Gestion des comptes — <span id="sub-ecole-util-nom"></span></p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterUtilisateursCSV()">⬇️ Export CSV</button>
+      <button class="btn-outline" onclick="exporterUtilisateursCSV()">📊 Export Excel</button>
+      <button class="btn-outline" onclick="exporterUtilisateursModele()">📥 Modèle Excel</button>
       <button onclick="ouvrirModal('modal-user')">+ Nouvel utilisateur</button>
     </div>
   </div>
@@ -3065,7 +3069,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div><h2>📚 Bibliothèque Numérique</h2><p class="page-subtitle">Gestion du catalogue, emprunts et ressources digitales</p></div>
     <div class="top-actions">
       <button class="btn-outline" style="color:#dc2626;border-color:#dc2626" onclick="reinitialiserBibliotheque()">🗑️ Vider le catalogue</button>
-      <button class="btn-outline" onclick="exportCatalogueBibNum()">📥 Export CSV</button>
+      <button class="btn-outline" onclick="exportCatalogueBibNum()">📊 Export Excel</button>
       <button class="btn-purple" onclick="ouvrirModalAddLivre()">+ Ajouter un livre</button>
       <button class="btn-blue" onclick="ouvrirModalEmprunt()">📖 Nouvel emprunt</button>
     </div>
@@ -3430,7 +3434,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div><h2>🌐 Réseau Multi-Établissements</h2><p class="page-subtitle">Tableau de bord consolidé — Tous les établissements du réseau EduLink</p></div>
     <div class="top-actions">
       <button class="btn-outline" onclick="forcerSyncReseau()">🔄 Synchroniser</button>
-      <button class="btn-outline" onclick="exporterRapportReseau()">📥 Export CSV</button>
+      <button class="btn-outline" onclick="exporterRapportReseau()">📊 Export Excel</button>
       <button onclick="ouvrirModalAddEtablissement()">+ Établissement</button>
     </div>
   </div>
@@ -4411,7 +4415,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div class="sms-block">
           <div class="sms-block-header">
             <span>📋 Historique des envois (base interne)</span>
-            <button class="btn-sm btn-secondary" onclick="exporterHistoriqueEmails()">📥 Export CSV</button>
+            <button class="btn-sm btn-secondary" onclick="exporterHistoriqueEmails()">📊 Export Excel</button>
           </div>
           <div id="sms-historique-list"></div>
         </div>
@@ -5229,7 +5233,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Émission de documents officiels pour les étudiants</p>
     </div>
     <div class="top-actions">
-      <button class="btn-secondary" onclick="exporterCertificatsCSV()">📥 Export CSV</button>
+      <button class="btn-secondary" onclick="exporterCertificatsCSV()">📊 Export Excel</button>
       <button onclick="ouvrirModalCertificat()">+ Émettre un document</button>
     </div>
   </div>
@@ -5283,7 +5287,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <p class="page-subtitle">Gestion du catalogue et des emprunts</p>
     </div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterBiblioCSV()">⬇️ Export CSV</button>
+      <button class="btn-outline" onclick="exporterBiblioCSV()">📊 Export Excel</button>
+      <button class="btn-outline" onclick="exporterBiblioModele()">📥 Modèle Excel</button>
       <button class="btn-secondary" onclick="ouvrirModal('modal-livre')">+ Ajouter ouvrage</button>
     </div>
   </div>
@@ -5621,7 +5626,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         </select>
       </div>
       <div style="display:flex;gap:6px">
-        <button class="btn-outline btn-sm" onclick="exporterCaisseCSV()">⬇️ Export CSV</button>
+        <button class="btn-outline btn-sm" onclick="exporterCaisseCSV()">📊 Export Excel</button>
         <button onclick="ouvrirModal('modal-transaction')">+ Nouvelle opération</button>
       </div>
     </div>
@@ -5832,7 +5837,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="top">
     <div><h2>🧑‍💼 RH & Personnel</h2><p class="page-subtitle">Gestion du personnel administratif et enseignant</p></div>
     <div class="top-actions">
-      <button class="btn-outline" onclick="exporterRHCSV()">⬇️ Export CSV</button>
+      <button class="btn-outline" onclick="exporterRHCSV()">📊 Export Excel</button>
+      <button class="btn-outline" onclick="exporterRHModele()">📥 Modèle Excel</button>
       <button class="btn-secondary" onclick="exporterRHPDF()">📄 Rapport RH</button>
       <button onclick="ouvrirModal('modal-personnel')">+ Ajouter un agent</button>
     </div>
@@ -5925,24 +5931,29 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 </main>
 </div><!-- /#app-main -->
 
-<!-- ★ JOUR 7 — Modal Import CSV ★ -->
+<!-- ★ JOUR 7 — Modal Import CSV/Excel ★ -->
 <div class="modal-overlay" id="modal-import-csv">
   <div class="modal modal-lg">
-    <h3>📥 Import CSV — Étudiants en masse</h3>
+    <h3>📥 Import Étudiants — CSV ou Excel</h3>
     <div style="background:#eff6ff;border-radius:10px;padding:.85rem;font-size:12px;color:#1d4ed8;margin-bottom:1rem">
-      <strong>Format attendu des colonnes :</strong><br>
-      <code style="font-size:11px">nom, prenom, matricule, sexe (M/F), filiere, niveau, email, parent_email, parent_tel</code><br>
-      <a id="csv-template-link" href="#" onclick="telechargerTemplateCSV()" style="font-weight:700;color:#1d4ed8;text-decoration:underline;cursor:pointer">⬇️ Télécharger le modèle CSV</a>
+      <strong>Colonnes attendues :</strong><br>
+      <code style="font-size:11px">nom, prenom, matricule, sexe (M/F), filiere, niveau, email, telephone, date_naissance, nationalite, statut</code><br>
+      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+        <a href="#" onclick="telechargerTemplateCSV()" style="font-weight:700;color:#1d4ed8;text-decoration:underline;cursor:pointer">⬇️ Modèle CSV</a>
+        <span style="color:#6b7280">·</span>
+        <a href="#" onclick="exporterEtudiantsModele()" style="font-weight:700;color:#059669;text-decoration:underline;cursor:pointer">📊 Modèle Excel (recommandé)</a>
+      </div>
     </div>
-    <div class="csv-drop" id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()"
+    <div class="csv-drop" id="csv-drop-zone" onclick="ouvrirImportExcelEtudiants()"
          ondragover="event.preventDefault();this.classList.add('dragover')"
          ondragleave="this.classList.remove('dragover')"
          ondrop="gererDropCSV(event)">
       <div class="cd-ico">📂</div>
-      <div style="font-size:14px;font-weight:600">Cliquez ou glissez votre fichier CSV ici</div>
-      <div style="font-size:12px;margin-top:4px">Formats acceptés : .csv · .txt (séparateur virgule ou point-virgule)</div>
-      <input type="file" id="csv-file-input" accept=".csv,.txt" style="display:none" onchange="lireCSV(this.files[0])">
+      <div style="font-size:14px;font-weight:600">Cliquez ou glissez votre fichier ici</div>
+      <div style="font-size:12px;margin-top:4px">Formats acceptés : .xlsx · .xls · .csv · .txt</div>
+      <input type="file" id="csv-file-input" accept=".csv,.txt,.xlsx,.xls" style="display:none">
     </div>
+    <div id="preview-import" style="margin-top:1rem"></div>
     <div id="csv-preview-wrap" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;margin-bottom:.5rem">
         <div style="font-size:13px;font-weight:600;color:#374151">
@@ -7346,6 +7357,655 @@ function csvDownload(filename, header, rows) {
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
 }
 
+// ══════════════════════════════════════════════════════════════════════
+//  UTILITAIRE XLSX — EXPORT EXCEL UNIVERSEL
+//  Utilisé par tous les modules Export Excel
+// ══════════════════════════════════════════════════════════════════════
+function xlsxDownload(filename, header, rows, sheetName, colWidths) {
+  if (typeof XLSX === 'undefined') {
+    showToast('⚠️ Bibliothèque Excel non chargée — utilisez Export CSV', 'error');
+    return false;
+  }
+  const aoa = [header, ...rows];
+  const ws  = XLSX.utils.aoa_to_sheet(aoa);
+  // Style en-têtes : gras + fond bleu foncé
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c: C });
+    if (!ws[cellRef]) continue;
+    ws[cellRef].s = {
+      font:    { bold: true, color: { rgb: 'FFFFFF' } },
+      fill:    { fgColor: { rgb: '1E3A5F' } },
+      alignment: { horizontal: 'center' },
+    };
+  }
+  // Largeurs colonnes
+  if (colWidths) {
+    ws['!cols'] = colWidths.map(w => ({ wch: w }));
+  } else {
+    // Auto-largeur basée sur la longueur max des valeurs
+    ws['!cols'] = header.map((h, ci) => {
+      const maxLen = Math.max(
+        String(h).length,
+        ...rows.map(r => String(r[ci] ?? '').length)
+      );
+      return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
+    });
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName || 'EduLink');
+  XLSX.writeFile(wb, filename);
+  return true;
+}
+
+// Génère et télécharge un fichier XLSX vide avec les colonnes du modèle
+function xlsxModele(filename, header, exempleRow, sheetName, colWidths) {
+  if (typeof XLSX === 'undefined') {
+    showToast('⚠️ Bibliothèque Excel non chargée', 'error');
+    return;
+  }
+  xlsxDownload(filename, header, exempleRow ? [exempleRow] : [], sheetName || 'Modèle', colWidths);
+  showToast('📥 Modèle Excel téléchargé — remplissez et importez !', 'success');
+}
+
+// Utilitaire : ouvre un input file et lit le résultat comme tableau de lignes XLSX
+function ouvrirImportExcel(inputId, callback) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  inp.value = '';
+  inp.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    lireExcel(file, callback);
+  };
+  inp.click();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE ÉTUDIANTS
+// ══════════════════════════════════════════════════════════════════════
+function exporterEtudiantsCSV() {
+  if (!tousLesEtudiants?.length) { showToast('Aucun étudiant à exporter', 'error'); return; }
+  const header = ['Matricule','Nom','Prénom','Email','Téléphone','Sexe','Date naissance','Nationalité','Filière','Niveau','Classe','Statut'];
+  const rows = tousLesEtudiants.map(e => [
+    e.matricule||'', e.nom||'', e.prenom||'', e.email||'', e.telephone||'',
+    e.sexe||'', e.date_naissance||'', e.nationalite||'',
+    e.filiere||'', e.niveau||'',
+    e.classes?.nom || e.classe_nom || '',
+    e.statut||'actif'
+  ]);
+  xlsxDownload(`EduLink-Etudiants-${today()}.xlsx`, header, rows, 'Étudiants',
+    [12,18,18,28,14,6,14,16,18,12,14,10]);
+  showToast('📊 Export Excel étudiants téléchargé !', 'success');
+}
+
+function exporterEtudiantsModele() {
+  const header = ['Matricule','Nom','Prénom','Email','Téléphone','Sexe (M/F)','Date naissance (YYYY-MM-DD)','Nationalité','Filière','Niveau','Statut (actif/inactif)'];
+  const exemple = ['ETU-001','AHOUANSOU','Koffi','koffi@ex.bj','+22961000001','M','2000-05-15','Béninoise','Informatique','L1','actif'];
+  xlsxModele('EduLink-Modele-Import-Etudiants.xlsx', header, exemple, 'Modèle Étudiants',
+    [12,18,18,28,14,8,22,16,18,12,18]);
+}
+
+var _etudiantsAImporter = [];
+function ouvrirImportExcelEtudiants() {
+  const inp = document.getElementById('csv-file-input');
+  if (!inp) return;
+  // Étendre l'accept pour xlsx
+  inp.accept = '.csv,.txt,.xlsx,.xls';
+  inp.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'xlsx' || ext === 'xls') {
+      lireExcel(file, rows => {
+        _etudiantsAImporter = rows.map(r => ({
+          nom:           xlsVal(r,['Nom','nom','NOM'])               || '',
+          prenom:        xlsVal(r,['Prénom','Prenom','prenom'])      || '',
+          email:         xlsVal(r,['Email','email','EMAIL'])         || '',
+          telephone:     xlsVal(r,['Téléphone','Telephone','tel'])   || '',
+          sexe:          xlsVal(r,['Sexe (M/F)','Sexe','sexe'])      || '',
+          date_naissance:xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance']) || '',
+          nationalite:   xlsVal(r,['Nationalité','Nationalite','nationalite']) || '',
+          filiere:       xlsVal(r,['Filière','Filiere','filiere'])   || '',
+          niveau:        xlsVal(r,['Niveau','niveau'])               || '',
+          matricule:     xlsVal(r,['Matricule','matricule'])         || '',
+          statut:        xlsVal(r,['Statut (actif/inactif)','Statut','statut']) || 'actif',
+        })).filter(e => e.nom);
+        previewImportEtudiants(_etudiantsAImporter);
+      });
+    } else {
+      lireCSV(file);   // ancien chemin CSV
+    }
+  };
+  inp.click();
+}
+
+function previewImportEtudiants(liste) {
+  const prevEl = document.getElementById('preview-import');
+  if (!prevEl) { confirmerImportExcelEtudiants(liste); return; }
+  prevEl.innerHTML = `<p style="color:#059669;font-weight:600">✅ ${liste.length} étudiant(s) prêt(s) à importer</p>`
+    + `<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#f3f4f6"><th style="padding:4px 8px">Nom</th><th>Prénom</th><th>Email</th><th>Filière</th><th>Niveau</th></tr></thead><tbody>`
+    + liste.slice(0,10).map(e => `<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">${e.nom}</td><td>${e.prenom}</td><td>${e.email}</td><td>${e.filiere}</td><td>${e.niveau}</td></tr>`).join('')
+    + (liste.length > 10 ? `<tr><td colspan="5" style="padding:4px 8px;color:#6b7280">... et ${liste.length-10} autres</td></tr>` : '')
+    + '</tbody></table>';
+  const btn = document.getElementById('btn-import-confirm');
+  if (btn) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.onclick = () => confirmerImportExcelEtudiants(_etudiantsAImporter);
+  }
+}
+
+async function confirmerImportExcelEtudiants(liste) {
+  if (!liste?.length) return;
+  const btn = document.getElementById('btn-import-confirm');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Import...'; }
+  let ok = 0, err = 0;
+  for (const e of liste) {
+    const payload = { ...e, ecole_id: currentEcoleId };
+    const { error } = await db.from('etudiants').insert([payload]);
+    if (error) err++; else ok++;
+  }
+  fermerModal('modal-import-csv');
+  showToast(`✅ ${ok} étudiant(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  chargerEtudiants();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE ABSENCES / PRÉSENCES
+// ══════════════════════════════════════════════════════════════════════
+async function exporterAbsencesCSV() {
+  let q = db.from('absences').select('*, etudiants(nom,prenom)').order('date_absence', { ascending: false });
+  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  const { data } = await q;
+  if (!data?.length) { showToast('Aucune absence à exporter', 'error'); return; }
+  const header = ['Date','Étudiant','Matière','Statut','Justifié','Commentaire'];
+  const rows = data.map(a => [
+    a.date_absence||'',
+    a.etudiants ? `${a.etudiants.nom} ${a.etudiants.prenom}` : a.etudiant_id||'',
+    a.matiere||'', a.statut||'', a.justifie ? 'Oui' : 'Non', a.commentaire||''
+  ]);
+  xlsxDownload(`EduLink-Absences-${today()}.xlsx`, header, rows, 'Absences',
+    [14,25,18,12,10,30]);
+  showToast('📊 Export Excel absences téléchargé !', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE EMPLOI DU TEMPS
+// ══════════════════════════════════════════════════════════════════════
+function exporterEdtExcel() {
+  const header = ['Jour','Heure début','Heure fin','Matière','Professeur','Salle','Type','Classe'];
+  const rows = tousLesCreneaux.map(c => [
+    c.jour||'', c.heure_debut||'', c.heure_fin||'',
+    c.matiere||'', c.professeur||'', c.salle||'',
+    c.type_seance||'', c.classe_nom||''
+  ]);
+  if (!rows.length) { showToast('Aucun créneau à exporter', 'error'); return; }
+  xlsxDownload(`EduLink-EmploiDuTemps-${today()}.xlsx`, header, rows, 'EDT',
+    [12,12,12,18,22,10,12,14]);
+  showToast('📊 Export Excel EDT téléchargé !', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE EXAMENS
+// ══════════════════════════════════════════════════════════════════════
+function exporterExamensExcel() {
+  if (!tousLesExamens?.length) { showToast('Aucun examen à exporter', 'error'); return; }
+  const header = ['Matière','Type','Date','Heure début','Heure fin','Salle','Filière','Niveau','Surveillant','Statut'];
+  const rows = tousLesExamens.map(e => [
+    e.matiere||'', e.type||'', e.date||'',
+    e.heure_debut||'', e.heure_fin||'',
+    e.salle||'', e.filiere||'', e.niveau||'',
+    e.surveillant||'', e.statut||''
+  ]);
+  xlsxDownload(`EduLink-Examens-${today()}.xlsx`, header, rows, 'Examens',
+    [18,12,12,12,12,10,16,10,20,12]);
+  showToast('📊 Export Excel examens téléchargé !', 'success');
+}
+
+function exporterExamensModele() {
+  const header = ['Matière','Type (controle/partiel/examen_final)','Date (YYYY-MM-DD)','Heure début (HH:MM)','Heure fin (HH:MM)','Salle','Filière','Niveau','Surveillant','Statut (planifie/en_cours/termine)'];
+  const exemple = ['Mathématiques','partiel','2025-11-15','08:00','11:00','Amphi A','Informatique','L2','Prof. AGBO','planifie'];
+  xlsxModele('EduLink-Modele-Import-Examens.xlsx', header, exemple, 'Modèle Examens');
+}
+
+var _examensAImporter = [];
+function ouvrirImportExcelExamens() {
+  ouvrirImportExcel('input-import-examens-file', rows => {
+    _examensAImporter = rows.map(r => ({
+      matiere:      xlsVal(r,['Matière','Matiere','matiere'])        || '',
+      type:         xlsVal(r,['Type (controle/partiel/examen_final)','Type','type']) || 'partiel',
+      date:         xlsVal(r,['Date (YYYY-MM-DD)','Date','date'])    || '',
+      heure_debut:  xlsVal(r,['Heure début (HH:MM)','Heure debut','heure_debut']) || '',
+      heure_fin:    xlsVal(r,['Heure fin (HH:MM)','Heure fin','heure_fin']) || '',
+      salle:        xlsVal(r,['Salle','salle'])                      || '',
+      filiere:      xlsVal(r,['Filière','Filiere','filiere'])        || '',
+      niveau:       xlsVal(r,['Niveau','niveau'])                    || '',
+      surveillant:  xlsVal(r,['Surveillant','surveillant'])          || '',
+      statut:       xlsVal(r,['Statut (planifie/en_cours/termine)','Statut','statut']) || 'planifie',
+    })).filter(e => e.matiere && e.date);
+    if (!_examensAImporter.length) { showToast('Aucune ligne valide trouvée', 'error'); return; }
+    showToast(`✅ ${_examensAImporter.length} examen(s) prêts — cliquez Confirmer`, 'info');
+    const btn = document.getElementById('btn-import-examens-confirm');
+    if (btn) { btn.disabled = false; btn.style.display = 'inline-block'; }
+  });
+}
+
+async function confirmerImportExcelExamens() {
+  if (!_examensAImporter.length) return;
+  let ok = 0, err = 0;
+  for (const e of _examensAImporter) {
+    const { error } = await db.from('examens').insert([{ ...e, ecole_id: currentEcoleId }]);
+    if (error) err++; else ok++;
+  }
+  _examensAImporter = [];
+  showToast(`✅ ${ok} examen(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  if (typeof chargerExamens === 'function') chargerExamens();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE MESSAGES
+// ══════════════════════════════════════════════════════════════════════
+function exporterMessagesExcel() {
+  if (!tousLesMessages?.length) { showToast('Aucun message à exporter', 'error'); return; }
+  const header = ['Expéditeur','Rôle','Destinataire','Objet','Date','Lu'];
+  const rows = tousLesMessages.map(m => [
+    m.expediteur||'', m.role_expediteur||'', m.destinataire||'',
+    m.objet||'', fmtDate(m.created_at)||'', m.lu ? 'Oui' : 'Non'
+  ]);
+  xlsxDownload(`EduLink-Messages-${today()}.xlsx`, header, rows, 'Messages',
+    [22,14,22,30,14,8]);
+  showToast('📊 Export Excel messages téléchargé !', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE PAIEMENTS
+// ══════════════════════════════════════════════════════════════════════
+function exporterPaiementsExcel() {
+  if (!toutesLesFactures?.length) { showToast('Aucun paiement à exporter', 'error'); return; }
+  const header = ['Référence','Étudiant','Type','Montant total','Montant payé','Solde','Statut','Échéance'];
+  const rows = toutesLesFactures.map(f => [
+    f.reference||'', f.etudiant_nom||f.etudiant_id||'',
+    f.type_frais||'', f.montant_total||0, f.montant_paye||0,
+    (f.montant_total||0) - (f.montant_paye||0),
+    f.statut||'', fmtDate(f.echeance)||''
+  ]);
+  xlsxDownload(`EduLink-Paiements-${today()}.xlsx`, header, rows, 'Paiements',
+    [14,24,16,14,14,12,12,14]);
+  showToast('📊 Export Excel paiements téléchargé !', 'success');
+}
+
+function exporterPaiementsModele() {
+  const header = ['Référence','Étudiant (matricule)','Type frais','Montant total','Montant payé','Statut (en_attente/paye/retard)','Échéance (YYYY-MM-DD)'];
+  const exemple = ['FACT-001','ETU-001','Scolarité',150000,75000,'en_attente','2025-12-31'];
+  xlsxModele('EduLink-Modele-Import-Paiements.xlsx', header, exemple, 'Modèle Paiements');
+}
+
+var _paiementsAImporter = [];
+function ouvrirImportExcelPaiements() {
+  ouvrirImportExcel('input-import-paiements-file', rows => {
+    _paiementsAImporter = rows.map(r => ({
+      reference:    xlsVal(r,['Référence','Reference','reference'])   || '',
+      type_frais:   xlsVal(r,['Type frais','type_frais'])             || '',
+      montant_total:Number(xlsVal(r,['Montant total','montant_total'])||0),
+      montant_paye: Number(xlsVal(r,['Montant payé','Montant paye','montant_paye'])||0),
+      statut:       xlsVal(r,['Statut (en_attente/paye/retard)','Statut','statut']) || 'en_attente',
+      echeance:     xlsVal(r,['Échéance (YYYY-MM-DD)','Echeance','echeance']) || '',
+    })).filter(e => e.montant_total > 0);
+    if (!_paiementsAImporter.length) { showToast('Aucune ligne valide trouvée', 'error'); return; }
+    showToast(`✅ ${_paiementsAImporter.length} paiement(s) prêts — cliquez Confirmer`, 'info');
+    const btn = document.getElementById('btn-import-paiements-confirm');
+    if (btn) { btn.disabled = false; btn.style.display = 'inline-block'; }
+  });
+}
+
+async function confirmerImportExcelPaiements() {
+  if (!_paiementsAImporter.length) return;
+  let ok = 0, err = 0;
+  for (const f of _paiementsAImporter) {
+    const { error } = await db.from('factures').insert([{ ...f, ecole_id: currentEcoleId }]);
+    if (error) err++; else ok++;
+  }
+  _paiementsAImporter = [];
+  showToast(`✅ ${ok} paiement(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  if (typeof chargerPaiements === 'function') chargerPaiements();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE INCIDENTS / DISCIPLINE
+// ══════════════════════════════════════════════════════════════════════
+function exporterIncidentsExcel() {
+  // Les données sont chargées dans le contexte local de exporterIncidentsCSV
+  // On refait la requête Supabase pour avoir les données fraîches
+  const header = ['Étudiant','Type','Sévérité','Date','Statut','Sanction','Description'];
+  (async () => {
+    let q = db.from('incidents').select('*, etudiants(nom,prenom)').order('created_at', { ascending: false });
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q;
+    if (!data?.length) { showToast('Aucun incident à exporter', 'error'); return; }
+    const rows = data.map(i => [
+      i.etudiants ? `${i.etudiants.nom} ${i.etudiants.prenom}` : i.etudiant_id||'',
+      i.type||'', i.severite||'', fmtDate(i.date)||'',
+      i.statut||'', i.sanction||'', i.description||''
+    ]);
+    xlsxDownload(`EduLink-Incidents-${today()}.xlsx`, header, rows, 'Incidents',
+      [25,16,12,12,14,20,40]);
+    showToast('📊 Export Excel incidents téléchargé !', 'success');
+  })();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE DOCUMENTS
+// ══════════════════════════════════════════════════════════════════════
+function exporterDocumentsExcel() {
+  const header = ['Nom','Catégorie','Type fichier','Étudiant','Taille','Date ajout'];
+  (async () => {
+    let q = db.from('documents').select('*, etudiants(nom,prenom)').order('created_at', { ascending: false });
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q;
+    if (!data?.length) { showToast('Aucun document à exporter', 'error'); return; }
+    const rows = data.map(d => [
+      d.nom||'', d.categorie||'', d.type_fichier||'',
+      d.etudiants ? `${d.etudiants.nom} ${d.etudiants.prenom}` : '',
+      d.taille ? Math.round(d.taille/1024)+'Ko' : '',
+      fmtDate(d.created_at)||''
+    ]);
+    xlsxDownload(`EduLink-Documents-${today()}.xlsx`, header, rows, 'Documents',
+      [30,18,14,24,10,14]);
+    showToast('📊 Export Excel documents téléchargé !', 'success');
+  })();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE UTILISATEURS
+// ══════════════════════════════════════════════════════════════════════
+function exporterUtilisateursExcel() {
+  const header = ['Prénom','Nom','Email','Rôle','Statut','Date création'];
+  (async () => {
+    let q = db.from('utilisateurs').select('*').order('created_at', { ascending: false });
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q;
+    if (!data?.length) { showToast('Aucun utilisateur à exporter', 'error'); return; }
+    const rows = data.map(u => [
+      u.prenom||'', u.nom||'', u.email||'',
+      u.role||'', u.statut||'actif', fmtDate(u.created_at)||''
+    ]);
+    xlsxDownload(`EduLink-Utilisateurs-${today()}.xlsx`, header, rows, 'Utilisateurs',
+      [16,18,28,14,12,14]);
+    showToast('📊 Export Excel utilisateurs téléchargé !', 'success');
+  })();
+}
+
+function exporterUtilisateursModele() {
+  const header = ['Prénom','Nom','Email','Rôle (admin/enseignant/comptable/parent)','Mot de passe initial','Statut (actif/inactif)'];
+  const exemple = ['Koffi','AHOUANSOU','koffi@ucao.bj','enseignant','Ucao2025!','actif'];
+  xlsxModele('EduLink-Modele-Import-Utilisateurs.xlsx', header, exemple, 'Modèle Utilisateurs');
+}
+
+var _utilisateursAImporter = [];
+function ouvrirImportExcelUtilisateurs() {
+  ouvrirImportExcel('input-import-utilisateurs-file', rows => {
+    _utilisateursAImporter = rows.map(r => ({
+      prenom:  xlsVal(r,['Prénom','Prenom','prenom'])        || '',
+      nom:     xlsVal(r,['Nom','nom','NOM'])                 || '',
+      email:   xlsVal(r,['Email','email'])                   || '',
+      role:    xlsVal(r,['Rôle (admin/enseignant/comptable/parent)','Role','role']) || 'enseignant',
+      statut:  xlsVal(r,['Statut (actif/inactif)','Statut','statut']) || 'actif',
+    })).filter(u => u.email && u.nom);
+    if (!_utilisateursAImporter.length) { showToast('Aucune ligne valide trouvée', 'error'); return; }
+    showToast(`✅ ${_utilisateursAImporter.length} utilisateur(s) prêts — cliquez Confirmer`, 'info');
+    const btn = document.getElementById('btn-import-utilisateurs-confirm');
+    if (btn) { btn.disabled = false; btn.style.display = 'inline-block'; }
+  });
+}
+
+async function confirmerImportExcelUtilisateurs() {
+  if (!_utilisateursAImporter.length) return;
+  let ok = 0, err = 0;
+  for (const u of _utilisateursAImporter) {
+    const { error } = await db.from('utilisateurs').insert([{ ...u, ecole_id: currentEcoleId }]);
+    if (error) err++; else ok++;
+  }
+  _utilisateursAImporter = [];
+  showToast(`✅ ${ok} utilisateur(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  if (typeof chargerUtilisateurs === 'function') chargerUtilisateurs();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE BIBLIOTHÈQUE
+// ══════════════════════════════════════════════════════════════════════
+function exporterBiblioExcel() {
+  const header = ['Titre','Auteur','ISBN','Année','Catégorie','Exemplaires','Disponibles','Cote'];
+  (async () => {
+    let q = db.from('livres').select('*').order('titre');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q;
+    if (!data?.length) { showToast('Aucun ouvrage à exporter', 'error'); return; }
+    const rows = data.map(l => [
+      l.titre||'', l.auteur||'', l.isbn||'', l.annee||'',
+      l.categorie||'', l.exemplaires||0, l.disponibles||0, l.cote||''
+    ]);
+    xlsxDownload(`EduLink-Bibliotheque-${today()}.xlsx`, header, rows, 'Catalogue',
+      [35,25,16,8,18,12,12,12]);
+    showToast('📊 Export Excel bibliothèque téléchargé !', 'success');
+  })();
+}
+
+function exporterBiblioModele() {
+  const header = ['Titre','Auteur','ISBN','Année','Catégorie','Exemplaires','Cote'];
+  const exemple = ['Introduction à l\'algorithmique','CORMEN Thomas','978-0262033848','2009','Informatique',3,'INF-001'];
+  xlsxModele('EduLink-Modele-Import-Livres.xlsx', header, exemple, 'Modèle Catalogue',
+    [40,25,18,8,18,12,12]);
+}
+
+var _livresAImporter = [];
+function ouvrirImportExcelLivres() {
+  ouvrirImportExcel('input-import-livres-file', rows => {
+    _livresAImporter = rows.map(r => ({
+      titre:       xlsVal(r,['Titre','titre'])                || '',
+      auteur:      xlsVal(r,['Auteur','auteur'])              || '',
+      isbn:        xlsVal(r,['ISBN','isbn'])                  || '',
+      annee:       xlsVal(r,['Année','Annee','annee'])        || '',
+      categorie:   xlsVal(r,['Catégorie','Categorie','categorie']) || '',
+      exemplaires: Number(xlsVal(r,['Exemplaires','exemplaires'])||1),
+      disponibles: Number(xlsVal(r,['Disponibles','disponibles'])||1),
+      cote:        xlsVal(r,['Cote','cote'])                  || '',
+    })).filter(l => l.titre);
+    if (!_livresAImporter.length) { showToast('Aucune ligne valide trouvée', 'error'); return; }
+    showToast(`✅ ${_livresAImporter.length} ouvrage(s) prêts — cliquez Confirmer`, 'info');
+    const btn = document.getElementById('btn-import-livres-confirm');
+    if (btn) { btn.disabled = false; btn.style.display = 'inline-block'; }
+  });
+}
+
+async function confirmerImportExcelLivres() {
+  if (!_livresAImporter.length) return;
+  let ok = 0, err = 0;
+  for (const l of _livresAImporter) {
+    const { error } = await db.from('livres').insert([{ ...l, ecole_id: currentEcoleId }]);
+    if (error) err++; else ok++;
+  }
+  _livresAImporter = [];
+  showToast(`✅ ${ok} ouvrage(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  if (typeof chargerBibliotheque === 'function') chargerBibliotheque();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE RH & PERSONNEL
+// ══════════════════════════════════════════════════════════════════════
+function exporterRHExcel() {
+  if (!toutLePersonnel?.length) { showToast('Aucun agent à exporter', 'error'); return; }
+  const header = ['Prénom','Nom','Email','Téléphone','Poste','Département','Type contrat','Date embauche','Salaire brut','Statut'];
+  const rows = toutLePersonnel.map(p => [
+    p.prenom||'', p.nom||'', p.email||'', p.telephone||'',
+    p.poste||'', p.departement||'', p.type_contrat||'',
+    fmtDate(p.date_embauche)||'', p.salaire_brut||0, p.statut||'actif'
+  ]);
+  xlsxDownload(`EduLink-RH-Personnel-${today()}.xlsx`, header, rows, 'Personnel',
+    [16,18,28,14,18,18,16,14,14,12]);
+  showToast('📊 Export Excel RH téléchargé !', 'success');
+}
+
+function exporterRHModele() {
+  const header = ['Prénom','Nom','Email','Téléphone','Poste','Département','Type contrat (cdi/cdd/vacataire)','Date embauche (YYYY-MM-DD)','Salaire brut','Statut (actif/inactif)'];
+  const exemple = ['Marie','DOSSOU','marie@ucao.bj','+22961000002','Comptable','Administration','cdi','2023-09-01',250000,'actif'];
+  xlsxModele('EduLink-Modele-Import-Personnel.xlsx', header, exemple, 'Modèle Personnel');
+}
+
+var _personnelAImporter = [];
+function ouvrirImportExcelPersonnel() {
+  ouvrirImportExcel('input-import-rh-file', rows => {
+    _personnelAImporter = rows.map(r => ({
+      prenom:       xlsVal(r,['Prénom','Prenom','prenom'])           || '',
+      nom:          xlsVal(r,['Nom','nom','NOM'])                    || '',
+      email:        xlsVal(r,['Email','email'])                      || '',
+      telephone:    xlsVal(r,['Téléphone','Telephone','tel'])        || '',
+      poste:        xlsVal(r,['Poste','poste'])                      || '',
+      departement:  xlsVal(r,['Département','Departement','departement']) || '',
+      type_contrat: xlsVal(r,['Type contrat (cdi/cdd/vacataire)','Type contrat','type_contrat']) || 'cdd',
+      date_embauche:xlsVal(r,['Date embauche (YYYY-MM-DD)','Date embauche','date_embauche'])     || '',
+      salaire_brut: Number(xlsVal(r,['Salaire brut','salaire_brut'])||0),
+      statut:       xlsVal(r,['Statut (actif/inactif)','Statut','statut']) || 'actif',
+    })).filter(p => p.nom && p.prenom);
+    if (!_personnelAImporter.length) { showToast('Aucune ligne valide trouvée', 'error'); return; }
+    showToast(`✅ ${_personnelAImporter.length} agent(s) prêts — cliquez Confirmer`, 'info');
+    const btn = document.getElementById('btn-import-rh-confirm');
+    if (btn) { btn.disabled = false; btn.style.display = 'inline-block'; }
+  });
+}
+
+async function confirmerImportExcelPersonnel() {
+  if (!_personnelAImporter.length) return;
+  let ok = 0, err = 0;
+  for (const p of _personnelAImporter) {
+    const { error } = await db.from('personnel').insert([{ ...p, ecole_id: currentEcoleId }]);
+    if (error) err++; else ok++;
+  }
+  _personnelAImporter = [];
+  showToast(`✅ ${ok} agent(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
+  if (typeof chargerRH === 'function') chargerRH();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE CAISSE / COMPTABILITÉ
+// ══════════════════════════════════════════════════════════════════════
+function exporterCaisseExcel() {
+  const header = ['Date','Libellé','Catégorie','Type','Montant','Référence'];
+  (async () => {
+    let q = db.from('caisse').select('*').order('date', { ascending: false });
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q;
+    if (!data?.length) { showToast('Aucune opération caisse à exporter', 'error'); return; }
+    const rows = data.map(c => [
+      fmtDate(c.date)||'', c.libelle||'', c.categorie||'',
+      c.type||'', c.montant||0, c.reference||''
+    ]);
+    xlsxDownload(`EduLink-Caisse-${today()}.xlsx`, header, rows, 'Caisse',
+      [14,30,18,12,14,16]);
+    showToast('📊 Export Excel caisse téléchargé !', 'success');
+  })();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE RÉSEAU ÉCOLES
+// ══════════════════════════════════════════════════════════════════════
+function exporterRapportReseauExcel() {
+  if (!tousLesEtablissements.length) { showToast('Aucun établissement à exporter', 'error'); return; }
+  const header = ['Nom','Type','Ville','Directeur','Étudiants/Élèves','Enseignants','Taux réussite (%)','Recette/mois (F)','Statut'];
+  const rows = tousLesEtablissements.map(e => [
+    e.nom||'', typeLabel(e.type)||'', e.ville||'', e.directeur||'—',
+    e.eleves||0, e.enseignants||0, e.taux_reussite||0,
+    e.recette_mois||0, e.statut||'actif'
+  ]);
+  xlsxDownload(`EduLink-Reseau-${today()}.xlsx`, header, rows, 'Réseau Écoles',
+    [24,18,16,22,16,14,18,18,12]);
+  showToast('📊 Export Excel réseau téléchargé !', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE CERTIFICATS
+// ══════════════════════════════════════════════════════════════════════
+function exporterCertificatsExcel() {
+  const header = ['Référence','Type','Étudiant','Matricule','Signataire','Statut','Période','Date'];
+  (async () => {
+    let q = db.from('certificats').select('*, etudiants(nom,prenom,matricule)').order('created_at', { ascending: false });
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q;
+    if (!data?.length) { showToast('Aucun certificat à exporter', 'error'); return; }
+    const rows = data.map(c => [
+      c.reference||'', c.type_certif||c.type||'',
+      c.etudiants ? `${c.etudiants.nom} ${c.etudiants.prenom}` : '',
+      c.etudiants?.matricule||'', c.signataire||'',
+      c.statut||'', c.periode||'', fmtDate(c.created_at)||''
+    ]);
+    xlsxDownload(`EduLink-Certificats-${today()}.xlsx`, header, rows, 'Certificats',
+      [14,20,24,12,20,12,14,14]);
+    showToast('📊 Export Excel certificats téléchargé !', 'success');
+  })();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE HISTORIQUE PAIEMENTS
+// ══════════════════════════════════════════════════════════════════════
+async function exporterHistoriqueExcel() {
+  let q = db.from('paiements').select('*, factures(reference, etudiants(nom,prenom))').order('created_at', { ascending: false });
+  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  const { data } = await q;
+  if (!data?.length) { showToast('Aucun historique à exporter', 'error'); return; }
+  const header = ['Date','Référence facture','Étudiant','Montant','Mode paiement','Référence transaction'];
+  const rows = data.map(p => [
+    fmtDate(p.created_at)||'',
+    p.factures?.reference||p.facture_id||'',
+    p.factures?.etudiants ? `${p.factures.etudiants.nom} ${p.factures.etudiants.prenom}` : '',
+    p.montant||0, p.mode_paiement||'', p.reference_transaction||''
+  ]);
+  xlsxDownload(`EduLink-Historique-Paiements-${today()}.xlsx`, header, rows, 'Historique',
+    [14,16,24,14,16,22]);
+  showToast('📊 Export Excel historique téléchargé !', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  EXPORTS EXCEL — MODULE BIBLIOTHÈQUE NUMÉRIQUE
+// ══════════════════════════════════════════════════════════════════════
+function exportCatalogueBibNumExcel() {
+  const header = ['Titre','Auteur','ISBN','Catégorie','Exemplaires','Disponibles','Année'];
+  (async () => {
+    let q = db.from('bibnum_documents').select('*').order('titre');
+    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    const { data } = await q;
+    if (!data?.length) { showToast('Aucun document à exporter', 'error'); return; }
+    const rows = data.map(d => [
+      d.titre||'', d.auteur||'', d.isbn||'',
+      d.categorie||'', d.exemplaires||1, d.disponibles||1, d.annee||''
+    ]);
+    xlsxDownload(`EduLink-BibNum-Catalogue-${today()}.xlsx`, header, rows, 'Bibliothèque Num.',
+      [35,25,16,18,12,12,8]);
+    showToast('📊 Export Excel bibliothèque numérique téléchargé !', 'success');
+  })();
+}
+
+// ── Utilitaire date du jour pour noms de fichiers ─────────────────────
+function today() {
+  return new Date().toISOString().slice(0,10);
+}
+
+// ── Raccourcis rétrocompatibles (anciens noms CSV → maintenant xlsx) ──
+// Ces fonctions gardent les anciens noms mais génèrent maintenant du XLSX
+const exporterEdtCSV           = exporterEdtExcel;
+const exporterMessagesCSV      = exporterMessagesExcel;
+const exporterPaiementsCSV     = exporterPaiementsExcel;
+const exporterHistoriqueCSV    = exporterHistoriqueExcel;
+const exporterIncidentsCSV     = exporterIncidentsExcel;
+const exporterDocumentsCSV     = exporterDocumentsExcel;
+const exporterUtilisateursCSV  = exporterUtilisateursExcel;
+const exporterBiblioCSV        = exporterBiblioExcel;
+const exporterCaisseCSV        = exporterCaisseExcel;
+const exporterRHCSV            = exporterRHExcel;
+const exporterCertificatsCSV   = exporterCertificatsExcel;
+const exportCatalogueBibNum    = exportCatalogueBibNumExcel;
+const exporterRapportReseau    = exporterRapportReseauExcel;
+const exporterExamensCSV       = exporterExamensExcel;
+
 // Modules désactivés — visibles admin uniquement
 
 // Permissions par rôle
@@ -8548,12 +9208,6 @@ async function peuplerClassesEDT() {
   if (selM) selM.innerHTML = '<option value="">— Sélectionner —</option>' + opts;
 }
 
-function exporterEdtCSV() {
-  if (!tousLesCreneaux.length) { showToast('Aucun créneau à exporter.','error'); return; }
-  const header = ['Jour','Heure début','Heure fin','Matière','Professeur','Salle','Type','Classe'];
-  const rows = tousLesCreneaux.map(c => [c.jour,c.heure_debut,c.heure_fin,c.matiere,c.professeur||'',c.salle||'',c.type||'',c.classe||'']);
-  csvDownload('emploi_du_temps.csv', header, rows);
-}
 
 
 // ══ MESSAGERIE ════════════════════════════════
@@ -8675,15 +9329,6 @@ async function supprimerMessageActif() {
   chargerMessages();
 }
 
-function exporterMessagesCSV() {
-  if (!tousLesMessages.length) { showToast('Aucun message à exporter','error'); return; }
-  const header = ['expediteur','role_expediteur','destinataire','objet','date','lu'];
-  const rows = tousLesMessages.map(m => [
-    m.expediteur_nom||'', m.expediteur_role||'', m.destinataire_nom||'',
-    (m.objet||'').replace(/,/g,';'), fmtDate(m.created_at), m.lu?'oui':'non'
-  ]);
-  csvDownload('messages.csv', header, rows);
-}
 
 async function peuplerDestinataires() {
   const sel = document.getElementById('input-msg-destinataire-select');
@@ -8926,30 +9571,7 @@ async function creerFacture() {
   chargerPaiements(); chargerDashboard();
 }
 
-function exporterPaiementsCSV() {
-  if (!toutesLesFactures.length) { showToast('Aucune facture à exporter','error'); return; }
-  const header = ['reference','etudiant','type','montant_total','montant_paye','statut','echeance'];
-  const rows = toutesLesFactures.map(f=>[
-    f.reference||'', f.etudiants?f.etudiants.nom+' '+f.etudiants.prenom:'N/A',
-    f.type_frais||'', f.montant_total||0, f.montant_paye||0,
-    f.statut||'', fmtDate(f.date_echeance)
-  ]);
-  csvDownload('factures.csv', header, rows);
-}
 
-async function exporterHistoriqueCSV() {
-  let q = db.from('paiements').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-  const { data } = await q;
-  if (!data?.length) { showToast('Aucun paiement à exporter','error'); return; }
-  const header = ['date','reference_facture','etudiant','montant','mode','reference_transaction'];
-  const rows = data.map(p=>[
-    fmtDate(p.created_at), p.reference_facture||'',
-    p.etudiants?p.etudiants.nom+' '+p.etudiants.prenom:'N/A',
-    p.montant_paye||0, p.mode_paiement||'', p.reference_transaction||''
-  ]);
-  csvDownload('historique_paiements.csv', header, rows);
-}
 
 
 
@@ -9127,19 +9749,6 @@ async function peuplerFiltresDisc() {
   sel.innerHTML = '<option value="">Tous les étudiants</option>'
     + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
 }
-function exporterIncidentsCSV() {
-  db.from('incidents').select('*, etudiants(nom,prenom)').eq('ecole_id', currentEcoleId||'').order('created_at',{ascending:false})
-    .then(({data}) => {
-      if (!data?.length) { showToast('Aucun incident à exporter','error'); return; }
-      const header = ['etudiant','type','severite','date','statut','sanction','description'];
-      const rows = data.map(i=>[
-        i.etudiants?i.etudiants.nom+' '+i.etudiants.prenom:'N/A',
-        i.type_incident||'', i.severite||'', fmtDate(i.date_incident||i.created_at),
-        i.statut||'', i.sanction||'', (i.description||'').replace(/,/g,';')
-      ]);
-      csvDownload('incidents.csv', header, rows);
-    });
-}
 function ouvrirResolution(id) {
   document.getElementById('input-res-id').value = id;
   document.getElementById('input-res-note').value = '';
@@ -9298,16 +9907,6 @@ async function supprimerDocument(id) {
   showToast('Document supprimé.','success'); chargerDocuments();
 }
 
-function exporterDocumentsCSV() {
-  if (!tousLesDocuments.length) { showToast('Aucun document à exporter','error'); return; }
-  const header = ['nom','categorie','type_fichier','etudiant','taille','date_ajout'];
-  const rows = tousLesDocuments.map(d=>[
-    d.nom||'', d.categorie||'', d.type_fichier||'',
-    d.etudiants?d.etudiants.nom+' '+d.etudiants.prenom:'',
-    d.taille_affichage||'', fmtDate(d.created_at)
-  ]);
-  csvDownload('documents.csv', header, rows);
-}
 
 
 function previewDocFichier(input) {
@@ -9768,14 +10367,6 @@ async function remplirSelectUserEtudiant() {
     + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
 }
 
-function exporterUtilisateursCSV() {
-  if (!tousLesUtilisateurs.length) { showToast('Aucun utilisateur à exporter','error'); return; }
-  const header = ['prenom','nom','email','role','statut','date_creation'];
-  const rows = tousLesUtilisateurs.map(u=>[
-    u.prenom||'', u.nom||'', u.email||'', u.role||'', u.statut||'actif', fmtDate(u.created_at)
-  ]);
-  csvDownload('utilisateurs.csv', header, rows);
-}
 
 // ══ DASHBOARD CHARTS ══════════════════════════
 let _dashChartFil = null, _dashChartPay = null;
@@ -11090,14 +11681,6 @@ async function sauvegarderExamen() {
   chargerExamens();
 }
 
-function exporterExamensCSV() {
-  if (!tousLesExamens.length) { showToast('Aucun examen à exporter','error'); return; }
-  const header = 'matiere,type,date,heure_debut,heure_fin,salle,filiere,niveau,surveillant,statut';
-  const rows = tousLesExamens.map(e => [e.matiere,e.type_examen,e.date_examen,e.heure_debut||'',e.heure_fin||'',e.salle||'',e.filiere||'',e.niveau||'',e.surveillant||'',e.statut].join(','));
-  const blob = new Blob([header+'\n'+rows.join('\n')],{type:'text/csv;charset=utf-8;'});
-  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='edulink_examens.csv'; a.click();
-  showToast('Export CSV téléchargé !','success');
-}
 
 async function supprimerExamen(id, matiere) {
   if (!confirm(`Supprimer l'examen "${matiere}" ?\nLes notes associées (PV) seront aussi supprimées.`)) return;
@@ -12556,17 +13139,6 @@ async function signerCertificat(id) {
   chargerCertificats();
 }
 
-function exporterCertificatsCSV() {
-  if (!tousLesCertificats.length) { showToast('Aucun document à exporter.','error'); return; }
-  const header = ['reference','type','etudiant','matricule','signataire','statut','periode','date'];
-  const rows = tousLesCertificats.map(c => {
-    const t = CERT_TYPES[c.type]?.label || c.type;
-    const e = c.etudiants;
-    return [c.reference||'', t, e?e.nom+' '+e.prenom:'—', e?.matricule||'—',
-            c.delivre_par||'—', c.statut||'', c.periode||'—', fmtDate(c.created_at)];
-  });
-  csvDownload('certificats.csv', header, rows);
-}
 
 
 
@@ -13339,16 +13911,6 @@ function ouvrirModifierLivre(id) {
   ouvrirModal('modal-livre');
 }
 
-function exporterBiblioCSV() {
-  if (!tousLesLivres.length) { showToast('Catalogue vide','error'); return; }
-  const header = ['titre','auteur','isbn','annee','categorie','exemplaires','disponibles','cote'];
-  const rows = tousLesLivres.map(l=>[
-    l.titre||'', l.auteur||'', l.isbn||'', l.annee_edition||'',
-    l.categorie||'', l.exemplaires||1,
-    (l.exemplaires||1)-(l.exemplaires_empruntes||0), l.cote||''
-  ]);
-  csvDownload('catalogue.csv', header, rows);
-}
 
 
 
@@ -14449,15 +15011,6 @@ async function enregistrerTransaction() {
   chargerComptabilite();
 }
 
-function exporterCaisseCSV() {
-  if (!toutesLesTransactions.length) { showToast('Aucune opération à exporter','error'); return; }
-  const header = ['date','libelle','categorie','type','montant','reference'];
-  const rows = toutesLesTransactions.map(t=>[
-    fmtDate(t.date_operation), t.libelle||'', t.categorie||'',
-    t.type_operation||'', t.montant||0, t.reference||''
-  ]);
-  csvDownload('caisse.csv', header, rows);
-}
 
 
 
@@ -15164,17 +15717,6 @@ async function peuplerSelectAgentPaie() {
     + toutLePersonnel.map(p=>`<option value="${p.id}">${p.prenom} ${p.nom} — ${p.poste||''}</option>`).join('');
 }
 
-function exporterRHCSV() {
-  if (!toutLePersonnel.length) { showToast('Aucun agent à exporter','error'); return; }
-  const header = ['prenom','nom','email','telephone','poste','departement','type_contrat','date_embauche','salaire_brut','statut'];
-  const rows = toutLePersonnel.map(p=>[
-    p.prenom||'', p.nom||'', p.email||'', p.telephone||'',
-    p.poste||'', p.departement||'', p.type_contrat||'',
-    fmtDate(p.date_embauche),
-    p.salaire_brut||0, p.statut||'actif'
-  ]);
-  csvDownload('personnel_rh.csv', header, rows);
-}
 
 
 
@@ -15773,13 +16315,6 @@ function exportEmprunts() {
   showToast('📥 Export emprunts terminé !','success');
 }
 
-function exportCatalogueBibNum() {
-  if (!bib8Livres.length) { showToast('Aucun livre à exporter.','error'); return; }
-  const header = ['Titre','Auteur','ISBN','Catégorie','Exemplaires','Disponibles','Année'];
-  const rows = bib8Livres.map(l=>[l.titre, l.auteur, l.isbn||'', l.categorie||'', l.exemplaires, l.disponibles, l.annee||'']);
-  csvDownload('EduLink-BibNum-Catalogue.csv', header, rows);
-  showToast('📥 Export catalogue terminé !','success');
-}
 
 function confirmerReservation(et) {
   const r = bib8Reservations.find(x=>x.etudiant===et);
@@ -15822,75 +16357,114 @@ const ABONNES_DEMO = [
 ];
 
 async function chargerReseau() {
-  console.info('[chargerReseau] Démarrage, tousLesEtablissements:', tousLesEtablissements.length);
+  console.info('[chargerReseau] Démarrage…');
 
-  if (!reseauInitialized) {
-    reseauRestaurer();
-    // Si tousLesEcoles (Supabase) est déjà chargé, on l'utilise directement
-    // Sinon on re-interroge Supabase via syncEcoleCouranteVersReseau
-    if (!tousLesEtablissements.length) {
-      await syncEcoleCouranteVersReseau();
+  // ── 1. Charger les écoles depuis Supabase (source de vérité absolue) ──
+  // On ne se fie pas à tousLesEcoles ni au localStorage pour le module Réseau :
+  // on re-interroge Supabase à chaque ouverture pour être toujours à jour.
+  let ecolesDB = [];
+  try {
+    const { data, error } = await db.from('ecoles').select('*').order('created_at', { ascending: true });
+    if (error) console.warn('[chargerReseau] Supabase écoles:', error.message);
+    ecolesDB = data || [];
+  } catch(e) { console.warn('[chargerReseau] Exception SELECT écoles:', e); }
+
+  // ── 2. Mettre à jour tousLesEcoles si nécessaire ──
+  if (ecolesDB.length && !tousLesEcoles.length) tousLesEcoles = ecolesDB;
+
+  // ── 3. Reconstruire tousLesEtablissements depuis Supabase ──
+  // On ne réinitialise pas tout le tableau (on garde les champs enrichis comme
+  // directeur, classes...) mais on s'assure que toutes les écoles Supabase
+  // sont bien présentes avec les bons champs de base.
+  reseauRestaurer();   // restaurer d'éventuelles données locales enrichies
+  const idsReseau = new Map((tousLesEtablissements || []).map(e => [String(e.id), e]));
+  ecolesDB.forEach(e => {
+    const tn  = typeNorm(e.type);
+    const existing = idsReseau.get(String(e.id));
+    if (existing) {
+      // Mettre à jour les champs Supabase sur l'entrée existante
+      existing.nom    = e.nom    || existing.nom;
+      existing.ville  = e.ville  || existing.ville;
+      existing.type   = tn;
+      existing.statut = e.statut || existing.statut;
+      existing.ico    = typeIco(tn);
+      existing.color  = typeColor(tn);
+    } else {
+      // Nouvelle école Supabase absente du réseau → l'ajouter
+      const entry = {
+        id: e.id, nom: e.nom || '—', type: tn,
+        ville: e.ville || '—', pays: e.pays || 'Bénin',
+        adresse: e.adresse || '', telephone: e.telephone || '',
+        email: e.email || '', site_web: e.site_web || '',
+        directeur: e.directeur || '—',
+        annee_scolaire: e.annee_scolaire || '2025-2026',
+        devise: e.devise || 'FCFA', agrement: e.agrement || '',
+        statut: e.statut || 'actif',
+        eleves: 0, enseignants: 0, taux_reussite: 0,
+        recette_mois: 0, moy_notes: 0, classes: 0, absences_taux: 0,
+        ico: typeIco(tn), color: typeColor(tn), _from_reseau: false,
+      };
+      tousLesEtablissements.push(entry);
+      idsReseau.set(String(e.id), entry);
     }
-    reseauInitialized = true;
-  }
+  });
+  // Supprimer les entrées réseau qui n'ont plus de correspondance dans Supabase
+  const idsSupabase = new Set(ecolesDB.map(e => String(e.id)));
+  tousLesEtablissements = tousLesEtablissements.filter(e =>
+    !e.id || idsSupabase.has(String(e.id)) || e._from_reseau
+  );
+  window.tousLesEtablissements = tousLesEtablissements;
+  reseauInitialized = true;
 
-  // Toujours synchroniser Supabase → Réseau avant le rendu
-  // (ajoute les nouvelles écoles Supabase dans tousLesEtablissements si absentes)
-  syncSupabaseVersReseau();
-  console.info('[chargerReseau] Après sync, tousLesEtablissements:', tousLesEtablissements.length);
+  console.info('[chargerReseau] tousLesEtablissements après sync:', tousLesEtablissements.length);
 
-  // Sync automatique des vrais chiffres Supabase pour TOUTES les écoles du réseau
+  // ── 4. Enrichir avec les vrais chiffres Supabase (étudiants, enseignants…) ──
   if (tousLesEtablissements.length) {
     const ids = tousLesEtablissements.map(e => e.id).filter(Boolean);
     if (ids.length) {
-      // Compter étudiants et enseignants pour chaque école en parallèle
-      const [etudRes, ensRes, notesRes, factRes] = await Promise.all([
-        db.from('etudiants').select('ecole_id').in('ecole_id', ids),
-        db.from('enseignants').select('ecole_id').in('ecole_id', ids),
-        db.from('notes').select('ecole_id, note').in('ecole_id', ids),
-        db.from('factures').select('ecole_id, montant_paye').in('ecole_id', ids),
-      ]);
-      // Construire les maps de comptage
-      const etudMap = {}, ensMap = {}, notesMap = {}, notesCount = {}, factMap = {};
-      (etudRes.data || []).forEach(r => { etudMap[r.ecole_id] = (etudMap[r.ecole_id] || 0) + 1; });
-      (ensRes.data  || []).forEach(r => { ensMap[r.ecole_id]  = (ensMap[r.ecole_id]  || 0) + 1; });
-      (notesRes.data || []).forEach(r => {
-        if (r.note != null) {
-          notesMap[r.ecole_id]  = (notesMap[r.ecole_id]  || 0) + Number(r.note);
-          notesCount[r.ecole_id]= (notesCount[r.ecole_id]|| 0) + 1;
-        }
-      });
-      (factRes.data || []).forEach(r => { factMap[r.ecole_id] = (factMap[r.ecole_id] || 0) + Number(r.montant_paye || 0); });
-      // Mettre à jour chaque établissement avec les vraies données
-      tousLesEtablissements.forEach(e => {
-        e.eleves      = etudMap[e.id]  || 0;
-        e.enseignants = ensMap[e.id]   || 0;
-        e.moy_notes   = notesCount[e.id] ? Math.round((notesMap[e.id] / notesCount[e.id]) * 10) / 10 : 0;
-        e.recette_mois= factMap[e.id]  || 0;
-        // taux_reussite = % notes >= 10
-      });
-      // Sauvegarder sans appeler _syncSelecteursEcoles (évite boucle)
-      try { localStorage.setItem(RESEAU_STORE_KEY, JSON.stringify({ etabs: tousLesEtablissements, alertes: reseauAlertes })); } catch(err) {}
+      try {
+        const [etudRes, ensRes, notesRes, factRes] = await Promise.all([
+          db.from('etudiants').select('ecole_id').in('ecole_id', ids),
+          db.from('enseignants').select('ecole_id').in('ecole_id', ids),
+          db.from('notes').select('ecole_id, note').in('ecole_id', ids),
+          db.from('factures').select('ecole_id, montant_paye').in('ecole_id', ids),
+        ]);
+        const etudMap = {}, ensMap = {}, notesMap = {}, notesCount = {}, factMap = {};
+        (etudRes.data  || []).forEach(r => { etudMap[r.ecole_id]  = (etudMap[r.ecole_id]  || 0) + 1; });
+        (ensRes.data   || []).forEach(r => { ensMap[r.ecole_id]   = (ensMap[r.ecole_id]   || 0) + 1; });
+        (notesRes.data || []).forEach(r => {
+          if (r.note != null) {
+            notesMap[r.ecole_id]   = (notesMap[r.ecole_id]   || 0) + Number(r.note);
+            notesCount[r.ecole_id] = (notesCount[r.ecole_id] || 0) + 1;
+          }
+        });
+        (factRes.data || []).forEach(r => { factMap[r.ecole_id] = (factMap[r.ecole_id] || 0) + Number(r.montant_paye || 0); });
+        tousLesEtablissements.forEach(e => {
+          e.eleves       = etudMap[e.id]  || 0;
+          e.enseignants  = ensMap[e.id]   || 0;
+          e.moy_notes    = notesCount[e.id] ? Math.round((notesMap[e.id] / notesCount[e.id]) * 10) / 10 : 0;
+          e.recette_mois = factMap[e.id]  || 0;
+        });
+      } catch(e) { console.warn('[chargerReseau] Enrichissement Supabase:', e); }
+      try { reseauSauvegarder(); } catch(e) {}
     }
   }
 
+  // ── 5. Calculer les KPI agrégés et mettre à jour le DOM ──
   const ecoles = tousLesEtablissements;
-  const totalEleves      = ecoles.reduce((s,e)=>s+e.eleves,0);
-  const totalEnseignants = ecoles.reduce((s,e)=>s+e.enseignants,0);
-  const tauxMoy          = ecoles.length ? Math.round(ecoles.reduce((s,e)=>s+e.taux_reussite,0)/ecoles.length) : 0;
-  const totalRecette     = ecoles.reduce((s,e)=>s+(e.recette_mois||0),0);
-  const alertes          = reseauAlertes.filter(a=>!a.traite).length;
-  const moyNotes         = ecoles.length ? (ecoles.reduce((s,e)=>s+(e.moy_notes||0),0)/ecoles.length).toFixed(1) : '—';
+  const safe = (el, val) => { const n = document.getElementById(el); if(n) n.textContent = val; };
+  safe('reseau-nb-ecoles',      ecoles.length);
+  safe('reseau-nb-eleves',      ecoles.reduce((s,e)=>s+e.eleves,0).toLocaleString('fr-FR'));
+  safe('reseau-nb-enseignants', ecoles.reduce((s,e)=>s+e.enseignants,0));
+  safe('reseau-taux-reussite',  ecoles.length ? Math.round(ecoles.reduce((s,e)=>s+e.taux_reussite,0)/ecoles.length)+'%' : '—');
+  safe('reseau-kpi-actifs',     ecoles.filter(e=>e.statut==='actif').length);
+  const totalRecette = ecoles.reduce((s,e)=>s+(e.recette_mois||0),0);
+  safe('reseau-kpi-recette',    totalRecette ? (totalRecette/1000000).toFixed(1)+' M F' : '—');
+  const moyNotes = ecoles.length ? (ecoles.reduce((s,e)=>s+(e.moy_notes||0),0)/ecoles.length).toFixed(1) : '—';
+  safe('reseau-kpi-moy-notes',  moyNotes !== '—' ? moyNotes+'/20' : '—');
+  safe('reseau-kpi-alertes',    (reseauAlertes||[]).filter(a=>!a.traite).length);
 
-  document.getElementById('reseau-nb-ecoles').textContent      = ecoles.length;
-  document.getElementById('reseau-nb-eleves').textContent      = totalEleves.toLocaleString('fr-FR');
-  document.getElementById('reseau-nb-enseignants').textContent = totalEnseignants;
-  document.getElementById('reseau-taux-reussite').textContent  = tauxMoy ? tauxMoy+'%' : '—';
-  document.getElementById('reseau-kpi-actifs').textContent     = ecoles.filter(e=>e.statut==='actif').length;
-  document.getElementById('reseau-kpi-recette').textContent    = totalRecette ? (totalRecette/1000000).toFixed(1)+' M F' : '—';
-  document.getElementById('reseau-kpi-moy-notes').textContent  = moyNotes !== '—' ? moyNotes+'/20' : '—';
-  document.getElementById('reseau-kpi-alertes').textContent    = alertes;
-
+  // ── 6. Rendu des onglets ──
   renderEtablissements(ecoles);
   renderComparaison();
   renderClassement();
@@ -16258,16 +16832,6 @@ function supprimerEtablissement(id) {
   showToast('🗑️ Annexe supprimée.', 'success');
 }
 
-function exporterRapportReseau() {
-  if(!tousLesEtablissements.length){showToast('Aucun établissement à exporter','error');return;}
-  const header = ['Nom','Type','Ville','Directeur','Élèves','Enseignants','Taux réussite (%)','Recette/mois (F)','Statut'];
-  const rows = tousLesEtablissements.map(e=>[
-    e.nom, typeLabel(e.type),
-    e.ville, e.directeur||'—', e.eleves, e.enseignants, e.taux_reussite, e.recette_mois, e.statut
-  ]);
-  csvDownload('EduLink-Reseau-Ecoles.csv', header, rows);
-  showToast('📥 Export réseau terminé !','success');
-}
 
 /* — Chargement des pages Suite 9 — */
 (function() {
@@ -21725,4 +22289,10 @@ function telechargerModeleEnseignantsExcel() {
 </div>
 
 </body>
+<!-- ══ INPUTS FILE CACHÉS — IMPORTS EXCEL (ajoutés hors DOM visible) ══ -->
+<input type="file" id="input-import-examens-file"      accept=".xlsx,.xls" style="display:none">
+<input type="file" id="input-import-paiements-file"    accept=".xlsx,.xls" style="display:none">
+<input type="file" id="input-import-utilisateurs-file" accept=".xlsx,.xls" style="display:none">
+<input type="file" id="input-import-livres-file"       accept=".xlsx,.xls" style="display:none">
+<input type="file" id="input-import-rh-file"           accept=".xlsx,.xls" style="display:none">
 </html>
