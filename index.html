@@ -7440,10 +7440,11 @@ function exporterEtudiantsCSV() {
 }
 
 function exporterEtudiantsModele() {
-  const header = ['Matricule','Nom','Prénom','Email','Téléphone','Sexe (M/F)','Date naissance (YYYY-MM-DD)','Nationalité','Filière','Niveau','Statut (actif/inactif)'];
-  const exemple = ['ETU-001','AHOUANSOU','Koffi','koffi@ex.bj','+22961000001','M','2000-05-15','Béninoise','Informatique','L1','actif'];
+  // Colonnes alignées sur le schéma réel de la table etudiants Supabase
+  const header = ['Matricule','Nom','Prénom','Sexe (M/F)','Filière','Niveau','Statut (actif/inactif)','Email parent','Téléphone parent','Nom parent'];
+  const exemple = ['ETU-001','AHOUANSOU','Koffi','M','Informatique','L1','actif','parent@ex.bj','+22961000001','AHOUANSOU Père'];
   xlsxModele('EduLink-Modele-Import-Etudiants.xlsx', header, exemple, 'Modèle Étudiants',
-    [12,18,18,28,14,8,22,16,18,12,18]);
+    [12,18,18,10,18,10,20,28,16,22]);
 }
 
 var _etudiantsAImporter = [];
@@ -7459,17 +7460,23 @@ function ouvrirImportExcelEtudiants() {
     if (ext === 'xlsx' || ext === 'xls') {
       lireExcel(file, rows => {
         _etudiantsAImporter = rows.map(r => ({
-          nom:           xlsVal(r,['Nom','nom','NOM'])                                     || '',
-          prenom:        xlsVal(r,['Prénom','Prenom','prenom','PRENOM'])                   || '',
-          email:         xlsVal(r,['Email','email','EMAIL','E-mail','e-mail'])              || '',
-          telephone:     xlsTel(xlsVal(r,['Téléphone','Telephone','tel','TEL','Phone'])),
-          sexe:          xlsVal(r,['Sexe (M/F)','Sexe','sexe','SEXE','Genre'])             || '',
-          date_naissance:xlsDate(xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance','DateNaissance','Date de naissance'])),
-          nationalite:   xlsVal(r,['Nationalité','Nationalite','nationalite','NATIONALITE'])|| '',
-          filiere:       xlsVal(r,['Filière','Filiere','filiere','FILIERE'])               || '',
-          niveau:        xlsVal(r,['Niveau','niveau','NIVEAU'])                            || '',
-          matricule:     xlsVal(r,['Matricule','matricule','MATRICULE','N° Matricule'])    || '',
-          statut:        xlsVal(r,['Statut (actif/inactif)','Statut','statut','STATUT'])   || 'actif',
+          nom:             xlsVal(r,['Nom','nom','NOM'])                                             || '',
+          prenom:          xlsVal(r,['Prénom','Prenom','prenom','PRENOM'])                           || '',
+          matricule:       xlsVal(r,['Matricule','matricule','MATRICULE','N° Matricule'])             || '',
+          sexe:            xlsVal(r,['Sexe (M/F)','Sexe','sexe','SEXE','Genre'])                    || '',
+          filiere:         xlsVal(r,['Filière','Filiere','filiere','FILIERE'])                       || '',
+          niveau:          xlsVal(r,['Niveau','niveau','NIVEAU'])                                    || '',
+          statut:          xlsVal(r,['Statut (actif/inactif)','Statut','statut','STATUT'])           || 'actif',
+          // Champs parent (colonnes réelles de la table)
+          email_parent:    xlsVal(r,['Email parent','email_parent','Email Parent','EmailParent'])    || '',
+          telephone_parent:xlsTel(xlsVal(r,['Téléphone parent','telephone_parent','Tel parent','TelParent'])),
+          nom_parent:      xlsVal(r,['Nom parent','nom_parent','Nom Parent','NomParent'])            || '',
+          // Champs optionnels (envoyés seulement si la colonne existe dans le schéma Supabase)
+          // — seront retirés automatiquement par l'auto-retry si la colonne n'existe pas
+          email:           xlsVal(r,['Email','email','EMAIL','E-mail'])                              || undefined,
+          telephone:       xlsVal(r,['Téléphone','Telephone','tel','TEL','Phone']) ? xlsTel(xlsVal(r,['Téléphone','Telephone','tel','TEL','Phone'])) : undefined,
+          date_naissance:  xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance']) ? xlsDate(xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance'])) : undefined,
+          nationalite:     xlsVal(r,['Nationalité','Nationalite','nationalite'])                     || undefined,
         })).filter(e => e.nom && e.nom.trim() !== '');
         previewImportEtudiants(_etudiantsAImporter);
       });
@@ -7499,16 +7506,92 @@ function previewImportEtudiants(liste) {
 async function confirmerImportExcelEtudiants(liste) {
   if (!liste?.length) return;
   const btn = document.getElementById('btn-import-confirm');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Import...'; }
-  let ok = 0, err = 0;
-  for (const e of liste) {
-    const payload = { ...e, ecole_id: currentEcoleId };
-    const { error } = await db.from('etudiants').insert([payload]);
-    if (error) err++; else ok++;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Import en cours...'; }
+
+  // Éléments UI de progression
+  const prevEl  = document.getElementById('preview-import');
+  const progBar = document.getElementById('csv-progress-bar');
+  const progFill= document.getElementById('csv-progress-fill');
+  const progLbl = document.getElementById('csv-progress-label');
+  if (progBar) progBar.style.display = 'block';
+  if (progLbl) progLbl.style.display = 'block';
+
+  let ok = 0, err = 0, firstErr = '';
+
+  for (let i = 0; i < liste.length; i++) {
+    const e = liste[i];
+
+    // Mise à jour barre de progression
+    const pct = Math.round(((i + 1) / liste.length) * 100);
+    if (progFill) progFill.style.width = pct + '%';
+    if (progLbl)  progLbl.textContent  = `${i + 1} / ${liste.length} — ${e.nom} ${e.prenom}`;
+
+    // ── Mapper vers les colonnes réelles de la table etudiants ──────────
+    // La table a : nom, prenom, matricule, sexe, filiere, niveau, statut,
+    //              ecole_id, classe_id, email_parent, telephone_parent, nom_parent
+    // Elle N'a PAS : email, telephone, date_naissance, nationalite (colonnes absentes du schéma)
+    // → On les met en champs "extra" seulement s'ils existent dans le schéma (auto-retry sinon)
+    let payload = {
+      nom:      e.nom      || '',
+      prenom:   e.prenom   || '',
+      matricule:e.matricule|| '',
+      sexe:     e.sexe     || '',
+      filiere:  e.filiere  || '',
+      niveau:   e.niveau   || '',
+      statut:   e.statut   || 'actif',
+      ecole_id: currentEcoleId,
+      // Champs optionnels : envoyés seulement s'ils ont une valeur
+      ...(e.email          ? { email:          e.email }          : {}),
+      ...(e.telephone      ? { telephone:       e.telephone }      : {}),
+      ...(e.date_naissance ? { date_naissance:  e.date_naissance } : {}),
+      ...(e.nationalite    ? { nationalite:     e.nationalite }    : {}),
+    };
+
+    // ── INSERT avec auto-retry (retire les colonnes inconnues) ──────────
+    let { error } = await db.from('etudiants').insert([payload]);
+    let guard = 0;
+    while (error && guard < 10) {
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation|unknown field[: ]+"?([^"]+)"?/i.exec(error.message || '');
+      const col = m?.[1] || m?.[2] || m?.[3];
+      console.warn('[Import étudiants] Retrait colonne inconnue:', col, '| Erreur:', error.message);
+      if (!col || !(col in payload)) break;
+      delete payload[col];
+      ({ error } = await db.from('etudiants').insert([payload]));
+      guard++;
+    }
+
+    if (error) {
+      err++;
+      if (!firstErr) firstErr = error.message;
+      console.error('[Import étudiants] Ligne', i + 1, 'ERREUR:', error.message, '| Payload:', payload);
+    } else {
+      ok++;
+    }
   }
+
+  // Réinitialiser la progression
+  if (progBar)  progBar.style.display  = 'none';
+  if (progLbl)  progLbl.style.display  = 'none';
+  if (progFill) progFill.style.width   = '0%';
+
   fermerModal('modal-import-csv');
-  showToast(`✅ ${ok} étudiant(s) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, ok > 0 ? 'success' : 'error');
-  chargerEtudiants();
+
+  // Toast avec détail d'erreur si besoin
+  if (ok > 0 && err === 0) {
+    showToast(`✅ ${ok} étudiant(s) importé(s) avec succès !`, 'success');
+  } else if (ok > 0 && err > 0) {
+    showToast(`⚠️ ${ok} importé(s) · ${err} erreur(s) — voir console`, 'info');
+  } else {
+    // 0 importé — afficher le message Supabase pour aider au diagnostic
+    const hint = firstErr?.includes('row-level security') || firstErr?.includes('RLS')
+      ? ' (RLS bloque l\'INSERT — vérifiez les policies Supabase de la table etudiants)'
+      : firstErr?.includes('unique') ? ' (Matricule déjà utilisé pour l\'un des étudiants)'
+      : firstErr ? ` — ${firstErr.slice(0,120)}` : '';
+    showToast(`❌ 0 étudiant importé${hint}`, 'error');
+    console.error('[Import étudiants] Première erreur Supabase:', firstErr);
+  }
+
+  if (typeof chargerEtudiants === 'function') chargerEtudiants();
 }
 
 // ══════════════════════════════════════════════════════════════════════
