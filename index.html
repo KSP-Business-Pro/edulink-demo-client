@@ -22402,9 +22402,59 @@ function gererDropExcelEns(e) {
 }
 
 // Référentiels alignés sur le modèle Excel + CHECK Supabase
-var ENS_GRADES_VALIDES  = ['Assistant','Maître-Assistant','Maître de Conférences','Professeur'];
+var ENS_GRADES_VALIDES  = ['Maître-Assistant','Maître de Conférences','Professeur Titulaire','Docteur','Prof Agrégé','Chargé de Cours'];
 var ENS_STATUTS_VALIDES = ['Permanent','Vacataire','Visiteur'];
 var ENS_GENRES_VALIDES  = ['M','F'];
+
+// Normalisation tolérante : ramène une saisie utilisateur à la valeur canonique
+// Ex: "prof titulaire", "PROFESSEUR TITULAIRE", "professeurtitulaire" → "Professeur Titulaire"
+function ensNormaliserGrade(raw) {
+  if (!raw) return null;
+  var k = String(raw).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // retire accents
+    .replace(/[\s\-_.]+/g,'');                          // retire espaces/tirets/_/.
+  // Mapping clé normalisée → valeur canonique
+  var map = {
+    'maitreassistant':       'Maître-Assistant',
+    'maassistant':           'Maître-Assistant',
+    'maitredeconferences':   'Maître de Conférences',
+    'maitreconferences':     'Maître de Conférences',
+    'mc':                    'Maître de Conférences',
+    'professeurtitulaire':   'Professeur Titulaire',
+    'proftitulaire':         'Professeur Titulaire',
+    'professeur':            'Professeur Titulaire',
+    'prof':                  'Professeur Titulaire',
+    'docteur':               'Docteur',
+    'dr':                    'Docteur',
+    'profagrege':            'Prof Agrégé',
+    'professeuragrege':      'Prof Agrégé',
+    'agrege':                'Prof Agrégé',
+    'chargedecours':         'Chargé de Cours',
+    'chargecours':           'Chargé de Cours',
+    'cdc':                   'Chargé de Cours',
+  };
+  return map[k] || null;
+}
+
+function ensNormaliserStatut(raw) {
+  if (!raw) return null;
+  var k = String(raw).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  var map = {
+    'permanent': 'Permanent', 'titulaire': 'Permanent', 'actif': 'Permanent',
+    'vacataire': 'Vacataire', 'contractuel': 'Vacataire',
+    'visiteur':  'Visiteur',  'invite': 'Visiteur', 'visiting': 'Visiteur',
+  };
+  return map[k] || null;
+}
+
+function ensNormaliserGenre(raw) {
+  if (!raw) return null;
+  var k = String(raw).toUpperCase().trim();
+  if (k === 'M' || k === 'MASCULIN' || k === 'H' || k === 'HOMME') return 'M';
+  if (k === 'F' || k === 'FEMININ' || k === 'FÉMININ' || k === 'FEMME') return 'F';
+  return null;
+}
 
 function lireExcelEnseignants(file) {
   if (!file) return;
@@ -22414,28 +22464,28 @@ function lireExcelEnseignants(file) {
       var numLigne = i + 2;  // +1 pour l'en-tête, +1 pour 1-indexé
 
       // Champs obligatoires : matricule, nom, prénom, grade, statut
-      var matricule = xlsVal(row, ['matricule','Matricule','matricule *','Matricule *']);
-      var nom       = xlsVal(row, ['nom','Nom','nom *','Nom *','NOM']);
-      var prenom    = xlsVal(row, ['prenom','Prenom','Prénom','prénom','prenom *','Prénom *']);
+      // Variantes acceptées : avec/sans " *", avec/sans accents, casse libre
+      var matricule = xlsVal(row, ['matricule *','matricule','Matricule *','Matricule']);
+      var nom       = xlsVal(row, ['nom *','nom','Nom *','Nom','NOM']);
+      var prenom    = xlsVal(row, ['prenom *','prenom','Prenom *','Prenom','Prénom *','Prénom','prénom']);
+      var gradeRaw  = xlsVal(row, ['grade *','grade','Grade *','Grade']);
+      var statutRaw = xlsVal(row, ['statut *','statut','Statut *','Statut']);
 
       // Ignorer lignes totalement vides
-      if (!matricule && !nom && !prenom) return;
+      if (!matricule && !nom && !prenom && !gradeRaw && !statutRaw) return;
 
       // Ignorer ligne de notes / en-têtes répétés
       var nomLow = (nom || '').toLowerCase();
       if (nomLow === 'obligatoire' || nomLow === 'nom *' || nomLow === 'nom' ||
           nomLow.startsWith('ex:') || nomLow.startsWith('format')) return;
 
-      // Validation champs obligatoires
+      // Validation présence champs obligatoires
       var manque = [];
       if (!matricule) manque.push('matricule');
       if (!nom)       manque.push('nom');
       if (!prenom)    manque.push('prenom');
-
-      var grade  = xlsVal(row, ['grade','Grade']);
-      var statut = xlsVal(row, ['statut','Statut']);
-      if (!grade)  manque.push('grade');
-      if (!statut) manque.push('statut');
+      if (!gradeRaw)  manque.push('grade');
+      if (!statutRaw) manque.push('statut');
 
       if (manque.length) {
         erreursMessages.push('Ligne '+numLigne+' : champ(s) obligatoire(s) manquant(s) : '+manque.join(', '));
@@ -22449,23 +22499,29 @@ function lireExcelEnseignants(file) {
       }
       matriculesVus[matricule] = numLigne;
 
-      // Validation grade
-      if (ENS_GRADES_VALIDES.indexOf(grade) === -1) {
-        erreursMessages.push('Ligne '+numLigne+' : grade "'+grade+'" invalide. Valeurs : '+ENS_GRADES_VALIDES.join(', '));
+      // Normalisation tolérante grade
+      var grade = ensNormaliserGrade(gradeRaw);
+      if (!grade) {
+        erreursMessages.push('Ligne '+numLigne+' : grade "'+gradeRaw+'" non reconnu. Valeurs : '+ENS_GRADES_VALIDES.join(', '));
         return;
       }
 
-      // Validation statut
-      if (ENS_STATUTS_VALIDES.indexOf(statut) === -1) {
-        erreursMessages.push('Ligne '+numLigne+' : statut "'+statut+'" invalide. Valeurs : '+ENS_STATUTS_VALIDES.join(', '));
+      // Normalisation tolérante statut
+      var statut = ensNormaliserStatut(statutRaw);
+      if (!statut) {
+        erreursMessages.push('Ligne '+numLigne+' : statut "'+statutRaw+'" non reconnu. Valeurs : '+ENS_STATUTS_VALIDES.join(', '));
         return;
       }
 
-      // Genre (optionnel)
-      var genre = xlsVal(row, ['genre','Genre']);
-      if (genre && ENS_GENRES_VALIDES.indexOf(genre) === -1) {
-        erreursMessages.push('Ligne '+numLigne+' : genre "'+genre+'" invalide (M ou F attendu)');
-        return;
+      // Genre (optionnel) — normalisation tolérante
+      var genreRaw = xlsVal(row, ['genre','Genre']);
+      var genre = null;
+      if (genreRaw) {
+        genre = ensNormaliserGenre(genreRaw);
+        if (!genre) {
+          erreursMessages.push('Ligne '+numLigne+' : genre "'+genreRaw+'" invalide (M ou F attendu)');
+          return;
+        }
       }
 
       // Email basique
@@ -22483,7 +22539,7 @@ function lireExcelEnseignants(file) {
         matricule:      matricule,
         nom:            nom,
         prenom:         prenom,
-        genre:          genre || null,
+        genre:          genre,
         date_naissance: dateNaissance || null,
         email:          email || null,
         telephone:      xlsTel(xlsVal(row, ['telephone','Téléphone','Telephone','tel']) || '') || null,
@@ -22642,16 +22698,17 @@ function telechargerModeleEnseignantsExcel() {
     'JJ/MM/AAAA',
     'Email professionnel',
     '+229 XX XX XX XX',
-    'Assistant / Maître-Assistant / Maître de Conférences / Professeur',
+    'Maître-Assistant / Maître de Conférences / Professeur Titulaire / Docteur / Prof Agrégé / Chargé de Cours',
     'Discipline principale',
     'Permanent / Vacataire / Visiteur',
     'JJ/MM/AAAA'
   ];
-  var ex1 = ['ENS001','KOUASSI','Jean-Marc','M','15/03/1975','jm.kouassi@ucao.bj','+229 01 97 12 34 56','Maître de Conférences','Mathématiques appliquées','Permanent','01/09/2010'];
-  var ex2 = ['ENS002','DOSSOU','Marie','F','22/07/1982','m.dossou@ucao.bj','+229 01 96 78 90 12','Assistant','Sciences économiques','Vacataire','15/10/2018'];
-  var ex3 = ['ENS003','ZINSOU','Théodore','M','08/11/1968','t.zinsou@ucao.bj','+229 01 95 33 44 55','Professeur','Droit international','Permanent','01/09/2005'];
+  var ex1 = ['Cot-prof001','AGBOJAN','Prince','M','15/03/1975','pagbojan@ucao.bj','+229 01 97 01 01 01','Professeur Titulaire','Droit','Permanent','01/09/2010'];
+  var ex2 = ['Cot-prof002','KOUDOSSOU','Marie','F','22/07/1982','mkoudossou@ucao.bj','+229 01 61 11 12 22','Maître de Conférences','Informatique','Permanent','15/10/2018'];
+  var ex3 = ['Cot-prof003','ZINSOU','Théodore','M','08/11/1968','tzinsou@ucao.bj','+229 01 72 33 44 55','Maître-Assistant','Finance','Vacataire','01/09/2005'];
+  var ex4 = ['Cot-prof004','HOUNGUE','Estelle','F','10/05/1979','ehoungue@ucao.bj','+229 01 90 55 66 77','Prof Agrégé','Gestion','Permanent','01/10/2012'];
 
-  var ws = XLSX.utils.aoa_to_sheet([header, notes, ex1, ex2, ex3]);
+  var ws = XLSX.utils.aoa_to_sheet([header, notes, ex1, ex2, ex3, ex4]);
   ws['!cols'] = [14,16,16,8,14,26,20,28,26,14,14].map(function(w){ return {wch:w}; });
 
   var wb = XLSX.utils.book_new();
@@ -22660,10 +22717,12 @@ function telechargerModeleEnseignantsExcel() {
   // Onglet Listes pour référence
   var listes = [
     ['GRADES','STATUTS','GENRES'],
-    ['Assistant','Permanent','M'],
-    ['Maître-Assistant','Vacataire','F'],
-    ['Maître de Conférences','Visiteur',''],
-    ['Professeur','','']
+    ['Maître-Assistant','Permanent','M'],
+    ['Maître de Conférences','Vacataire','F'],
+    ['Professeur Titulaire','Visiteur',''],
+    ['Docteur','',''],
+    ['Prof Agrégé','',''],
+    ['Chargé de Cours','','']
   ];
   var wsListes = XLSX.utils.aoa_to_sheet(listes);
   wsListes['!cols'] = [{wch:24},{wch:14},{wch:8}];
