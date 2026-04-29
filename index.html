@@ -7526,38 +7526,69 @@ async function confirmerImportExcelEtudiants(liste) {
     if (progFill) progFill.style.width = pct + '%';
     if (progLbl)  progLbl.textContent  = `${i + 1} / ${liste.length} — ${e.nom} ${e.prenom}`;
 
-    // ── Mapper vers les colonnes réelles de la table etudiants ──────────
-    // La table a : nom, prenom, matricule, sexe, filiere, niveau, statut,
-    //              ecole_id, classe_id, email_parent, telephone_parent, nom_parent
-    // Elle N'a PAS : email, telephone, date_naissance, nationalite (colonnes absentes du schéma)
-    // → On les met en champs "extra" seulement s'ils existent dans le schéma (auto-retry sinon)
+    // ── Payload aligné sur le schéma réel de la table etudiants ─────────
+    // Colonnes confirmées : nom, prenom, matricule, sexe, filiere, niveau,
+    //   statut, ecole_id, email_parent, telephone_parent, nom_parent
+    // classe_id intentionnellement omis (FK → classes, à affecter manuellement)
+    // Les champs inconnus seront retirés automatiquement par l'auto-retry
     let payload = {
-      nom:      e.nom      || '',
-      prenom:   e.prenom   || '',
-      matricule:e.matricule|| '',
-      sexe:     e.sexe     || '',
-      filiere:  e.filiere  || '',
-      niveau:   e.niveau   || '',
-      statut:   e.statut   || 'actif',
-      ecole_id: currentEcoleId,
-      // Champs optionnels : envoyés seulement s'ils ont une valeur
+      nom:              (e.nom      || '').trim(),
+      prenom:           (e.prenom   || '').trim(),
+      matricule:        (e.matricule|| '').trim(),
+      sexe:             (e.sexe     || '').trim(),
+      filiere:          (e.filiere  || '').trim(),
+      niveau:           (e.niveau   || '').trim(),
+      statut:           (e.statut   || 'actif').trim(),
+      ecole_id:         currentEcoleId,
+      // Champs parent (colonnes réelles confirmées)
+      ...(e.email_parent    ? { email_parent:     e.email_parent.trim()    } : {}),
+      ...(e.telephone_parent? { telephone_parent: e.telephone_parent.trim()} : {}),
+      ...(e.nom_parent      ? { nom_parent:       e.nom_parent.trim()      } : {}),
+      // Champs optionnels inconnus du schéma — retirés par auto-retry si nécessaire
       ...(e.email          ? { email:          e.email }          : {}),
       ...(e.telephone      ? { telephone:       e.telephone }      : {}),
       ...(e.date_naissance ? { date_naissance:  e.date_naissance } : {}),
       ...(e.nationalite    ? { nationalite:     e.nationalite }    : {}),
     };
 
+    // Supprimer les valeurs vides ou undefined pour éviter les erreurs de type
+    Object.keys(payload).forEach(k => {
+      if (payload[k] === '' || payload[k] === undefined || payload[k] === null) {
+        // Garder les champs obligatoires même vides
+        if (!['nom','prenom','matricule','statut','ecole_id'].includes(k)) delete payload[k];
+      }
+    });
+
     // ── INSERT avec auto-retry (retire les colonnes inconnues) ──────────
+    const COLONNES_SURES = ['nom','prenom','matricule','sexe','filiere','niveau','statut','ecole_id','email_parent','telephone_parent','nom_parent'];
     let { error } = await db.from('etudiants').insert([payload]);
-    let guard = 0;
-    while (error && guard < 10) {
-      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation|unknown field[: ]+"?([^"]+)"?/i.exec(error.message || '');
-      const col = m?.[1] || m?.[2] || m?.[3];
-      console.warn('[Import étudiants] Retrait colonne inconnue:', col, '| Erreur:', error.message);
-      if (!col || !(col in payload)) break;
-      delete payload[col];
-      ({ error } = await db.from('etudiants').insert([payload]));
-      guard++;
+
+    if (error) {
+      console.warn('[Import étudiants] Erreur INSERT:', error.message, '| Code:', error.code);
+
+      // RLS bloque → impossible sans la policy, on log et on passe
+      if (/row-level security|violates row/i.test(error.message)) {
+        console.error('[Import] RLS bloque. Exécutez dans Supabase SQL Editor :\nCREATE POLICY "allow_insert_etudiants" ON etudiants FOR INSERT TO authenticated WITH CHECK (true);\nCREATE POLICY "allow_select_etudiants" ON etudiants FOR SELECT TO authenticated USING (true);');
+      }
+      // Stack depth → FK en double ou trigger → essayer payload strictement minimal
+      else if (/stack depth/i.test(error.message)) {
+        console.warn('[Import] Stack depth → payload minimal strict');
+        const payloadMin = {};
+        COLONNES_SURES.forEach(k => { if (payload[k] !== undefined && payload[k] !== null && payload[k] !== '') payloadMin[k] = payload[k]; });
+        ({ error } = await db.from('etudiants').insert([payloadMin]));
+        if (!error) { ok++; continue; }
+      }
+      // Colonne inconnue → auto-retry en retirant la colonne
+      let guard = 0;
+      while (error && guard < 8) {
+        const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message || '');
+        const col = m?.[1] || m?.[2];
+        if (!col || !(col in payload)) break;
+        console.warn('[Import] Retrait colonne inconnue:', col);
+        delete payload[col];
+        ({ error } = await db.from('etudiants').insert([payload]));
+        guard++;
+      }
     }
 
     if (error) {
@@ -7582,11 +7613,18 @@ async function confirmerImportExcelEtudiants(liste) {
   } else if (ok > 0 && err > 0) {
     showToast(`⚠️ ${ok} importé(s) · ${err} erreur(s) — voir console`, 'info');
   } else {
-    // 0 importé — afficher le message Supabase pour aider au diagnostic
-    const hint = firstErr?.includes('row-level security') || firstErr?.includes('RLS')
-      ? ' (RLS bloque l\'INSERT — vérifiez les policies Supabase de la table etudiants)'
-      : firstErr?.includes('unique') ? ' (Matricule déjà utilisé pour l\'un des étudiants)'
-      : firstErr ? ` — ${firstErr.slice(0,120)}` : '';
+    let hint = '';
+    if (firstErr?.includes('stack depth')) {
+      hint = ' — Trigger Supabase en boucle. Exécutez le SQL correctif dans Supabase (voir console).';
+      console.error('%c[SUPABASE] TRIGGER INFINI détecté sur la table etudiants.\n\nExécutez ce SQL dans Supabase → SQL Editor pour identifier et désactiver le trigger problématique :\n\n-- Voir tous les triggers sur etudiants\nSELECT trigger_name, event_manipulation, action_statement\nFROM information_schema.triggers\nWHERE event_object_table = \'etudiants\';\n\n-- Désactiver temporairement tous les triggers\nALTER TABLE etudiants DISABLE TRIGGER ALL;\n\n-- Après avoir importé, les réactiver\n-- ALTER TABLE etudiants ENABLE TRIGGER ALL;',
+        'color:#dc2626;font-weight:bold;font-size:14px');
+    } else if (firstErr?.includes('row-level security') || firstErr?.includes('RLS')) {
+      hint = ' — RLS bloque l\'INSERT. Ajoutez une policy INSERT dans Supabase pour la table etudiants.';
+    } else if (firstErr?.includes('unique')) {
+      hint = ' — Matricule déjà utilisé. Vérifiez les doublons dans votre fichier.';
+    } else if (firstErr) {
+      hint = ` — ${firstErr.slice(0, 120)}`;
+    }
     showToast(`❌ 0 étudiant importé${hint}`, 'error');
     console.error('[Import étudiants] Première erreur Supabase:', firstErr);
   }
