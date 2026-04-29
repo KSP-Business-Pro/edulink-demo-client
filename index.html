@@ -7473,7 +7473,13 @@ function ouvrirImportExcelEtudiants() {
           nom_parent:      xlsVal(r,['Nom parent','nom_parent','Nom Parent','NomParent'])            || '',
           ...(xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance']) ? { date_naissance: xlsDate(xlsVal(r,['Date naissance (YYYY-MM-DD)','Date naissance','date_naissance'])) } : {}),
           ...(xlsVal(r,['Nationalité','Nationalite','nationalite']) ? { nationalite: xlsVal(r,['Nationalité','Nationalite','nationalite']) } : {}),
-        })).filter(e => e.nom && e.nom.trim() !== '');
+        })).filter(e => {
+          if (!e.nom || !e.nom.trim()) return false;
+          const nl = e.nom.toLowerCase();
+          // Ignorer la ligne de notes explicatives du modèle
+          if (nl === 'obligatoire' || nl === 'nom *' || nl === 'nom' || nl.startsWith('ex:') || nl.startsWith('format')) return false;
+          return true;
+        });
         previewImportEtudiants(_etudiantsAImporter);
       });
     } else {
@@ -22402,9 +22408,11 @@ function lireExcelEnseignants(file) {
     rows.forEach(function(row, i) {
       var nom    = xlsVal(row, ['Nom *','nom','Nom','NOM']);
       var prenom = xlsVal(row, ['Prénom *','prenom','Prenom','Prénom','prénom']);
-      // Ignorer la ligne de notes/exemple si nom ressemble à un en-tête ou note
+      // Ignorer lignes vides, en-têtes répétés, ou ligne de notes
       if (!nom || !prenom) { erreurs.push(i+2); return; }
-      if (nom === 'Obligatoire' || nom === 'Ex:') return; // ligne de notes
+      var nomLow = nom.toLowerCase();
+      if (nomLow === 'obligatoire' || nomLow === 'nom *' || nomLow === 'nom' ||
+          nomLow.startsWith('ex:') || nomLow.startsWith('format')) return;
       // Matières : accepter séparateur virgule OU point-virgule
       var matiereRaw = xlsVal(row, ['Matières enseignées (séparées par virgule)','matieres','Matières','matières','Matieres']) || '';
       var matieres = matiereRaw.split(/[;,]/).map(function(m){ return m.trim(); }).filter(Boolean);
@@ -22447,16 +22455,65 @@ async function confirmerImportEnseignants() {
   btn.disabled = true; btn.textContent = '⏳ Import en cours...';
   document.getElementById('ens-import-progress').style.display = 'block';
   var ok = 0, errors = 0, total = _enseignantsAImporter.length;
+  var firstErr = '';
+  // Colonnes minimales garanties (sans FK risquées)
+  var COLONNES_SURES = ['ecole_id','nom','prenom','email','telephone','specialite','grade','heures_semaine','statut'];
+
   for (var i = 0; i < total; i++) {
     var payload = Object.assign({}, _enseignantsAImporter[i], { ecole_id: currentEcoleId });
+
     var res = await db.from('enseignants').insert([payload]);
-    if (res.error) { console.error('[Import Ens]', payload.nom, res.error.message); errors++; } else ok++;
+
+    // Stack depth = FK en double → essayer payload minimal
+    if (res.error && /stack depth/i.test(res.error.message)) {
+      console.warn('[Import Ens] Stack depth → payload minimal pour:', payload.nom);
+      var payloadMin = {};
+      COLONNES_SURES.forEach(function(k) {
+        if (payload[k] !== undefined && payload[k] !== null) payloadMin[k] = payload[k];
+      });
+      res = await db.from('enseignants').insert([payloadMin]);
+    }
+
+    // Colonne inconnue → auto-retry
+    var guard = 0;
+    while (res.error && guard < 8) {
+      var m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(res.error.message || '');
+      var col = (m && (m[1] || m[2]));
+      if (!col || !(col in payload)) break;
+      console.warn('[Import Ens] Retrait colonne:', col);
+      delete payload[col];
+      res = await db.from('enseignants').insert([payload]);
+      guard++;
+    }
+
+    if (res.error) {
+      errors++;
+      if (!firstErr) firstErr = res.error.message;
+      console.error('[Import Ens]', payload.nom, res.error.message);
+    } else {
+      ok++;
+    }
+
     var pct = Math.round((i+1)/total*100);
     document.getElementById('ens-import-bar').style.width = pct+'%';
-    document.getElementById('ens-import-label').textContent = (i+1)+'/'+total+' — '+pct+'%';
+    document.getElementById('ens-import-label').textContent = (i+1)+'/'+total+' — '+payload.nom+' '+payload.prenom;
   }
-  fermerModal('modal-import-enseignants'); resetImportEns();
-  showToast('✅ '+ok+' enseignant(s) importé(s)'+(errors?' · '+errors+' erreur(s)':''), ok?'success':'error');
+
+  fermerModal('modal-import-enseignants');
+  resetImportEns();
+  invalidateCache('enseignants');
+
+  if (ok > 0) {
+    showToast('✅ '+ok+' enseignant(s) importé(s)'+(errors?' · ⚠️ '+errors+' erreur(s)':''), 'success');
+  } else {
+    var hint = /stack depth/i.test(firstErr)
+      ? 'FK en double sur la table enseignants. Exécutez dans Supabase : ALTER TABLE enseignants DROP CONSTRAINT IF EXISTS fk_enseignants_classe; — puis réessayez.'
+      : /row-level security|RLS/i.test(firstErr)
+      ? 'RLS bloque l\'INSERT. Ajoutez une policy INSERT sur la table enseignants dans Supabase.'
+      : (firstErr || 'Voir console F12 pour le détail');
+    showToast('❌ 0 enseignant importé — ' + hint, 'error');
+    console.error('[Import Ens] Erreur Supabase:', firstErr);
+  }
   chargerEnseignants();
 }
 
