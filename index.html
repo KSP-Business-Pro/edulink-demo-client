@@ -8355,7 +8355,11 @@ function ouvrirModal(id) {
   if (id === 'modal-conge')      { remplirSelectAgentConge(); document.getElementById('input-conge-debut').value = new Date().toISOString().split('T')[0]; }
   if (id === 'modal-personnel')  { document.getElementById('input-rh-embauche').value = new Date().toISOString().split('T')[0]; }
   if (id === 'modal-document') remplirSelect('input-doc-etudiant', true);
-  if (id === 'modal-enseignant') { initModalEnseignant(); }
+  if (id === 'modal-enseignant') {
+    // Ne pas réinitialiser si on est en mode édition (editerEnseignant a déjà rempli les champs)
+    if (!window._ensModeEdition) initModalEnseignant();
+    window._ensModeEdition = false; // reset le drapeau après usage
+  }
   if (id === 'modal-matiere') { remplirSelectEnsModal(); peuplerFiliereMatiere(); }
 }
 function fermerModal(id) {
@@ -12153,6 +12157,8 @@ function genererMatriculeAuto() {
 function editerEnseignant(id) {
   const ens = tousLesEnseignants.find(e=>e.id===id);
   if (!ens) return;
+  // Activer le drapeau AVANT ouvrirModal pour éviter le reset par initModalEnseignant
+  window._ensModeEdition = true;
   document.getElementById("modal-ens-titre").textContent = "✏️ Modifier l'enseignant";
   document.getElementById('input-ens-id').value           = ens.id;
   document.getElementById('input-ens-matricule').value    = ens.matricule||'';
