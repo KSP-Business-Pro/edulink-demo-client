@@ -6993,6 +6993,7 @@ async function seConnecter() {
     const { data: profil } = await db.from('utilisateurs').select('*').eq('auth_id', user.id).single();
     const nom = profil?.nom || user.email;
     const role = profil?.role || 'admin';
+    currentUserEcoleId = profil?.ecole_id || null;  // mémoriser l'école de l'utilisateur (pour cloisonnement)
     document.getElementById('nav-user-name').textContent = nom;
     document.getElementById('nav-user-role').textContent = role;
     document.getElementById('nav-avatar').textContent = nom[0]?.toUpperCase() || 'U';
@@ -7029,6 +7030,7 @@ window.addEventListener('load', async () => {
     const { data: profil } = await db.from('utilisateurs').select('*').eq('auth_id', user.id).single();
     const nom = profil?.nom || user.email;
     const role = profil?.role || 'admin';
+    currentUserEcoleId = profil?.ecole_id || null;  // mémoriser l'école de l'utilisateur (pour cloisonnement)
     document.getElementById('nav-user-name').textContent = nom;
     document.getElementById('nav-user-role').textContent = role;
     document.getElementById('nav-avatar').textContent = nom[0]?.toUpperCase() || 'U';
@@ -7056,6 +7058,7 @@ window.addEventListener('load', async () => {
 // ══ ÉTAT GLOBAL ═══════════════════════════════
 let currentEcoleId   = null;
 let currentRole      = 'admin';
+let currentUserEcoleId = null;  // ecole_id du profil utilisateur connecté (≠ currentEcoleId qui est l'école sélectionnée dans le sélecteur)
 let currentPage      = 'dashboard';   // page active courante
 let realtimeChannels = [];
 
@@ -8197,7 +8200,7 @@ const exporterExamensCSV       = exporterExamensExcel;
 
 // Permissions par rôle
 const ROLE_PERMISSIONS = {
-  admin:      ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','documents','certificats','rapports','analytics','messages','rh','bibliotheque','bibliotheque-num','reseau','portail-etudiant','dashboard-reseau','parametres-avances','assistant-ia','sms-parents','pwa-avancee','exec-dashboard','portail-public','parametres','utilisateurs','calendrier','portail-ens'],
+  admin:      ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','documents','certificats','rapports','analytics','messages','rh','bibliotheque','bibliotheque-num','portail-etudiant','parametres-avances','assistant-ia','sms-parents','pwa-avancee','exec-dashboard','portail-public','parametres','utilisateurs','calendrier','portail-ens'],
   directeur:  ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','documents','certificats','rapports','analytics','messages','rh','bibliotheque','bibliotheque-num','reseau','portail-etudiant','dashboard-reseau','parametres-avances','assistant-ia','sms-parents','pwa-avancee','exec-dashboard','portail-public','parametres','utilisateurs','calendrier','portail-ens'],
   enseignant: ['dashboard','etudiants','notes','presences','emploi','examens','messages','assistant-ia','portail-etudiant','portail-ens'],
   comptable:  ['dashboard','paiements','comptabilite','rapports','messages','etudiants'],
@@ -8438,6 +8441,31 @@ async function chargerEcoles() {
     }));
 
     tousLesEcoles = [...ecolesSupabase, ...ecolesReseauOrphelins];
+
+    // ─────────────────────────────────────────────────────────────
+    // FILTRAGE par rôle utilisateur (cloisonnement multi-écoles)
+    // ─────────────────────────────────────────────────────────────
+    // Règle métier :
+    //   • directeur rattaché à UCAO mère → voit toutes les écoles
+    //   • Tous les autres (admin filiale, enseignant, comptable, etc.)
+    //     → voient uniquement leur propre école
+    // currentRole et currentUserEcoleId sont définis lors du login (Phase A)
+    try {
+      const monRole = (typeof currentRole === 'string') ? currentRole : null;
+      const monEcoleId = (typeof currentUserEcoleId === 'string') ? currentUserEcoleId : null;
+      const UCAO_MERE_ID = '78f1f8ee-05de-41a1-a520-13dcd4f73ec3';
+
+      // Le directeur de l'UCAO mère voit tout. Les autres ne voient que leur école.
+      const estDirecteurMere = (monRole === 'directeur' && monEcoleId === UCAO_MERE_ID);
+
+      if (!estDirecteurMere && monEcoleId) {
+        const avant = tousLesEcoles.length;
+        tousLesEcoles = tousLesEcoles.filter(e => e.id === monEcoleId);
+        console.info('[chargerEcoles] Filtrage par école utilisateur :', avant, '→', tousLesEcoles.length, 'école(s) visibles');
+      }
+    } catch (e) {
+      console.warn('[chargerEcoles] Filtrage par rôle non appliqué :', e.message);
+    }
 
     const sel = document.getElementById('ecole-selector');
     if (!sel) { console.warn('[chargerEcoles] #ecole-selector introuvable'); return; }
