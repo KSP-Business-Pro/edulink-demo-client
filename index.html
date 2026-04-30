@@ -21361,9 +21361,10 @@ function appliquerPermissions(role) {
   const perms = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.admin;
 
   // Afficher/masquer les modules selon les permissions du rôle
+  // (plus de raccourci "admin = tout autorisé" — on utilise STRICTEMENT la liste)
   document.querySelectorAll('nav a[id^="nav-"]').forEach(link => {
     const moduleId = link.id.replace('nav-','');
-    const allowed = perms.includes(moduleId) || role === 'admin';
+    const allowed = perms.includes(moduleId);
     link.style.display = allowed ? '' : 'none';
   });
 
@@ -21375,7 +21376,7 @@ function appliquerPermissions(role) {
 }
 
 function verifierAcces(moduleId) {
-  if (currentRole === 'admin') return true;
+  // Plus de raccourci admin — on vérifie strictement la liste de permissions du rôle
   const perms = ROLE_PERMISSIONS[currentRole] || [];
   return perms.includes(moduleId);
 }
@@ -21384,7 +21385,7 @@ function verifierAcces(moduleId) {
 const _showPageOrig = window.showPage;
 if (typeof _showPageOrig === 'function') {
   window.showPage = function(id) {
-    if (!verifierAcces(id) && currentRole !== 'admin') {
+    if (!verifierAcces(id)) {
       // Afficher page d'accès refusé
       document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
       const msg = document.getElementById('access-denied-page') || (() => {
