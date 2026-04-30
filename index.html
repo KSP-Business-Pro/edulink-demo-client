@@ -6420,29 +6420,39 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <h3 id="modal-ens-titre">👨‍🏫 Ajouter un enseignant</h3>
     <input type="hidden" id="input-ens-id">
     <div class="form-grid">
+      <div class="form-group"><label>Matricule *</label><input type="text" id="input-ens-matricule" placeholder="Ex: ENS001 (auto si vide)"></div>
+      <div class="form-group"><label>Genre</label>
+        <select id="input-ens-genre">
+          <option value="">—</option>
+          <option value="M">Masculin</option>
+          <option value="F">Féminin</option>
+        </select>
+      </div>
       <div class="form-group"><label>Nom *</label><input type="text" id="input-ens-nom" placeholder="Nom de famille"></div>
       <div class="form-group"><label>Prénom *</label><input type="text" id="input-ens-prenom" placeholder="Prénom"></div>
-      <div class="form-group"><label>Email *</label><input type="email" id="input-ens-email" placeholder="prof@ecole.bj"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="input-ens-email" placeholder="prof@ecole.bj"></div>
       <div class="form-group"><label>Téléphone</label><input type="text" id="input-ens-tel" placeholder="+229 97 00 00 00"></div>
-      <div class="form-group"><label>Spécialité *</label><input type="text" id="input-ens-specialite" placeholder="Ex: Informatique, Mathématiques..."></div>
-      <div class="form-group"><label>Grade</label>
+      <div class="form-group"><label>Spécialité</label><input type="text" id="input-ens-specialite" placeholder="Ex: Informatique, Mathématiques..."></div>
+      <div class="form-group"><label>Grade *</label>
         <select id="input-ens-grade">
-          <option value="vacataire">Vacataire</option>
-          <option value="contractuel">Contractuel</option>
-          <option value="permanent">Permanent</option>
-          <option value="charge_cours">Chargé de cours</option>
-          <option value="maitre_conf">Maître de conférences</option>
-          <option value="professeur">Professeur titulaire</option>
+          <option value="Maître-Assistant">Maître-Assistant</option>
+          <option value="Maître de Conférences">Maître de Conférences</option>
+          <option value="Professeur Titulaire">Professeur Titulaire</option>
+          <option value="Docteur">Docteur</option>
+          <option value="Prof Agrégé">Prof Agrégé</option>
+          <option value="Chargé de Cours">Chargé de Cours</option>
         </select>
       </div>
-      <div class="form-group"><label>Heures / semaine</label><input type="number" id="input-ens-heures" value="12" min="1" max="40"></div>
-      <div class="form-group"><label>Statut</label>
+      <div class="form-group"><label>Statut *</label>
         <select id="input-ens-statut">
-          <option value="actif">Actif</option>
-          <option value="inactif">Inactif</option>
-          <option value="conge">En congé</option>
+          <option value="Permanent">Permanent</option>
+          <option value="Vacataire">Vacataire</option>
+          <option value="Visiteur">Visiteur</option>
         </select>
       </div>
+      <div class="form-group"><label>Date de naissance</label><input type="date" id="input-ens-date-naissance"></div>
+      <div class="form-group"><label>Date d'embauche</label><input type="date" id="input-ens-date-embauche"></div>
+      <div class="form-group"><label>Heures / semaine</label><input type="number" id="input-ens-heures" value="12" min="0" max="40"></div>
     </div>
     <div class="form-group"><label>Matières enseignées (séparées par virgule)</label>
       <input type="text" id="input-ens-matieres" placeholder="Ex: Algorithmique, Base de données, Réseaux">
@@ -12120,95 +12130,132 @@ async function showFicheEnsTab(tab) {
 // ── CRUD Enseignant ──
 function initModalEnseignant() {
   document.getElementById('modal-ens-titre').textContent = '👨‍🏫 Ajouter un enseignant';
-  ['ens-id','ens-nom','ens-prenom','ens-email','ens-tel','ens-specialite','ens-bio'].forEach(id => {
+  ['ens-id','ens-matricule','ens-nom','ens-prenom','ens-email','ens-tel','ens-specialite','ens-bio','ens-matieres','ens-date-naissance','ens-date-embauche'].forEach(id => {
     const el = document.getElementById('input-'+id); if(el) el.value='';
   });
-  document.getElementById('input-ens-grade').value   = 'vacataire';
-  document.getElementById('input-ens-statut').value  = 'actif';
+  document.getElementById('input-ens-genre').value   = '';
+  document.getElementById('input-ens-grade').value   = 'Maître-Assistant';
+  document.getElementById('input-ens-statut').value  = 'Permanent';
   document.getElementById('input-ens-heures').value  = '12';
-  document.getElementById('input-ens-matieres').value = '';
+}
+
+// Génère un matricule auto au format ENS-YYYY-NNN (ex: ENS-2026-001)
+function genererMatriculeAuto() {
+  const annee = new Date().getFullYear();
+  const existants = (tousLesEnseignants||[])
+    .map(e => e.matricule||'')
+    .filter(m => m.startsWith('ENS-'+annee+'-'))
+    .map(m => parseInt(m.split('-')[2])||0);
+  const next = existants.length ? Math.max(...existants)+1 : 1;
+  return 'ENS-'+annee+'-'+String(next).padStart(3,'0');
 }
 
 function editerEnseignant(id) {
   const ens = tousLesEnseignants.find(e=>e.id===id);
   if (!ens) return;
   document.getElementById("modal-ens-titre").textContent = "✏️ Modifier l'enseignant";
-  document.getElementById('input-ens-id').value        = ens.id;
-  document.getElementById('input-ens-nom').value       = ens.nom||'';
-  document.getElementById('input-ens-prenom').value    = ens.prenom||'';
-  document.getElementById('input-ens-email').value     = ens.email||'';
-  document.getElementById('input-ens-tel').value       = ens.telephone||'';
-  document.getElementById('input-ens-specialite').value= ens.specialite||'';
-  document.getElementById('input-ens-grade').value     = ens.grade||'vacataire';
-  document.getElementById('input-ens-statut').value    = ens.statut||'actif';
-  document.getElementById('input-ens-heures').value    = ens.heures_semaine||12;
-  document.getElementById('input-ens-bio').value       = ens.bio||'';
+  document.getElementById('input-ens-id').value           = ens.id;
+  document.getElementById('input-ens-matricule').value    = ens.matricule||'';
+  document.getElementById('input-ens-nom').value          = ens.nom||'';
+  document.getElementById('input-ens-prenom').value       = ens.prenom||'';
+  document.getElementById('input-ens-genre').value        = ens.genre||'';
+  document.getElementById('input-ens-email').value        = ens.email||'';
+  document.getElementById('input-ens-tel').value          = ens.telephone||'';
+  document.getElementById('input-ens-specialite').value   = ens.specialite||'';
+  // Grade : tolérance pour anciennes valeurs (au cas où) — sinon Maître-Assistant par défaut
+  const gradeNorm = (typeof ensNormaliserGrade === 'function') ? ensNormaliserGrade(ens.grade) : null;
+  document.getElementById('input-ens-grade').value        = gradeNorm || ens.grade || 'Maître-Assistant';
+  // Statut : idem
+  const statutNorm = (typeof ensNormaliserStatut === 'function') ? ensNormaliserStatut(ens.statut) : null;
+  document.getElementById('input-ens-statut').value       = statutNorm || ens.statut || 'Permanent';
+  document.getElementById('input-ens-date-naissance').value = ens.date_naissance||'';
+  document.getElementById('input-ens-date-embauche').value  = ens.date_embauche||'';
+  document.getElementById('input-ens-heures').value       = (ens.heures_semaine!=null?ens.heures_semaine:12);
+  document.getElementById('input-ens-bio').value          = ens.bio||'';
   const mats = Array.isArray(ens.matieres) ? ens.matieres.join(', ') : (ens.matieres||'');
-  document.getElementById('input-ens-matieres').value  = mats;
+  document.getElementById('input-ens-matieres').value     = mats;
   ouvrirModal('modal-enseignant');
 }
 
 async function sauvegarderEnseignant() {
-  const nom  = document.getElementById('input-ens-nom').value.trim();
+  const id = document.getElementById('input-ens-id').value;
+  const nom    = document.getElementById('input-ens-nom').value.trim();
   const prenom = document.getElementById('input-ens-prenom').value.trim();
   const email  = document.getElementById('input-ens-email').value.trim();
-  if (!nom || !prenom) { showToast('Nom et prénom obligatoires','error'); return; }
+  let matricule = document.getElementById('input-ens-matricule').value.trim();
+  const grade  = document.getElementById('input-ens-grade').value;
+  const statut = document.getElementById('input-ens-statut').value;
+
+  // Validations obligatoires
+  if (!nom || !prenom)   { showToast('Nom et prénom obligatoires','error'); return; }
+  if (!grade)            { showToast('Grade obligatoire','error'); return; }
+  if (!statut)           { showToast('Statut obligatoire','error'); return; }
+
+  // Auto-génération matricule si vide (en création uniquement)
+  if (!matricule && !id) {
+    matricule = genererMatriculeAuto();
+    document.getElementById('input-ens-matricule').value = matricule;
+  }
+  if (!matricule) { showToast('Matricule obligatoire','error'); return; }
+
+  // Email basique
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('Email mal formé','error'); return;
+  }
+
   const matStr = document.getElementById('input-ens-matieres').value.trim();
   const matieres = matStr ? matStr.split(',').map(m=>m.trim()).filter(Boolean) : [];
-  const id = document.getElementById('input-ens-id').value;
-  let payload = {
+  const genre = document.getElementById('input-ens-genre').value || null;
+  const dateNaissance = document.getElementById('input-ens-date-naissance').value || null;
+  const dateEmbauche  = document.getElementById('input-ens-date-embauche').value || null;
+  const heures = parseInt(document.getElementById('input-ens-heures').value);
+
+  const payload = {
     ecole_id:       currentEcoleId,
-    nom, prenom, email,
+    matricule:      matricule,
+    nom:            nom,
+    prenom:         prenom,
+    genre:          genre,
+    email:          email||null,
     telephone:      document.getElementById('input-ens-tel').value.trim()||null,
     specialite:     document.getElementById('input-ens-specialite').value.trim()||null,
-    grade:          document.getElementById('input-ens-grade').value,
-    statut:         document.getElementById('input-ens-statut').value,
-    heures_semaine: parseInt(document.getElementById('input-ens-heures').value)||12,
+    grade:          grade,
+    statut:         statut,
+    date_naissance: dateNaissance,
+    date_embauche:  dateEmbauche,
+    heures_semaine: isNaN(heures) ? null : heures,
     bio:            document.getElementById('input-ens-bio').value.trim()||null,
-    matieres,
+    matieres:       matieres,
   };
+
   let error;
   if (id) {
     ({ error } = await db.from('enseignants').update(payload).eq('id', id));
-    // Auto-retry colonnes inconnues
-    let guard = 0;
-    while (error && guard < 8) {
-      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
-      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
-      delete payload[col];
-      ({ error } = await db.from('enseignants').update(payload).eq('id', id)); guard++;
-    }
   } else {
     ({ error } = await db.from('enseignants').insert([payload]));
-    // Stack depth = FK en double sur enseignants → essayer payload minimal
-    if (error && /stack depth/i.test(error.message)) {
-      console.warn('[Enseignant] Stack depth → payload minimal');
-      const COLONNES_SURES = ['ecole_id','nom','prenom','email','telephone','specialite','grade','statut','heures_semaine'];
-      const payloadMin = {};
-      COLONNES_SURES.forEach(k => { if (payload[k] !== undefined && payload[k] !== null) payloadMin[k] = payload[k]; });
-      ({ error } = await db.from('enseignants').insert([payloadMin]));
-      console.error('[Enseignant] Erreur stack depth — exécutez dans Supabase SQL Editor :\nSELECT constraint_name FROM information_schema.table_constraints WHERE table_name=\'enseignants\' AND constraint_type=\'FOREIGN KEY\';\n-- Si doublon FK → ALTER TABLE enseignants DROP CONSTRAINT IF EXISTS <nom_doublon>;');
-    }
-    // Auto-retry colonnes inconnues
-    let guard = 0;
-    while (error && guard < 8) {
-      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
-      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
-      console.warn('[Enseignant] Retrait colonne:', col);
-      delete payload[col];
-      ({ error } = await db.from('enseignants').insert([payload])); guard++;
-    }
   }
+
   if (error) {
     const msg = error.message || '';
-    const hint = /stack depth/i.test(msg)
-      ? 'Erreur FK Supabase (stack depth). Vérifiez les contraintes de la table enseignants — voir console.'
-      : /unique/i.test(msg) ? 'Cet email est déjà utilisé par un autre enseignant.'
-      : msg.slice(0, 120);
-    showToast('Erreur : ' + hint, 'error');
+    let hint;
+    if (/violates check constraint.*grade/i.test(msg)) {
+      hint = 'Grade invalide. Valeurs : ' + ENS_GRADES_VALIDES.join(', ');
+    } else if (/violates check constraint.*statut/i.test(msg)) {
+      hint = 'Statut invalide. Valeurs : ' + ENS_STATUTS_VALIDES.join(', ');
+    } else if (/violates check constraint.*genre/i.test(msg)) {
+      hint = 'Genre invalide (M ou F attendu)';
+    } else if (/duplicate key.*matricule/i.test(msg) || /enseignants_matricule_unique/i.test(msg)) {
+      hint = 'Ce matricule "' + matricule + '" est déjà utilisé pour cet établissement.';
+    } else if (/row-level security|RLS/i.test(msg)) {
+      hint = 'RLS bloque l\'opération. Vérifier les policies sur la table enseignants.';
+    } else {
+      hint = msg.slice(0, 200);
+    }
+    showToast('❌ ' + hint, 'error');
     console.error('[sauvegarderEnseignant]', msg);
     return;
   }
+
   fermerModal('modal-enseignant');
   invalidateCache('enseignants');
   showToast(id ? '✅ Enseignant modifié !' : '✅ Enseignant ajouté !', 'success');
