@@ -2612,18 +2612,18 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <span class="filter-label">Filtrer :</span>
       <select id="filter-ens-grade" onchange="filtrerEnseignants()">
         <option value="">Tous grades</option>
-        <option value="vacataire">Vacataire</option>
-        <option value="contractuel">Contractuel</option>
-        <option value="permanent">Permanent</option>
-        <option value="charge_cours">Chargé de cours</option>
-        <option value="maitre_conf">Maître de conf.</option>
-        <option value="professeur">Professeur</option>
+        <option value="Maître-Assistant">Maître-Assistant</option>
+        <option value="Maître de Conférences">Maître de Conférences</option>
+        <option value="Professeur Titulaire">Professeur Titulaire</option>
+        <option value="Docteur">Docteur</option>
+        <option value="Prof Agrégé">Prof Agrégé</option>
+        <option value="Chargé de Cours">Chargé de Cours</option>
       </select>
       <select id="filter-ens-statut" onchange="filtrerEnseignants()">
         <option value="">Tous statuts</option>
-        <option value="actif">Actif</option>
-        <option value="inactif">Inactif</option>
-        <option value="conge">En congé</option>
+        <option value="Permanent">Permanent</option>
+        <option value="Vacataire">Vacataire</option>
+        <option value="Visiteur">Visiteur</option>
       </select>
       <button class="btn-sm btn-secondary" onclick="resetFiltresEnseignants()">🔄 Réinitialiser</button>
     </div>
@@ -11962,7 +11962,7 @@ async function chargerEnseignants() {
   // Stats
   const nbMat = [...new Set(tousLesEnseignants.flatMap(e => (e.matieres||[]) ))].length;
   const totalH = tousLesEnseignants.reduce((s,e) => s+(e.heures_semaine||0), 0);
-  document.getElementById('stat-ens-total').textContent    = tousLesEnseignants.filter(e=>e.statut==='actif').length;
+  document.getElementById('stat-ens-total').textContent    = tousLesEnseignants.length;
   document.getElementById('stat-ens-matieres').textContent = nbMat;
   document.getElementById('stat-ens-heures').textContent   = totalH;
 
@@ -11987,10 +11987,18 @@ function afficherEnseignants(liste) {
     return;
   }
   const gradeLabels = {
+    // Nouvelles valeurs canoniques (stockées telles quelles, pas de mapping)
+    'Maître-Assistant':'Maître-Assistant', 'Maître de Conférences':'Maître de Conférences',
+    'Professeur Titulaire':'Professeur Titulaire', 'Docteur':'Docteur',
+    'Prof Agrégé':'Prof Agrégé', 'Chargé de Cours':'Chargé de Cours',
+    // Anciennes valeurs (compat) — au cas où
     vacataire:'Vacataire', contractuel:'Contractuel', permanent:'Permanent',
     charge_cours:'Chargé de cours', maitre_conf:'Maître de conf.', professeur:'Professeur'
   };
-  const statutCls = { actif:'green', inactif:'gray', conge:'amber' };
+  const statutCls = {
+    'Permanent':'green', 'Vacataire':'amber', 'Visiteur':'blue',
+    actif:'green', inactif:'gray', conge:'amber'  // compat ancienne nomenclature
+  };
   container.innerHTML = liste.map(ens => {
     const initiales = ((ens.prenom||'')[0]||(ens.nom||'')[0]||'?').toUpperCase() + ((ens.nom||'')[0]||'').toUpperCase();
     const matieres = Array.isArray(ens.matieres) ? ens.matieres : (ens.matieres ? ens.matieres.split(',').map(m=>m.trim()) : []);
@@ -12000,7 +12008,7 @@ function afficherEnseignants(liste) {
         <div class="ens-card-info">
           <div class="ec-nom">${ens.nom} ${ens.prenom}</div>
           <div class="ec-spec">${ens.specialite||'—'}</div>
-          <div style="margin-top:4px"><span class="badge ${statutCls[ens.statut]||'gray'}">${ens.statut||'actif'}</span> <span class="badge gray">${gradeLabels[ens.grade]||ens.grade||'—'}</span></div>
+          <div style="margin-top:4px"><span class="badge ${statutCls[ens.statut]||'gray'}">${ens.statut||'—'}</span> <span class="badge gray">${gradeLabels[ens.grade]||ens.grade||'—'}</span></div>
         </div>
       </div>
       ${matieres.length ? `<div class="ens-card-matieres">${matieres.slice(0,4).map(m=>`<span class="ens-matiere-pill">${m}</span>`).join('')}${matieres.length>4?`<span class="ens-matiere-pill">+${matieres.length-4}</span>`:''}</div>` : ''}
@@ -12060,8 +12068,17 @@ async function showFicheEnsTab(tab) {
   });
   const ens = ficheEnsActif;
   const content = document.getElementById('fiche-ens-content');
-  const gradeLabels = { vacataire:'Vacataire', contractuel:'Contractuel', permanent:'Permanent', charge_cours:'Chargé de cours', maitre_conf:'Maître de conférences', professeur:'Professeur titulaire' };
-  const statutCls = { actif:'green', inactif:'gray', conge:'amber' };
+  const gradeLabels = {
+    'Maître-Assistant':'Maître-Assistant', 'Maître de Conférences':'Maître de Conférences',
+    'Professeur Titulaire':'Professeur Titulaire', 'Docteur':'Docteur',
+    'Prof Agrégé':'Prof Agrégé', 'Chargé de Cours':'Chargé de Cours',
+    vacataire:'Vacataire', contractuel:'Contractuel', permanent:'Permanent',
+    charge_cours:'Chargé de cours', maitre_conf:'Maître de conférences', professeur:'Professeur titulaire'
+  };
+  const statutCls = {
+    'Permanent':'green', 'Vacataire':'amber', 'Visiteur':'blue',
+    actif:'green', inactif:'gray', conge:'amber'
+  };
 
   if (tab === 'info') {
     content.innerHTML = `
@@ -12071,7 +12088,7 @@ async function showFicheEnsTab(tab) {
         <div class="info-item"><div class="ii-label">Email</div><div class="ii-val">${ens.email||'—'}</div></div>
         <div class="info-item"><div class="ii-label">Téléphone</div><div class="ii-val">${ens.telephone||'—'}</div></div>
         <div class="info-item"><div class="ii-label">Heures / semaine</div><div class="ii-val">${ens.heures_semaine||0} h</div></div>
-        <div class="info-item"><div class="ii-label">Statut</div><div class="ii-val"><span class="badge ${statutCls[ens.statut]||'gray'}">${ens.statut||'actif'}</span></div></div>
+        <div class="info-item"><div class="ii-label">Statut</div><div class="ii-val"><span class="badge ${statutCls[ens.statut]||'gray'}">${ens.statut||'—'}</span></div></div>
       </div>
       ${ens.bio ? `<div style="margin-top:1rem;background:#f9fafb;border-radius:10px;padding:.9rem;font-size:13px;color:#374151;border:1px solid #f3f4f6">${ens.bio}</div>` : ''}`;
   }
@@ -12369,7 +12386,7 @@ function remplirSelectEnsPlanning() {
   const sel = document.getElementById('filter-ens-planning');
   if (!sel) return;
   sel.innerHTML = '<option value="">— Sélectionner —</option>';
-  tousLesEnseignants.filter(e=>e.statut==='actif').forEach(e => {
+  tousLesEnseignants.forEach(e => {
     sel.innerHTML += `<option value="${e.id}">${e.nom} ${e.prenom}</option>`;
   });
 }
