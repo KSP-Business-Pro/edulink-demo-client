@@ -14901,17 +14901,37 @@ async function creerClasse() {
     responsable:   document.getElementById('input-cls-responsable').value.trim(),
     statut: 'active'
   }]);
-  if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  if (error) {
+    // Doublon (contrainte UNIQUE classes_ecole_nom_unique)
+    if (error.code === '23505') {
+      showToast('Une classe avec ce nom existe déjà dans cette école.','error');
+    } else {
+      console.error('Erreur création classe:', error);
+      showToast('Erreur : '+error.message,'error');
+    }
+    return;
+  }
   fermerModal('modal-classe');
   ['input-cls-nom','input-cls-filiere','input-cls-annee','input-cls-salle','input-cls-responsable'].forEach(id=>document.getElementById(id).value='');
   showToast('🏫 Classe créée !','success');
-  chargerClasses();
+  await chargerClasses();
 }
 
 async function supprimerClasse(id) {
   if (!confirm('Supprimer cette classe ?')) return;
-  await db.from('classes').delete().eq('id',id);
-  showToast('Classe supprimée.','success'); chargerClasses();
+  const { data, error } = await db.from('classes').delete().eq('id',id).select();
+  if (error) {
+    console.error('Erreur suppression classe:', error);
+    showToast('Erreur : '+(error.message||'suppression impossible'),'error');
+    return;
+  }
+  if (!data || data.length === 0) {
+    console.warn('DELETE classe id=', id, '→ 0 ligne supprimée. Vérifier RLS ou ID orphelin.');
+    showToast('Suppression bloquée (permissions ou classe introuvable).','error');
+    return;
+  }
+  showToast('Classe supprimée.','success');
+  await chargerClasses();
 }
 
 // ── Programme ───────────────────────────────────
