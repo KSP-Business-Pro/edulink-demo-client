@@ -9587,7 +9587,7 @@ async function peuplerDestinataires() {
     + '</optgroup><optgroup label="🎓 Étudiants">'
     + tousLesEtudiants.map(e=>`<option value="${e.nom+' '+e.prenom}" data-role="etudiant">${e.nom} ${e.prenom}</option>`).join('')
     + '</optgroup><optgroup label="👨‍👩‍👧 Parents">'
-    + tousLesEtudiants.filter(e=>e.parent_email).map(e=>`<option value="Parent de ${e.nom} ${e.prenom}" data-role="parent" data-email="${e.email_parent||''}">Parent de ${e.nom} ${e.prenom}</option>`).join('')
+    + tousLesEtudiants.filter(e=>e.email_parent).map(e=>`<option value="Parent de ${e.nom} ${e.prenom}" data-role="parent" data-email="${e.email_parent||''}">Parent de ${e.nom} ${e.prenom}</option>`).join('')
     + '</optgroup>';
 }
 
