@@ -7689,7 +7689,7 @@ function exporterExamensExcel() {
   if (!tousLesExamens?.length) { showToast('Aucun examen à exporter', 'error'); return; }
   const header = ['Matière','Type','Date','Heure début','Heure fin','Salle','Filière','Niveau','Surveillant','Statut'];
   const rows = tousLesExamens.map(e => [
-    e.matiere||'', e.type||'', e.date||'',
+    e.matiere||'', e.type||'', e.date_examen||'',
     e.heure_debut||'', e.heure_fin||'',
     e.salle||'', e.filiere||'', e.niveau||'',
     e.surveillant||'', e.statut||''
@@ -9215,7 +9215,7 @@ function pdfSafe(str) {
     .replace(/Ô|Ö/g, 'O')
     .replace(/Ù|Û|Ü/g, 'U')
     .replace(/Ç/g, 'C')
-    .replace(/[-￿]/g, '');
+    .replace(/[- ]/g, '');
 }
 
 async function remplirSelectBulletin() {
@@ -17952,7 +17952,7 @@ async function chargerPortailEtudiant(id) {
   }).join('') || '<div style="color:#9ca3af;font-size:12px;padding:.75rem 1.2rem">Aucun résultat</div>';
 
   // ── Absences ──────────────────────────────────────────────────────────
-  const { data: absences } = await db.from('absences').select('*').eq('etudiant_id', id).eq('ecole_id', currentEcoleId).order('date', {ascending:false}).limit(20);
+  const { data: absences } = await db.from('absences').select('*').eq('etudiant_id', id).eq('ecole_id', currentEcoleId).order('date_absence', {ascending:false}).limit(20);
   const absOk = absences||[];
   document.getElementById('portail-absences').textContent = absOk.filter(a=>!a.justifiee).length;
 
@@ -17961,7 +17961,7 @@ async function chargerPortailEtudiant(id) {
     ? absOk.map(a=>`<div class="absence-mini-item" style="display:flex;align-items:center;gap:8px">
         <div class="abs-dot ${a.justifiee?'justifiee':'injustifiee'}"></div>
         <div class="abs-info" style="flex:1">
-          <div class="abs-date">${fmtDate(a.date)}</div>
+          <div class="abs-date">${fmtDate(a.date_absence)}</div>
           <div class="abs-cours">${a.matiere||a.cours||'—'} · <span class="badge ${a.justifiee?'green':'red'}" style="font-size:10px">${a.justifiee?'justifiée':'injustifiée'}</span></div>
         </div>
         <button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px;flex-shrink:0" onclick="supprimerAbsencePortail('${a.id}')">🗑️</button>
@@ -17987,13 +17987,13 @@ async function chargerPortailEtudiant(id) {
     : '<tr><td colspan="5" class="loading">Aucun paiement enregistré</td></tr>';
 
   // ── Examens à venir sidebar ────────────────────────────────────────────
-  const { data: examens } = await db.from('examens').select('*').eq('ecole_id', currentEcoleId).order('date').limit(5);
+  const { data: examens } = await db.from('examens').select('*').eq('ecole_id', currentEcoleId).order('date_examen').limit(5);
   const examsSide = document.getElementById('portail-examens-side');
   if (examsSide) {
-    const examsOk = (examens||[]).filter(e=>e.date >= new Date().toISOString().split('T')[0]);
+    const examsOk = (examens||[]).filter(e=>e.date_examen >= new Date().toISOString().split('T')[0]);
     examsSide.innerHTML = examsOk.length
       ? examsOk.slice(0,3).map(e=>{
-          const parts = (e.date||'').split('-');
+          const parts = (e.date_examen||'').split('-');
           const jour = parts[2]||'—'; const mois = parts[1]||'—';
           return `<div style="display:flex;align-items:center;gap:.75rem;padding:.65rem 1.2rem;border-bottom:1px solid #f3f4f6">
             <div style="background:#eff6ff;border-radius:8px;padding:4px 8px;text-align:center;flex-shrink:0">
@@ -18391,15 +18391,15 @@ async function renderActiviteLive() {
     { data: etudiants },
   ] = await Promise.all([
     db.from('notes').select('matiere, created_at').eq('ecole_id', currentEcoleId).gte('created_at', depuis).order('created_at', {ascending:false}).limit(3),
-    db.from('absences').select('matiere, date, created_at').eq('ecole_id', currentEcoleId).gte('created_at', depuis).order('created_at', {ascending:false}).limit(3),
-    db.from('paiements').select('montant, libelle, created_at').eq('ecole_id', currentEcoleId).gte('created_at', depuis).order('created_at', {ascending:false}).limit(3),
-    db.from('messages').select('sujet, expediteur, created_at').eq('ecole_id', currentEcoleId).gte('created_at', depuis).order('created_at', {ascending:false}).limit(2),
+    db.from('absences').select('matiere, date_absence, created_at').eq('ecole_id', currentEcoleId).gte('created_at', depuis).order('created_at', {ascending:false}).limit(3),
+    db.from('paiements').select('montant, reference_paiement, created_at').eq('ecole_id', currentEcoleId).gte('created_at', depuis).order('created_at', {ascending:false}).limit(3),
+    db.from('messages').select('sujet, expediteur_nom, created_at').eq('ecole_id', currentEcoleId).gte('created_at', depuis).order('created_at', {ascending:false}).limit(2),
     db.from('etudiants').select('nom, prenom, created_at').eq('ecole_id', currentEcoleId).gte('created_at', depuis).order('created_at', {ascending:false}).limit(2),
   ]);
   const activites = [];
   (notes||[]).forEach(n => activites.push({ ico:'📊', color:'#dcfce7', txt:`Note saisie — ${n.matiere||'—'}`, ts: new Date(n.created_at) }));
-  (absences||[]).forEach(a => activites.push({ ico:'🚫', color:'#fee2e2', txt:`Absence — ${a.matiere||fmtDate(a.date)||'—'}`, ts: new Date(a.created_at) }));
-  (paiements||[]).forEach(p => activites.push({ ico:'💳', color:'#dcfce7', txt:`Paiement — ${(p.montant||0).toLocaleString('fr-FR')} F${p.libelle?' · '+p.libelle:''}`, ts: new Date(p.created_at) }));
+  (absences||[]).forEach(a => activites.push({ ico:'🚫', color:'#fee2e2', txt:`Absence — ${a.matiere||fmtDate(a.date_absence)||'—'}`, ts: new Date(a.created_at) }));
+  (paiements||[]).forEach(p => activites.push({ ico:'💳', color:'#dcfce7', txt:`Paiement — ${(p.montant||0).toLocaleString('fr-FR')} F${p.reference_paiement?' · '+p.reference_paiement:''}`, ts: new Date(p.created_at) }));
   (messages||[]).forEach(m => activites.push({ ico:'✉️', color:'#dbeafe', txt:`Message — ${m.sujet||'—'}`, ts: new Date(m.created_at) }));
   (etudiants||[]).forEach(e => activites.push({ ico:'👤', color:'#ede9fe', txt:`Nouvel étudiant — ${e.prenom||''} ${e.nom||''}`, ts: new Date(e.created_at) }));
   activites.sort((a,b) => b.ts - a.ts);
@@ -18425,10 +18425,10 @@ async function renderEventsReseau() {
   if (!cont) return;
   // Lire les prochains examens depuis Supabase
   const { data: examens } = await db.from('examens')
-    .select('titre, matiere, date, classe, type')
+    .select('titre, matiere, date_examen, classe, type')
     .eq('ecole_id', currentEcoleId)
-    .gte('date', new Date().toISOString().split('T')[0])
-    .order('date').limit(5);
+    .gte('date_examen', new Date().toISOString().split('T')[0])
+    .order('date_examen').limit(5);
   const evOk = examens || [];
   if (!evOk.length) {
     cont.innerHTML = '<div style="color:#9ca3af;font-size:12px;padding:.75rem 1.2rem;text-align:center">Aucun événement à venir</div>';
@@ -18441,7 +18441,7 @@ async function renderEventsReseau() {
         <div style="font-size:12.5px;font-weight:700;color:#111827">${e.titre||e.matiere||'Examen'}</div>
         <div style="font-size:11px;color:#6b7280">${e.classe||''} · ${e.type||'Examen'}</div>
       </div>
-      <span class="badge amber" style="font-size:10px">${e.date ? new Date(e.date).toLocaleDateString('fr-FR') : '—'}</span>
+      <span class="badge amber" style="font-size:10px">${e.date_examen ? new Date(e.date_examen).toLocaleDateString('fr-FR') : '—'}</span>
     </div>`).join('');
 }
 
