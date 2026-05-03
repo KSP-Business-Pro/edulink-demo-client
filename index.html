@@ -21059,12 +21059,16 @@ function previsualiserSitePublic() {
         return `<a class="card" href="${href}"><h3>${s.ico||""} ${esc(s.titre)}</h3><p>${esc(s.desc||"")}</p></a>`;
       }).join("")}
     </div></section>` : ""}
-    ${actus.length ? `<section id="actualites"><h2>📰 Dernières actualités</h2>
-      ${actus.map(a => `<div class="actu"><div class="meta">${esc(a.categorie||"")} · ${a.publie_le ? new Date(a.publie_le).toLocaleDateString("fr-FR") : ""}</div><h3>${esc(a.titre||"")}</h3><p style="color:#6b7280;font-size:13px;margin-top:.3rem">${esc((a.extrait||a.contenu||"").substring(0,200))}</p></div>`).join("")}
-    </section>` : ""}
-    ${photos.length ? `<section id="galerie"><h2>🖼️ Galerie</h2><div class="gallery">
-      ${photos.map(u => `<img src="${esc(u)}" alt="" loading="lazy">`).join("")}
-    </div></section>` : ""}
+    <section id="actualites"><h2>📰 Dernières actualités</h2>
+      ${actus.length
+        ? actus.map(a => `<div class="actu"><div class="meta">${esc(a.categorie||"")} · ${a.publie_le ? new Date(a.publie_le).toLocaleDateString("fr-FR") : ""}</div><h3>${esc(a.titre||"")}</h3><p style="color:#6b7280;font-size:13px;margin-top:.3rem">${esc((a.extrait||a.contenu||"").substring(0,200))}</p></div>`).join("")
+        : `<p style="color:#9ca3af;font-size:14px;font-style:italic">Aucun article pour le moment. Revenez bientôt !</p>`}
+    </section>
+    <section id="galerie"><h2>🖼️ Galerie</h2>
+      ${photos.length
+        ? `<div class="gallery">${photos.map(u => `<img src="${esc(u)}" alt="" loading="lazy">`).join("")}</div>`
+        : `<p style="color:#9ca3af;font-size:14px;font-style:italic">Galerie photos en cours de constitution.</p>`}
+    </section>
     <section id="inscription-form">
       <h2>📝 Inscription en ligne</h2>
       <p style="color:#6b7280;font-size:14px;line-height:1.6;margin-bottom:1.2rem">
