@@ -20368,7 +20368,11 @@ function exporterRapportDirecteur() {
   showToast("📥 Rapport direction exporté", "success");
 }
 
-function exporterRapportFinance() {
+async function exporterRapportFinance() {
+  if (!_execState.finance) {
+    showToast('Chargement des données...', 'info');
+    await chargerExecDashboard();
+  }
   const fin = _execState.finance || {};
   const c   = fin.creances || {};
   const header = ["Indicateur","Valeur (F)"];
