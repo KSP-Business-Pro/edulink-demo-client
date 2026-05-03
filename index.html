@@ -9857,6 +9857,7 @@ async function supprimerFacture(id) {
   invalidateCache('paiements');
   await chargerFactures();
   await chargerPaiements(); chargerDashboard();
+  showTab('pay','tab-pay-liste');
 }
 
 async function chargerHistoriquePaiements() {
