@@ -9853,7 +9853,9 @@ async function supprimerFacture(id) {
   if (!confirm('Supprimer cette facture ?')) return;
   await db.from('factures').delete().eq('id',id);
   showToast('Facture supprimée.','success');
+  toutesLesFactures = [];
   invalidateCache('paiements');
+  await chargerFactures();
   await chargerPaiements(); chargerDashboard();
 }
 
