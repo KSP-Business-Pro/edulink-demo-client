@@ -2612,7 +2612,9 @@ function masquerBannierePermission() {
 // ── Bannière notification reçue (foreground) ─────────────────────────
 function afficherBanniereNotif(titre, message) {
   showToast('🔔 ' + titre + (message ? ' — ' + message : ''), 'info');
-  injecterNotifPortail(titre, message, 'annonce');
+  // Fix démo : injecterNotifPortail() n'est pas définie — le showToast ci-dessus suffit.
+  // Si on veut plus tard pousser la notif dans la liste Alertes, ajouter ici un push
+  // dans toutesNotifsPortail + appel à afficherNotifsPortail().
 }
 
 // ── Désinscription ────────────────────────────────────────────────────
