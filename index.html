@@ -9215,7 +9215,7 @@ function pdfSafe(str) {
     .replace(/Ô|Ö/g, 'O')
     .replace(/Ù|Û|Ü/g, 'U')
     .replace(/Ç/g, 'C')
-    .replace(/[- ]/g, '');
+    .replace(/[^\x00-\x7F]/g, '');
 }
 
 async function remplirSelectBulletin() {
