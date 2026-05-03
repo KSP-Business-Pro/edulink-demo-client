@@ -18483,7 +18483,7 @@ function renderAlertesCritiques() {
 function exporterRapportComplet() {
   const ecoles = getMdbEcoles();
   if (!ecoles.length) { showToast('Aucun établissement à exporter','error'); return; }
-  const header = ['Établissement','Ville','Type','Élèves','Enseignants','Taux réussite (%)','Recette (F)','Statut'];
+  const header = ['Etablissement','Ville','Type','Eleves','Enseignants','Taux reussite (%)','Recette (F)','Statut'];
   const rows = ecoles.map(e=>[e.nom, e.ville, e.type, e.eleves, e.enseignants, e.taux_reussite, e.recette, e.statut]);
   csvDownload('EduLink-Dashboard-Reseau.csv', header, rows);
   showToast('📥 Rapport réseau exporté !','success');
