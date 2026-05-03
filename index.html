@@ -2792,10 +2792,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       </select>
       <select id="filter-pay-statut" onchange="chargerFactures()">
         <option value="">Tous statuts</option>
-        <option value="payée">Payée</option>
+        <option value="paye">Payée</option>
         <option value="en_attente">En attente</option>
         <option value="retard">En retard</option>
-        <option value="partiellement_payée">Partielle</option>
+        <option value="partiel">Partielle</option>
       </select>
       <select id="filter-pay-type" onchange="chargerFactures()">
         <option value="">Tous les types</option>
@@ -9691,7 +9691,7 @@ async function chargerPaiements() {
   const { data:facs } = await q;
   const all = facs||[];
   document.getElementById('ps-total').textContent   = all.length;
-  document.getElementById('ps-payees').textContent  = all.filter(f=>f.statut==='payée').length;
+  document.getElementById('ps-payees').textContent  = all.filter(f=>f.statut==='paye').length;
   document.getElementById('ps-attente').textContent = all.filter(f=>f.statut==='en_attente').length;
   document.getElementById('ps-retard').textContent  = all.filter(f=>f.statut==='retard').length;
   // Stats financières
@@ -9742,8 +9742,8 @@ async function chargerFactures() {
   document.getElementById('tbody-factures').innerHTML = toutesLesFactures.length
     ? toutesLesFactures.map(f => {
         const pct = f.montant_total > 0 ? Math.min(100, Math.round((f.montant_paye||0) / f.montant_total * 100)) : 0;
-        const sClass = f.statut==='payée'?'green':f.statut==='retard'?'red':f.statut==='partiellement_payée'?'amber':'amber';
-        const retard = f.statut!=='payée' && f.date_echeance && new Date(f.date_echeance) < new Date();
+        const sClass = f.statut==='paye'?'green':f.statut==='retard'?'red':f.statut==='partiel'?'amber':'amber';
+        const retard = f.statut!=='paye' && f.date_echeance && new Date(f.date_echeance) < new Date();
         return `<tr${retard?' style="background:#fff5f5"':''}>
           <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${f.reference||'—'}</code></td>
           <td>${f.etudiants?f.etudiants.nom+' '+f.etudiants.prenom:'N/A'}</td>
@@ -9757,7 +9757,7 @@ async function chargerFactures() {
           <td><span class="badge ${sClass}">${f.statut}</span>${retard?'<span class="badge red" style="font-size:9px;margin-left:2px">⚠ retard</span>':''}</td>
           <td>${fmtDate(f.date_echeance)}</td>
           <td style="display:flex;gap:4px;flex-wrap:wrap">
-            ${f.statut!=='payée'?`<button class="btn-sm btn-green" onclick="ouvrirPaiement('${f.id}','${f.reference||''}',${f.montant_total-(f.montant_paye||0)})">💰</button>`:''}
+            ${f.statut!=='paye'?`<button class="btn-sm btn-green" onclick="ouvrirPaiement('${f.id}','${f.reference||''}',${f.montant_total-(f.montant_paye||0)})">💰</button>`:''}
             <button class="btn-sm btn-secondary" onclick="ouvrirModifierFacture('${f.id}')">✏️</button>
             <button class="btn-sm btn-red" onclick="supprimerFacture('${f.id}')">✕</button>
           </td>
@@ -9831,7 +9831,7 @@ async function enregistrerPaiement() {
   const facture = toutesLesFactures.find(f=>f.id===facId);
   if (!facture) return;
   const nouveauPaye = (facture.montant_paye||0) + montant;
-  const nouveauStatut = nouveauPaye >= facture.montant_total ? 'payée' : 'partiellement_payée';
+  const nouveauStatut = nouveauPaye >= facture.montant_total ? 'paye' : 'partiel';
   // Mettre à jour la facture
   const { error:e1 } = await db.from('factures').update({ montant_paye:nouveauPaye, statut:nouveauStatut }).eq('id',facId);
   if (e1) { showToast('Erreur mise à jour : '+e1.message,'error'); return; }
@@ -9839,7 +9839,7 @@ async function enregistrerPaiement() {
   const { error:e2 } = await db.from('paiements').insert([{ ecole_id:currentEcoleId, facture_id:facId, montant_paye:montant, mode_paiement:mode, reference_transaction:ref, reference_facture:facture.reference, etudiant_id:facture.etudiant_id }]);
   if (e2) { showToast('Erreur enregistrement paiement : '+e2.message,'error'); return; }
   fermerModal('modal-paiement'); document.getElementById('input-pay-montant').value=''; document.getElementById('input-pay-ref').value='';
-  showToast(nouveauStatut==='payée'?'✅ Facture entièrement payée !':'💰 Paiement partiel enregistré !','success');
+  showToast(nouveauStatut==='paye'?'✅ Facture entièrement payée !':'💰 Paiement partiel enregistré !','success');
   invalidateData('paiements');
   // Email de confirmation au parent
   if (facture?.etudiant_id) {
@@ -10303,7 +10303,7 @@ async function afficherRapport(type) {
           <div class="kpi-row"><span class="kpi-label">En retard</span><span class="kpi-value" style="color:#dc2626">${statuts.retard}</span></div>
         </div>
       </div>`;
-    rapportChartInst = new Chart(document.getElementById('chart-pay'), { type:'doughnut', data:{ labels:['Payées','En attente','En retard','Partielles'], datasets:[{ data:[statuts['payée'],statuts['en_attente'],statuts['retard'],statuts['partiellement_payée']], backgroundColor:['#dcfce7','#fef9c3','#fee2e2','#dbeafe'], borderColor:['#059669','#d97706','#dc2626','#1d4ed8'], borderWidth:2 }] }, options:{ responsive:true, plugins:{ legend:{ position:'bottom', labels:{ font:{family:'Poppins',size:11} } } } } });
+    rapportChartInst = new Chart(document.getElementById('chart-pay'), { type:'doughnut', data:{ labels:['Payées','En attente','En retard','Partielles'], datasets:[{ data:[statuts['paye'],statuts['en_attente'],statuts['retard'],statuts['partiel']], backgroundColor:['#dcfce7','#fef9c3','#fee2e2','#dbeafe'], borderColor:['#059669','#d97706','#dc2626','#1d4ed8'], borderWidth:2 }] }, options:{ responsive:true, plugins:{ legend:{ position:'bottom', labels:{ font:{family:'Poppins',size:11} } } } } });
 
   } else if (type === 'discipline') {
     let q = db.from('incidents').select('severite, statut, type');
@@ -14495,8 +14495,8 @@ async function chargerChartsAnalytics() {
   let qF = db.from('factures').select('statut,montant_total,montant_paye');
   if (currentEcoleId) qF = qF.eq('ecole_id',currentEcoleId);
   const { data: facs } = await qF;
-  const payees   = (facs||[]).filter(f=>f.statut==='payée').reduce((s,f)=>s+(f.montant_total||0),0);
-  const partiel  = (facs||[]).filter(f=>f.statut==='partiellement_payée').reduce((s,f)=>s+(f.montant_total||0),0);
+  const payees   = (facs||[]).filter(f=>f.statut==='paye').reduce((s,f)=>s+(f.montant_total||0),0);
+  const partiel  = (facs||[]).filter(f=>f.statut==='partiel').reduce((s,f)=>s+(f.montant_total||0),0);
   const attente  = (facs||[]).filter(f=>f.statut==='en_attente').reduce((s,f)=>s+(f.montant_total||0),0);
   const retard   = (facs||[]).filter(f=>f.statut==='retard').reduce((s,f)=>s+(f.montant_total||0),0);
   const ctxP = document.getElementById('analytics-chart-paiements');
@@ -18665,7 +18665,7 @@ async function envoyerSMS() {
     ajouter(_smsContactsCache.filter(c => ids.includes(c.id) && c.email_parent));
   } else if (smsDestSelectes.includes("impayes")) {
     const { data: fac } = await db.from("factures")
-      .select("etudiant_id").eq("ecole_id", currentEcoleId).neq("statut","payée");
+      .select("etudiant_id").eq("ecole_id", currentEcoleId).neq("statut","paye");
     const ids = (fac||[]).map(f => f.etudiant_id);
     ajouter(_smsContactsCache.filter(c => ids.includes(c.id) && c.email_parent));
   } else {
