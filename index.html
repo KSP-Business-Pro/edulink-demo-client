@@ -9841,6 +9841,7 @@ async function enregistrerPaiement() {
   fermerModal('modal-paiement'); document.getElementById('input-pay-montant').value=''; document.getElementById('input-pay-ref').value='';
   showToast(nouveauStatut==='paye'?'✅ Facture entièrement payée !':'💰 Paiement partiel enregistré !','success');
   invalidateData('paiements');
+  invalidateData('factures');
   // Email de confirmation au parent
   if (facture?.etudiant_id) {
     db.from('etudiants').select('nom,prenom,email_parent,nom_parent,matricule').eq('id', facture.etudiant_id).single()
