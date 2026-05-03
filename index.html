@@ -20369,23 +20369,41 @@ function exporterRapportDirecteur() {
 }
 
 async function exporterRapportFinance() {
-  if (!_execState.finance) {
+  // Charger les factures si pas déjà en mémoire
+  if (!toutesLesFactures?.length) {
     showToast('Chargement des données...', 'info');
-    await chargerExecDashboard();
+    await chargerFactures();
   }
-  const fin = _execState.finance || {};
-  const c   = fin.creances || {};
+  // Calculer les indicateurs directement depuis toutesLesFactures
+  const facs = toutesLesFactures || [];
+  const totalFacture = facs.reduce((s,f) => s + (parseFloat(f.montant_total)||0), 0);
+  const totalPaye    = facs.reduce((s,f) => s + (parseFloat(f.montant_paye)||0), 0);
+  const impayes      = totalFacture - totalPaye;
+  const tauxRecouvr  = totalFacture > 0 ? (totalPaye / totalFacture * 100) : 0;
+  // Recette du mois depuis _execState si disponible, sinon 0
+  const recetteMois  = _execState.finance?.recetteMois || 0;
+  // Créances par tranche d'âge
+  const today = new Date();
+  const creances = {"0-30":0, "31-60":0, "61-90":0, "91+":0};
+  facs.filter(f => f.statut !== 'paye' && f.date_echeance).forEach(f => {
+    const jours = Math.floor((today - new Date(f.date_echeance)) / 86400000);
+    const montant = parseFloat(f.montant_total||0) - parseFloat(f.montant_paye||0);
+    if (jours <= 30) creances["0-30"] += montant;
+    else if (jours <= 60) creances["31-60"] += montant;
+    else if (jours <= 90) creances["61-90"] += montant;
+    else creances["91+"] += montant;
+  });
   const header = ["Indicateur","Valeur (F)"];
   const rows = [
-    ["Recette du mois",      Math.round(fin.recetteMois || 0)],
-    ["Total facturé",        Math.round(fin.totalFacture || 0)],
-    ["Total payé",           Math.round(fin.totalPaye || 0)],
-    ["Impayés",              Math.round(fin.impayes || 0)],
-    ["Taux recouvrement %",  (fin.tauxRecouvr || 0).toFixed(1)],
-    ["Créances 0–30 j",      Math.round(c["0-30"] || 0)],
-    ["Créances 31–60 j",     Math.round(c["31-60"] || 0)],
-    ["Créances 61–90 j",     Math.round(c["61-90"] || 0)],
-    ["Créances + de 90 j",   Math.round(c["91+"] || 0)],
+    ["Recette du mois",      Math.round(recetteMois)],
+    ["Total facture",        Math.round(totalFacture)],
+    ["Total paye",           Math.round(totalPaye)],
+    ["Impayes",              Math.round(impayes)],
+    ["Taux recouvrement %",  tauxRecouvr.toFixed(1)],
+    ["Creances 0-30 j",      Math.round(creances["0-30"])],
+    ["Creances 31-60 j",     Math.round(creances["31-60"])],
+    ["Creances 61-90 j",     Math.round(creances["61-90"])],
+    ["Creances + de 90 j",   Math.round(creances["91+"])],
   ];
   csvDownload(`EduLink-Finance-${new Date().toISOString().split("T")[0]}.csv`, header, rows);
   showToast("📥 Bilan financier exporté", "success");
