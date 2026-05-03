@@ -14861,7 +14861,7 @@ function afficherListeClasses(liste) {
   }
   el.innerHTML = liste.map(c => {
     const s = c.statut||'active';
-    const eff = c.effectif_actuel||0;
+    const eff = tousLesEtudiants.filter(e=>e.classe_id===c.id).length;
     const effMax = c.effectif_max||'?';
     const pct = effMax !== '?' ? Math.round(eff/effMax*100) : 0;
     return `<div class="classe-card ${s}">
