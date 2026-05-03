@@ -9836,7 +9836,7 @@ async function enregistrerPaiement() {
   const { error:e1 } = await db.from('factures').update({ montant_paye:nouveauPaye, statut:nouveauStatut }).eq('id',facId);
   if (e1) { showToast('Erreur mise à jour : '+e1.message,'error'); return; }
   // Enregistrer le paiement
-  const { error:e2 } = await db.from('paiements').insert([{ ecole_id:currentEcoleId, facture_id:facId, montant_paye:montant, mode_paiement:mode, reference_transaction:ref, reference_facture:facture.reference, etudiant_id:facture.etudiant_id }]);
+  const { error:e2 } = await db.from('paiements').insert([{ ecole_id:currentEcoleId, facture_id:facId, montant:montant, montant_paye:montant, mode_paiement:mode, reference_transaction:ref, reference_facture:facture.reference, etudiant_id:facture.etudiant_id }]);
   if (e2) { showToast('Erreur enregistrement paiement : '+e2.message,'error'); return; }
   fermerModal('modal-paiement'); document.getElementById('input-pay-montant').value=''; document.getElementById('input-pay-ref').value='';
   showToast(nouveauStatut==='paye'?'✅ Facture entièrement payée !':'💰 Paiement partiel enregistré !','success');
