@@ -923,6 +923,25 @@ async function chargerEtudiantLie() {
   }
   currentEtudiant = etudiant;
   if (etudiant) currentEcoleId = etudiant.ecole_id;
+  await resoudreClasseEtudiant();
+}
+
+// Résout le NOM textuel de la classe de l'étudiant courant et le stocke
+// dans currentEtudiant.classe_nom — utilisé pour filtrer l'emploi du temps.
+// Doit produire la MÊME chaîne que celle écrite par le back-office
+// (peuplerClassesEDT : `c.nom || c.filiere + ' ' + c.niveau`).
+async function resoudreClasseEtudiant() {
+  if (!currentEtudiant || !currentEtudiant.classe_id) return;
+  try {
+    const { data: cls } = await db.from('classes')
+      .select('nom, filiere, niveau')
+      .eq('id', currentEtudiant.classe_id).maybeSingle();
+    if (cls) {
+      currentEtudiant.classe_nom = cls.nom || ((cls.filiere || '') + ' ' + (cls.niveau || '')).trim();
+    }
+  } catch (e) {
+    console.warn('[Classe] Résolution échouée:', e.message);
+  }
 }
 
 function lancerApp() {
@@ -1125,11 +1144,53 @@ async function chargerMessages() {
     if (b2) { b2.style.display='flex'; b2.textContent=nonLus; }
     return;
   }
-  let q = db.from('messages').select('*').order('created_at',{ascending:false}).limit(20);
+  // On charge plus large (60) car le filtre client va trier ensuite.
+  // Le filtre JS qui suit garde uniquement ce qui concerne le parent courant.
+  let q = db.from('messages').select('*').order('created_at',{ascending:false}).limit(60);
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
   const { data } = await q;
-  tousMessages = data || [];
-  // Compter seulement les messages de l'admin non lus
+  const tous = data || [];
+
+  // ── FILTRE HÉRITAGE J-1 ────────────────────────────────────────────
+  // Le schéma `messages` n'a pas de etudiant_id : on filtre par heuristique.
+  // Un message est visible pour ce parent si :
+  //   1. C'est lui-même qui l'a envoyé (role=parent + nom matchant)
+  //   2. Le destinataire_nom contient le nom OU prénom de l'étudiant
+  //   3. Le destinataire_nom mentionne "Parent " + nom étudiant
+  //   4. C'est une annonce générale (destinataire_role=parent ET nom vide ou
+  //      mots-clés "tous"/"parents"/"famille")
+  // ────────────────────────────────────────────────────────────────────
+  const etu = currentEtudiant;
+  const monNom    = (currentProfile?.nom || '').toLowerCase().trim();
+  const monPrenom = (currentProfile?.prenom || '').toLowerCase().trim();
+  const etuNom    = (etu?.nom    || '').toLowerCase().trim();
+  const etuPrenom = (etu?.prenom || '').toLowerCase().trim();
+
+  function meConcerne(m) {
+    const dest = (m.destinataire_nom || '').toLowerCase().trim();
+    const destRole = (m.destinataire_role || '').toLowerCase().trim();
+    const exp  = (m.expediteur_nom || '').toLowerCase().trim();
+    const expRole = (m.expediteur_role || '').toLowerCase().trim();
+
+    // Cas 1 : envoyé par ce parent lui-même
+    if (expRole === 'parent') {
+      if ((monNom    && exp.includes(monNom))    ||
+          (etuNom    && exp.includes(etuNom))    ||
+          (monPrenom && exp.includes(monPrenom))) return true;
+    }
+    // Cas 2 et 3 : nom/prénom étudiant dans destinataire
+    if (etuNom    && dest.includes(etuNom))    return true;
+    if (etuPrenom && dest.includes(etuPrenom)) return true;
+    // Cas 4 : annonce générale (destinataire_role=parent)
+    if (destRole === 'parent') {
+      if (!dest) return true;
+      if (/(parents|tous|famille|toutes les familles)/.test(dest)) return true;
+    }
+    return false;
+  }
+
+  tousMessages = tous.filter(meConcerne);
+  // Compter seulement les messages de l'admin/prof non lus
   const nonLus = tousMessages.filter(m =>
     (m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant') && !m.lu
   ).length;
@@ -1254,13 +1315,13 @@ function afficherAccueil() {
       </div>` : ''}
 
       <!-- Factures en attente -->
-      ${toutesFactures.filter(f=>f.statut!=='payée').length ? `
+      ${toutesFactures.filter(f=>f.statut!=='paye' && f.statut!=='payée').length ? `
       <div class="card">
         <div class="card-header">
           <div class="card-title">💳 Paiements en attente</div>
           <span class="card-link" onclick="showPage('paiements')">Détails</span>
         </div>
-        ${toutesFactures.filter(f=>f.statut!=='payée').slice(0,2).map(f => `
+        ${toutesFactures.filter(f=>f.statut!=='paye' && f.statut!=='payée').slice(0,2).map(f => `
           <div class="list-item">
             <div class="li-ico" style="background:#fef9c3">💰</div>
             <div class="li-body">
@@ -1514,10 +1575,13 @@ function afficherPaiements() {
     <div class="card">
       ${toutesFactures.map(f => {
         const pct2 = f.montant_total > 0 ? Math.round((f.montant_paye||0)/f.montant_total*100) : 0;
-        const sClass = f.statut==='payée'?'green':f.statut==='retard'?'red':'amber';
+        // Statut BD côté back-office : 'paye' / 'partiel' / 'retard' / 'en_attente'
+        // (tolérance pour les anciens imports avec 'payée')
+        const estPaye = f.statut === 'paye' || f.statut === 'payée';
+        const sClass = estPaye ? 'green' : f.statut==='retard' ? 'red' : 'amber';
         return `<div class="list-item">
-          <div class="li-ico" style="background:${f.statut==='payée'?'#dcfce7':'#fef9c3'}">
-            ${f.statut==='payée'?'✅':'💰'}
+          <div class="li-ico" style="background:${estPaye?'#dcfce7':'#fef9c3'}">
+            ${estPaye?'✅':'💰'}
           </div>
           <div class="li-body">
             <div class="li-title">${f.description||f.type_frais||'Facture'}</div>
@@ -1798,6 +1862,8 @@ async function connecterParTelephone(tel) {
     document.getElementById('greeting-role').textContent  = 'Espace parent';
     document.getElementById('student-pill-wrap').innerHTML =
       `<div class="student-pill">👨‍🎓 ${trouve.nom} ${trouve.prenom} · ${trouve.filiere} ${trouve.niveau}</div>`;
+    // Résoudre le nom de classe AVANT chargerTout (l'EDT en dépend)
+    await resoudreClasseEtudiant();
     chargerTout();
     // Branding dynamique (logo + nom d'école dans le header)
     chargerBrandingPortail();
@@ -2643,13 +2709,26 @@ async function chargerEmploiPortail() {
   if (IS_DEMO_MODE) { edtPortailData = []; return; }
   if (!currentEcoleId) { edtPortailData = []; return; }
   try {
-    // Charger tous les créneaux de l'école sans filtre restrictif
+    // Charger tous les créneaux de l'école
     const { data } = await db.from('emploi_du_temps')
       .select('*')
       .eq('ecole_id', currentEcoleId)
       .order('jour')
       .order('heure_debut');
-    edtPortailData = data || [];
+    const tous = data || [];
+
+    // Filtrer par classe de l'étudiant si on la connaît
+    // - matching exact sur le nom textuel (BO sauve `c.nom || c.filiere+' '+c.niveau`)
+    // - les créneaux sans classe (transversaux) sont conservés
+    // - fallback : si rien ne match, on retombe sur tous les créneaux école
+    //   (évite l'EDT vide sur une donnée mal seedée)
+    const classe = currentEtudiant?.classe_nom;
+    if (classe) {
+      const filtre = tous.filter(c => !c.classe || c.classe === classe);
+      edtPortailData = filtre.length ? filtre : tous;
+    } else {
+      edtPortailData = tous;
+    }
   } catch(e) {
     edtPortailData = [];
     console.warn('[Emploi]', e.message);
