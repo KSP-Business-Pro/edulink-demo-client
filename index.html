@@ -5476,7 +5476,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
           <option value="">— Sélectionner une classe —</option>
         </select>
       </div>
-      <button onclick="ouvrirModal('modal-programme')">+ Ajouter matière</button>
+      <button onclick="ouvrirModalAjoutProgramme()">+ Ajouter matière</button>
     </div>
     <div id="programme-container">
       <div class="empty-state"><div class="icon">📚</div><h3>Sélectionnez une classe</h3><p>Son programme s'affichera ici.</p></div>
@@ -6760,7 +6760,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 <!-- ═══════════════════ MODAL AJOUTER MATIÈRE AU PROGRAMME ★ JOUR 21 ══════════════════ -->
 <div class="modal-overlay" id="modal-programme">
   <div class="modal">
-    <h3>📚 Ajouter une matière au programme</h3>
+    <h3 id="modal-prog-titre">📚 Ajouter une matière au programme</h3>
+    <input type="hidden" id="input-prog-id">
     <div class="form-group"><label>Classe *</label><select id="input-prog-classe" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:'Poppins',sans-serif;outline:none"></select></div>
     <div class="form-grid">
       <div class="form-group"><label>Matière *</label><input type="text" id="input-prog-matiere" placeholder="Ex : Algorithmique & Structures de données"></div>
@@ -6790,7 +6791,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="fermerModal('modal-programme')">Annuler</button>
-      <button onclick="ajouterMatiereAuProgramme()">📚 Ajouter</button>
+      <button id="btn-prog-submit" onclick="sauvegarderProgramme()">📚 Ajouter</button>
     </div>
   </div>
 </div>
@@ -15015,16 +15016,36 @@ async function chargerProgramme() {
         <td><span class="badge ${p.type_cours==='cours'?'blue':p.type_cours==='td'?'green':p.type_cours==='tp'?'purple':'amber'}">${p.type_cours||'cours'}</span></td>
         <td>${p.enseignants?p.enseignants.nom+' '+p.enseignants.prenom:'—'}</td>
         <td>${p.obligatoire!=='non'?'<span class="badge green">Oui</span>':'<span class="badge gray">Opt.</span>'}</td>
-        <td><button class="btn-sm btn-red" onclick="supprimerMatiereProgamme('${p.id}','${classeId}')">✕</button></td>
+        <td>
+          <button class="btn-sm" style="background:#f59e0b;color:#fff" onclick="editerMatiereProgramme('${p.id}','${classeId}')" title="Modifier">✏️</button>
+          <button class="btn-sm btn-red" onclick="supprimerMatiereProgamme('${p.id}','${classeId}')" title="Supprimer">✕</button>
+        </td>
       </tr>`).join('')}
     </table>`;
 }
 
-async function ajouterMatiereAuProgramme() {
+// Ouvre le modal en mode AJOUT : reset titre, bouton, id et tous les champs.
+// Indispensable car le modal est partagé avec le mode ÉDITION.
+function ouvrirModalAjoutProgramme() {
+  document.getElementById('modal-prog-titre').textContent = '📚 Ajouter une matière au programme';
+  document.getElementById('btn-prog-submit').textContent = '📚 Ajouter';
+  document.getElementById('input-prog-id').value = '';
+  document.getElementById('input-prog-matiere').value = '';
+  document.getElementById('input-prog-code').value = '';
+  document.getElementById('input-prog-coeff').value = 2;
+  document.getElementById('input-prog-heures').value = 3;
+  document.getElementById('input-prog-type').value = 'cours';
+  document.getElementById('input-prog-obligatoire').value = 'oui';
+  // ouvrirModal repeuple les <select> classe + enseignant via la map dans showPage
+  ouvrirModal('modal-programme');
+}
+
+async function sauvegarderProgramme() {
+  const id       = document.getElementById('input-prog-id').value;
   const classeId = document.getElementById('input-prog-classe').value;
   const matiere  = document.getElementById('input-prog-matiere').value.trim();
   if (!classeId||!matiere) { showToast('Sélectionnez une classe et une matière.','error'); return; }
-  const { error } = await db.from('programmes').insert([{
+  const payload = {
     ecole_id:   currentEcoleId,
     classe_id:  classeId,
     matiere,
@@ -15034,13 +15055,47 @@ async function ajouterMatiereAuProgramme() {
     type_cours:      document.getElementById('input-prog-type').value,
     enseignant_id:   document.getElementById('input-prog-enseignant').value||null,
     obligatoire:     document.getElementById('input-prog-obligatoire').value,
-  }]);
+  };
+  let error;
+  if (id) {
+    // Mode édition : ne pas écraser ecole_id (utile si peut_voir_ecole évolue)
+    delete payload.ecole_id;
+    ({ error } = await db.from('programmes').update(payload).eq('id', id));
+  } else {
+    ({ error } = await db.from('programmes').insert([payload]));
+  }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-programme');
-  ['input-prog-matiere','input-prog-code'].forEach(id=>document.getElementById(id).value='');
-  showToast('📚 Matière ajoutée !','success');
+  showToast(id ? '✏️ Matière modifiée !' : '📚 Matière ajoutée !', 'success');
   document.getElementById('filter-prog-classe').value = classeId;
   chargerProgramme();
+}
+
+// Compat : l'ancien nom est conservé en alias au cas où il est appelé ailleurs
+async function ajouterMatiereAuProgramme() { return sauvegarderProgramme(); }
+
+function editerMatiereProgramme(id, classeId) {
+  const p = (tousLesProgrammes || []).find(x => x.id === id);
+  if (!p) { showToast('Matière introuvable','error'); return; }
+  // Pré-remplir le modal avec les valeurs existantes
+  document.getElementById('modal-prog-titre').textContent = '✏️ Modifier la matière';
+  document.getElementById('btn-prog-submit').textContent = '💾 Enregistrer';
+  document.getElementById('input-prog-id').value         = p.id;
+  document.getElementById('input-prog-matiere').value    = p.matiere || '';
+  document.getElementById('input-prog-code').value       = p.code_matiere || '';
+  document.getElementById('input-prog-coeff').value      = p.coefficient || 2;
+  document.getElementById('input-prog-heures').value     = p.heures_semaine || 3;
+  document.getElementById('input-prog-type').value       = p.type_cours || 'cours';
+  document.getElementById('input-prog-obligatoire').value= p.obligatoire || 'oui';
+  // Ouvrir le modal (re-peuple les <select> classe + enseignant via ouvrirModal)
+  ouvrirModal('modal-programme');
+  // Pré-sélectionner classe + enseignant après que les <select> soient peuplés
+  setTimeout(() => {
+    const selClasse = document.getElementById('input-prog-classe');
+    const selEns    = document.getElementById('input-prog-enseignant');
+    if (selClasse) selClasse.value = p.classe_id || classeId || '';
+    if (selEns)    selEns.value    = p.enseignant_id || '';
+  }, 50);
 }
 
 async function supprimerMatiereProgamme(id, classeId) {
