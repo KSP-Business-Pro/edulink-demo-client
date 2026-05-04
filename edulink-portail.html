@@ -2951,17 +2951,20 @@ async function chargerBrandingPortail() {
     // Mettre à jour le thème PWA
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', p);
 
-    // Mettre à jour le titre si slogan
-    if (data.slogan) {
-      document.title = (data.nom || 'EduLink') + ' — Portail Famille';
+    // Mettre à jour le titre de l'onglet (toujours, même sans slogan)
+    if (data.nom) {
+      document.title = data.nom + ' — Portail Famille';
     }
 
-    // Mettre à jour le logo dans le header si défini
-    if (data.logo_url) {
-      const logoEl = document.querySelector('.header-logo');
-      if (logoEl) {
-        logoEl.innerHTML = `<img src="${data.logo_url}" style="height:28px;width:auto;object-fit:contain;border-radius:6px" onerror="this.parentNode.innerHTML='🎓 EduLink'"> ${data.nom || 'EduLink'}`;
-      }
+    // Mettre à jour le header : nom de l'école toujours, logo en plus si dispo
+    const logoEl = document.querySelector('.header-logo');
+    if (logoEl && data.nom) {
+      const nomSafe = String(data.nom).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const logoSrc = data.logo_url ? String(data.logo_url).replace(/"/g, '&quot;') : null;
+      const visuel  = logoSrc
+        ? `<img src="${logoSrc}" style="height:28px;width:auto;object-fit:contain;border-radius:6px" onerror="this.style.display='none'">`
+        : '🎓';
+      logoEl.innerHTML = `${visuel} <span style="font-size:14px;font-weight:700;letter-spacing:.2px">${nomSafe}</span>`;
     }
 
     console.log('[Branding] Thème appliqué :', p, s, a);
