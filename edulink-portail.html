@@ -1153,18 +1153,25 @@ async function chargerMessages() {
 
   // ── FILTRE HÉRITAGE J-1 ────────────────────────────────────────────
   // Le schéma `messages` n'a pas de etudiant_id : on filtre par heuristique.
+  // Le BO envoie au PARENT (destinataire_nom = etudiant.nom_parent), donc on
+  // matche essentiellement sur le nom_parent stocké sur l'étudiant courant.
+  //
   // Un message est visible pour ce parent si :
-  //   1. C'est lui-même qui l'a envoyé (role=parent + nom matchant)
-  //   2. Le destinataire_nom contient le nom OU prénom de l'étudiant
-  //   3. Le destinataire_nom mentionne "Parent " + nom étudiant
+  //   1. C'est lui-même qui l'a envoyé (expediteur_role=parent + nom matchant)
+  //   2. Le destinataire_nom contient son nom de parent
+  //   3. Le destinataire_nom contient le nom OU prénom de l'étudiant (cas
+  //      historique où l'admin aurait écrit le nom de l'enfant)
   //   4. C'est une annonce générale (destinataire_role=parent ET nom vide ou
   //      mots-clés "tous"/"parents"/"famille")
   // ────────────────────────────────────────────────────────────────────
   const etu = currentEtudiant;
-  const monNom    = (currentProfile?.nom || '').toLowerCase().trim();
-  const monPrenom = (currentProfile?.prenom || '').toLowerCase().trim();
+  const nomParent = (etu?.nom_parent || '').toLowerCase().trim();
   const etuNom    = (etu?.nom    || '').toLowerCase().trim();
   const etuPrenom = (etu?.prenom || '').toLowerCase().trim();
+
+  // Tokens du nom_parent (ex "SANTANA René" → ["santana", "rené"])
+  // On exige un match sur un token >= 3 caractères pour éviter les faux positifs.
+  const tokensParent = nomParent.split(/\s+/).filter(t => t.length >= 3);
 
   function meConcerne(m) {
     const dest = (m.destinataire_nom || '').toLowerCase().trim();
@@ -1174,11 +1181,15 @@ async function chargerMessages() {
 
     // Cas 1 : envoyé par ce parent lui-même
     if (expRole === 'parent') {
-      if ((monNom    && exp.includes(monNom))    ||
-          (etuNom    && exp.includes(etuNom))    ||
-          (monPrenom && exp.includes(monPrenom))) return true;
+      if (nomParent && exp.includes(nomParent)) return true;
+      if (tokensParent.some(t => exp.includes(t))) return true;
     }
-    // Cas 2 et 3 : nom/prénom étudiant dans destinataire
+    // Cas 2 : nom_parent matche le destinataire (cas principal — messages groupés BO)
+    if (nomParent && dest.includes(nomParent)) return true;
+    // Match plus permissif sur tokens : tous les tokens du nom_parent doivent
+    // être présents dans le destinataire (ex "DAVI Job" ⊂ "DAVI Job Constant")
+    if (tokensParent.length && tokensParent.every(t => dest.includes(t))) return true;
+    // Cas 3 : nom/prénom étudiant dans destinataire (historique)
     if (etuNom    && dest.includes(etuNom))    return true;
     if (etuPrenom && dest.includes(etuPrenom)) return true;
     // Cas 4 : annonce générale (destinataire_role=parent)
@@ -2060,40 +2071,9 @@ async function rendreListeExamensPortail() {
 
 // ══ ENSEIGNANTS PORTAIL ★ JOUR 13 ══════════════════════════════
 
-async function chargerEnseignantsPortail() {
-  if (IS_DEMO_MODE) { tousEnseignantsPortail = []; return; }
-  if (!currentEcoleId) { tousEnseignantsPortail = []; return; }
-  const { data } = await db.from('enseignants').select('*')
-    .eq('ecole_id', currentEcoleId).eq('statut','actif');
-  tousEnseignantsPortail = data || [];
-}
-
+// getProfPourMatiere : utilisée par afficherAccueil (notes) pour afficher le prof
 function getProfPourMatiere(matiere) {
   return tousEnseignantsPortail.find(p => (p.matieres||[]).includes(matiere));
-}
-
-function afficherEnseignantsPortail() {
-  const page = document.getElementById('page-enseignants');
-  if (!page) return;
-  if (!tousEnseignantsPortail.length) {
-    page.innerHTML = '<div class="page-pad"><div class="section-title">👨‍🏫 Mes Enseignants</div><div class="empty"><div class="e-ico">👨‍🏫</div><p>Aucun enseignant enregistré.</p></div></div>';
-    return;
-  }
-  page.innerHTML = `<div class="page-pad">
-    <div class="section-title">👨‍🏫 Mes Enseignants</div>
-    ${tousEnseignantsPortail.map(p => {
-      const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase();
-      return `<div class="prof-contact-card">
-        <div class="pcc-avatar">${initiales||'👤'}</div>
-        <div class="pcc-info">
-          <div class="pi-nom">${p.nom} ${p.prenom}${p.grade?' · <span style="opacity:.7;font-size:11px">'+p.grade+'</span>':''}</div>
-          <div class="pi-spec">${p.specialite||''}</div>
-          <div class="pi-mat">${(p.matieres||[]).slice(0,4).join(' · ')}</div>
-        </div>
-        ${p.email ? `<a href="mailto:${p.email}" style="margin-left:auto;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;padding:6px 12px;border-radius:8px;font-size:11.5px;font-weight:600;text-decoration:none">✉️ Email</a>` : ''}
-      </div>`;
-    }).join('')}
-  </div>`;
 }
 
 
@@ -2102,9 +2082,36 @@ function afficherEnseignantsPortail() {
 async function chargerEnseignantsPortail() {
   if (IS_DEMO_MODE) { tousEnseignantsPortail = []; return; }
   if (!currentEcoleId) { tousEnseignantsPortail = []; return; }
-  const { data } = await db.from('enseignants').select('*')
+
+  // Charger tous les enseignants actifs de l'école
+  const { data: tous } = await db.from('enseignants').select('*')
     .eq('ecole_id', currentEcoleId).eq('statut','actif').order('nom');
-  tousEnseignantsPortail = data || [];
+  const liste = tous || [];
+
+  // Filtrer aux enseignants qui interviennent dans la classe de l'étudiant
+  // (via la table programmes : classe_id → enseignant_id)
+  // Fallback école entière si :
+  //   - pas de classe_id sur l'étudiant
+  //   - aucun programme défini pour la classe
+  //   - aucun enseignant_id renseigné dans les programmes
+  //   - tous les enseignant_id du programme sont introuvables (données incohérentes)
+  const classeId = currentEtudiant?.classe_id;
+  if (!classeId) { tousEnseignantsPortail = liste; return; }
+
+  try {
+    const { data: progs } = await db.from('programmes')
+      .select('enseignant_id')
+      .eq('classe_id', classeId)
+      .not('enseignant_id', 'is', null);
+    const idsEns = [...new Set((progs || []).map(p => p.enseignant_id).filter(Boolean))];
+    if (!idsEns.length) { tousEnseignantsPortail = liste; return; }
+
+    const filtre = liste.filter(e => idsEns.includes(e.id));
+    tousEnseignantsPortail = filtre.length ? filtre : liste;
+  } catch (e) {
+    console.warn('[Enseignants] Filtre par programme échoué, fallback école:', e.message);
+    tousEnseignantsPortail = liste;
+  }
 }
 
 function afficherEnseignantsPortail() {
@@ -2114,8 +2121,15 @@ function afficherEnseignantsPortail() {
     return;
   }
 
-  // Filtrer par matières de l'étudiant (filière/niveau)
-  const gradeLabels = { vacataire:'Vacataire', contractuel:'Contractuel', permanent:'Permanent', charge_cours:'Chargé de cours', maitre_conf:'Maître de conf.', professeur:'Professeur' };
+  // Mapping aligné sur le back-office (nouvelles valeurs canoniques + compat anciennes)
+  const gradeLabels = {
+    'Maître-Assistant':'Maître-Assistant', 'Maître de Conférences':'Maître de Conférences',
+    'Professeur Titulaire':'Professeur Titulaire', 'Docteur':'Docteur',
+    'Prof Agrégé':'Prof Agrégé', 'Chargé de Cours':'Chargé de Cours',
+    // Compat anciennes valeurs
+    vacataire:'Vacataire', contractuel:'Contractuel', permanent:'Permanent',
+    charge_cours:'Chargé de cours', maitre_conf:'Maître de conf.', professeur:'Professeur'
+  };
 
   page.innerHTML = `<div class="page-pad">
     <div class="section-title">👨‍🏫 Nos Enseignants</div>
