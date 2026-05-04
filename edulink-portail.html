@@ -2932,15 +2932,18 @@ async function chargerBrandingPortail() {
   if (IS_DEMO_MODE) return;
   if (!currentEcoleId) return;
   try {
-    const { data } = await db.from('ecoles')
-      .select('nom, couleur_primaire, couleur_secondaire, couleur_accent, couleur_bg, logo_url, slogan')
-      .eq('id', currentEcoleId).single();
-    if (!data) return;
+    // ⚠ couleur_bg n'existe pas dans le schéma actuel — ne PAS la sélectionner
+    //    (un select sur une colonne inexistante => 400 sur toute la requête)
+    const { data, error } = await db.from('ecoles')
+      .select('nom, couleur_primaire, couleur_secondaire, couleur_accent, logo_url')
+      .eq('id', currentEcoleId).maybeSingle();
+    if (error) { console.warn('[Branding Portail] Supabase:', error.message || error); return; }
+    if (!data)  { console.warn('[Branding Portail] Aucune école pour id=', currentEcoleId); return; }
 
     const p  = data.couleur_primaire   || '#0f6e56';
     const s  = data.couleur_secondaire || '#1e3a5f';
     const a  = data.couleur_accent     || '#c97c1a';
-    const bg = data.couleur_bg         || '#f0f7f4';
+    const bg = '#f0f7f4'; // couleur_bg absente du schéma — fallback en dur
 
     // Injecter les CSS variables dans :root
     const root = document.documentElement;
