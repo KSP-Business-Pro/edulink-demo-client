@@ -8551,8 +8551,13 @@ function changerEcole() {
   // (le chargement du nouveau module les ré-écrira proprement)
   const progContainer = document.getElementById('programme-container');
   if (progContainer) progContainer.innerHTML = '<div class="empty-state"><div class="icon">📚</div><h3>Sélectionnez une classe</h3></div>';
-  const filterClasse = document.getElementById('filter-prog-classe');
-  if (filterClasse) filterClasse.value = '';
+  // Vider AUSSI les <select> de classes (sinon les options stale gardent une value
+  // pointant sur une classe d'une autre école → tableau "fantôme" des programmes
+  // qui apparaît dans toutes les écoles).
+  ['filter-prog-classe', 'input-prog-classe', 'filter-aff-classe'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">— Sélectionner —</option>';
+  });
   // Recharger le module actif + dashboard
   chargerDashboard();
   // Recharger le module actuellement affiché
