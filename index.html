@@ -8353,7 +8353,7 @@ function ouvrirModal(id) {
   if (id === 'modal-facture')  { remplirSelect('input-fac-etudiant'); document.getElementById('input-fac-echeance').value = new Date(Date.now()+30*864e5).toISOString().split('T')[0]; }
   if (id === 'modal-incident') { remplirSelect('input-inc-etudiant'); document.getElementById('input-inc-date').value = new Date().toISOString().split('T')[0]; }
   if (id === 'modal-emprunt')  { remplirSelectEmprunt(); }
-  if (id === 'modal-programme'){ remplirSelectClasseProg(); remplirSelectEnsModal(); }
+  if (id === 'modal-programme'){ remplirSelectClasseProg(); remplirSelectEnsProgModal(); }
   if (id === 'modal-transaction') { document.getElementById('input-trans-date').value = new Date().toISOString().split('T')[0]; }
   if (id === 'modal-conge')      { remplirSelectAgentConge(); document.getElementById('input-conge-debut').value = new Date().toISOString().split('T')[0]; }
   if (id === 'modal-personnel')  { document.getElementById('input-rh-embauche').value = new Date().toISOString().split('T')[0]; }
@@ -12361,6 +12361,22 @@ async function remplirSelectEnsModal() {
   const sel = document.getElementById('input-mat-enseignant');
   sel.innerHTML = '<option value="">— Assigner un enseignant —</option>';
   tousLesEnseignants.forEach(e => {
+    sel.innerHTML += `<option value="${e.id}">${e.nom} ${e.prenom}</option>`;
+  });
+}
+
+// Fix démo : le modal "Ajouter matière au programme" appelait remplirSelectEnsModal()
+// qui peuple le mauvais <select> (celui du modal matière, pas celui du modal programme).
+// Cette fonction dédiée peuple input-prog-enseignant et recharge la liste si vide.
+async function remplirSelectEnsProgModal() {
+  const sel = document.getElementById('input-prog-enseignant');
+  if (!sel) return;
+  // Si la liste n'est pas encore chargée (admin n'a pas visité l'onglet Enseignants)
+  if (!tousLesEnseignants || !tousLesEnseignants.length) {
+    try { await chargerEnseignants(); } catch(_) {}
+  }
+  sel.innerHTML = '<option value="">— Assigner un enseignant —</option>';
+  (tousLesEnseignants || []).forEach(e => {
     sel.innerHTML += `<option value="${e.id}">${e.nom} ${e.prenom}</option>`;
   });
 }
