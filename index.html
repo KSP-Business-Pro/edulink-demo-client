@@ -8543,13 +8543,24 @@ function changerEcole() {
   // Vider les caches de tous les modules
   tousLesEtudiants = []; tousLesEnseignants = []; tousLesCreneaux = [];
   tousLesFactures = []; tousLesPaiements = []; tousLesMessages = [];
+  // Fix démo : tousLesProgrammes oublié → tableau "fantôme" entre écoles
+  if (typeof tousLesProgrammes !== 'undefined') tousLesProgrammes = [];
+  if (typeof toutesLesClasses !== 'undefined') toutesLesClasses = [];
+  if (typeof toutesMatieres !== 'undefined') toutesMatieres = [];
+  // Fix démo : reset DOM des conteneurs qui peuvent garder un rendu stale
+  // (le chargement du nouveau module les ré-écrira proprement)
+  const progContainer = document.getElementById('programme-container');
+  if (progContainer) progContainer.innerHTML = '<div class="empty-state"><div class="icon">📚</div><h3>Sélectionnez une classe</h3></div>';
+  const filterClasse = document.getElementById('filter-prog-classe');
+  if (filterClasse) filterClasse.value = '';
   // Recharger le module actif + dashboard
   chargerDashboard();
   // Recharger le module actuellement affiché
+  // Fix démo : la map s'appelle "loaders" (locale dans showPage), pas "pageLoaders".
+  // On rappelle showPage() qui re-déclenche le bon loader.
   const pageActive = document.querySelector('.page.active')?.id?.replace('page-', '');
-  if (pageActive && pageActive !== 'dashboard' && typeof pageLoaders !== 'undefined') {
-    const loader = pageLoaders[pageActive];
-    if (typeof loader === 'function') setTimeout(loader, 100);
+  if (pageActive && pageActive !== 'dashboard' && typeof showPage === 'function') {
+    setTimeout(() => showPage(pageActive), 100);
   }
   showToast('📍 ' + (ecole?.nom || 'Établissement sélectionné'), 'info');
 }
