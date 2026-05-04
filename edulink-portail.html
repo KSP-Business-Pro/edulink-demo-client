@@ -1799,6 +1799,8 @@ async function connecterParTelephone(tel) {
     document.getElementById('student-pill-wrap').innerHTML =
       `<div class="student-pill">👨‍🎓 ${trouve.nom} ${trouve.prenom} · ${trouve.filiere} ${trouve.niveau}</div>`;
     chargerTout();
+    // Branding dynamique (logo + nom d'école dans le header)
+    chargerBrandingPortail();
   } else {
     showOTPError(2, "Aucun enfant lié à ce numéro. Vérifiez ou contactez l'administration.");
     const btn = document.getElementById('btn-verifier-otp');
