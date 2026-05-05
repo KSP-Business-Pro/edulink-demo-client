@@ -7148,7 +7148,9 @@ async function seConnecter() {
     // — à activer manuellement si nécessaire via le bouton "Temps réel"
     // if (typeof initialiserRealtime === 'function') setTimeout(initialiserRealtime, 1000);
     initOfflineMode();
-    initSuite8?.();
+    // Suite 8 : init si la fonction existe (typeof évite le ReferenceError
+    // si l'identifiant n'a pas été déclaré du tout, contrairement à `?.()`)
+    if (typeof initSuite8 === 'function') initSuite8();
   } catch(e) {
     err.textContent = e.message || 'Identifiants incorrects.';
     err.style.display = 'block';
