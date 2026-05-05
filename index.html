@@ -59,6 +59,9 @@ main { flex:1; padding:1.5rem; overflow:auto; min-height:100vh; }
 .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:10px; }
 .top h2 { font-size:20px; font-weight:700; color:#111827; }
 .page-subtitle { font-size:13px; color:#6b7280; margin-top:-1rem; margin-bottom:1.2rem; }
+/* Lorsque le sous-titre est dans un .top (titre + boutons), ne PAS le tirer
+   par-dessus le h2 ; le -1rem global est conçu pour les sous-titres orphelins. */
+.top .page-subtitle { margin-top:4px; margin-bottom:0; }
 .top-actions { display:flex; gap:8px; }
 
 /* ── Cards ── */
