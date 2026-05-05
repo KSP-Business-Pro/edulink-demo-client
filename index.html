@@ -12316,16 +12316,27 @@ async function showFicheEnsTab(tab) {
   }
 
   else if (tab === 'planning') {
-    // Afficher les créneaux de l'emploi du temps pour cet enseignant
+    // Affiche les créneaux de l'emploi du temps pour cet enseignant.
+    // Source : table emploi_du_temps. Colonnes réelles (cf. payload écriture l.9573-9575) :
+    //   - 'professeur' (texte libre du nom du prof)
+    //   - 'type' (cours/td/tp/exam)
+    // La logique de matching est alignée sur afficherPlanningEnseignant() pour cohérence.
     let q = db.from('emploi_du_temps').select('*').order('heure_debut');
     if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
     const { data: creneaux } = await q;
-    const siens = (creneaux||[]).filter(cr =>
-      (cr.enseignant||'').toLowerCase().includes((ens.nom||'').toLowerCase()) ||
-      (cr.enseignant||'').toLowerCase().includes((ens.prenom||'').toLowerCase())
-    );
+    const nomEnsSeul = (ens.nom||'').toLowerCase();
+    const prenomEns  = (ens.prenom||'').toLowerCase();
+    const nomComplet = (nomEnsSeul + ' ' + prenomEns).trim();
+    const siens = (creneaux||[]).filter(cr => {
+      const prof = (cr.professeur||'').toLowerCase();
+      if (!prof) return false;
+      return prof === nomComplet
+          || (nomEnsSeul && prof.includes(nomEnsSeul))
+          || (prenomEns  && prof.includes(prenomEns));
+    });
     const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-    const typeColors = { cours:'ens-slot-blue', td:'ens-slot-green', tp:'ens-slot-purple', examen:'ens-slot-amber' };
+    // Supporte 'exam' (clé canonique côté écriture) et 'examen' (legacy éventuel) → même couleur ambre.
+    const typeColors = { cours:'ens-slot-blue', td:'ens-slot-green', tp:'ens-slot-purple', exam:'ens-slot-amber', examen:'ens-slot-amber' };
     const creneauxHeures = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
     content.innerHTML = siens.length ? `
       <div class="ens-planning-wrap">
@@ -12335,7 +12346,7 @@ async function showFicheEnsTab(tab) {
             <td class="time-col">${h}</td>
             ${jours.map(j => {
               const cr = siens.find(c => c.heure_debut?.slice(0,5)===h && c.jour===j);
-              return `<td>${cr?`<div class="ens-slot ${typeColors[cr.type_cours]||'ens-slot-blue'}"><strong>${cr.matiere}</strong><div style="font-size:10px">${cr.salle||''}</div></div>`:''}</td>`;
+              return `<td>${cr?`<div class="ens-slot ${typeColors[cr.type]||'ens-slot-blue'}"><strong>${cr.matiere}</strong><div style="font-size:10px">${cr.salle||''}</div></div>`:''}</td>`;
             }).join('')}
           </tr>`).join('')}
         </table>
