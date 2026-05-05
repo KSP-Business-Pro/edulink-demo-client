@@ -7551,29 +7551,164 @@ function csvDownload(filename, header, rows) {
 //  UTILITAIRE XLSX — EXPORT EXCEL UNIVERSEL
 //  Utilisé par tous les modules Export Excel
 // ══════════════════════════════════════════════════════════════════════
-function xlsxDownload(filename, header, rows, sheetName, colWidths) {
+// xlsxDownload(filename, header, rows, sheetName, colWidthsOrOptions)
+//
+// Compatibilité : le 5e argument peut être (a) un Array de largeurs comme avant,
+// ou (b) un objet d'options pour activer des features avancées. Le check `Array.isArray`
+// distingue les deux modes — TOUS les anciens appels passant un Array continuent
+// de fonctionner à l'identique.
+//
+// Options supportées quand on passe un objet :
+//   colWidths       : [12, 24, ...]                — largeurs de colonnes
+//   numericCols     : [3, 4, 5]                    — index 0-based des colonnes numériques
+//   currencyCols    : [3, 4, 5]                    — colonnes monétaires (format "#,##0 \"FCFA\"")
+//   dateCols        : [7]                          — colonnes date (format "dd/mm/yyyy")
+//   freezeHeader    : true                         — gèle la 1re ligne (par défaut: true)
+//   autoFilter      : true                         — active le filtre Excel sur l'en-tête
+//   totalRow        : { label, cols: [3,4,5] }     — ligne TOTAL avec SUM des colonnes
+//   extraSheets     : [{ sheetName, header, rows, options }]  — feuilles supplémentaires
+function xlsxDownload(filename, header, rows, sheetName, colWidthsOrOptions) {
   if (typeof XLSX === 'undefined') {
     showToast('⚠️ Bibliothèque Excel non chargée — utilisez Export CSV', 'error');
     return false;
   }
-  const aoa = [header, ...rows];
-  const ws  = XLSX.utils.aoa_to_sheet(aoa);
-  // Style en-têtes : gras + fond bleu foncé
+  // Normalisation des options : array → ancien comportement, objet → nouveau
+  const isLegacy = !colWidthsOrOptions || Array.isArray(colWidthsOrOptions);
+  const opts = isLegacy
+    ? { colWidths: colWidthsOrOptions || null }
+    : (colWidthsOrOptions || {});
+  // Defaults raisonnables sur le nouveau mode (le legacy reste strict)
+  const freezeHeader = isLegacy ? false : (opts.freezeHeader !== false);
+  const autoFilter   = isLegacy ? false : (opts.autoFilter   === true);
+
+  const wb = XLSX.utils.book_new();
+  _xlsxAppendSheet(wb, sheetName || 'EduLink', header, rows, {
+    colWidths    : opts.colWidths    || null,
+    numericCols  : opts.numericCols  || [],
+    currencyCols : opts.currencyCols || [],
+    dateCols     : opts.dateCols     || [],
+    freezeHeader, autoFilter,
+    totalRow     : opts.totalRow     || null,
+  });
+  // Feuilles supplémentaires (ex. "Paiements reçus" en 2e onglet)
+  (opts.extraSheets || []).forEach(s => {
+    _xlsxAppendSheet(wb, s.sheetName || 'Sheet', s.header || [], s.rows || [], s.options || {});
+  });
+  XLSX.writeFile(wb, filename);
+  return true;
+}
+
+// Helper interne : ajoute une feuille à un workbook avec toutes les options de
+// formatage. Factorisé pour pouvoir gérer plusieurs feuilles dans un même fichier.
+function _xlsxAppendSheet(wb, sheetName, header, rows, opts) {
+  opts = opts || {};
+  // Construction des lignes en typant correctement les valeurs (nombres vs string)
+  const numSet  = new Set([...(opts.numericCols||[]), ...(opts.currencyCols||[])]);
+  const dateSet = new Set(opts.dateCols||[]);
+  const typedRows = rows.map(r => r.map((v, ci) => {
+    if (v == null || v === '' || v === '—') return v;
+    if (numSet.has(ci)) {
+      const n = typeof v === 'number' ? v : Number(String(v).replace(/\s/g,'').replace(',','.'));
+      return isNaN(n) ? v : n;
+    }
+    if (dateSet.has(ci) && !(v instanceof Date)) {
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? v : d;
+    }
+    return v;
+  }));
+  const aoa = [header, ...typedRows];
+  // Ligne TOTAL si demandée — utilise des formules SUM (pas de hardcoded values)
+  if (opts.totalRow && opts.totalRow.cols && opts.totalRow.cols.length) {
+    const totalRowIdx = aoa.length + 1; // 1-based en Excel
+    const totalRow = header.map((_, ci) => {
+      if (ci === 0) return opts.totalRow.label || 'TOTAL';
+      if (opts.totalRow.cols.includes(ci)) {
+        const colLetter = XLSX.utils.encode_col(ci);
+        return { f: `SUM(${colLetter}2:${colLetter}${totalRowIdx-1})` };
+      }
+      return '';
+    });
+    aoa.push(totalRow);
+  }
+  // cellDates:true → SheetJS conserve les Date comme Date dans cell.v et type 'd',
+  // ce qui rend le format `cell.z = 'dd/mm/yyyy'` effectif. Sans cette option,
+  // SheetJS sérialise la Date en nombre Excel et change le type à 'n' → format ignoré.
+  const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates: true });
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+
+  // Style en-têtes : gras + fond bleu foncé (cohérent avec l'existant)
   for (let C = range.s.c; C <= range.e.c; C++) {
     const cellRef = XLSX.utils.encode_cell({ r: 0, c: C });
     if (!ws[cellRef]) continue;
     ws[cellRef].s = {
       font:    { bold: true, color: { rgb: 'FFFFFF' } },
       fill:    { fgColor: { rgb: '1E3A5F' } },
-      alignment: { horizontal: 'center' },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: {
+        bottom: { style: 'thin', color: { rgb: 'FFFFFF' } }
+      }
     };
   }
+  // Format monétaire FCFA sur les colonnes désignées
+  (opts.currencyCols||[]).forEach(ci => {
+    for (let r = 1; r <= range.e.r; r++) {
+      const cellRef = XLSX.utils.encode_cell({ r, c: ci });
+      const cell = ws[cellRef];
+      if (cell && (typeof cell.v === 'number')) {
+        cell.t = 'n';
+        cell.z = '#,##0 "FCFA"';
+      }
+    }
+  });
+  // Format nombre simple sur les colonnes numériques (non monétaires)
+  (opts.numericCols||[]).forEach(ci => {
+    if ((opts.currencyCols||[]).includes(ci)) return;
+    for (let r = 1; r <= range.e.r; r++) {
+      const cellRef = XLSX.utils.encode_cell({ r, c: ci });
+      const cell = ws[cellRef];
+      if (cell && (typeof cell.v === 'number')) {
+        cell.t = 'n';
+        cell.z = '#,##0';
+      }
+    }
+  });
+  // Format date — cellDates:true a déjà mis cell.t = 'd' pour les Date.
+  // Il suffit donc d'appliquer le format souhaité.
+  (opts.dateCols||[]).forEach(ci => {
+    for (let r = 1; r <= range.e.r; r++) {
+      const cellRef = XLSX.utils.encode_cell({ r, c: ci });
+      const cell = ws[cellRef];
+      if (cell && cell.t === 'd') {
+        cell.z = 'dd/mm/yyyy';
+      }
+    }
+  });
+  // Style ligne TOTAL : gras + fond gris clair + bordure haut
+  if (opts.totalRow && opts.totalRow.cols && opts.totalRow.cols.length) {
+    const totalRowExcel = range.e.r;
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cellRef = XLSX.utils.encode_cell({ r: totalRowExcel, c: C });
+      if (!ws[cellRef]) ws[cellRef] = { v: '' };
+      ws[cellRef].s = {
+        font: { bold: true },
+        fill: { fgColor: { rgb: 'F3F4F6' } },
+        border: { top: { style: 'medium', color: { rgb: '1E3A5F' } } }
+      };
+      // Préserve le format monétaire/nombre sur les cells de SUM
+      // On force t='n' car SheetJS, sur une cellule purement-formule, ne typifie
+      // pas automatiquement et le format z serait alors ignoré côté Excel.
+      if (opts.totalRow.cols.includes(C)) {
+        ws[cellRef].t = 'n';
+        if ((opts.currencyCols||[]).includes(C)) ws[cellRef].z = '#,##0 "FCFA"';
+        else if ((opts.numericCols||[]).includes(C)) ws[cellRef].z = '#,##0';
+      }
+    }
+  }
   // Largeurs colonnes
-  if (colWidths) {
-    ws['!cols'] = colWidths.map(w => ({ wch: w }));
+  if (opts.colWidths) {
+    ws['!cols'] = opts.colWidths.map(w => ({ wch: w }));
   } else {
-    // Auto-largeur basée sur la longueur max des valeurs
     ws['!cols'] = header.map((h, ci) => {
       const maxLen = Math.max(
         String(h).length,
@@ -7582,10 +7717,23 @@ function xlsxDownload(filename, header, rows, sheetName, colWidths) {
       return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
     });
   }
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, sheetName || 'EduLink');
-  XLSX.writeFile(wb, filename);
-  return true;
+  // Freeze header (1ère ligne fixe au scroll)
+  // ATTENTION : SheetJS Community ne sérialise pas le pane gelé dans le XML
+  // sortant. On garde l'option pour rétrocompatibilité (et au cas où une version
+  // ultérieure le supporte). En attendant, on compense en augmentant la hauteur
+  // de l'en-tête pour qu'il soit visuellement très distinct lors du scroll.
+  if (opts.freezeHeader) {
+    ws['!views'] = [{ state: 'frozen', ySplit: 1 }];
+    if (!ws['!rows']) ws['!rows'] = [];
+    ws['!rows'][0] = { hpt: 22 }; // hauteur en-tête (~22pt vs ~15 par défaut)
+  }
+  // Auto-filter sur l'en-tête (sans inclure la ligne TOTAL pour ne pas la trier)
+  if (opts.autoFilter) {
+    const lastDataRow = opts.totalRow ? range.e.r - 1 : range.e.r;
+    const endRef = XLSX.utils.encode_cell({ r: lastDataRow, c: range.e.c });
+    ws['!autofilter'] = { ref: `A1:${endRef}` };
+  }
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
 }
 
 // Génère et télécharge un fichier XLSX vide avec les colonnes du modèle
@@ -7624,8 +7772,12 @@ function exporterEtudiantsCSV() {
     e.classes?.nom || e.classe_nom || '',
     e.statut||'actif'
   ]);
-  xlsxDownload(`EduLink-Etudiants-${today()}.xlsx`, header, rows, 'Étudiants',
-    [12,18,18,28,14,6,14,16,18,12,14,10]);
+  xlsxDownload(`EduLink-Etudiants-${today()}.xlsx`, header, rows, 'Étudiants', {
+    colWidths    : [12,18,18,28,14,6,14,16,18,12,14,10],
+    dateCols     : [6],
+    freezeHeader : true,
+    autoFilter   : true
+  });
   showToast('📊 Export Excel étudiants téléchargé !', 'success');
 }
 
@@ -7834,11 +7986,15 @@ async function exporterAbsencesCSV() {
   const header = ['Date','Étudiant','Matière','Statut','Justifié','Commentaire'];
   const rows = data.map(a => [
     a.date_absence||'',
-    a.etudiants ? `${a.etudiants.nom} ${a.etudiants.prenom}` : a.etudiant_id||'',
+    a.etudiants ? `${a.etudiants.nom} ${a.etudiants.prenom}` : '',
     a.matiere||'', a.statut||'', a.justifie ? 'Oui' : 'Non', a.commentaire||''
   ]);
-  xlsxDownload(`EduLink-Absences-${today()}.xlsx`, header, rows, 'Absences',
-    [14,25,18,12,10,30]);
+  xlsxDownload(`EduLink-Absences-${today()}.xlsx`, header, rows, 'Absences', {
+    colWidths    : [14,25,18,12,10,30],
+    dateCols     : [0],
+    freezeHeader : true,
+    autoFilter   : true
+  });
   showToast('📊 Export Excel absences téléchargé !', 'success');
 }
 
@@ -7853,8 +8009,11 @@ function exporterEdtExcel() {
     c.type_seance||'', c.classe_nom||''
   ]);
   if (!rows.length) { showToast('Aucun créneau à exporter', 'error'); return; }
-  xlsxDownload(`EduLink-EmploiDuTemps-${today()}.xlsx`, header, rows, 'EDT',
-    [12,12,12,18,22,10,12,14]);
+  xlsxDownload(`EduLink-EmploiDuTemps-${today()}.xlsx`, header, rows, 'EDT', {
+    colWidths    : [12,12,12,18,22,10,12,14],
+    freezeHeader : true,
+    autoFilter   : true
+  });
   showToast('📊 Export Excel EDT téléchargé !', 'success');
 }
 
@@ -7870,8 +8029,12 @@ function exporterExamensExcel() {
     e.salle||'', e.filiere||'', e.niveau||'',
     e.surveillant||'', e.statut||''
   ]);
-  xlsxDownload(`EduLink-Examens-${today()}.xlsx`, header, rows, 'Examens',
-    [18,12,12,12,12,10,16,10,20,12]);
+  xlsxDownload(`EduLink-Examens-${today()}.xlsx`, header, rows, 'Examens', {
+    colWidths    : [18,12,12,12,12,10,16,10,20,12],
+    dateCols     : [2],
+    freezeHeader : true,
+    autoFilter   : true
+  });
   showToast('📊 Export Excel examens téléchargé !', 'success');
 }
 
@@ -7935,27 +8098,83 @@ function exporterMessagesExcel() {
   const header = ['Expéditeur','Rôle','Destinataire','Objet','Date','Lu'];
   const rows = tousLesMessages.map(m => [
     m.expediteur||'', m.role_expediteur||'', m.destinataire||'',
-    m.objet||'', fmtDate(m.created_at)||'', m.lu ? 'Oui' : 'Non'
+    m.objet||'', m.created_at||'', m.lu ? 'Oui' : 'Non'
   ]);
-  xlsxDownload(`EduLink-Messages-${today()}.xlsx`, header, rows, 'Messages',
-    [22,14,22,30,14,8]);
+  xlsxDownload(`EduLink-Messages-${today()}.xlsx`, header, rows, 'Messages', {
+    colWidths    : [22,14,22,30,14,8],
+    dateCols     : [4],
+    freezeHeader : true,
+    autoFilter   : true
+  });
   showToast('📊 Export Excel messages téléchargé !', 'success');
 }
 
 // ══════════════════════════════════════════════════════════════════════
 //  EXPORTS EXCEL — MODULE PAIEMENTS
 // ══════════════════════════════════════════════════════════════════════
-function exporterPaiementsExcel() {
+async function exporterPaiementsExcel() {
   if (!toutesLesFactures?.length) { showToast('Aucun paiement à exporter', 'error'); return; }
-  const header = ['Référence','Étudiant','Type','Montant total','Montant payé','Solde','Statut','Échéance'];
-  const rows = toutesLesFactures.map(f => [
-    f.reference||'', f.etudiant_nom||f.etudiant_id||'',
-    f.type_frais||'', f.montant_total||0, f.montant_paye||0,
-    (f.montant_total||0) - (f.montant_paye||0),
-    f.statut||'', fmtDate(f.echeance)||''
+  // Helper local : nom complet d'un étudiant à partir de la jointure du select.
+  // Si la jointure manque (cache rare), on retombe sur l'UUID préfixé pour signaler la donnée incomplète.
+  const ensNom = (f) => f.etudiants ? `${f.etudiants.nom||''} ${f.etudiants.prenom||''}`.trim() : (f.etudiant_id ? `(id:${String(f.etudiant_id).slice(0,8)})` : '');
+  const humaniseStatut = s => ({ paye:'Payée', en_attente:'En attente', partiel:'Partielle', retard:'En retard' }[s] || s || '');
+  const humaniseType   = t => ({ scolarite:'Scolarité', examen:'Examen', bibliotheque:'Bibliothèque', inscription:'Inscription', mensualite:'Mensualité' }[t] || t || '');
+
+  // Feuille 1 — Factures (vue financière)
+  const headerFac = ['Référence','Étudiant','Type','Description','Montant total','Montant payé','Solde','Statut','Échéance'];
+  const rowsFac = toutesLesFactures.map(f => [
+    f.reference || '',
+    ensNom(f),
+    humaniseType(f.type_frais),
+    f.description || '',
+    Number(f.montant_total) || 0,
+    Number(f.montant_paye)  || 0,
+    (Number(f.montant_total)||0) - (Number(f.montant_paye)||0),
+    humaniseStatut(f.statut),
+    f.date_echeance || ''
   ]);
-  xlsxDownload(`EduLink-Paiements-${today()}.xlsx`, header, rows, 'Paiements',
-    [14,24,16,14,14,12,12,14]);
+
+  // Feuille 2 — Paiements reçus (vue caisse, présente sur la même page UI)
+  // On charge les paiements de l'école active. Si la requête échoue ou ne renvoie rien,
+  // l'onglet est généré tout de même mais avec un message clair.
+  let paiements = [];
+  try {
+    let qP = db.from('paiements').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
+    if (currentEcoleId) qP = qP.eq('ecole_id', currentEcoleId);
+    const { data } = await qP;
+    paiements = data || [];
+  } catch (e) { console.warn('[Export Paiements] paiements reçus :', e); }
+  const headerPay = ['Date','Référence facture','Étudiant','Montant payé','Mode','Référence transaction'];
+  const rowsPay = paiements.map(p => [
+    p.created_at ? new Date(p.created_at) : '',
+    p.reference_facture || '—',
+    p.etudiants ? `${p.etudiants.nom||''} ${p.etudiants.prenom||''}`.trim() : '',
+    Number(p.montant_paye) || 0,
+    p.mode_paiement || '—',
+    p.reference_transaction || '—'
+  ]);
+
+  xlsxDownload(`EduLink-Paiements-${today()}.xlsx`, headerFac, rowsFac, 'Factures', {
+    colWidths    : [14, 26, 14, 28, 16, 16, 14, 14, 14],
+    currencyCols : [4, 5, 6],     // Montant total, payé, solde
+    dateCols     : [8],           // Échéance
+    freezeHeader : true,
+    autoFilter   : true,
+    totalRow     : { label: 'TOTAL', cols: [4, 5, 6] },
+    extraSheets  : [{
+      sheetName: 'Paiements reçus',
+      header: headerPay,
+      rows: rowsPay,
+      options: {
+        colWidths    : [18, 16, 26, 16, 14, 22],
+        currencyCols : [3],
+        dateCols     : [0],
+        freezeHeader : true,
+        autoFilter   : true,
+        totalRow     : { label: 'TOTAL ENCAISSÉ', cols: [3] }
+      }
+    }]
+  });
   showToast('📊 Export Excel paiements téléchargé !', 'success');
 }
 
@@ -8019,12 +8238,16 @@ function exporterIncidentsExcel() {
     const { data } = await q;
     if (!data?.length) { showToast('Aucun incident à exporter', 'error'); return; }
     const rows = data.map(i => [
-      i.etudiants ? `${i.etudiants.nom} ${i.etudiants.prenom}` : i.etudiant_id||'',
-      i.type||'', i.severite||'', fmtDate(i.date)||'',
+      i.etudiants ? `${i.etudiants.nom} ${i.etudiants.prenom}` : '',
+      i.type||'', i.severite||'', i.date||'',
       i.statut||'', i.sanction||'', i.description||''
     ]);
-    xlsxDownload(`EduLink-Incidents-${today()}.xlsx`, header, rows, 'Incidents',
-      [25,16,12,12,14,20,40]);
+    xlsxDownload(`EduLink-Incidents-${today()}.xlsx`, header, rows, 'Incidents', {
+      colWidths    : [25,16,12,12,14,20,40],
+      dateCols     : [3],
+      freezeHeader : true,
+      autoFilter   : true
+    });
     showToast('📊 Export Excel incidents téléchargé !', 'success');
   })();
 }
@@ -8043,10 +8266,14 @@ function exporterDocumentsExcel() {
       d.nom||'', d.categorie||'', d.type_fichier||'',
       d.etudiants ? `${d.etudiants.nom} ${d.etudiants.prenom}` : '',
       d.taille ? Math.round(d.taille/1024)+'Ko' : '',
-      fmtDate(d.created_at)||''
+      d.created_at||''
     ]);
-    xlsxDownload(`EduLink-Documents-${today()}.xlsx`, header, rows, 'Documents',
-      [30,18,14,24,10,14]);
+    xlsxDownload(`EduLink-Documents-${today()}.xlsx`, header, rows, 'Documents', {
+      colWidths    : [30,18,14,24,10,14],
+      dateCols     : [5],
+      freezeHeader : true,
+      autoFilter   : true
+    });
     showToast('📊 Export Excel documents téléchargé !', 'success');
   })();
 }
@@ -8063,10 +8290,14 @@ function exporterUtilisateursExcel() {
     if (!data?.length) { showToast('Aucun utilisateur à exporter', 'error'); return; }
     const rows = data.map(u => [
       u.prenom||'', u.nom||'', u.email||'',
-      u.role||'', u.statut||'actif', fmtDate(u.created_at)||''
+      u.role||'', u.statut||'actif', u.created_at||''
     ]);
-    xlsxDownload(`EduLink-Utilisateurs-${today()}.xlsx`, header, rows, 'Utilisateurs',
-      [16,18,28,14,12,14]);
+    xlsxDownload(`EduLink-Utilisateurs-${today()}.xlsx`, header, rows, 'Utilisateurs', {
+      colWidths    : [16,18,28,14,12,14],
+      dateCols     : [5],
+      freezeHeader : true,
+      autoFilter   : true
+    });
     showToast('📊 Export Excel utilisateurs téléchargé !', 'success');
   })();
 }
@@ -8128,10 +8359,14 @@ function exporterBiblioExcel() {
     if (!data?.length) { showToast('Aucun ouvrage à exporter', 'error'); return; }
     const rows = data.map(l => [
       l.titre||'', l.auteur||'', l.isbn||'', l.annee||'',
-      l.categorie||'', l.exemplaires||0, l.disponibles||0, l.cote||''
+      l.categorie||'', Number(l.exemplaires)||0, Number(l.disponibles)||0, l.cote||''
     ]);
-    xlsxDownload(`EduLink-Bibliotheque-${today()}.xlsx`, header, rows, 'Catalogue',
-      [35,25,16,8,18,12,12,12]);
+    xlsxDownload(`EduLink-Bibliotheque-${today()}.xlsx`, header, rows, 'Catalogue', {
+      colWidths    : [35,25,16,8,18,12,12,12],
+      numericCols  : [5,6],
+      freezeHeader : true,
+      autoFilter   : true
+    });
     showToast('📊 Export Excel bibliothèque téléchargé !', 'success');
   })();
 }
@@ -8195,10 +8430,16 @@ function exporterRHExcel() {
   const rows = toutLePersonnel.map(p => [
     p.prenom||'', p.nom||'', p.email||'', p.telephone||'',
     p.poste||'', p.departement||'', p.type_contrat||'',
-    fmtDate(p.date_embauche)||'', p.salaire_brut||0, p.statut||'actif'
+    p.date_embauche||'', Number(p.salaire_brut)||0, p.statut||'actif'
   ]);
-  xlsxDownload(`EduLink-RH-Personnel-${today()}.xlsx`, header, rows, 'Personnel',
-    [16,18,28,14,18,18,16,14,14,12]);
+  xlsxDownload(`EduLink-RH-Personnel-${today()}.xlsx`, header, rows, 'Personnel', {
+    colWidths    : [16,18,28,14,18,18,16,14,14,12],
+    dateCols     : [7],
+    currencyCols : [8],
+    freezeHeader : true,
+    autoFilter   : true,
+    totalRow     : { label: 'TOTAL', cols: [8] }
+  });
   showToast('📊 Export Excel RH téléchargé !', 'success');
 }
 
@@ -8263,11 +8504,17 @@ function exporterCaisseExcel() {
     const { data } = await q;
     if (!data?.length) { showToast('Aucune opération caisse à exporter', 'error'); return; }
     const rows = data.map(c => [
-      fmtDate(c.date)||'', c.libelle||'', c.categorie||'',
-      c.type||'', c.montant||0, c.reference||''
+      c.date||'', c.libelle||'', c.categorie||'',
+      c.type||'', Number(c.montant)||0, c.reference||''
     ]);
-    xlsxDownload(`EduLink-Caisse-${today()}.xlsx`, header, rows, 'Caisse',
-      [14,30,18,12,14,16]);
+    xlsxDownload(`EduLink-Caisse-${today()}.xlsx`, header, rows, 'Caisse', {
+      colWidths    : [14,30,18,12,14,16],
+      dateCols     : [0],
+      currencyCols : [4],
+      freezeHeader : true,
+      autoFilter   : true,
+      totalRow     : { label: 'TOTAL', cols: [4] }
+    });
     showToast('📊 Export Excel caisse téléchargé !', 'success');
   })();
 }
@@ -8277,14 +8524,20 @@ function exporterCaisseExcel() {
 // ══════════════════════════════════════════════════════════════════════
 function exporterRapportReseauExcel() {
   if (!tousLesEtablissements.length) { showToast('Aucun établissement à exporter', 'error'); return; }
-  const header = ['Nom','Type','Ville','Directeur','Étudiants/Élèves','Enseignants','Taux réussite (%)','Recette/mois (F)','Statut'];
+  const header = ['Nom','Type','Ville','Directeur','Étudiants/Élèves','Enseignants','Taux réussite (%)','Recette/mois (FCFA)','Statut'];
   const rows = tousLesEtablissements.map(e => [
     e.nom||'', typeLabel(e.type)||'', e.ville||'', e.directeur||'—',
-    e.eleves||0, e.enseignants||0, e.taux_reussite||0,
-    e.recette_mois||0, e.statut||'actif'
+    Number(e.eleves)||0, Number(e.enseignants)||0, Number(e.taux_reussite)||0,
+    Number(e.recette_mois)||0, e.statut||'actif'
   ]);
-  xlsxDownload(`EduLink-Reseau-${today()}.xlsx`, header, rows, 'Réseau Écoles',
-    [24,18,16,22,16,14,18,18,12]);
+  xlsxDownload(`EduLink-Reseau-${today()}.xlsx`, header, rows, 'Réseau Écoles', {
+    colWidths    : [24,18,16,22,16,14,18,18,12],
+    numericCols  : [4,5,6],
+    currencyCols : [7],
+    freezeHeader : true,
+    autoFilter   : true,
+    totalRow     : { label: 'TOTAL', cols: [4,5,7] }
+  });
   showToast('📊 Export Excel réseau téléchargé !', 'success');
 }
 
@@ -8302,10 +8555,14 @@ function exporterCertificatsExcel() {
       c.reference||'', c.type_certif||c.type||'',
       c.etudiants ? `${c.etudiants.nom} ${c.etudiants.prenom}` : '',
       c.etudiants?.matricule||'', c.signataire||'',
-      c.statut||'', c.periode||'', fmtDate(c.created_at)||''
+      c.statut||'', c.periode||'', c.created_at||''
     ]);
-    xlsxDownload(`EduLink-Certificats-${today()}.xlsx`, header, rows, 'Certificats',
-      [14,20,24,12,20,12,14,14]);
+    xlsxDownload(`EduLink-Certificats-${today()}.xlsx`, header, rows, 'Certificats', {
+      colWidths    : [14,20,24,12,20,12,14,14],
+      dateCols     : [7],
+      freezeHeader : true,
+      autoFilter   : true
+    });
     showToast('📊 Export Excel certificats téléchargé !', 'success');
   })();
 }
@@ -8320,13 +8577,19 @@ async function exporterHistoriqueExcel() {
   if (!data?.length) { showToast('Aucun historique à exporter', 'error'); return; }
   const header = ['Date','Référence facture','Étudiant','Montant','Mode paiement','Référence transaction'];
   const rows = data.map(p => [
-    fmtDate(p.created_at)||'',
-    p.factures?.reference||p.facture_id||'',
+    p.created_at||'',
+    p.factures?.reference||'',
     p.factures?.etudiants ? `${p.factures.etudiants.nom} ${p.factures.etudiants.prenom}` : '',
-    p.montant||0, p.mode_paiement||'', p.reference_transaction||''
+    Number(p.montant)||0, p.mode_paiement||'', p.reference_transaction||''
   ]);
-  xlsxDownload(`EduLink-Historique-Paiements-${today()}.xlsx`, header, rows, 'Historique',
-    [14,16,24,14,16,22]);
+  xlsxDownload(`EduLink-Historique-Paiements-${today()}.xlsx`, header, rows, 'Historique', {
+    colWidths    : [16,16,24,14,16,22],
+    dateCols     : [0],
+    currencyCols : [3],
+    freezeHeader : true,
+    autoFilter   : true,
+    totalRow     : { label: 'TOTAL ENCAISSÉ', cols: [3] }
+  });
   showToast('📊 Export Excel historique téléchargé !', 'success');
 }
 
@@ -8342,10 +8605,14 @@ function exportCatalogueBibNumExcel() {
     if (!data?.length) { showToast('Aucun document à exporter', 'error'); return; }
     const rows = data.map(d => [
       d.titre||'', d.auteur||'', d.isbn||'',
-      d.categorie||'', d.exemplaires||1, d.disponibles||1, d.annee||''
+      d.categorie||'', Number(d.exemplaires)||1, Number(d.disponibles)||1, d.annee||''
     ]);
-    xlsxDownload(`EduLink-BibNum-Catalogue-${today()}.xlsx`, header, rows, 'Bibliothèque Num.',
-      [35,25,16,18,12,12,8]);
+    xlsxDownload(`EduLink-BibNum-Catalogue-${today()}.xlsx`, header, rows, 'Bibliothèque Num.', {
+      colWidths    : [35,25,16,18,12,12,8],
+      numericCols  : [4,5],
+      freezeHeader : true,
+      autoFilter   : true
+    });
     showToast('📊 Export Excel bibliothèque numérique téléchargé !', 'success');
   })();
 }
