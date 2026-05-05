@@ -8033,12 +8033,24 @@ function exporterEdtModele() {
 }
 
 var _edtAImporter = [];
-function ouvrirImportExcelEDT() {
+async function ouvrirImportExcelEDT() {
+  // Précharger la liste des classes de l'école active pour valider chaque ligne
+  // contre la liste réelle (la policy RLS de emploi_du_temps refuse les classes
+  // inconnues, on bloque donc côté JS pour donner un message clair).
+  if (!toutesLesClasses?.length && typeof chargerClasses === 'function') {
+    try { await chargerClasses(); } catch(_) {}
+  }
   ouvrirImportExcel('input-import-edt-file', rows => {
-    // Helper : tronque "08:00:00" → "08:00" et accepte les valeurs Date que SheetJS
-    // renvoie pour les cellules HH:MM (cas où l'utilisateur ré-importe un export).
     const normHeure = v => {
-      if (!v) return '';
+      if (v == null || v === '') return '';
+      // SheetJS rend les cellules au format Time comme des nombres décimaux
+      // (fraction de jour : 0.4166... = 10:00). On convertit en HH:MM.
+      if (typeof v === 'number' && isFinite(v)) {
+        const totalMin = Math.round(v * 24 * 60);
+        const hh = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
+        const mm = String(totalMin % 60).padStart(2, '0');
+        return `${hh}:${mm}`;
+      }
       if (v instanceof Date) {
         const hh = String(v.getHours()).padStart(2,'0');
         const mm = String(v.getMinutes()).padStart(2,'0');
@@ -8058,18 +8070,72 @@ function ouvrirImportExcelEDT() {
       const map = { cours:'cours', td:'td', tp:'tp', exam:'exam', examen:'exam', 'cours magistral':'cours', 'travaux dirigés':'td', 'travaux diriges':'td', 'travaux pratiques':'tp' };
       return map[t] || 'cours';
     };
-    _edtAImporter = rows.map(r => ({
-      jour:        normJour(xlsVal(r,['Jour','jour','JOUR'])),
-      heure_debut: normHeure(xlsVal(r,['Heure début','Heure debut','heure_debut','Début','Debut'])),
-      heure_fin:   normHeure(xlsVal(r,['Heure fin','heure_fin','Fin'])),
-      matiere:     xlsVal(r,['Matière','Matiere','matiere','MATIERE'])      || '',
-      professeur:  xlsVal(r,['Professeur','professeur','Prof','Enseignant']) || '',
-      salle:       xlsVal(r,['Salle','salle'])                                || '',
-      type:        normType(xlsVal(r,['Type','type'])),
-      classe:      xlsVal(r,['Classe','classe','CLASSE'])                    || '',
-    })).filter(c => c.jour && c.heure_debut && c.heure_fin && c.matiere && c.classe);
-    if (!_edtAImporter.length) { showToast('Aucune ligne valide (jour, heures, matière, classe requis)', 'error'); return; }
-    showToast(`✅ ${_edtAImporter.length} créneau(x) prêt(s) — cliquez Confirmer`, 'info');
+    // Index des classes existantes (par label normalisé) pour validation rapide.
+    // On normalise les espaces et la casse pour tolérer "Finance L2" vs "finance l2".
+    const normClasse = s => String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+    const classesValides = new Map();
+    (toutesLesClasses || []).filter(c => c.statut !== 'archive').forEach(c => {
+      const label = c.nom || (c.filiere + ' ' + c.niveau);
+      classesValides.set(normClasse(label), label);
+    });
+
+    const lignesParsees = rows.map((r, i) => {
+      const item = {
+        _ligneXls:   i + 2, // +2 car ligne 1 = en-tête + index 0-based
+        jour:        normJour(xlsVal(r,['Jour','jour','JOUR'])),
+        heure_debut: normHeure(xlsVal(r,['Heure début','Heure debut','heure_debut','Début','Debut'])),
+        heure_fin:   normHeure(xlsVal(r,['Heure fin','heure_fin','Fin'])),
+        matiere:     xlsVal(r,['Matière','Matiere','matiere','MATIERE'])      || '',
+        professeur:  xlsVal(r,['Professeur','professeur','Prof','Enseignant']) || '',
+        salle:       xlsVal(r,['Salle','salle'])                                || '',
+        type:        normType(xlsVal(r,['Type','type'])),
+        _classeBrut: xlsVal(r,['Classe','classe','CLASSE'])                    || '',
+      };
+      // Résolution Classe → label canonique exact (ce qui est en base) si match,
+      // sinon laisser brut pour signalement d'erreur.
+      const norm = normClasse(item._classeBrut);
+      item.classe = classesValides.has(norm) ? classesValides.get(norm) : item._classeBrut;
+      item._classeKnown = classesValides.has(norm);
+      return item;
+    });
+
+    const valides = [];
+    const erreurs = [];
+    lignesParsees.forEach(l => {
+      const manquants = [];
+      if (!l.jour)        manquants.push('Jour');
+      if (!l.heure_debut) manquants.push('Heure début');
+      if (!l.heure_fin)   manquants.push('Heure fin');
+      if (!l.matiere)     manquants.push('Matière');
+      if (!l._classeBrut) manquants.push('Classe');
+      if (manquants.length) {
+        erreurs.push(`Ligne ${l._ligneXls} : champs manquants — ${manquants.join(', ')}`);
+        return;
+      }
+      if (!l._classeKnown) {
+        erreurs.push(`Ligne ${l._ligneXls} : classe « ${l._classeBrut} » introuvable pour cette école`);
+        return;
+      }
+      // OK — on garde uniquement les colonnes attendues par la base
+      valides.push({
+        jour: l.jour, heure_debut: l.heure_debut, heure_fin: l.heure_fin,
+        matiere: l.matiere, professeur: l.professeur, salle: l.salle,
+        type: l.type, classe: l.classe
+      });
+    });
+
+    _edtAImporter = valides;
+    if (erreurs.length) {
+      console.warn('[Import EDT] Lignes refusées :');
+      erreurs.forEach(e => console.warn('  • ' + e));
+    }
+    if (!valides.length) {
+      const exempleErr = erreurs[0] ? ` — ex: ${erreurs[0]}` : '';
+      showToast(`❌ Aucune ligne valide${exempleErr} (voir console)`, 'error');
+      return;
+    }
+    const suffixErr = erreurs.length ? ` · ⚠️ ${erreurs.length} ligne(s) refusée(s) — voir console` : '';
+    showToast(`✅ ${valides.length} créneau(x) prêt(s) — cliquez Confirmer${suffixErr}`, 'info');
     const btn = document.getElementById('btn-import-edt-confirm');
     if (btn) { btn.disabled = false; btn.style.display = 'inline-block'; }
   });
@@ -8078,6 +8144,7 @@ function ouvrirImportExcelEDT() {
 async function confirmerImportExcelEDT() {
   if (!_edtAImporter.length) return;
   let ok = 0, err = 0, firstErr = '';
+  let firstFailingPayload = null;
   for (let item of _edtAImporter) {
     let payload = { ...item, ecole_id: currentEcoleId };
     let { error } = await db.from('emploi_du_temps').insert([payload]);
@@ -8089,11 +8156,22 @@ async function confirmerImportExcelEDT() {
       delete payload[col];
       ({ error } = await db.from('emploi_du_temps').insert([payload])); guard++;
     }
-    if (error) { err++; if (!firstErr) firstErr = error.message; console.error('[Import EDT]', error.message); } else ok++;
+    if (error) {
+      err++;
+      if (!firstErr) { firstErr = error.message; firstFailingPayload = payload; }
+      console.error('[Import EDT] échec ligne — payload:', payload, '— erreur:', error.message);
+    } else ok++;
   }
   _edtAImporter = [];
-  if (ok > 0) showToast(`✅ ${ok} créneau(x) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, 'success');
-  else showToast(`❌ 0 créneau importé — ${firstErr?.slice(0,100)||'Voir console'}`, 'error');
+  if (ok > 0) {
+    showToast(`✅ ${ok} créneau(x) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, 'success');
+  } else {
+    // En cas d'échec total, dump détaillé en console pour diagnostic
+    if (firstFailingPayload) console.error('[Import EDT] Premier payload rejeté :', firstFailingPayload, '— ecole_id =', currentEcoleId);
+    const isRLS = /row-level security|violates RLS|RLS policy/i.test(firstErr || '');
+    const hint = isRLS ? ' (RLS — vérifie que la classe existe pour cette école)' : '';
+    showToast(`❌ 0 créneau importé — ${(firstErr||'Voir console').slice(0,100)}${hint}`, 'error');
+  }
   const btn = document.getElementById('btn-import-edt-confirm');
   if (btn) { btn.disabled = true; btn.style.display = 'none'; }
   if (typeof chargerEmploiDuTemps === 'function') chargerEmploiDuTemps();
