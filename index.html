@@ -5855,6 +5855,26 @@ button:hover { background:#a86615; transform:translateY(-1px); }
      PORTAIL ENSEIGNANT  ★ JOUR 23
 ═══════════════════════════════════════ -->
 <div class="page" id="page-portail-ens">
+  <!-- Sélecteur "impersonation" — visible uniquement pour admin/directeur.
+       Pour un compte enseignant, ce bandeau reste masqué et le portail
+       affiche directement le profil de l'enseignant connecté. -->
+  <div id="pens-admin-switcher" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:.7rem 1rem;margin-bottom:1rem;align-items:center;gap:.75rem;flex-wrap:wrap">
+    <span style="font-size:13px;color:#1e40af;font-weight:600">👁️ Vue admin :</span>
+    <span style="font-size:12px;color:#475569">Choisis l'enseignant dont tu veux consulter le portail</span>
+    <select id="pens-admin-select" onchange="chargerPortailEnseignant()" style="padding:6px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:12.5px;font-family:'Poppins',sans-serif;outline:none;min-width:240px;margin-left:auto">
+      <option value="">— Sélectionner un enseignant —</option>
+    </select>
+  </div>
+
+  <!-- État vide affiché tant qu'aucun enseignant n'est sélectionné (uniquement admin/directeur) -->
+  <div id="pens-empty-state" class="empty-state" style="display:none;padding:3rem 1rem">
+    <div class="icon">👨‍🏫</div>
+    <h3>Sélectionne un enseignant</h3>
+    <p>Choisis dans la liste ci-dessus l'enseignant dont tu souhaites consulter le portail (cours, notes saisies, planning, statistiques).</p>
+  </div>
+
+  <!-- Bloc principal du portail (caché tant qu'aucun enseignant n'est résolu) -->
+  <div id="pens-content-wrap">
   <!-- Hero enseignant connecté -->
   <div class="pens-hero">
     <div class="pens-avatar" id="pens-avatar">?</div>
@@ -5967,6 +5987,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       </div>
     </div>
   </div>
+  </div><!-- /#pens-content-wrap -->
 </div>
 
 <!-- ═══════════════════════════════════════
@@ -16063,26 +16084,84 @@ let pensEtudiantsSaisie = [];
 let pensAbsCheckList = [];
 
 async function chargerPortailEnseignant() {
-  // Identifier l'enseignant via la session auth
+  const switcher    = document.getElementById('pens-admin-switcher');
+  const emptyState  = document.getElementById('pens-empty-state');
+  const contentWrap = document.getElementById('pens-content-wrap');
+  const adminSelect = document.getElementById('pens-admin-select');
+
+  // Charger les enseignants de l'école active une seule fois.
+  let q = db.from('enseignants').select('*').order('nom');
+  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  const { data: ens } = await q;
+  const liste = ens || [];
+
+  // Détection du rôle pour décider si on affiche le sélecteur "impersonation".
+  const isAdminLike = (typeof currentRole !== 'undefined') && (currentRole === 'admin' || currentRole === 'directeur');
+
+  // Identifier l'enseignant à afficher selon plusieurs sources, par ordre de priorité :
+  //  1. Si admin/directeur a explicitement choisi dans le <select> → on respecte
+  //  2. Match par email de session (cas d'un enseignant connecté avec son compte)
+  //  3. Match par nom affiché dans la nav (legacy)
+  //  4. (admin/directeur uniquement) → AUCUN, on montre l'état vide
+  //  5. (autre rôle) → fallback premier enseignant pour ne pas casser l'UX historique
   let ensActif = null;
-  try {
-    const { data: { session } } = await db.auth.getSession();
-    const sessionEmail = session?.user?.email;
-    let q = db.from('enseignants').select('*');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
-    const { data: ens } = await q;
-    if (sessionEmail) {
-      ensActif = (ens||[]).find(e => e.email && e.email.toLowerCase() === sessionEmail.toLowerCase());
-    }
-    // Fallback : par nom affiché dans la nav
-    if (!ensActif) {
-      const userNom = (document.getElementById('nav-user-name')?.textContent||'').toLowerCase();
-      ensActif = (ens||[]).find(e => e.nom && userNom.includes(e.nom.toLowerCase()))
-        || (ens||[])[0];
-    }
-  } catch(e) {
-    console.warn('[Portail Ens] identification:', e.message);
+  let chosenId = adminSelect ? adminSelect.value : '';
+  if (chosenId) {
+    ensActif = liste.find(e => e.id === chosenId) || null;
   }
+  if (!ensActif) {
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      const sessionEmail = session?.user?.email;
+      if (sessionEmail) {
+        ensActif = liste.find(e => e.email && e.email.toLowerCase() === sessionEmail.toLowerCase()) || null;
+      }
+    } catch(e) {
+      console.warn('[Portail Ens] identification:', e.message);
+    }
+  }
+  if (!ensActif) {
+    const userNom = (document.getElementById('nav-user-name')?.textContent||'').toLowerCase();
+    if (userNom && userNom !== 'admin') {
+      ensActif = liste.find(e => e.nom && userNom.includes(e.nom.toLowerCase())) || null;
+    }
+  }
+  if (!ensActif && !isAdminLike) {
+    // Comportement legacy pour un compte enseignant qui n'a pas pu être matché :
+    // on prend le premier enseignant de l'école (mieux que rien pour ne pas casser
+    // les démos sur comptes mal configurés). Pour admin/directeur, surtout pas :
+    // ça produirait l'affichage trompeur dont l'utilisateur s'est plaint.
+    ensActif = liste[0] || null;
+  }
+
+  // Mise en place du sélecteur admin (si applicable)
+  if (isAdminLike && switcher && adminSelect) {
+    switcher.style.display = 'flex';
+    // Repeupler la liste à chaque appel pour suivre les changements d'école.
+    const currentVal = adminSelect.value;
+    adminSelect.innerHTML = '<option value="">— Sélectionner un enseignant —</option>'
+      + liste.map(e => `<option value="${e.id}">${(e.nom||'').toUpperCase()} ${e.prenom||''}${e.specialite?' · '+e.specialite:''}</option>`).join('');
+    // Restaurer la sélection si l'enseignant existe encore après rechargement.
+    if (ensActif && liste.some(e => e.id === ensActif.id)) {
+      adminSelect.value = ensActif.id;
+    } else if (currentVal && liste.some(e => e.id === currentVal)) {
+      adminSelect.value = currentVal;
+    } else {
+      adminSelect.value = '';
+    }
+  } else if (switcher) {
+    switcher.style.display = 'none';
+  }
+
+  // Si admin/directeur ET pas de sélection → afficher l'état vide, masquer le contenu
+  if (isAdminLike && !ensActif) {
+    if (emptyState)  emptyState.style.display  = '';
+    if (contentWrap) contentWrap.style.display = 'none';
+    return;
+  }
+  // Sinon : on a un enseignant à afficher → masquer empty state, afficher le contenu
+  if (emptyState)  emptyState.style.display  = 'none';
+  if (contentWrap) contentWrap.style.display = '';
 
   if (ensActif) {
     const ini = (ensActif.prenom?.[0]||'') + (ensActif.nom?.[0]||'');
