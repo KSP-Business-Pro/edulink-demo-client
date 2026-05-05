@@ -8694,6 +8694,7 @@ function changerEcole() {
   if (typeof tousLesProgrammes !== 'undefined') tousLesProgrammes = [];
   if (typeof toutesLesClasses !== 'undefined') toutesLesClasses = [];
   if (typeof toutesMatieres !== 'undefined') toutesMatieres = [];
+  if (typeof _dernieresAffectationsClasses !== 'undefined') _dernieresAffectationsClasses = [];
   // Fix démo : reset DOM des conteneurs qui peuvent garder un rendu stale
   // (le chargement du nouveau module les ré-écrira proprement)
   const progContainer = document.getElementById('programme-container');
@@ -15072,6 +15073,10 @@ let toutesLesClasses = [];
 let tousLesProgrammes = [];
 let toutesLesPeriodes = [];
 let comptaCharts = {};
+// Dernière liste d'affectations étudiants→classes chargée par chargerClasses.
+// Utilisée par afficherListeClasses pour calculer "eff" sur chaque carte sans
+// dépendre du cache global tousLesEtudiants (qui peut être vide ou stale).
+let _dernieresAffectationsClasses = [];
 
 async function chargerClasses() {
   let q = db.from('classes').select('*').order('filiere').order('niveau');
@@ -15082,11 +15087,18 @@ async function chargerClasses() {
   const filieres = [...new Set(toutesLesClasses.map(c => c.filiere))];
   document.getElementById('cls-stat-total').textContent    = toutesLesClasses.filter(c=>c.statut!=='archive').length;
   document.getElementById('cls-stat-filieres').textContent = filieres.length;
-  // Nb étudiants affectés
+  // Nb étudiants affectés.
+  // On capture la liste fraîche pour DEUX usages : (1) le compteur du hero,
+  // et (2) le calcul "eff" affiché sur chaque carte classe. Sans ça, les cartes
+  // tombaient sur tousLesEtudiants (cache global potentiellement vide ou stale
+  // après changerEcole), provoquant un "0/N" sur toutes les cartes alors que
+  // le hero, lui, comptait correctement. Bug visible en passant d'une école à
+  // l'autre sans avoir d'abord visité le module Étudiants.
   let qE = db.from('etudiants').select('id,classe_id');
   if (currentEcoleId) qE = qE.eq('ecole_id', currentEcoleId);
   const { data: etus } = await qE;
-  document.getElementById('cls-stat-etudiants').textContent = (etus||[]).filter(e=>e.classe_id).length;
+  _dernieresAffectationsClasses = etus || [];
+  document.getElementById('cls-stat-etudiants').textContent = _dernieresAffectationsClasses.filter(e=>e.classe_id).length;
   // Nb matières
   let qM = db.from('programmes').select('id',{count:'exact',head:true});
   if (currentEcoleId) qM = qM.eq('ecole_id', currentEcoleId);
@@ -15116,9 +15128,15 @@ function afficherListeClasses(liste) {
     el.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🏫</div><h3>Aucune classe</h3><p>Créez votre première classe.</p></div>';
     return;
   }
+  // Source des affectations : la liste fraîche capturée par chargerClasses.
+  // Fallback sur tousLesEtudiants pour les rares appels qui pourraient survenir
+  // hors du flux normal (par sécurité, ne devrait pas se déclencher en pratique).
+  const affectations = (_dernieresAffectationsClasses && _dernieresAffectationsClasses.length)
+    ? _dernieresAffectationsClasses
+    : tousLesEtudiants;
   el.innerHTML = liste.map(c => {
     const s = c.statut||'active';
-    const eff = tousLesEtudiants.filter(e=>e.classe_id===c.id).length;
+    const eff = affectations.filter(e=>e.classe_id===c.id).length;
     const effMax = c.effectif_max||'?';
     const pct = effMax !== '?' ? Math.round(eff/effMax*100) : 0;
     return `<div class="classe-card ${s}">
