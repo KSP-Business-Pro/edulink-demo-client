@@ -2112,6 +2112,141 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 .sync-status-indicator.offline { color:#d97706; background:rgba(217,119,6,.1); }
 .sync-status-indicator.syncing { color:#1d4ed8; background:rgba(29,78,216,.1); }
 </style>
+
+<!-- ══════════════════════════════════════════════
+   EDULINK — RENFORTS PRODUCTION NON DESTRUCTIFS
+   Sécurité navigateur, accessibilité, confort mobile
+══════════════════════════════════════════════ -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=()">
+<meta name="color-scheme" content="light">
+<meta name="format-detection" content="telephone=no">
+<style id="edulink-production-hardening-css">
+  :root {
+    --edulink-focus: 0 0 0 3px rgba(201,124,26,.35);
+    --edulink-safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .sr-only { position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important; }
+  .skip-link { position:fixed;top:-48px;left:12px;z-index:999999;background:#fff;color:#1e3a5f;border:2px solid #1e3a5f;border-radius:10px;padding:10px 14px;font-weight:700;text-decoration:none;box-shadow:0 8px 24px rgba(0,0,0,.16);transition:top .15s ease; }
+  .skip-link:focus { top:12px; outline:none; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline:none!important; box-shadow:var(--edulink-focus)!important; }
+  button[disabled], .btn-disabled { opacity:.55!important; cursor:not-allowed!important; transform:none!important; }
+  .required::after, label[data-required="true"]::after { content:' *'; color:#dc2626; font-weight:800; }
+  .form-help { font-size:11px; color:#6b7280; margin-top:3px; }
+  .field-error { font-size:11px; color:#dc2626; margin-top:3px; font-weight:600; }
+  .quality-fab { position:fixed; right:18px; bottom:calc(88px + var(--edulink-safe-bottom)); z-index:720; width:48px; height:48px; border-radius:50%; background:#1e3a5f; color:#fff; border:none; display:flex; align-items:center; justify-content:center; font-size:21px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+  .quality-panel { position:fixed; right:18px; bottom:calc(146px + var(--edulink-safe-bottom)); width:360px; max-width:calc(100vw - 28px); max-height:72vh; overflow:auto; z-index:721; background:#fff; border:1px solid #e5e7eb; border-radius:18px; box-shadow:0 24px 70px rgba(0,0,0,.22); display:none; }
+  .quality-panel.open { display:block; animation:fadeIn .16s ease; }
+  .quality-head { padding:1rem 1.15rem; background:linear-gradient(135deg,#1e3a5f,#0f6e56); color:#fff; border-radius:18px 18px 0 0; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .quality-head h3 { font-size:14px; margin:0; font-weight:800; }
+  .quality-body { padding:1rem 1.15rem; }
+  .quality-kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .quality-kpi { background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; padding:.75rem; }
+  .quality-kpi .qv { font-size:18px; font-weight:800; color:#1e3a5f; line-height:1; }
+  .quality-kpi .ql { font-size:10.5px; color:#6b7280; margin-top:4px; font-weight:600; }
+  .quality-list { display:flex; flex-direction:column; gap:6px; margin:.75rem 0; }
+  .quality-item { display:flex; align-items:flex-start; gap:8px; padding:8px 10px; background:#f9fafb; border-radius:10px; border:1px solid #f3f4f6; font-size:12px; color:#374151; }
+  .quality-item strong { color:#111827; }
+  .quality-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .comfort-toolbar { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(18px + var(--edulink-safe-bottom)); z-index:710; display:none; gap:8px; background:rgba(255,255,255,.96); border:1px solid #e5e7eb; border-radius:999px; padding:8px; box-shadow:0 12px 36px rgba(0,0,0,.18); }
+  .comfort-toolbar.show { display:flex; }
+  .comfort-toolbar button { border-radius:999px; padding:7px 12px; font-size:12px; }
+  .density-compact td { padding:6px 10px!important; font-size:12px!important; }
+  .density-compact th { padding:7px 10px!important; }
+  .large-text { font-size:110%; }
+  .large-text td, .large-text th, .large-text input, .large-text select, .large-text button, .large-text textarea { font-size:110%!important; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; transition-duration:.01ms!important; } }
+  @media (max-width:640px) {
+    main { padding:1rem .85rem 6rem; }
+    .top { align-items:flex-start; }
+    .top-actions { width:100%; overflow-x:auto; padding-bottom:4px; }
+    .cards, .pay-stat-bar, .ens-stat-bar, .exam-stat-bar, .cert-stat-bar { grid-template-columns:1fr 1fr!important; }
+    .modal { width:96%!important; padding:1rem!important; }
+    table.responsive-stack, .responsive-stack thead, .responsive-stack tbody, .responsive-stack th, .responsive-stack td, .responsive-stack tr { display:block; }
+    .responsive-stack thead { display:none; }
+    .responsive-stack tr { border:1px solid #e5e7eb; border-radius:12px; margin-bottom:.75rem; background:#fff; overflow:hidden; }
+    .responsive-stack td { display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid #f3f4f6; }
+    .responsive-stack td::before { content:attr(data-label); font-weight:700; color:#6b7280; font-size:11px; text-transform:uppercase; }
+    .quality-fab { right:14px; bottom:calc(76px + var(--edulink-safe-bottom)); }
+  }
+</style>
+
+
+
+<!-- EDULINK MODULE REORG UX - START -->
+<style id="edulink-module-reorg-ux-css">
+  .module-organizer { margin:.75rem 0 1rem; padding:.7rem; border-radius:14px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); }
+  .module-organizer-title { display:flex; align-items:center; justify-content:space-between; gap:8px; color:#fff; font-size:11.5px; font-weight:800; margin-bottom:.55rem; }
+  .module-organizer-title button { background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.18); padding:4px 8px; border-radius:8px; font-size:10px; }
+  .module-family-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .module-family-btn { border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.08); color:rgba(255,255,255,.82); border-radius:10px; padding:7px 8px; text-align:left; font-size:10.8px; font-weight:700; line-height:1.2; cursor:pointer; transition:all .15s; }
+  .module-family-btn:hover, .module-family-btn.active { background:rgba(255,255,255,.18); color:#fff; transform:none; }
+  .nav-quick-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:.65rem 0 .25rem; }
+  .nav-quick-actions button { padding:7px 8px; border-radius:9px; font-size:10.5px; background:#c97c1a; color:#fff; box-shadow:none; }
+  .nav-module-hidden { display:none!important; }
+  .nav-family-chip { display:inline-flex; align-items:center; gap:4px; margin-left:auto; padding:1px 6px; border-radius:999px; background:rgba(255,255,255,.1); color:rgba(255,255,255,.55); font-size:8.5px; font-weight:800; text-transform:uppercase; }
+
+  .action-hub { background:linear-gradient(135deg,#ffffff 0%,#f8fbff 100%); border:1px solid #e5e7eb; border-radius:18px; padding:1rem; margin-bottom:1.2rem; box-shadow:0 8px 28px rgba(30,58,95,.06); }
+  .action-hub-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:.9rem; }
+  .action-hub-head h3 { margin:0; font-size:15px; color:#111827; font-weight:800; }
+  .action-hub-head p { margin:3px 0 0; font-size:12px; color:#6b7280; }
+  .action-hub-tools { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .action-hub-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:9px; }
+  .action-tile { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:.85rem .75rem; cursor:pointer; transition:all .15s; text-align:left; min-height:88px; position:relative; overflow:hidden; }
+  .action-tile:hover { border-color:#1e3a5f; box-shadow:0 8px 22px rgba(30,58,95,.1); transform:translateY(-2px); }
+  .action-tile .ati { font-size:21px; margin-bottom:.35rem; }
+  .action-tile .atl { font-size:12px; font-weight:800; color:#111827; line-height:1.2; }
+  .action-tile .ats { font-size:10.5px; color:#6b7280; margin-top:3px; line-height:1.35; }
+  .action-tile.primary { background:linear-gradient(135deg,#1e3a5f,#2d5a8e); border-color:#1e3a5f; color:#fff; }
+  .action-tile.primary .atl, .action-tile.primary .ats { color:#fff; opacity:.95; }
+  .action-tile::after { content:''; position:absolute; width:56px; height:56px; right:-22px; bottom:-22px; border-radius:50%; background:rgba(30,58,95,.06); }
+
+  .workflow-drawer { position:fixed; inset:0; z-index:1500; display:none; }
+  .workflow-drawer.open { display:block; }
+  .workflow-backdrop { position:absolute; inset:0; background:rgba(15,32,64,.42); }
+  .workflow-panel { position:absolute; right:0; top:0; height:100%; width:460px; max-width:96vw; background:#fff; box-shadow:-16px 0 50px rgba(0,0,0,.22); display:flex; flex-direction:column; animation:workflowSlide .18s ease; }
+  @keyframes workflowSlide { from{transform:translateX(24px);opacity:.6} to{transform:translateX(0);opacity:1} }
+  .workflow-header { padding:1.1rem 1.25rem; background:linear-gradient(135deg,#1e3a5f,#0f6e56); color:#fff; display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; }
+  .workflow-header h3 { margin:0; font-size:16px; font-weight:800; }
+  .workflow-header p { margin:3px 0 0; font-size:12px; opacity:.75; }
+  .workflow-close { background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.2); border-radius:10px; padding:6px 10px; }
+  .workflow-body { padding:1rem 1.25rem; overflow:auto; flex:1; }
+  .workflow-search { display:flex; gap:8px; margin-bottom:1rem; }
+  .workflow-search input { flex:1; border:1px solid #e5e7eb; border-radius:10px; padding:9px 12px; font-size:13px; outline:none; }
+  .workflow-section { margin-bottom:1rem; }
+  .workflow-section-title { font-size:11px; color:#6b7280; font-weight:800; text-transform:uppercase; letter-spacing:.06em; margin-bottom:.45rem; }
+  .workflow-card { display:flex; align-items:center; gap:.85rem; padding:.85rem; border:1px solid #e5e7eb; border-radius:13px; background:#fff; margin-bottom:.55rem; cursor:pointer; transition:all .15s; }
+  .workflow-card:hover { border-color:#1e3a5f; background:#f8fbff; transform:translateY(-1px); }
+  .workflow-card-ico { width:38px; height:38px; border-radius:11px; background:#eff6ff; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  .workflow-card-body { flex:1; min-width:0; }
+  .workflow-card-title { font-size:13px; font-weight:800; color:#111827; }
+  .workflow-card-sub { font-size:11.5px; color:#6b7280; margin-top:2px; }
+  .workflow-card-kbd { font-size:10px; color:#9ca3af; background:#f3f4f6; border-radius:6px; padding:3px 6px; font-weight:700; }
+
+  .module-center { position:fixed; inset:0; z-index:1490; display:none; align-items:center; justify-content:center; padding:1rem; }
+  .module-center.open { display:flex; }
+  .module-center::before { content:''; position:absolute; inset:0; background:rgba(15,32,64,.45); }
+  .module-center-panel { position:relative; background:#fff; width:900px; max-width:96vw; max-height:88vh; overflow:auto; border-radius:20px; box-shadow:0 24px 80px rgba(0,0,0,.28); }
+  .module-center-head { padding:1.1rem 1.3rem; background:#1e3a5f; color:#fff; display:flex; justify-content:space-between; align-items:center; gap:1rem; border-radius:20px 20px 0 0; }
+  .module-center-head h3 { margin:0; font-size:16px; font-weight:800; }
+  .module-center-body { padding:1.2rem 1.3rem; }
+  .module-center-search { width:100%; border:1px solid #e5e7eb; border-radius:12px; padding:10px 13px; font-size:13px; margin-bottom:1rem; outline:none; }
+  .module-center-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .module-card { border:1px solid #e5e7eb; border-radius:14px; padding:.9rem; background:#fff; cursor:pointer; transition:all .15s; min-height:104px; }
+  .module-card:hover { border-color:#1e3a5f; box-shadow:0 8px 22px rgba(30,58,95,.1); transform:translateY(-2px); }
+  .module-card .mci { font-size:24px; margin-bottom:.45rem; }
+  .module-card .mcn { font-size:13px; font-weight:800; color:#111827; }
+  .module-card .mcf { font-size:10px; color:#6b7280; text-transform:uppercase; font-weight:800; margin-top:4px; }
+  .module-card .mcd { font-size:11px; color:#6b7280; margin-top:4px; line-height:1.35; }
+
+  .smart-form-tip { display:flex; gap:.75rem; align-items:flex-start; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:.75rem .9rem; margin-bottom:.9rem; font-size:12px; color:#374151; }
+  .smart-form-tip strong { color:#1e3a5f; }
+  .required-hint { color:#dc2626; font-weight:800; }
+  @media(max-width:1100px){ .action-hub-grid{grid-template-columns:repeat(3,1fr)} .module-center-grid{grid-template-columns:repeat(3,1fr)} }
+  @media(max-width:640px){ .action-hub-grid{grid-template-columns:1fr 1fr} .module-center-grid{grid-template-columns:1fr 1fr} .workflow-panel{width:100vw} .action-hub-head{display:block}.action-hub-tools{justify-content:flex-start;margin-top:.75rem} }
+</style>
+<!-- EDULINK MODULE REORG UX - END -->
+
 </head>
 <body>
 
@@ -9300,7 +9435,9 @@ function imprimerBulletin() {
   const el = document.getElementById('bulletin-print');
   if (!el) { showToast('Générez d\'abord un bulletin.','error'); return; }
   const w = window.open('','_blank');
-  w.document.write(`<html><head><title>Bulletin</title><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"><style>*{font-family:'Poppins',sans-serif;margin:0;box-sizing:border-box}body{padding:2rem}table{width:100%;border-collapse:collapse;margin-top:1rem}th,td{border:1px solid #e5e7eb;padding:8px 12px;font-size:12px}th{background:#f3f4f6;font-weight:700}.bulletin-header{background:#1e3a5f;color:#fff;padding:1rem;border-radius:8px;margin-bottom:1rem}.badge{padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}.green{background:#dcfce7;color:#059669}.blue{background:#dbeafe;color:#1d4ed8}.amber{background:#fef9c3;color:#d97706}.red{background:#fee2e2;color:#dc2626}</style></head><body>${el.outerHTML}</body></html>`);
+  w.document.write(`<html><head><title>Bulletin</title><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"><style>*{font-family:'Poppins',sans-serif;margin:0;box-sizing:border-box}body{padding:2rem}table{width:100%;border-collapse:collapse;margin-top:1rem}th,td{border:1px solid #e5e7eb;padding:8px 12px;font-size:12px}th{background:#f3f4f6;font-weight:700}.bulletin-header{background:#1e3a5f;color:#fff;padding:1rem;border-radius:8px;margin-bottom:1rem}.badge{padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}.green{background:#dcfce7;color:#059669}.blue{background:#dbeafe;color:#1d4ed8}.amber{background:#fef9c3;color:#d97706}.red{background:#fee2e2;color:#dc2626}</style></head><body>${el.outerHTML}
+
+</body></html>`);
   w.document.close(); w.print();
 }
 
@@ -23086,6 +23223,549 @@ function telechargerModeleEnseignantsExcel() {
     <div class="pdf-preview-body" id="pdf-preview-body"></div>
   </div>
 </div>
+
+
+<!-- ══════════════════════════════════════════════
+   EDULINK QUALITY KIT — robustesse, fiabilité, sécurité, UX
+   Ajout non destructif : peut être retiré sans casser les modules existants.
+══════════════════════════════════════════════ -->
+<a href="#app-main" class="skip-link">Aller au contenu principal</a>
+<button type="button" class="quality-fab" id="quality-fab" title="Centre qualité et sécurité" aria-label="Centre qualité et sécurité" onclick="EduLinkQualityKit.togglePanel()">🛡️</button>
+<div class="quality-panel" id="quality-panel" role="dialog" aria-label="Centre qualité EduLink">
+  <div class="quality-head">
+    <h3>🛡️ Centre qualité EduLink</h3>
+    <button type="button" class="btn-sm btn-secondary" onclick="EduLinkQualityKit.togglePanel(false)">Fermer</button>
+  </div>
+  <div class="quality-body">
+    <div class="quality-kpi-grid">
+      <div class="quality-kpi"><div class="qv" id="qk-online">—</div><div class="ql">Connexion</div></div>
+      <div class="quality-kpi"><div class="qv" id="qk-errors">0</div><div class="ql">Erreurs session</div></div>
+      <div class="quality-kpi"><div class="qv" id="qk-audit">0</div><div class="ql">Actions auditées</div></div>
+      <div class="quality-kpi"><div class="qv" id="qk-queue">0</div><div class="ql">En attente sync</div></div>
+    </div>
+    <div class="quality-list" id="quality-checklist"></div>
+    <div class="quality-actions">
+      <button type="button" class="btn-blue btn-sm" onclick="EduLinkQualityKit.runHealthCheck(true)">Diagnostic</button>
+      <button type="button" class="btn-green btn-sm" onclick="EduLinkQualityKit.exportBackup()">Sauvegarde</button>
+      <button type="button" class="btn-outline btn-sm" onclick="EduLinkQualityKit.exportAuditCsv()">Audit CSV</button>
+      <button type="button" class="btn-secondary btn-sm" onclick="EduLinkQualityKit.toggleComfortBar()">Confort</button>
+    </div>
+  </div>
+</div>
+<div class="comfort-toolbar" id="comfort-toolbar" aria-label="Outils de confort">
+  <button type="button" class="btn-secondary" onclick="EduLinkQualityKit.toggleCompact()">Vue compacte</button>
+  <button type="button" class="btn-secondary" onclick="EduLinkQualityKit.toggleLargeText()">Texte +</button>
+  <button type="button" class="btn-secondary" onclick="EduLinkQualityKit.prepareResponsiveTables()">Tableaux mobile</button>
+</div>
+<script id="edulink-quality-kit-js">
+(function(){
+  'use strict';
+  if (window.EduLinkQualityKit) return;
+
+  var APP_VERSION = '2026.05-production-hardening-1';
+  var STORAGE = {
+    errors: 'edulink_quality_errors',
+    audit: 'edulink_quality_audit',
+    settings: 'edulink_quality_settings',
+    backupPrefix: 'edulink_backup_'
+  };
+
+  function readJson(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key) || ''); } catch(e) { return fallback; }
+  }
+  function writeJson(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch(e) { return false; }
+  }
+  function nowIso() { return new Date().toISOString(); }
+  function safeText(value) {
+    if (window.Security && typeof Security.escape === 'function') return Security.escape(value);
+    return String(value == null ? '' : value).replace(/[&<>'"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]); });
+  }
+  function toast(msg, type) {
+    if (typeof window.showToast === 'function') window.showToast(msg, type || 'info');
+    else console.log('[EduLink]', msg);
+  }
+  function download(filename, content, mime) {
+    var blob = new Blob([content], { type: mime || 'application/json;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 300);
+  }
+  function getSyncQueueLength() {
+    try {
+      if (Array.isArray(window.syncQueue)) return window.syncQueue.length;
+      var q = JSON.parse(localStorage.getItem('edulink_sync_queue') || '[]');
+      return Array.isArray(q) ? q.length : 0;
+    } catch(e) { return 0; }
+  }
+
+  var Quality = {
+    version: APP_VERSION,
+
+    init: function() {
+      this.installAriaLive();
+      this.installGlobalErrorHandlers();
+      this.patchToast();
+      this.patchSupabaseBestEffortAudit();
+      this.restoreComfortSettings();
+      this.prepareResponsiveTables();
+      this.markRequiredFields();
+      this.bindKeyboardShortcuts();
+      this.runHealthCheck(false);
+      this.recordAudit('APP_INIT', 'Application initialisée', { version: APP_VERSION, path: location.pathname });
+      setInterval(this.runHealthCheck.bind(this, false), 30000);
+    },
+
+    installAriaLive: function() {
+      if (!document.getElementById('edulink-live-region')) {
+        var live = document.createElement('div');
+        live.id = 'edulink-live-region';
+        live.className = 'sr-only';
+        live.setAttribute('aria-live', 'polite');
+        live.setAttribute('aria-atomic', 'true');
+        document.body.appendChild(live);
+      }
+    },
+
+    patchToast: function() {
+      if (typeof window.showToast !== 'function' || window.showToast.__qualityPatched) return;
+      var original = window.showToast;
+      window.showToast = function(msg, type) {
+        var live = document.getElementById('edulink-live-region');
+        if (live) live.textContent = String(msg || '');
+        Quality.recordAudit(type === 'error' ? 'TOAST_ERROR' : 'TOAST', String(msg || ''), { type: type || '' });
+        return original.apply(this, arguments);
+      };
+      window.showToast.__qualityPatched = true;
+    },
+
+    installGlobalErrorHandlers: function() {
+      window.addEventListener('error', function(ev){
+        Quality.recordError('JS_ERROR', ev.message, ev.filename, ev.lineno, ev.colno);
+      });
+      window.addEventListener('unhandledrejection', function(ev){
+        var reason = ev.reason || {};
+        Quality.recordError('PROMISE_REJECTION', reason.message || String(reason), '', 0, 0);
+      });
+      window.addEventListener('online', function(){ Quality.recordAudit('ONLINE', 'Connexion rétablie'); Quality.runHealthCheck(false); });
+      window.addEventListener('offline', function(){ Quality.recordAudit('OFFLINE', 'Connexion perdue'); Quality.runHealthCheck(false); });
+    },
+
+    recordError: function(type, message, file, line, col) {
+      var errors = readJson(STORAGE.errors, []);
+      errors.unshift({ at: nowIso(), type: type, message: String(message || '').slice(0, 700), file: file || '', line: line || 0, col: col || 0, url: location.href });
+      errors = errors.slice(0, 100);
+      writeJson(STORAGE.errors, errors);
+      this.updateKpis();
+    },
+
+    recordAudit: function(action, message, details) {
+      var audit = readJson(STORAGE.audit, []);
+      audit.unshift({ at: nowIso(), action: action, message: String(message || '').slice(0, 700), details: details || {}, role: window.currentRole || null, ecole_id: window.currentEcoleId || null });
+      audit = audit.slice(0, 300);
+      writeJson(STORAGE.audit, audit);
+      this.updateKpis();
+      if (window.AuditLog && typeof AuditLog.record === 'function' && action.indexOf('TOAST') !== 0) {
+        try { AuditLog.record(action, 'client_quality', null, message, 'success'); } catch(e) {}
+      }
+    },
+
+    patchSupabaseBestEffortAudit: function() {
+      // Non intrusif : on n'altère pas les requêtes Supabase existantes. On expose seulement un wrapper recommandé.
+      window.safeDb = async function(label, runner) {
+        try {
+          Quality.recordAudit('DB_ACTION_START', label || 'Action base de données');
+          var res = await runner();
+          if (res && res.error) throw res.error;
+          Quality.recordAudit('DB_ACTION_OK', label || 'Action base de données');
+          return res;
+        } catch(e) {
+          Quality.recordError('DB_ACTION_ERROR', (label ? label + ' — ' : '') + (e.message || e));
+          toast('Erreur technique : ' + (e.message || e), 'error');
+          throw e;
+        }
+      };
+    },
+
+    validateImportRows: function(rows, schema) {
+      // Utilisable par les futurs imports : validation stricte, doublons, colonnes inconnues.
+      schema = schema || {};
+      var required = schema.required || [];
+      var unique = schema.unique || [];
+      var allowed = (schema.allowed || []).concat(required).concat(unique);
+      var errors = [];
+      var seen = {};
+      (rows || []).forEach(function(row, idx){
+        var line = idx + 2;
+        required.forEach(function(k){ if (!row[k] && row[k] !== 0) errors.push('Ligne ' + line + ' : champ obligatoire manquant — ' + k); });
+        unique.forEach(function(k){
+          var v = row[k]; if (!v) return;
+          var key = k + ':' + String(v).trim().toLowerCase();
+          if (seen[key]) errors.push('Ligne ' + line + ' : doublon détecté — ' + k + ' = ' + v);
+          seen[key] = true;
+        });
+        if (allowed.length) Object.keys(row).forEach(function(k){ if (allowed.indexOf(k) === -1 && String(k).trim() !== '') errors.push('Ligne ' + line + ' : colonne non prévue — ' + k); });
+      });
+      return { valid: errors.length === 0, errors: errors.slice(0, 100), totalErrors: errors.length };
+    },
+
+    createBackupObject: function() {
+      var keys = ['edulink_sync_queue','edulink_cache','edulink_selected_ecole','edulink_quality_settings', STORAGE.audit, STORAGE.errors];
+      var data = {};
+      keys.forEach(function(k){ try { data[k] = localStorage.getItem(k); } catch(e) {} });
+      return {
+        app: 'EduLink',
+        version: APP_VERSION,
+        exported_at: nowIso(),
+        user_role: window.currentRole || null,
+        ecole_id: window.currentEcoleId || null,
+        online: navigator.onLine,
+        local_storage_snapshot: data
+      };
+    },
+
+    exportBackup: function() {
+      var backup = this.createBackupObject();
+      var name = 'EduLink-sauvegarde-locale-' + new Date().toISOString().slice(0,10) + '.json';
+      download(name, JSON.stringify(backup, null, 2));
+      this.recordAudit('LOCAL_BACKUP_EXPORT', 'Sauvegarde locale exportée', { file: name });
+      toast('Sauvegarde locale téléchargée', 'success');
+    },
+
+    exportAuditCsv: function() {
+      var audit = readJson(STORAGE.audit, []);
+      var rows = ['date;action;message;role;ecole_id'];
+      audit.forEach(function(a){
+        rows.push([a.at, a.action, String(a.message || '').replace(/;/g, ','), a.role || '', a.ecole_id || ''].map(function(v){ return '"' + String(v).replace(/"/g, '""') + '"'; }).join(';'));
+      });
+      download('EduLink-journal-audit-local.csv', rows.join('\n'), 'text/csv;charset=utf-8');
+      toast('Journal audit local téléchargé', 'success');
+    },
+
+    runHealthCheck: function(verbose) {
+      var checks = [];
+      checks.push({ ok: navigator.onLine, label: navigator.onLine ? 'Application en ligne' : 'Mode hors-ligne actif' });
+      checks.push({ ok: !!window.supabase || !!window.db, label: 'Client Supabase chargé' });
+      checks.push({ ok: !!window.XLSX, label: 'Module Excel disponible' });
+      checks.push({ ok: !!(navigator.serviceWorker), label: 'Service Worker supporté' });
+      checks.push({ ok: location.protocol === 'https:' || location.hostname === 'localhost', label: 'Contexte sécurisé HTTPS/local' });
+      checks.push({ ok: getSyncQueueLength() === 0, label: getSyncQueueLength() ? getSyncQueueLength() + ' action(s) en attente de synchronisation' : 'Aucune action en attente' });
+      checks.push({ ok: readJson(STORAGE.errors, []).length === 0, label: readJson(STORAGE.errors, []).length ? 'Erreurs détectées pendant la session' : 'Aucune erreur session enregistrée' });
+      this.renderChecklist(checks);
+      this.updateKpis();
+      if (verbose) toast('Diagnostic terminé : ' + checks.filter(function(c){ return c.ok; }).length + '/' + checks.length + ' contrôles OK', 'info');
+      return checks;
+    },
+
+    renderChecklist: function(checks) {
+      var box = document.getElementById('quality-checklist');
+      if (!box) return;
+      box.innerHTML = checks.map(function(c){ return '<div class="quality-item"><span>' + (c.ok ? '✅' : '⚠️') + '</span><div><strong>' + safeText(c.label) + '</strong></div></div>'; }).join('');
+    },
+
+    updateKpis: function() {
+      var e = readJson(STORAGE.errors, []);
+      var a = readJson(STORAGE.audit, []);
+      var online = document.getElementById('qk-online'); if (online) online.textContent = navigator.onLine ? 'OK' : 'OFF';
+      var errors = document.getElementById('qk-errors'); if (errors) errors.textContent = e.length;
+      var audit = document.getElementById('qk-audit'); if (audit) audit.textContent = a.length;
+      var queue = document.getElementById('qk-queue'); if (queue) queue.textContent = getSyncQueueLength();
+    },
+
+    togglePanel: function(force) {
+      var p = document.getElementById('quality-panel'); if (!p) return;
+      var open = typeof force === 'boolean' ? force : !p.classList.contains('open');
+      p.classList.toggle('open', open);
+      if (open) this.runHealthCheck(false);
+    },
+
+    toggleComfortBar: function() {
+      var b = document.getElementById('comfort-toolbar'); if (!b) return;
+      b.classList.toggle('show');
+    },
+
+    saveComfortSettings: function() {
+      writeJson(STORAGE.settings, { compact: document.body.classList.contains('density-compact'), large: document.body.classList.contains('large-text') });
+    },
+    restoreComfortSettings: function() {
+      var st = readJson(STORAGE.settings, {});
+      if (st.compact) document.body.classList.add('density-compact');
+      if (st.large) document.body.classList.add('large-text');
+    },
+    toggleCompact: function() { document.body.classList.toggle('density-compact'); this.saveComfortSettings(); this.recordAudit('UX_DENSITY_TOGGLE', 'Vue compacte modifiée'); },
+    toggleLargeText: function() { document.body.classList.toggle('large-text'); this.saveComfortSettings(); this.recordAudit('UX_TEXT_SIZE_TOGGLE', 'Taille de texte modifiée'); },
+
+    prepareResponsiveTables: function() {
+      document.querySelectorAll('table').forEach(function(table){
+        if (table.dataset.responsiveReady === '1') return;
+        table.classList.add('responsive-stack');
+        var headers = Array.from(table.querySelectorAll('thead th, tr:first-child th')).map(function(th){ return th.textContent.trim(); });
+        table.querySelectorAll('tbody tr, tr').forEach(function(tr){
+          Array.from(tr.children).forEach(function(td, idx){
+            if (td.tagName.toLowerCase() === 'td' && headers[idx] && !td.getAttribute('data-label')) td.setAttribute('data-label', headers[idx]);
+          });
+        });
+        table.dataset.responsiveReady = '1';
+      });
+    },
+
+    markRequiredFields: function() {
+      document.querySelectorAll('label').forEach(function(label){
+        if (/\*/.test(label.textContent)) label.setAttribute('data-required', 'true');
+      });
+      document.querySelectorAll('input, select, textarea').forEach(function(el){
+        if (!el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby')) {
+          var label = el.closest('.form-group') && el.closest('.form-group').querySelector('label');
+          if (label) el.setAttribute('aria-label', label.textContent.replace('*','').trim());
+        }
+      });
+    },
+
+    bindKeyboardShortcuts: function() {
+      document.addEventListener('keydown', function(ev){
+        if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') {
+          ev.preventDefault();
+          if (typeof window.ouvrirRecherche === 'function') window.ouvrirRecherche();
+          else document.getElementById('search-global-wrap')?.classList.add('open');
+        }
+        if (ev.key === 'Escape') Quality.togglePanel(false);
+      });
+    }
+  };
+
+  window.EduLinkQualityKit = Quality;
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ Quality.init(); });
+  else Quality.init();
+})();
+
+
+/* EDULINK MODULE REORG UX JS - START */
+(function(){
+  const families = {
+    tous: { label:'Tous', icon:'⊞', ids:null },
+    scolarite: { label:'Scolarité', icon:'🎓', ids:['dashboard','etudiants','classes','presences','notes','emploi','examens','enseignants','portail-ens','portail-etudiant'] },
+    finance: { label:'Finance', icon:'💳', ids:['paiements','comptabilite','rapports','exec-dashboard'] },
+    communication: { label:'Com.', icon:'✉️', ids:['messages','discipline','sms-parents','assistant-ia'] },
+    services: { label:'Services', icon:'🧩', ids:['documents','certificats','bibliotheque','bibliotheque-num','rh','portail-public'] },
+    pilotage: { label:'Pilotage', icon:'📊', ids:['analytics','reseau','dashboard-reseau','parametres-avances','pwa-avancee','parametres','utilisateurs'] }
+  };
+
+  const modules = [
+    ['dashboard','Tableau de bord','⊞','Pilotage','Vue générale des indicateurs clés'],
+    ['etudiants','Étudiants','👥','Scolarité','Inscriptions, fiches et dossiers'],
+    ['classes','Classes & programmes','🏫','Scolarité','Classes, calendrier et programmes'],
+    ['presences','Présences','✅','Scolarité','Absences, retards et pointage'],
+    ['notes','Notes & bulletins','📊','Scolarité','Saisie des notes et bulletins'],
+    ['emploi','Emploi du temps','📅','Scolarité','Planning des cours et salles'],
+    ['examens','Examens','📝','Scolarité','Examens, PV et résultats'],
+    ['enseignants','Enseignants','👨‍🏫','Scolarité','Fiches, matières et plannings'],
+    ['messages','Messagerie','✉️','Communication','Échanges internes'],
+    ['discipline','Discipline','⚠️','Communication','Incidents et sanctions'],
+    ['sms-parents','Email Parents','📧','Communication','Notifications aux parents'],
+    ['assistant-ia','Assistant IA','🤖','Communication','Aide et analyse intelligente'],
+    ['paiements','Paiements','💳','Finance','Factures et encaissements'],
+    ['comptabilite','Comptabilité','🏦','Finance','Caisse, lots et reçus'],
+    ['rapports','Rapports','📈','Finance','Exports et synthèses'],
+    ['documents','Documents','📄','Services','Documents étudiants'],
+    ['certificats','Certificats','📜','Services','Attestations et certificats'],
+    ['bibliotheque','Bibliothèque','📚','Services','Livres et emprunts'],
+    ['bibliotheque-num','Bibliothèque numérique','📚','Services','Ressources numériques'],
+    ['rh','RH & Personnel','🧑‍💼','Services','Personnel, congés, paie'],
+    ['analytics','Analytics IA','🧠','Pilotage','Alertes et prédictions'],
+    ['reseau','Réseau Écoles','🌐','Pilotage','Multi-établissements'],
+    ['dashboard-reseau','Dashboard Réseau','📊','Pilotage','Vue consolidée réseau'],
+    ['exec-dashboard','Dashboard Directeur','📊','Pilotage','Pilotage exécutif'],
+    ['parametres-avances','Paramètres avancés','🔧','Système','Rôles, sécurité, intégrations'],
+    ['pwa-avancee','PWA avancée','📱','Système','Installation, cache, offline'],
+    ['parametres','Paramètres','⚙️','Système','Configuration générale']
+  ];
+
+  const workflows = [
+    {group:'Saisies fréquentes', key:'etudiant inscription eleve apprenant', icon:'👥', title:'Inscrire un étudiant', sub:'Ouvre la fiche d’ajout étudiant', run:()=>edulinkOpenPageModal('etudiants','modal-etudiant')},
+    {group:'Saisies fréquentes', key:'note bulletin evaluation', icon:'📝', title:'Saisir une note', sub:'Accès direct au formulaire de note', run:()=>edulinkOpenPageModal('notes','modal-note')},
+    {group:'Saisies fréquentes', key:'absence presence retard pointage', icon:'✅', title:'Enregistrer une absence', sub:'Saisie rapide présence/absence', run:()=>edulinkOpenPageModal('presences','modal-absence')},
+    {group:'Saisies fréquentes', key:'paiement facture encaissement', icon:'💳', title:'Enregistrer un paiement', sub:'Facture ou règlement étudiant', run:()=>edulinkOpenPageModal('paiements','modal-paiement')},
+    {group:'Saisies fréquentes', key:'incident discipline sanction', icon:'⚠️', title:'Déclarer un incident', sub:'Créer un dossier discipline', run:()=>edulinkOpenPageModal('discipline','modal-incident')},
+    {group:'Saisies fréquentes', key:'document fichier upload', icon:'📄', title:'Ajouter un document', sub:'Classer un document étudiant', run:()=>edulinkOpenPageModal('documents','modal-document')},
+    {group:'Planification', key:'examen controle evaluation planning', icon:'📝', title:'Planifier un examen', sub:'Créer un examen ou contrôle', run:()=>edulinkOpenPageModal('examens','modal-examen')},
+    {group:'Planification', key:'emploi temps planning cours', icon:'📅', title:'Ajouter un cours', sub:'Compléter l’emploi du temps', run:()=>edulinkOpenPageModal('emploi','modal-emploi')},
+    {group:'Planification', key:'enseignant professeur matiere', icon:'👨‍🏫', title:'Ajouter un enseignant', sub:'Créer une fiche enseignant', run:()=>edulinkOpenPageModal('enseignants','modal-enseignant')},
+    {group:'Documents officiels', key:'certificat attestation document officiel', icon:'📜', title:'Émettre une attestation', sub:'Créer un certificat officiel', run:()=>{ edulinkGo('certificats'); setTimeout(()=>{ if(typeof ouvrirModalCertificat==='function') ouvrirModalCertificat(); else edulinkToast('Module certificats ouvert.'); },220); }},
+    {group:'Communication', key:'message email parent annonce notification', icon:'📧', title:'Informer les parents', sub:'Message, email ou annonce', run:()=>edulinkOpenPageModal('sms-parents','modal-annonce')},
+    {group:'Imports & exports', key:'import excel csv etudiants notes paiements', icon:'📥', title:'Importer des données', sub:'Va au module adapté puis utilise Import Excel', run:()=>edulinkOpenImportGuide()},
+    {group:'Imports & exports', key:'rapport export excel pdf', icon:'📊', title:'Exporter un rapport', sub:'Ouvre le centre des rapports', run:()=>edulinkGo('rapports')},
+    {group:'Pilotage', key:'tableau bord directeur indicateurs', icon:'📊', title:'Voir le dashboard directeur', sub:'Synthèse pour décision rapide', run:()=>edulinkGo('exec-dashboard')},
+  ];
+
+  window.edulinkGo = function(page){
+    edulinkCloseWorkflow(); edulinkCloseModuleCenter();
+    if (typeof showPage === 'function') showPage(page);
+    const main = document.querySelector('main'); if(main) main.scrollTo({top:0, behavior:'smooth'});
+  };
+  window.edulinkToast = function(msg, type='info'){
+    if (typeof showToast === 'function') showToast(msg,type); else console.log(msg);
+  };
+  window.edulinkOpenPageModal = function(page, modalId){
+    edulinkGo(page);
+    setTimeout(()=>{
+      const modal = document.getElementById(modalId);
+      if (modal && typeof ouvrirModal === 'function') ouvrirModal(modalId);
+      else edulinkToast('Module ouvert. Le formulaire n’est pas disponible dans cette version.','info');
+    },220);
+  };
+  window.edulinkSetNavFamily = function(family){
+    const conf = families[family] || families.tous;
+    document.querySelectorAll('.module-family-btn').forEach(b=>b.classList.toggle('active', b.dataset.family===family));
+    const visible = conf.ids ? new Set(conf.ids) : null;
+    modules.forEach(([id])=>{
+      const a = document.getElementById('nav-'+id);
+      if(!a) return;
+      a.classList.toggle('nav-module-hidden', !!visible && !visible.has(id));
+    });
+    localStorage.setItem('edulink_nav_family', family);
+    edulinkToast(conf.label==='Tous' ? 'Tous les modules sont affichés.' : 'Navigation filtrée : '+conf.label, 'info');
+  };
+  window.edulinkOpenWorkflow = function(){
+    const d=document.getElementById('workflow-drawer'); if(!d) return;
+    d.classList.add('open'); d.setAttribute('aria-hidden','false'); edulinkRenderWorkflows('');
+    setTimeout(()=>document.getElementById('workflow-search-input')?.focus(),80);
+  };
+  window.edulinkCloseWorkflow = function(){
+    const d=document.getElementById('workflow-drawer'); if(!d) return;
+    d.classList.remove('open'); d.setAttribute('aria-hidden','true');
+  };
+  window.edulinkFilterWorkflows = function(q){
+    const input=document.getElementById('workflow-search-input'); if(input && input.value!==q) input.value=q;
+    edulinkRenderWorkflows(q||'');
+  };
+  window.edulinkRenderWorkflows = function(q){
+    const list=document.getElementById('workflow-list'); if(!list) return;
+    const needle=(q||'').toLowerCase().trim();
+    const filtered=workflows.filter(w=>!needle || (w.title+' '+w.sub+' '+w.key+' '+w.group).toLowerCase().includes(needle));
+    const groups=[...new Set(filtered.map(w=>w.group))];
+    list.innerHTML = groups.map(g=>`<div class="workflow-section"><div class="workflow-section-title">${g}</div>${filtered.filter(w=>w.group===g).map((w,i)=>`<div class="workflow-card" tabindex="0" role="button" data-title="${w.title.replace(/"/g,'&quot;')}"><div class="workflow-card-ico">${w.icon}</div><div class="workflow-card-body"><div class="workflow-card-title">${w.title}</div><div class="workflow-card-sub">${w.sub}</div></div><div class="workflow-card-kbd">↵</div></div>`).join('')}</div>`).join('') || '<div class="empty-state"><div class="icon">🔎</div><h3>Aucune action trouvée</h3><p>Essaie avec note, paiement, absence, import…</p></div>';
+    list.querySelectorAll('.workflow-card').forEach(card=>{
+      const w=filtered.find(x=>x.title===card.dataset.title);
+      card.onclick=()=>w && w.run();
+      card.onkeydown=e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); w && w.run(); } };
+    });
+  };
+  window.edulinkOpenModuleCenter = function(){
+    const c=document.getElementById('module-center'); if(!c) return;
+    c.classList.add('open'); c.setAttribute('aria-hidden','false'); edulinkRenderModuleCenter('');
+    setTimeout(()=>document.getElementById('module-center-search')?.focus(),80);
+  };
+  window.edulinkCloseModuleCenter = function(){
+    const c=document.getElementById('module-center'); if(!c) return;
+    c.classList.remove('open'); c.setAttribute('aria-hidden','true');
+  };
+  window.edulinkRenderModuleCenter = function(q){
+    const grid=document.getElementById('module-center-grid'); if(!grid) return;
+    const needle=(q||'').toLowerCase().trim();
+    const filtered=modules.filter(m=>!needle || m.join(' ').toLowerCase().includes(needle));
+    grid.innerHTML=filtered.map(([id,name,icon,fam,desc])=>`<div class="module-card" tabindex="0" role="button" onclick="edulinkGo('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();edulinkGo('${id}')}" data-module="${id}"><div class="mci">${icon}</div><div class="mcn">${name}</div><div class="mcf">${fam}</div><div class="mcd">${desc}</div></div>`).join('') || '<div class="empty-state"><div class="icon">🔎</div><h3>Aucun module trouvé</h3></div>';
+  };
+  window.edulinkOpenImportGuide = function(){
+    edulinkGo('etudiants');
+    edulinkToast('Astuce : utilise les boutons Import Excel des modules Étudiants, Paiements, Notes ou Bibliothèque selon le fichier.', 'info');
+  };
+
+  function injectNavOrganizer(){
+    const nav=document.querySelector('nav'); if(!nav || document.getElementById('module-organizer')) return;
+    const anchor=document.querySelector('#ecole-selector')?.closest('div[style*="margin-bottom:1rem"]') || document.querySelector('#nav-principal-wrap');
+    const wrap=document.createElement('div');
+    wrap.id='module-organizer'; wrap.className='module-organizer';
+    wrap.innerHTML=`<div class="module-organizer-title"><span>🧭 Navigation métier</span><button type="button" onclick="edulinkOpenModuleCenter()">Centre</button></div><div class="module-family-grid">${Object.entries(families).map(([k,v])=>`<button type="button" class="module-family-btn" data-family="${k}" onclick="edulinkSetNavFamily('${k}')">${v.icon} ${v.label}</button>`).join('')}</div><div class="nav-quick-actions"><button type="button" onclick="edulinkOpenWorkflow()">⚡ Saisies</button><button type="button" onclick="edulinkOpenModuleCenter()">🔎 Modules</button></div>`;
+    if(anchor) anchor.insertAdjacentElement('afterend', wrap); else nav.insertBefore(wrap, nav.firstChild?.nextSibling || null);
+    modules.forEach(([id,,icon,fam])=>{
+      const a=document.getElementById('nav-'+id);
+      if(a && !a.querySelector('.nav-family-chip')) a.insertAdjacentHTML('beforeend', `<span class="nav-family-chip">${fam}</span>`);
+    });
+    const saved=localStorage.getItem('edulink_nav_family') || 'tous';
+    edulinkSetNavFamily(saved);
+  }
+
+  function injectDashboardHub(){
+    const dash=document.getElementById('page-dashboard'); if(!dash || document.getElementById('dashboard-action-hub')) return;
+    const top=dash.querySelector('.top');
+    const hub=document.createElement('div'); hub.id='dashboard-action-hub'; hub.className='action-hub';
+    hub.innerHTML=`<div class="action-hub-head"><div><h3>⚡ Parcours rapides de saisie</h3><p>Les actions quotidiennes sont regroupées ici pour réduire les clics et éviter de chercher dans les menus.</p></div><div class="action-hub-tools"><button class="btn-secondary btn-sm" type="button" onclick="edulinkOpenModuleCenter()">🧭 Tous les modules</button><button class="btn-blue btn-sm" type="button" onclick="edulinkOpenWorkflow()">Ouvrir l’assistant</button></div></div><div class="action-hub-grid"><div class="action-tile primary" onclick="edulinkOpenPageModal('etudiants','modal-etudiant')"><div class="ati">👥</div><div class="atl">Inscrire</div><div class="ats">Nouvel étudiant</div></div><div class="action-tile" onclick="edulinkOpenPageModal('notes','modal-note')"><div class="ati">📝</div><div class="atl">Saisir note</div><div class="ats">Évaluation rapide</div></div><div class="action-tile" onclick="edulinkOpenPageModal('presences','modal-absence')"><div class="ati">✅</div><div class="atl">Absence</div><div class="ats">Présence ou retard</div></div><div class="action-tile" onclick="edulinkOpenPageModal('paiements','modal-paiement')"><div class="ati">💳</div><div class="atl">Paiement</div><div class="ats">Encaissement</div></div><div class="action-tile" onclick="edulinkOpenPageModal('examens','modal-examen')"><div class="ati">📝</div><div class="atl">Examen</div><div class="ats">Planifier</div></div><div class="action-tile" onclick="edulinkOpenWorkflow()"><div class="ati">🔎</div><div class="atl">Plus d’actions</div><div class="ats">Documents, imports, RH…</div></div></div>`;
+    if(top) top.insertAdjacentElement('afterend', hub); else dash.prepend(hub);
+  }
+
+  function enhanceForms(){
+    const modalTips = {
+      'modal-etudiant': 'Saisie guidée : commence par l’identité, puis la classe et les coordonnées. Les champs marqués d’un astérisque doivent être vérifiés avant enregistrement.',
+      'modal-note': 'Saisie rapide : choisis d’abord l’étudiant, la matière et la période, puis vérifie la note avant validation.',
+      'modal-absence': 'Saisie rapide : indique la date, le créneau et le motif si disponible pour faciliter les relances aux parents.',
+      'modal-paiement': 'Paiement : vérifie la référence, le montant et le mode de règlement avant d’enregistrer.',
+      'modal-facture': 'Facture : vérifie l’échéance et le détail des frais avant génération.',
+      'modal-examen': 'Planification : renseigne la date, l’horaire, la classe et la matière pour éviter les conflits.',
+      'modal-enseignant': 'Fiche enseignant : complète les informations de contact et les matières associées.'
+    };
+    Object.entries(modalTips).forEach(([id,txt])=>{
+      const modal=document.getElementById(id); if(!modal || modal.querySelector('.smart-form-tip')) return;
+      const h3=modal.querySelector('.modal h3, h3');
+      const tip=document.createElement('div'); tip.className='smart-form-tip';
+      tip.innerHTML=`<div>💡</div><div><strong>Assistant de saisie.</strong> ${txt}</div>`;
+      if(h3) h3.insertAdjacentElement('afterend',tip);
+    });
+    document.querySelectorAll('.modal input, .modal select, .modal textarea').forEach(el=>{
+      if(!el.id) return;
+      const lab=document.querySelector(`label[for="${el.id}"]`) || el.closest('.form-group')?.querySelector('label');
+      if(lab && !lab.dataset.smartEnhanced){ lab.dataset.smartEnhanced='true'; if(el.hasAttribute('required')) lab.classList.add('required'); }
+    });
+  }
+
+  document.addEventListener('keydown', function(e){
+    if((e.ctrlKey||e.metaKey) && e.shiftKey && e.key.toLowerCase()==='a'){ e.preventDefault(); edulinkOpenWorkflow(); }
+    if((e.ctrlKey||e.metaKey) && e.shiftKey && e.key.toLowerCase()==='m'){ e.preventDefault(); edulinkOpenModuleCenter(); }
+    if(e.key==='Escape'){ edulinkCloseWorkflow(); edulinkCloseModuleCenter(); }
+  });
+  document.addEventListener('DOMContentLoaded', function(){
+    injectNavOrganizer(); injectDashboardHub(); enhanceForms();
+  });
+  setTimeout(()=>{ injectNavOrganizer(); injectDashboardHub(); enhanceForms(); }, 800);
+})();
+/* EDULINK MODULE REORG UX JS - END */
+</script>
+
+
+<!-- EDULINK MODULE REORG UX HTML - START -->
+<div class="workflow-drawer" id="workflow-drawer" aria-hidden="true">
+  <div class="workflow-backdrop" onclick="edulinkCloseWorkflow()"></div>
+  <aside class="workflow-panel" role="dialog" aria-modal="true" aria-labelledby="workflow-title">
+    <div class="workflow-header">
+      <div>
+        <h3 id="workflow-title">⚡ Actions rapides</h3>
+        <p>Accès direct aux saisies, imports et opérations fréquentes.</p>
+      </div>
+      <button class="workflow-close" onclick="edulinkCloseWorkflow()">✕</button>
+    </div>
+    <div class="workflow-body">
+      <div class="workflow-search">
+        <input id="workflow-search-input" type="search" placeholder="Rechercher une action : note, paiement, absence…" oninput="edulinkFilterWorkflows(this.value)">
+        <button class="btn-secondary" onclick="edulinkFilterWorkflows('')">Effacer</button>
+      </div>
+      <div id="workflow-list"></div>
+    </div>
+  </aside>
+</div>
+
+<div class="module-center" id="module-center" aria-hidden="true">
+  <div class="module-center-panel" role="dialog" aria-modal="true" aria-labelledby="module-center-title">
+    <div class="module-center-head">
+      <h3 id="module-center-title">🧭 Centre des modules</h3>
+      <button class="workflow-close" onclick="edulinkCloseModuleCenter()">✕</button>
+    </div>
+    <div class="module-center-body">
+      <input class="module-center-search" id="module-center-search" type="search" placeholder="Chercher un module : étudiants, paiement, RH, transport…" oninput="edulinkRenderModuleCenter(this.value)">
+      <div class="module-center-grid" id="module-center-grid"></div>
+    </div>
+  </div>
+</div>
+<!-- EDULINK MODULE REORG UX HTML - END -->
 
 </body>
 <!-- ══ INPUTS FILE CACHÉS — IMPORTS EXCEL (ajoutés hors DOM visible) ══ -->
