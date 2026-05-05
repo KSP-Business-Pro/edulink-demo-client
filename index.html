@@ -2405,9 +2405,11 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <h2>Tableau de bord</h2>
       <p class="page-subtitle" id="dash-subtitle">Vue générale de l'établissement</p>
     </div>
-    <button onclick="ouvrirModal('modal-annonce')">+ Envoyer annonce</button>
-    <button class="btn-blue btn-sm" onclick="envoyerNotifAbsencesJour()" title="Notifier les parents des absences du jour">📧 Notifier absences</button>
-    <button class="btn-secondary btn-sm" onclick="ouvrirConfigNotif()" title="Configurer les emails" style="background:rgba(255,255,255,.1);color:#374151;border:1px solid #e5e7eb">⚙️ Emails</button>
+    <div class="top-actions">
+      <button onclick="ouvrirModal('modal-annonce')">+ Envoyer annonce</button>
+      <button class="btn-blue btn-sm" onclick="envoyerNotifAbsencesJour()" title="Notifier les parents des absences du jour">📧 Notifier absences</button>
+      <button class="btn-secondary btn-sm" onclick="ouvrirConfigNotif()" title="Configurer les emails" style="background:rgba(255,255,255,.1);color:#374151;border:1px solid #e5e7eb">⚙️ Emails</button>
+    </div>
   </div>
   <div class="cards">
     <div class="card"><div class="i">🎓</div><div class="n" style="color:#1e3a5f" id="stat-etudiants">…</div><div class="l">Étudiants inscrits</div></div>
@@ -23578,7 +23580,10 @@ function telechargerModeleEnseignantsExcel() {
     ['exec-dashboard','Dashboard Directeur','📊','Pilotage','Pilotage exécutif'],
     ['parametres-avances','Paramètres avancés','🔧','Système','Rôles, sécurité, intégrations'],
     ['pwa-avancee','PWA avancée','📱','Système','Installation, cache, offline'],
-    ['parametres','Paramètres','⚙️','Système','Configuration générale']
+    ['parametres','Paramètres','⚙️','Système','Configuration générale'],
+    ['portail-ens','Portail Enseignant','👨‍🏫','Scolarité','Espace dédié aux professeurs'],
+    ['portail-etudiant','Portail Étudiant','🎓','Scolarité','Espace dédié aux étudiants'],
+    ['portail-public','Portail Public','🌎','Services','Site vitrine de l\'établissement']
   ];
 
   const workflows = [
