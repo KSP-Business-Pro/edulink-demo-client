@@ -9276,19 +9276,36 @@ async function chargerNotes() {
   if (fp) q=q.eq('periode',fp);
   if (fm) q=q.eq('matiere',fm);
   if (fe) q=q.eq('etudiant_id',fe);
-  const {data} = await q;
+  // Charger en parallèle l'index des examens pour résoudre les périodes EXAM-{uuid}
+  // en libellés lisibles ("📝 Examen — Droit des Affaires (12/03/2026)") et pour
+  // afficher un ⚠️ pédagogique : ces notes ne s'affichent dans le bulletin que si
+  // l'utilisateur sélectionne explicitement la période examen correspondante.
+  let qEx = db.from('examens').select('id,matiere,date_examen');
+  if (currentEcoleId) qEx = qEx.eq('ecole_id', currentEcoleId);
+  const [{data}, {data:examens}] = await Promise.all([q, qEx]);
+  const examensIndex = new Map((examens||[]).map(e => [e.id, e]));
   toutesLesNotes = data||[];
   const matieres=[...new Set(toutesLesNotes.map(n=>n.matiere))].sort();
   const filtMat=document.getElementById('filter-notes-matiere');
   const cur=filtMat.value;
   filtMat.innerHTML='<option value="">Toutes les matières</option>'+matieres.map(m=>`<option value="${m}" ${cur===m?'selected':''}>${m}</option>`).join('');
   document.getElementById('tbody-notes').innerHTML = toutesLesNotes.length
-    ? toutesLesNotes.map(n=>{const a=getApp(n.note);return`<tr>
+    ? toutesLesNotes.map(n=>{
+        const a=getApp(n.note);
+        const isExam = (n.periode||'').startsWith('EXAM-');
+        const periodeLabel = labelPeriodeHTML(n.periode, examensIndex);
+        // Note d'examen : badge ambre + ⚠️ avec tooltip sur le libellé pour
+        // expliquer que cette note n'apparaît pas dans la vue bulletin par défaut.
+        const periodeBadgeCls = isExam ? 'amber' : 'gray';
+        const warnIcon = isExam
+          ? `<span title="Cette note est rattachée à un examen. Pour la voir dans le bulletin, sélectionne la période d'examen correspondante dans l'onglet Bulletins." style="margin-left:6px;cursor:help;color:#d97706;font-weight:700">⚠️</span>`
+          : '';
+        return`<tr>
         <td>${n.etudiants?n.etudiants.nom+' '+n.etudiants.prenom:'N/A'}</td>
         <td>${n.matiere}</td>
         <td><span class="note-badge ${a.cls}">${n.note}/20</span></td>
         <td>${n.coefficient||1}</td>
-        <td><span class="badge gray">${n.periode}</span></td>
+        <td><span class="badge ${periodeBadgeCls}">${periodeLabel}</span>${warnIcon}</td>
         <td><span class="badge ${a.cls}">${a.label}</span></td>
         <td style="display:flex;gap:4px">
           <button class="btn-sm btn-blue" onclick="ouvrirModifierNote('${n.id}','${n.etudiant_id}','${n.matiere}',${n.note},${n.coefficient||1},'${n.periode}','${(n.commentaire||'').replace(/'/g,'&apos;')}')">✏️</button>
@@ -9353,26 +9370,50 @@ async function supprimerNote(id) {
   invalidateData('notes');
   chargerNotes(); chargerDashboard();
 }
-function labelPeriodeBulletin(p) {
+function labelPeriodeBulletin(p, examensIndex) {
   if (!p) return 'Toutes periodes';
   if (p === 'S1') return 'Semestre 1';
   if (p === 'S2') return 'Semestre 2';
   if (p === 'T1') return 'Trimestre 1';
   if (p === 'T2') return 'Trimestre 2';
   if (p === 'T3') return 'Trimestre 3';
-  if (p.startsWith('EXAM-')) return 'Examen';
+  if (p.startsWith('EXAM-')) {
+    const id = p.slice(5);
+    if (examensIndex && examensIndex.get) {
+      const ex = examensIndex.get(id);
+      if (ex) {
+        const mat = pdfSafe(ex.matiere || 'Examen');
+        const d = ex.date_examen ? fmtDate(new Date(ex.date_examen)) : '';
+        return d ? `Examen - ${mat} (${d})` : `Examen - ${mat}`;
+      }
+    }
+    return 'Examen';
+  }
   return p;
 }
 
 // Version avec accents pour l'affichage HTML (non-PDF)
-function labelPeriodeHTML(p) {
+// Si `examensIndex` est fourni (Map d'id → examen), résout EXAM-{uuid} en
+// "📝 Examen — {matière} ({date})". Sinon retombe sur "📝 Examen" générique.
+function labelPeriodeHTML(p, examensIndex) {
   if (!p) return 'Toutes périodes';
   if (p === 'S1') return 'Semestre 1';
   if (p === 'S2') return 'Semestre 2';
   if (p === 'T1') return 'Trimestre 1';
   if (p === 'T2') return 'Trimestre 2';
   if (p === 'T3') return 'Trimestre 3';
-  if (p.startsWith('EXAM-')) return '📝 Examen';
+  if (p.startsWith('EXAM-')) {
+    const id = p.slice(5);
+    if (examensIndex && examensIndex.get) {
+      const ex = examensIndex.get(id);
+      if (ex) {
+        const mat = ex.matiere || 'Examen';
+        const d = ex.date_examen ? fmtDate(new Date(ex.date_examen)) : '';
+        return d ? `📝 Examen — ${mat} (${d})` : `📝 Examen — ${mat}`;
+      }
+    }
+    return '📝 Examen';
+  }
   return p;
 }
 
@@ -9410,7 +9451,16 @@ async function remplirSelectBulletin() {
 async function mettreAJourPeriodesBulletin(etudiantId) {
   if (!etudiantId) return;
   // Charger toutes les périodes réelles de cet étudiant
-  const { data } = await db.from('notes').select('periode').eq('etudiant_id', etudiantId);
+  // ET en parallèle l'index des examens pour afficher un libellé lisible
+  // (ex. "Examen - Droit des Affaires (12/03/2026)") dans le <select> au lieu
+  // de "Examen" générique pour toutes les périodes EXAM-{uuid}.
+  let qEx = db.from('examens').select('id,matiere,date_examen');
+  if (currentEcoleId) qEx = qEx.eq('ecole_id', currentEcoleId);
+  const [{data}, {data:examens}] = await Promise.all([
+    db.from('notes').select('periode').eq('etudiant_id', etudiantId),
+    qEx
+  ]);
+  const examensIndex = new Map((examens||[]).map(e => [e.id, e]));
   const periodes = [...new Set((data||[]).map(n => n.periode))].filter(Boolean);
   // Trier : S1/S2/T1 avant EXAM-xxx
   periodes.sort((a,b) => {
@@ -9427,7 +9477,7 @@ async function mettreAJourPeriodesBulletin(etudiantId) {
     if (!a.startsWith('EXAM-') && b.startsWith('EXAM-')) return -1;
     return a.localeCompare(b);
   });
-  sel.innerHTML = toutes.map(p => `<option value="${p}">${labelPeriodeBulletin(p)}</option>`).join('');
+  sel.innerHTML = toutes.map(p => `<option value="${p}">${labelPeriodeBulletin(p, examensIndex)}</option>`).join('');
   // Sélectionner la 1ère période réelle si disponible
   if (periodes.length) sel.value = periodes[0];
 }
@@ -9437,7 +9487,16 @@ async function chargerBulletin() {
   const container  = document.getElementById('bulletin-container');
   if (!etudiantId) { container.innerHTML='<div class="empty-state"><div class="icon">📄</div><h3>Sélectionnez un étudiant</h3></div>'; return; }
   container.innerHTML = '<div class="loading">Génération du bulletin...</div>';
-  const { data:notes } = await db.from('notes').select('*').eq('etudiant_id',etudiantId).eq('periode',periode);
+  // Charger les notes ET, si la période est un examen, l'examen en question pour
+  // afficher un en-tête lisible ("📝 Examen — Droit des Affaires (12/03/2026)")
+  // au lieu d'un "📝 Examen" générique.
+  const queries = [db.from('notes').select('*').eq('etudiant_id',etudiantId).eq('periode',periode)];
+  if (periode && periode.startsWith('EXAM-')) {
+    queries.push(db.from('examens').select('id,matiere,date_examen').eq('id', periode.slice(5)));
+  }
+  const results = await Promise.all(queries);
+  const notes = results[0].data;
+  const examensIndex = results[1] ? new Map((results[1].data||[]).map(e => [e.id, e])) : null;
   const etudiant = tousLesEtudiants.find(e => e.id === etudiantId);
   if (!notes?.length) { container.innerHTML='<div class="empty-state"><div class="icon">📭</div><h3>Aucune note pour cette période.</h3></div>'; return; }
   let totalPts=0, totalCoeff=0;
@@ -9445,7 +9504,7 @@ async function chargerBulletin() {
   const moy = totalCoeff>0?(totalPts/totalCoeff):0;
   const app = getApp(moy);
   container.innerHTML = `<div class="bulletin-wrap" id="bulletin-print">
-    <div class="bulletin-header"><h3>Bulletin de Notes — ${etudiant?.nom||''} ${etudiant?.prenom||''}</h3><p>${labelPeriodeHTML(periode)} · Edité le ${fmtDate(new Date())}</p></div>
+    <div class="bulletin-header"><h3>Bulletin de Notes — ${etudiant?.nom||''} ${etudiant?.prenom||''}</h3><p>${labelPeriodeHTML(periode, examensIndex)} · Edité le ${fmtDate(new Date())}</p></div>
     <div class="bulletin-stats">
       <div class="bstat"><div class="val">${moy.toFixed(2)}/20</div><div class="lbl">Moyenne générale</div></div>
       <div class="bstat"><div class="val">${notes.length}</div><div class="lbl">Matières évaluées</div></div>
