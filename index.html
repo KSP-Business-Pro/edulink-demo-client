@@ -2573,6 +2573,9 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <h2>Emploi du temps</h2>
     <div class="top-actions">
       <button class="btn-outline" onclick="exporterEdtCSV()">📊 Export Excel</button>
+      <button class="btn-outline" onclick="exporterEdtModele()">📥 Modèle Excel</button>
+      <button class="btn-outline" onclick="ouvrirImportExcelEDT()">📤 Importer Excel</button>
+      <button id="btn-import-edt-confirm" onclick="confirmerImportExcelEDT()" style="display:none;background:#059669;color:#fff">✅ Confirmer import</button>
       <button onclick="ouvrirModal('modal-emploi')">+ Ajouter créneau</button>
     </div>
   </div>
@@ -8003,10 +8006,12 @@ async function exporterAbsencesCSV() {
 // ══════════════════════════════════════════════════════════════════════
 function exporterEdtExcel() {
   const header = ['Jour','Heure début','Heure fin','Matière','Professeur','Salle','Type','Classe'];
+  // Schéma réel emploi_du_temps : colonnes 'type' (cours/td/tp/exam) et 'classe' (label texte).
+  // L'ancien code lisait c.type_seance et c.classe_nom qui n'existent pas → colonnes vides.
   const rows = tousLesCreneaux.map(c => [
     c.jour||'', c.heure_debut||'', c.heure_fin||'',
     c.matiere||'', c.professeur||'', c.salle||'',
-    c.type_seance||'', c.classe_nom||''
+    c.type||'', c.classe||''
   ]);
   if (!rows.length) { showToast('Aucun créneau à exporter', 'error'); return; }
   xlsxDownload(`EduLink-EmploiDuTemps-${today()}.xlsx`, header, rows, 'EDT', {
@@ -8015,6 +8020,83 @@ function exporterEdtExcel() {
     autoFilter   : true
   });
   showToast('📊 Export Excel EDT téléchargé !', 'success');
+}
+
+function exporterEdtModele() {
+  // Modèle aligné sur le format d'export — l'utilisateur peut donc directement
+  // ré-importer un fichier exporté, ou partir du modèle vierge.
+  // Heures au format HH:MM (texte). Type : cours/td/tp/exam.
+  const header = ['Jour','Heure début','Heure fin','Matière','Professeur','Salle','Type','Classe'];
+  const exemple = ['Lundi','08:00','11:00','Algorithmique','Dr. KOSSIVI','A101','cours','Informatique L2'];
+  xlsxModele('EduLink-Modele-Import-EDT.xlsx', header, exemple, 'Modèle EDT',
+    [12,12,12,18,22,10,12,18]);
+}
+
+var _edtAImporter = [];
+function ouvrirImportExcelEDT() {
+  ouvrirImportExcel('input-import-edt-file', rows => {
+    // Helper : tronque "08:00:00" → "08:00" et accepte les valeurs Date que SheetJS
+    // renvoie pour les cellules HH:MM (cas où l'utilisateur ré-importe un export).
+    const normHeure = v => {
+      if (!v) return '';
+      if (v instanceof Date) {
+        const hh = String(v.getHours()).padStart(2,'0');
+        const mm = String(v.getMinutes()).padStart(2,'0');
+        return `${hh}:${mm}`;
+      }
+      const s = String(v).trim();
+      const m = s.match(/^(\d{1,2}):(\d{2})/);
+      return m ? `${m[1].padStart(2,'0')}:${m[2]}` : s;
+    };
+    const normJour = v => {
+      const j = String(v||'').trim().toLowerCase();
+      const map = { lundi:'Lundi', mardi:'Mardi', mercredi:'Mercredi', jeudi:'Jeudi', vendredi:'Vendredi', samedi:'Samedi', dimanche:'Dimanche' };
+      return map[j] || (v||'');
+    };
+    const normType = v => {
+      const t = String(v||'').trim().toLowerCase();
+      const map = { cours:'cours', td:'td', tp:'tp', exam:'exam', examen:'exam', 'cours magistral':'cours', 'travaux dirigés':'td', 'travaux diriges':'td', 'travaux pratiques':'tp' };
+      return map[t] || 'cours';
+    };
+    _edtAImporter = rows.map(r => ({
+      jour:        normJour(xlsVal(r,['Jour','jour','JOUR'])),
+      heure_debut: normHeure(xlsVal(r,['Heure début','Heure debut','heure_debut','Début','Debut'])),
+      heure_fin:   normHeure(xlsVal(r,['Heure fin','heure_fin','Fin'])),
+      matiere:     xlsVal(r,['Matière','Matiere','matiere','MATIERE'])      || '',
+      professeur:  xlsVal(r,['Professeur','professeur','Prof','Enseignant']) || '',
+      salle:       xlsVal(r,['Salle','salle'])                                || '',
+      type:        normType(xlsVal(r,['Type','type'])),
+      classe:      xlsVal(r,['Classe','classe','CLASSE'])                    || '',
+    })).filter(c => c.jour && c.heure_debut && c.heure_fin && c.matiere && c.classe);
+    if (!_edtAImporter.length) { showToast('Aucune ligne valide (jour, heures, matière, classe requis)', 'error'); return; }
+    showToast(`✅ ${_edtAImporter.length} créneau(x) prêt(s) — cliquez Confirmer`, 'info');
+    const btn = document.getElementById('btn-import-edt-confirm');
+    if (btn) { btn.disabled = false; btn.style.display = 'inline-block'; }
+  });
+}
+
+async function confirmerImportExcelEDT() {
+  if (!_edtAImporter.length) return;
+  let ok = 0, err = 0, firstErr = '';
+  for (let item of _edtAImporter) {
+    let payload = { ...item, ecole_id: currentEcoleId };
+    let { error } = await db.from('emploi_du_temps').insert([payload]);
+    let guard = 0;
+    while (error && guard < 8) {
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
+      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
+      console.warn('[Import EDT] Retrait colonne:', col);
+      delete payload[col];
+      ({ error } = await db.from('emploi_du_temps').insert([payload])); guard++;
+    }
+    if (error) { err++; if (!firstErr) firstErr = error.message; console.error('[Import EDT]', error.message); } else ok++;
+  }
+  _edtAImporter = [];
+  if (ok > 0) showToast(`✅ ${ok} créneau(x) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, 'success');
+  else showToast(`❌ 0 créneau importé — ${firstErr?.slice(0,100)||'Voir console'}`, 'error');
+  const btn = document.getElementById('btn-import-edt-confirm');
+  if (btn) { btn.disabled = true; btn.style.display = 'none'; }
+  if (typeof chargerEmploiDuTemps === 'function') chargerEmploiDuTemps();
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -24370,4 +24452,5 @@ function telechargerModeleEnseignantsExcel() {
 <input type="file" id="input-import-utilisateurs-file" accept=".xlsx,.xls" style="display:none">
 <input type="file" id="input-import-livres-file"       accept=".xlsx,.xls" style="display:none">
 <input type="file" id="input-import-rh-file"           accept=".xlsx,.xls" style="display:none">
+<input type="file" id="input-import-edt-file"          accept=".xlsx,.xls" style="display:none">
 </html>
