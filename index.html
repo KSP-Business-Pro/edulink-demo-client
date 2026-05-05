@@ -9607,7 +9607,19 @@ async function peuplerClassesEDT() {
   if (!selF && !selM) return;
   if (!toutesLesClasses?.length) await chargerClasses();
   const actives = (toutesLesClasses || []).filter(c => c.statut !== 'archive');
-  const opts = actives.map(c => `<option value="${c.id}">${c.nom || c.filiere + ' ' + c.niveau}</option>`).join('');
+  // IMPORTANT : la colonne `classe` de la table emploi_du_temps stocke un LABEL
+  // textuel (ex. "Finance L2"), pas un UUID — voir ajouterCreneau() qui écrit
+  // `selCls.options[selCls.selectedIndex].text` comme valeur de classe. Pour que
+  // le filtre `q.eq('classe', selF.value)` matche réellement, il faut donc que
+  // le `value` des <option> soit lui aussi le label textuel, pas l'UUID.
+  // L'écriture (modal) lit `.text` et continue de fonctionner inchangée.
+  // L'édition (l. ~9557) match déjà sur `o.text === s.classe || o.value === s.classe`,
+  // donc passer value à label est non-régressif des deux côtés.
+  const opts = actives.map(c => {
+    const label = c.nom || (c.filiere + ' ' + c.niveau);
+    const safe  = label.replace(/"/g, '&quot;');
+    return `<option value="${safe}">${label}</option>`;
+  }).join('');
   if (selF) selF.innerHTML = '<option value="">Toutes les classes</option>' + opts;
   if (selM) selM.innerHTML = '<option value="">— Sélectionner —</option>' + opts;
 }
