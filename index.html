@@ -8685,6 +8685,11 @@ function changerEcole() {
   // Vider les caches de tous les modules
   tousLesEtudiants = []; tousLesEnseignants = []; tousLesCreneaux = [];
   tousLesFactures = []; tousLesPaiements = []; tousLesMessages = [];
+  // Reset des objets "actifs" qui référencent une entité de l'ancienne école.
+  // Sans ça, une modal restée ouverte ou un objet en mémoire continue de pointer
+  // vers un enseignant qui n'appartient pas à la nouvelle école → désalignement
+  // visible sur l'onglet Planning de la fiche enseignant en particulier.
+  if (typeof ficheEnsActif !== 'undefined') ficheEnsActif = null;
   // Fix démo : tousLesProgrammes oublié → tableau "fantôme" entre écoles
   if (typeof tousLesProgrammes !== 'undefined') tousLesProgrammes = [];
   if (typeof toutesLesClasses !== 'undefined') toutesLesClasses = [];
@@ -12243,6 +12248,77 @@ function resetFiltresEnseignants() {
   afficherEnseignants(tousLesEnseignants);
 }
 
+// ── Utilitaires partagés Planning enseignant ──
+// Facteur commun entre la modal Fiche enseignant (onglet Planning) et la vue
+// Planning du module Enseignants (sélecteur). Garantit qu'elles produisent
+// EXACTEMENT le même set de créneaux pour un même enseignant + même école.
+//
+// Pourquoi : avant ce refactor, la modal et la vue Planning duppliquaient leur
+// logique de matching avec de subtiles divergences (incluant un bug d'aliasing
+// de colonne et un includes('') qui matchait tout quand prénom/nom était vide).
+//
+// Normalisation FR : minuscules, retrait des accents, civilités fréquentes
+// supprimées, espaces multiples écrasés. Couvre les écarts de saisie observés
+// entre établissements (UCAO Parakou propre vs autres écoles avec données
+// hétérogènes : "Pr DUPONT", "M. Dupont", "Béhanzin" vs "Behanzin", etc.).
+function _normalizeNameFR(s) {
+  return (s == null ? '' : String(s))
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')          // accents
+    .replace(/^(pr|prof|m|mme|mlle|dr)\.?\s+/i, '')             // civilités en tête
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Active le mode debug via ?debug=planning dans l'URL, ou en posant
+// localStorage.edulink_debug_planning = '1' dans la console. Aucune sortie
+// console en production tant qu'aucun de ces deux mécanismes n'est activé.
+function _planningDebugActive() {
+  try {
+    if (typeof location !== 'undefined' && /[?&]debug=planning(\b|&|=)/.test(location.search || '')) return true;
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('edulink_debug_planning') === '1') return true;
+  } catch(_) {}
+  return false;
+}
+
+// Filtre les créneaux qui appartiennent à un enseignant donné, à partir d'un
+// tableau de lignes brutes de la table emploi_du_temps. Un créneau matche si :
+//   - cr.professeur (normalisé) == "nom prenom" (normalisé), OU
+//   - cr.professeur (normalisé) contient le nom seul (si non vide), OU
+//   - cr.professeur (normalisé) contient le prénom seul (si non vide).
+// Garde-fou : si cr.professeur est vide, le créneau n'est jamais retenu.
+// Garde-fou : si nom OU prénom est vide, on n'utilise pas includes('') pour
+// éviter de remonter tous les créneaux.
+function _filterCreneauxForEnseignant(creneaux, ens, contextLabel) {
+  const nNom    = _normalizeNameFR(ens && ens.nom);
+  const nPrenom = _normalizeNameFR(ens && ens.prenom);
+  const nPlein  = (nNom + ' ' + nPrenom).trim();
+  const debug   = _planningDebugActive();
+  const detail  = [];
+  const out = (creneaux || []).filter(cr => {
+    const profRaw  = cr && cr.professeur;
+    const profNorm = _normalizeNameFR(profRaw);
+    let why = '';
+    let ok = false;
+    if (!profNorm) { why = 'professeur vide'; }
+    else if (nPlein && profNorm === nPlein) { ok = true; why = 'match exact nom complet'; }
+    else if (nNom && profNorm.includes(nNom)) { ok = true; why = 'match nom inclus'; }
+    else if (nPrenom && profNorm.includes(nPrenom)) { ok = true; why = 'match prénom inclus'; }
+    else { why = 'aucun match'; }
+    if (debug) detail.push({ id: cr && cr.id, jour: cr && cr.jour, professeur_brut: profRaw, professeur_normalise: profNorm, match: ok, raison: why });
+    return ok;
+  });
+  if (debug) {
+    /* eslint-disable no-console */
+    console.groupCollapsed(`[edulink:planning] ${contextLabel || 'match'} — ens="${ens && ens.nom} ${ens && ens.prenom}" école=${typeof currentEcoleId!=='undefined'?currentEcoleId:'?'} — ${out.length}/${(creneaux||[]).length} créneau(x) retenus`);
+    console.log('Enseignant normalisé :', { nom: nNom, prenom: nPrenom, complet: nPlein });
+    console.table(detail);
+    console.groupEnd();
+    /* eslint-enable no-console */
+  }
+  return out;
+}
+
 // ── Fiche enseignant ──
 async function voirFicheEnseignant(id) {
   const ens = tousLesEnseignants.find(e => e.id === id);
@@ -12320,20 +12396,12 @@ async function showFicheEnsTab(tab) {
     // Source : table emploi_du_temps. Colonnes réelles (cf. payload écriture l.9573-9575) :
     //   - 'professeur' (texte libre du nom du prof)
     //   - 'type' (cours/td/tp/exam)
-    // La logique de matching est alignée sur afficherPlanningEnseignant() pour cohérence.
+    // Le matching est délégué à _filterCreneauxForEnseignant (utilitaire partagé
+    // avec afficherPlanningEnseignant pour garantir des résultats identiques).
     let q = db.from('emploi_du_temps').select('*').order('heure_debut');
     if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
     const { data: creneaux } = await q;
-    const nomEnsSeul = (ens.nom||'').toLowerCase();
-    const prenomEns  = (ens.prenom||'').toLowerCase();
-    const nomComplet = (nomEnsSeul + ' ' + prenomEns).trim();
-    const siens = (creneaux||[]).filter(cr => {
-      const prof = (cr.professeur||'').toLowerCase();
-      if (!prof) return false;
-      return prof === nomComplet
-          || (nomEnsSeul && prof.includes(nomEnsSeul))
-          || (prenomEns  && prof.includes(prenomEns));
-    });
+    const siens = _filterCreneauxForEnseignant(creneaux, ens, 'modal Fiche enseignant');
     const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
     // Supporte 'exam' (clé canonique côté écriture) et 'examen' (legacy éventuel) → même couleur ambre.
     const typeColors = { cours:'ens-slot-blue', td:'ens-slot-green', tp:'ens-slot-purple', exam:'ens-slot-amber', examen:'ens-slot-amber' };
@@ -12625,17 +12693,12 @@ async function afficherPlanningEnseignant() {
   let q = db.from('emploi_du_temps').select('*').order('heure_debut');
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
   const { data: creneaux } = await q;
-  // Chercher sur le champ 'professeur' (nom du champ dans l'EDT)
-  const nomEns = ((ens.nom||'') + ' ' + (ens.prenom||'')).toLowerCase();
-  const prenomEns = (ens.prenom||'').toLowerCase();
-  const nomEnsSeul = (ens.nom||'').toLowerCase();
-  const siens = (creneaux||[]).filter(cr => {
-    const prof = (cr.professeur||'').toLowerCase();
-    return prof.includes(nomEnsSeul) || prof.includes(prenomEns) || prof === nomEns;
-  });
+  // Matching délégué à l'utilitaire partagé avec la modal — voir _filterCreneauxForEnseignant.
+  const siens = _filterCreneauxForEnseignant(creneaux, ens, 'vue Planning module Enseignants');
   const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
   const heures = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
-  const typeColors = { cours:'ens-slot-blue', td:'ens-slot-green', tp:'ens-slot-purple', exam:'ens-slot-amber' };
+  // Aligné sur la modal : supporte 'exam' (canonique) et 'examen' (legacy).
+  const typeColors = { cours:'ens-slot-blue', td:'ens-slot-green', tp:'ens-slot-purple', exam:'ens-slot-amber', examen:'ens-slot-amber' };
   container.innerHTML = `
     <div style="font-size:13px;font-weight:700;margin-bottom:1rem;color:#374151">
       📅 Emploi du temps — ${ens.nom} ${ens.prenom}
