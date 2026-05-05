@@ -6286,6 +6286,19 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
 </div>
 
+<!-- Détail créneau (vue + actions Modifier/Supprimer) -->
+<div class="modal-overlay" id="modal-creneau-detail">
+  <div class="modal" style="max-width:440px">
+    <h3 id="creneau-detail-titre">📅 Détail du créneau</h3>
+    <div id="creneau-detail-body" style="font-size:13.5px;line-height:1.7;color:#374151;padding:.25rem .15rem .5rem"></div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="fermerModal('modal-creneau-detail')">Annuler</button>
+      <button class="btn-red" onclick="confirmerSuppressionCreneau()">🗑️ Supprimer</button>
+      <button class="btn-blue" id="btn-creneau-detail-modifier" onclick="modifierCreneauDepuisDetail()">✏️ Modifier</button>
+    </div>
+  </div>
+</div>
+
 <!-- Message -->
 <div class="modal-overlay" id="modal-message">
   <div class="modal">
@@ -9511,22 +9524,50 @@ function renderGrilleEDT() {
   table.innerHTML = hdrRow + rows;
 }
 
+// ID du créneau actuellement affiché dans la modal de détail. Permet aux boutons
+// "Modifier" et "Supprimer" de savoir sur quoi ils agissent sans dépendre d'un
+// argument passé à l'événement onclick.
+let _creneauDetailId = null;
+
 function voirCreneau(id) {
   const s = tousLesCreneaux.find(c => c.id === id);
   if (!s) return;
-  // Popup de détail avec options modifier/supprimer
-  const typeLabel = {cours:'Cours magistral', td:'Travaux dirigés', tp:'Travaux pratiques', exam:'Examen/Contrôle'}[s.type] || s.type;
-  if (confirm(
-    `📅 ${s.jour} ${(s.heure_debut||'').substring(0,5)}–${(s.heure_fin||'').substring(0,5)}\n` +
-    `📚 ${s.matiere}\n` +
-    `🏷️ ${typeLabel}\n` +
-    `${s.professeur ? '👤 '+s.professeur+'\n' : ''}` +
-    `${s.salle ? '📍 '+s.salle+'\n' : ''}` +
-    `${s.classe ? '🎓 '+s.classe+'\n' : ''}` +
-    `\nModifier ce créneau ?`
-  )) {
-    ouvrirModifierCreneau(id);
-  }
+  _creneauDetailId = id;
+  const typeLabel = {cours:'Cours magistral', td:'Travaux dirigés', tp:'Travaux pratiques', exam:'Examen/Contrôle'}[s.type] || s.type || '—';
+  const esc = (v) => (v == null ? '' : String(v)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const lignes = [
+    `📅 <strong>${esc(s.jour)}</strong> ${esc((s.heure_debut||'').substring(0,5))}–${esc((s.heure_fin||'').substring(0,5))}`,
+    `📚 <strong>${esc(s.matiere)}</strong>`,
+    `🏷️ ${esc(typeLabel)}`,
+    s.professeur ? `👤 ${esc(s.professeur)}` : '',
+    s.salle      ? `📍 ${esc(s.salle)}`      : '',
+    s.classe     ? `🎓 ${esc(s.classe)}`     : ''
+  ].filter(Boolean);
+  document.getElementById('creneau-detail-body').innerHTML = lignes.map(l => `<div>${l}</div>`).join('');
+  ouvrirModal('modal-creneau-detail');
+  // Focus sur l'action principale pour que la touche Entrée déclenche "Modifier"
+  // (préserve l'affordance du précédent confirm() où "OK" = modifier).
+  setTimeout(() => document.getElementById('btn-creneau-detail-modifier')?.focus(), 50);
+}
+
+function modifierCreneauDepuisDetail() {
+  const id = _creneauDetailId;
+  fermerModal('modal-creneau-detail');
+  if (id) ouvrirModifierCreneau(id);
+}
+
+function confirmerSuppressionCreneau() {
+  const id = _creneauDetailId;
+  if (!id) return;
+  const s = tousLesCreneaux.find(c => c.id === id);
+  // Confirmation explicite avant suppression définitive.
+  const label = s ? `${s.matiere || 'ce créneau'} (${s.jour||''} ${(s.heure_debut||'').substring(0,5)})` : 'ce créneau';
+  if (!confirm(`Supprimer ${label} ?\n\nCette action est définitive.`)) return;
+  fermerModal('modal-creneau-detail');
+  // skipConfirm : on a déjà confirmé ci-dessus, on ne veut pas la 2e demande
+  // de supprimerCreneau (la fonction garde son confirm() interne pour rester
+  // sûre si un futur appelant l'invoque sans avoir confirmé en amont).
+  supprimerCreneau(id, s && s.jour, s && (s.heure_debut||'').substring(0,5), {skipConfirm:true});
 }
 
 function ouvrirEdtAvec(jour, heure) {
@@ -9595,8 +9636,11 @@ async function ajouterCreneau() {
   chargerEmploiDuTemps();
 }
 
-async function supprimerCreneau(id, j, h) {
-  if (!confirm(`Supprimer ce créneau (${j||''} ${h||''}) ?`)) return;
+async function supprimerCreneau(id, j, h, opts) {
+  // opts.skipConfirm = true : la confirmation a déjà été faite par l'appelant
+  // (ex. confirmerSuppressionCreneau depuis la modal détail). Sinon comportement
+  // legacy : on demande confirmation ici.
+  if (!(opts && opts.skipConfirm) && !confirm(`Supprimer ce créneau (${j||''} ${h||''}) ?`)) return;
   await db.from('emploi_du_temps').delete().eq('id', id);
   showToast('Créneau supprimé.', 'success'); chargerEmploiDuTemps();
 }
