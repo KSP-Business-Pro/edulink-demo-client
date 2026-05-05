@@ -23549,13 +23549,16 @@ function telechargerModeleEnseignantsExcel() {
 
 /* EDULINK MODULE REORG UX JS - START */
 (function(){
+  // 'vide' est un mode interne (non rendu comme bouton) : sidebar épurée, dashboard seul.
+  // C'est l'état de démarrage par défaut, depuis lequel l'utilisateur "pull" une famille.
+  // Le bouton "Tous" a été retiré : exploration pull, pas de mode tout-affiché.
   const families = {
-    tous: { label:'Tous', icon:'⊞', ids:null },
+    vide: { label:'', icon:'', ids:['dashboard'], hidden:true },
     scolarite: { label:'Scolarité', icon:'🎓', ids:['dashboard','etudiants','classes','presences','notes','emploi','examens','enseignants','portail-ens','portail-etudiant'] },
-    finance: { label:'Finance', icon:'💳', ids:['paiements','comptabilite','rapports','exec-dashboard'] },
-    communication: { label:'Com.', icon:'✉️', ids:['messages','discipline','sms-parents','assistant-ia'] },
-    services: { label:'Services', icon:'🧩', ids:['documents','certificats','bibliotheque','bibliotheque-num','rh','portail-public'] },
-    pilotage: { label:'Pilotage', icon:'📊', ids:['analytics','reseau','dashboard-reseau','parametres-avances','pwa-avancee','parametres','utilisateurs'] }
+    finance: { label:'Finance', icon:'💳', ids:['dashboard','paiements','comptabilite','rapports','exec-dashboard'] },
+    communication: { label:'Com.', icon:'✉️', ids:['dashboard','messages','discipline','sms-parents','assistant-ia'] },
+    services: { label:'Services', icon:'🧩', ids:['dashboard','documents','certificats','bibliotheque','bibliotheque-num','rh','portail-public'] },
+    pilotage: { label:'Pilotage', icon:'📊', ids:['dashboard','analytics','reseau','dashboard-reseau','parametres-avances','pwa-avancee','parametres','utilisateurs'] }
   };
 
   const modules = [
@@ -23624,17 +23627,21 @@ function telechargerModeleEnseignantsExcel() {
       else edulinkToast('Module ouvert. Le formulaire n’est pas disponible dans cette version.','info');
     },220);
   };
-  window.edulinkSetNavFamily = function(family){
-    const conf = families[family] || families.tous;
-    document.querySelectorAll('.module-family-btn').forEach(b=>b.classList.toggle('active', b.dataset.family===family));
+  window.edulinkSetNavFamily = function(family, opts){
+    opts = opts || {};
+    const conf = families[family] || families.vide;
+    const effective = families[family] ? family : 'vide';
+    document.querySelectorAll('.module-family-btn').forEach(b=>b.classList.toggle('active', b.dataset.family===effective));
     const visible = conf.ids ? new Set(conf.ids) : null;
     modules.forEach(([id])=>{
       const a = document.getElementById('nav-'+id);
       if(!a) return;
       a.classList.toggle('nav-module-hidden', !!visible && !visible.has(id));
     });
-    localStorage.setItem('edulink_nav_family', family);
-    edulinkToast(conf.label==='Tous' ? 'Tous les modules sont affichés.' : 'Navigation filtrée : '+conf.label, 'info');
+    localStorage.setItem('edulink_nav_family', effective);
+    if (opts.silent) return;
+    if (effective === 'vide') edulinkToast('Sidebar épurée. Choisis une famille pour explorer.', 'info');
+    else edulinkToast('Navigation filtrée : '+conf.label, 'info');
   };
   window.edulinkOpenWorkflow = function(){
     const d=document.getElementById('workflow-drawer'); if(!d) return;
@@ -23686,14 +23693,16 @@ function telechargerModeleEnseignantsExcel() {
     const anchor=document.querySelector('#ecole-selector')?.closest('div[style*="margin-bottom:1rem"]') || document.querySelector('#nav-principal-wrap');
     const wrap=document.createElement('div');
     wrap.id='module-organizer'; wrap.className='module-organizer';
-    wrap.innerHTML=`<div class="module-organizer-title"><span>🧭 Navigation métier</span><button type="button" onclick="edulinkOpenModuleCenter()">Centre</button></div><div class="module-family-grid">${Object.entries(families).map(([k,v])=>`<button type="button" class="module-family-btn" data-family="${k}" onclick="edulinkSetNavFamily('${k}')">${v.icon} ${v.label}</button>`).join('')}</div><div class="nav-quick-actions"><button type="button" onclick="edulinkOpenWorkflow()">⚡ Saisies</button><button type="button" onclick="edulinkOpenModuleCenter()">🔎 Modules</button></div>`;
+    const familyButtons = Object.entries(families).filter(([,v])=>!v.hidden).map(([k,v])=>`<button type="button" class="module-family-btn" data-family="${k}" onclick="edulinkSetNavFamily('${k}')">${v.icon} ${v.label}</button>`).join('');
+    wrap.innerHTML=`<div class="module-organizer-title"><span>🧭 Navigation métier</span><button type="button" onclick="edulinkOpenModuleCenter()">Centre</button></div><div class="module-family-grid">${familyButtons}</div><div class="nav-quick-actions"><button type="button" onclick="edulinkOpenWorkflow()">⚡ Saisies</button><button type="button" onclick="edulinkOpenModuleCenter()">🔎 Modules</button></div>`;
     if(anchor) anchor.insertAdjacentElement('afterend', wrap); else nav.insertBefore(wrap, nav.firstChild?.nextSibling || null);
     modules.forEach(([id,,icon,fam])=>{
       const a=document.getElementById('nav-'+id);
       if(a && !a.querySelector('.nav-family-chip')) a.insertAdjacentHTML('beforeend', `<span class="nav-family-chip">${fam}</span>`);
     });
-    const saved=localStorage.getItem('edulink_nav_family') || 'tous';
-    edulinkSetNavFamily(saved);
+    // Sidebar épurée à chaque ouverture du back-office (ignore localStorage par design).
+    // L'utilisateur "pull" une famille à la demande ; pas de toast au boot.
+    edulinkSetNavFamily('vide', {silent:true});
   }
 
   function injectDashboardHub(){
