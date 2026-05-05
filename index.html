@@ -2325,7 +2325,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     </div>
   </div>
 
-  <div class="nav-section">Vue d'ensemble</div>
   <a onclick="showPage('dashboard')" id="nav-dashboard" class="on"><span class="ico">⊞</span> Tableau de bord</a>
 
   <div class="nav-section">Académique</div>
@@ -23627,6 +23626,26 @@ function telechargerModeleEnseignantsExcel() {
       else edulinkToast('Module ouvert. Le formulaire n’est pas disponible dans cette version.','info');
     },220);
   };
+  // Masque dynamiquement les <div class="nav-section"> qui n'ont aucun lien <a> visible
+  // jusqu'au prochain header. Évite les labels "ACADÉMIQUE" / "COMMUNICATION" / "ADMINISTRATION"
+  // qui flottent dans le vide quand toute leur famille est filtrée.
+  function refreshNavSections(){
+    const navEl = document.querySelector('nav'); if (!navEl) return;
+    navEl.querySelectorAll('.nav-section').forEach(sec => {
+      let hasVisible = false;
+      let el = sec.nextElementSibling;
+      while (el && !el.classList.contains('nav-section') && !el.classList.contains('nav-bottom')) {
+        if (el.tagName === 'A'
+            && !el.classList.contains('nav-module-hidden')
+            && el.style.display !== 'none') {
+          hasVisible = true; break;
+        }
+        el = el.nextElementSibling;
+      }
+      sec.classList.toggle('nav-module-hidden', !hasVisible);
+    });
+  }
+
   window.edulinkSetNavFamily = function(family, opts){
     opts = opts || {};
     const conf = families[family] || families.vide;
@@ -23638,6 +23657,7 @@ function telechargerModeleEnseignantsExcel() {
       if(!a) return;
       a.classList.toggle('nav-module-hidden', !!visible && !visible.has(id));
     });
+    refreshNavSections();
     localStorage.setItem('edulink_nav_family', effective);
     if (opts.silent) return;
     if (effective === 'vide') edulinkToast('Sidebar épurée. Choisis une famille pour explorer.', 'info');
@@ -23690,7 +23710,11 @@ function telechargerModeleEnseignantsExcel() {
 
   function injectNavOrganizer(){
     const nav=document.querySelector('nav'); if(!nav || document.getElementById('module-organizer')) return;
-    const anchor=document.querySelector('#ecole-selector')?.closest('div[style*="margin-bottom:1rem"]') || document.querySelector('#nav-principal-wrap');
+    // Ancrer la brique juste sous le Tableau de bord (état de démarrage : Dashboard → brique).
+    // Fallbacks : si le dashboard n'existe pas, on retombe sur les anciens ancrages.
+    const anchor=document.getElementById('nav-dashboard')
+      || document.querySelector('#ecole-selector')?.closest('div[style*="margin-bottom:1rem"]')
+      || document.querySelector('#nav-principal-wrap');
     const wrap=document.createElement('div');
     wrap.id='module-organizer'; wrap.className='module-organizer';
     const familyButtons = Object.entries(families).filter(([,v])=>!v.hidden).map(([k,v])=>`<button type="button" class="module-family-btn" data-family="${k}" onclick="edulinkSetNavFamily('${k}')">${v.icon} ${v.label}</button>`).join('');
