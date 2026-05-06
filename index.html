@@ -9504,7 +9504,7 @@ async function supprimerEtudiant(id,nom){
   if(!confirm(`Supprimer l'étudiant ${nom} ?\nSes notes, absences et factures seront aussi supprimées.`))return;
   await Promise.all([db.from('notes').delete().eq('etudiant_id',id),db.from('absences').delete().eq('etudiant_id',id),db.from('factures').delete().eq('etudiant_id',id)]);
   const { error } = await db.from('etudiants').delete().eq('id',id);
-  if (!error && window.AuditLog) AuditLog.record('DELETE', 'etudiants', id, `Suppression de ${nom} (cascade : notes/absences/factures)`);
+  if (window.AuditLog) AuditLog.record('DELETE', 'etudiants', id, `Suppression de ${nom} (cascade : notes/absences/factures)`);
   showToast('Étudiant supprimé.','success');chargerEtudiants();chargerDashboard();
 }
 async function ouvrirModifierEtudiant(id){
@@ -9851,7 +9851,7 @@ async function enregistrerNote(){return enregistrerOuModifierNote();}
 async function supprimerNote(id) {
   if (!confirm('Supprimer cette note ?')) return;
   const { error } = await db.from('notes').delete().eq('id',id);
-  if (!error && window.AuditLog) AuditLog.record('DELETE', 'notes', id, 'Suppression d\'une note');
+  if (window.AuditLog) AuditLog.record('DELETE', 'notes', id, 'Suppression d\'une note');
   showToast('Note supprimée.','success');
   invalidateData('notes');
   chargerNotes(); chargerDashboard();
@@ -10624,7 +10624,7 @@ async function enregistrerPaiement() {
 async function supprimerFacture(id) {
   if (!confirm('Supprimer cette facture ?')) return;
   const { error } = await db.from('factures').delete().eq('id',id);
-  if (!error && window.AuditLog) AuditLog.record('DELETE', 'factures', id, 'Suppression d\'une facture');
+  if (window.AuditLog) AuditLog.record('DELETE', 'factures', id, 'Suppression d\'une facture');
   showToast('Facture supprimée.','success');
   toutesLesFactures = [];
   invalidateCache('paiements');
