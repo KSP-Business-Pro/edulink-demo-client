@@ -4790,7 +4790,10 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div>
         <!-- Objectifs annuels -->
         <div style="background:#fff;border-radius:14px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:1rem">
-          <div style="padding:.9rem 1.2rem;border-bottom:1px solid #f3f4f6;font-size:13px;font-weight:700;color:#374151">🎯 Objectifs annuels</div>
+          <div style="padding:.9rem 1.2rem;border-bottom:1px solid #f3f4f6;font-size:13px;font-weight:700;color:#374151;display:flex;align-items:center;justify-content:space-between;gap:.5rem">
+            <span>🎯 Objectifs annuels</span>
+            <button class="btn-sm btn-secondary" onclick="ouvrirModifierObjectifs()" style="font-size:11px;padding:4px 10px" title="Personnaliser les objectifs">⚙️ Modifier</button>
+          </div>
           <div style="padding:1rem" id="exec-objectifs"></div>
         </div>
         <!-- Calendrier stratégique -->
@@ -6319,6 +6322,38 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <button class="btn-secondary" onclick="fermerModal('modal-creneau-detail')">Annuler</button>
       <button class="btn-red" onclick="confirmerSuppressionCreneau()">🗑️ Supprimer</button>
       <button class="btn-blue" id="btn-creneau-detail-modifier" onclick="modifierCreneauDepuisDetail()">✏️ Modifier</button>
+    </div>
+  </div>
+</div>
+
+<!-- Personnaliser les objectifs annuels (Dashboard Directeur) -->
+<div class="modal-overlay" id="modal-objectifs">
+  <div class="modal" style="max-width:480px">
+    <h3>🎯 Objectifs annuels</h3>
+    <p style="font-size:12.5px;color:#6b7280;margin:0 0 1rem">Définis les cibles que tu veux atteindre cette année. Ces valeurs sont propres à cet établissement et persistent localement.</p>
+    <div class="form-group">
+      <label>Taux de réussite cible (%)</label>
+      <input type="number" id="input-obj-reussite" min="0" max="100" step="1">
+    </div>
+    <div class="form-group">
+      <label>Recouvrement frais cible (%)</label>
+      <input type="number" id="input-obj-recouvrement" min="0" max="100" step="1">
+    </div>
+    <div class="form-group">
+      <label>Effectif inscriptions cible</label>
+      <input type="number" id="input-obj-effectif" min="1" step="1">
+      <div id="obj-effectif-hint" style="font-size:11px;color:#6b7280;margin-top:4px"></div>
+    </div>
+    <div class="form-group">
+      <label>Absentéisme maximum toléré (%)</label>
+      <input type="number" id="input-obj-absenteisme" min="0" max="100" step="0.1">
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn-secondary" onclick="reinitialiserObjectifs()" title="Restaurer les valeurs par défaut">🔄 Réinitialiser</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" onclick="fermerModal('modal-objectifs')">Annuler</button>
+        <button onclick="enregistrerObjectifs()">✅ Enregistrer</button>
+      </div>
     </div>
   </div>
 </div>
@@ -20968,16 +21003,27 @@ function renderExecTopEtudiants() {
   </div>`).join("");
 }
 
+function _execObjectifsKey() { return "edulink_exec_objectifs_" + (currentEcoleId||""); }
+function _execObjectifsDefaults() {
+  // Cible effectif = effectif actuel × 1.20 (croissance +20% sur l'année).
+  // Plancher de 5 pour éviter qu'une école avec 0 étudiant ait un objectif de 0
+  // (ce qui afficherait "100%" même sans inscrit). Pas de plancher artificiel à 100.
+  const effActuel = _execState.hero?.effectif || 0;
+  const effCible  = Math.max(Math.ceil(effActuel * 1.20), effActuel + 1, 5);
+  return {
+    tauxReussiteCible: 80,
+    tauxRecouvCible:   95,
+    effectifCible:     effCible,
+    absenteismeMax:    7,
+  };
+}
+
 function renderExecObjectifs() {
   const cont = document.getElementById("exec-objectifs");
   if (!cont) return;
-  // Objectifs configurables (lecture localStorage) — sinon valeurs par défaut raisonnables
-  const cfg = JSON.parse(localStorage.getItem("edulink_exec_objectifs_" + (currentEcoleId||"")) || "null") || {
-    tauxReussiteCible: 80,
-    tauxRecouvCible:   95,
-    effectifCible:     Math.max(_execState.hero?.effectif || 0, 100),
-    absenteismeMax:    7,
-  };
+  // Objectifs configurables (lecture localStorage par école) — sinon valeurs par défaut intelligentes.
+  const stored = JSON.parse(localStorage.getItem(_execObjectifsKey()) || "null");
+  const cfg = stored || _execObjectifsDefaults();
   const peda    = _execState.peda    || {};
   const finance = _execState.finance || {};
   const obj = [
@@ -20996,6 +21042,42 @@ function renderExecObjectifs() {
       <div class="metier-track"><div class="metier-fill" style="width:${pct}%;background:${ok?"#059669":"#d97706"}"></div></div>
     </div>`;
   }).join("");
+}
+
+function ouvrirModifierObjectifs() {
+  if (!currentEcoleId) { showToast('Sélectionne d\'abord une école.', 'error'); return; }
+  const stored = JSON.parse(localStorage.getItem(_execObjectifsKey()) || "null");
+  const cfg = stored || _execObjectifsDefaults();
+  document.getElementById('input-obj-reussite').value     = cfg.tauxReussiteCible;
+  document.getElementById('input-obj-recouvrement').value = cfg.tauxRecouvCible;
+  document.getElementById('input-obj-effectif').value     = cfg.effectifCible;
+  document.getElementById('input-obj-absenteisme').value  = cfg.absenteismeMax;
+  // Rappel valeur actuelle pour aider à fixer un objectif réaliste
+  const eff = _execState.hero?.effectif || 0;
+  const hint = document.getElementById('obj-effectif-hint');
+  if (hint) hint.textContent = `Effectif actuel : ${eff} · Suggestion (+20%) : ${Math.max(Math.ceil(eff * 1.20), eff + 1, 5)}`;
+  ouvrirModal('modal-objectifs');
+}
+
+function enregistrerObjectifs() {
+  const cfg = {
+    tauxReussiteCible: Math.max(0, Math.min(100, parseInt(document.getElementById('input-obj-reussite').value)||0)),
+    tauxRecouvCible:   Math.max(0, Math.min(100, parseInt(document.getElementById('input-obj-recouvrement').value)||0)),
+    effectifCible:     Math.max(1, parseInt(document.getElementById('input-obj-effectif').value)||1),
+    absenteismeMax:    Math.max(0, Math.min(100, parseFloat(document.getElementById('input-obj-absenteisme').value)||0)),
+  };
+  localStorage.setItem(_execObjectifsKey(), JSON.stringify(cfg));
+  fermerModal('modal-objectifs');
+  showToast('🎯 Objectifs enregistrés.', 'success');
+  renderExecObjectifs();
+}
+
+function reinitialiserObjectifs() {
+  if (!confirm('Réinitialiser les objectifs aux valeurs par défaut intelligentes ?')) return;
+  localStorage.removeItem(_execObjectifsKey());
+  fermerModal('modal-objectifs');
+  showToast('🔄 Objectifs réinitialisés.', 'info');
+  renderExecObjectifs();
 }
 
 async function renderExecAgenda() {
