@@ -2645,8 +2645,16 @@ async function initFCMPortail() {
       // Masquer le bouton flottant si permission déjà accordée
       const fab = document.getElementById('notif-fab');
       if (fab) fab.style.display = 'none';
+    } else if (Notification.permission === 'denied') {
+      // Mettre le FAB en mode "bloqué" dès le chargement
+      const fab = document.getElementById('notif-fab');
+      if (fab) {
+        fab.innerHTML       = '🔕 Notifications bloquées — Autorisez dans les paramètres Chrome';
+        fab.style.background = '#6b7280';
+        fab.style.cursor     = 'help';
+        fab.dataset.blocked  = '1';
+      }
     }
-    // Si 'denied' → montrer le bouton flottant pour guider l'utilisateur
 
   } catch(err) {
     console.warn('[FCM Portail] Erreur init :', err.message);
@@ -2668,6 +2676,16 @@ function envoyerConfigAuSW(swReg) {
 
 // ── Demander permission et s'abonner ─────────────────────────────────
 async function demanderPermissionPush() {
+  // Si déjà refusé : un seul toast d'aide, pas de re-demande (Chrome ne re-prompt pas)
+  if (Notification.permission === 'denied') {
+    const fab = document.getElementById('notif-fab');
+    if (fab && !fab.dataset.toastShown) {
+      showToast('Notifications bloquées — débloquez-les dans les paramètres du navigateur', 'error');
+      fab.dataset.toastShown = '1';
+      setTimeout(() => { delete fab.dataset.toastShown; }, 5000);
+    }
+    return;
+  }
   try {
     const permission = await Notification.requestPermission();
     masquerBannierePermission();
@@ -2677,7 +2695,12 @@ async function demanderPermissionPush() {
       await abonnerFCMPortail();
       afficherBanniereNotif('🔔 Notifications activées !', 'Vous recevrez les alertes en temps réel.');
     } else if (permission === 'denied') {
-      if (fab) fab.innerHTML = '🔕 Notifications bloquées — Autorisez dans les paramètres Chrome';
+      if (fab) {
+        fab.innerHTML       = '🔕 Notifications bloquées — Autorisez dans les paramètres Chrome';
+        fab.style.background = '#6b7280';
+        fab.style.cursor     = 'help';
+        fab.dataset.blocked  = '1';
+      }
       showToast('Notifications refusées — Allez dans Paramètres Chrome → Notifications', 'error');
     }
   } catch(err) {
