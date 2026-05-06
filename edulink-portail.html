@@ -2590,10 +2590,8 @@ let fcmPortailFirebaseCfg = null;
 
 // ── Init principale ──────────────────────────────────────────────────
 async function initFCMPortail() {
-  if (IS_DEMO_MODE) return;
-
-  // Mettre à jour l'état du bouton flottant en fonction de la permission
-  // Cela s'exécute AVANT les checks Firebase pour garantir un état cohérent.
+  // Mettre à jour l'état du bouton flottant en TOUT premier (même en démo)
+  // pour qu'il reflète Notification.permission dès l'ouverture.
   const _setFabState = () => {
     const fab = document.getElementById('notif-fab');
     if (!fab) return;
@@ -2609,6 +2607,7 @@ async function initFCMPortail() {
   };
   _setFabState();
 
+  if (IS_DEMO_MODE) return;
   if (typeof firebase === 'undefined')     return;
   if (!('serviceWorker' in navigator))     return;
   if (!('Notification' in window))         return;
