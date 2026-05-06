@@ -19549,7 +19549,7 @@ const IA_RESPONSES = {
     if (!currentEcoleId) return _iaErr({message:'aucune école active'});
     try {
       const { data: factures, error } = await db.from('factures')
-        .select('statut,montant_total,montant_paye,date_emission,date_echeance')
+        .select('statut,montant_total,montant_paye')
         .eq('ecole_id', currentEcoleId);
       if (error) throw error;
       const list = factures || [];
