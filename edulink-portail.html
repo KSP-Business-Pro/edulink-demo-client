@@ -2586,6 +2586,24 @@ let fcmPortailFirebaseCfg = null;
 // ── Init principale ──────────────────────────────────────────────────
 async function initFCMPortail() {
   if (IS_DEMO_MODE) return;
+
+  // Mettre à jour l'état du bouton flottant en fonction de la permission
+  // Cela s'exécute AVANT les checks Firebase pour garantir un état cohérent.
+  const _setFabState = () => {
+    const fab = document.getElementById('notif-fab');
+    if (!fab) return;
+    if (!('Notification' in window)) { fab.style.display = 'none'; return; }
+    if (Notification.permission === 'granted') {
+      fab.style.display = 'none';
+    } else if (Notification.permission === 'denied') {
+      fab.innerHTML        = '🔕 Notifications bloquées — Autorisez dans les paramètres Chrome';
+      fab.style.background = '#6b7280';
+      fab.style.cursor     = 'help';
+      fab.dataset.blocked  = '1';
+    }
+  };
+  _setFabState();
+
   if (typeof firebase === 'undefined')     return;
   if (!('serviceWorker' in navigator))     return;
   if (!('Notification' in window))         return;
