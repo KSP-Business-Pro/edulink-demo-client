@@ -1045,42 +1045,15 @@ async function entrerEnDemo() {
                       ecole_id: 'demo', email: 'etudiant@edulink.bj' };
   currentEcoleId  = 'demo';
 
-  // ── 2. Données fictives directement dans les variables globales ──
-  toutesNotes = [
-    { id:1, matiere:'Mathématiques',   note:14, coefficient:4, periode:'1er Semestre' },
-    { id:2, matiere:'Français',        note:12, coefficient:3, periode:'1er Semestre' },
-    { id:3, matiere:'Physique-Chimie', note:16, coefficient:3, periode:'1er Semestre' },
-    { id:4, matiere:'Histoire-Géo',    note:13, coefficient:2, periode:'1er Semestre' },
-    { id:5, matiere:'Anglais',         note:15, coefficient:2, periode:'1er Semestre' },
-    { id:6, matiere:'SVT',             note:11, coefficient:2, periode:'1er Semestre' },
-    { id:7, matiere:'Philosophie',     note:10, coefficient:2, periode:'1er Semestre' },
-  ];
-  toutesAbsences = [
-    { id:1, date_absence:'2026-03-10', matiere:'Mathématiques', statut:'absent', justifiee:false, motif:'' },
-    { id:2, date_absence:'2026-02-20', matiere:'Anglais',        statut:'absent', justifiee:true,  motif:'Maladie' },
-    { id:3, date_absence:'2026-02-05', matiere:'Philosophie',    statut:'absent', justifiee:false, motif:'' },
-  ];
-  toutesFactures = [
-    { id:1, libelle:'Frais de scolarité — 1er trimestre', montant_total:85000, montant_paye:85000, statut:'payee',   created_at:'2025-09-01', echeance:'2025-10-01' },
-    { id:2, libelle:'Frais de scolarité — 2e trimestre',  montant_total:85000, montant_paye:85000, statut:'payee',   created_at:'2026-01-05', echeance:'2026-02-01' },
-    { id:3, libelle:'Frais de scolarité — 3e trimestre',  montant_total:85000, montant_paye:0,     statut:'impayee', created_at:'2026-03-01', echeance:'2026-04-01' },
-  ];
-  tousMessages = [
-    { id:1, objet:'Réunion parents — vendredi 18 avril', contenu:'Chers parents, réunion le vendredi 18 avril à 16h en salle polyvalente.', expediteur_role:'admin', lu:false, created_at:'2026-04-12T09:00:00' },
-    { id:2, objet:'Bulletins du 2e semestre disponibles', contenu:'Les bulletins sont disponibles. Téléchargez-les en PDF depuis votre espace.', expediteur_role:'admin', lu:true, created_at:'2026-03-20T10:30:00' },
-    { id:3, objet:'Convocation examen blanc', contenu:'Examen blanc du 25 au 28 mars. Présence obligatoire.', expediteur_role:'enseignant', lu:true, created_at:'2026-03-15T08:00:00' },
-  ];
-  const j = (n) => { const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().split('T')[0]; };
-  tousExamens = [
-    { id:1, matiere:'Mathématiques',   date_examen:j(5),  heure_debut:'08:00', duree:120, salle:'Salle A',        type_examen:'partiel',    statut:'programme' },
-    { id:2, matiere:'Physique-Chimie', date_examen:j(8),  heure_debut:'10:00', duree:90,  salle:'Salle B',        type_examen:'partiel',    statut:'programme' },
-    { id:3, matiere:'Français',        date_examen:j(12), heure_debut:'08:00', duree:180, salle:'Amphithéâtre',   type_examen:'final',      statut:'programme' },
-    { id:4, matiere:'Anglais',         date_examen:j(-3), heure_debut:'14:00', duree:60,  salle:'Salle C',        type_examen:'controle',   statut:'termine' },
-  ];
+  // ── 2. Variables globales vides (aucune donnée fictive) ─────────────
+  toutesNotes            = [];
+  toutesAbsences         = [];
+  toutesFactures         = [];
+  tousMessages           = [];
+  tousExamens            = [];
   tousEnseignantsPortail = [];
-  edtPortailData = [];
-  certPortailList = [];
-  // (fallback données fictives - utilisé seulement si base vide)
+  edtPortailData         = [];
+  certPortailList        = [];
 
   // ── 3. Afficher l'application ────────────────────────
   const loginScreen = document.getElementById('login-screen');
@@ -1096,15 +1069,13 @@ async function entrerEnDemo() {
   if (greetRole) greetRole.textContent = 'Espace parent';
   if (pillWrap)  pillWrap.innerHTML    = '<div class="student-pill">👨‍🎓 Étudiant DEMO · Terminale D</div>';
 
-  // Badge message non lu
+  // Badges masqués en mode démo (pas de fausses notifications)
   const b1 = document.getElementById('msg-badge');
   const b2 = document.getElementById('nav-msg-badge');
-  if (b1) { b1.style.display='flex'; b1.textContent='1'; }
-  if (b2) { b2.style.display='flex'; b2.textContent='1'; }
-
-  // Badge examens à venir
+  if (b1) b1.style.display = 'none';
+  if (b2) b2.style.display = 'none';
   const bExam = document.getElementById('nav-exam-badge');
-  if (bExam) { bExam.style.display='flex'; bExam.textContent='3'; }
+  if (bExam) bExam.style.display = 'none';
 
   // ── 4. Afficher la page d'accueil ────────────────────
   afficherAccueil();
@@ -1121,61 +1092,24 @@ async function seDeconnecter() {
 // ══ DATA ══
 async function chargerNotes() {
   if (!currentEtudiant) { toutesNotes = []; return; }
-  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) {
-    toutesNotes = [
-      { id:1, matiere:'Mathématiques',     note:14, coefficient:4, periode:'1er Semestre', created_at:'2026-01-15' },
-      { id:2, matiere:'Français',          note:12, coefficient:3, periode:'1er Semestre', created_at:'2026-01-16' },
-      { id:3, matiere:'Physique-Chimie',   note:16, coefficient:3, periode:'1er Semestre', created_at:'2026-01-17' },
-      { id:4, matiere:'Histoire-Géo',      note:13, coefficient:2, periode:'1er Semestre', created_at:'2026-01-18' },
-      { id:5, matiere:'Anglais',           note:15, coefficient:2, periode:'1er Semestre', created_at:'2026-01-19' },
-      { id:6, matiere:'SVT',              note:11, coefficient:2, periode:'1er Semestre', created_at:'2026-01-20' },
-      { id:7, matiere:'Philosophie',       note:10, coefficient:2, periode:'1er Semestre', created_at:'2026-01-21' },
-    ];
-    return;
-  }
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) { toutesNotes = []; return; }
   const { data } = await db.from('notes').select('*').eq('etudiant_id', currentEtudiant.id).order('created_at',{ascending:false});
   toutesNotes = data || [];
 }
 async function chargerAbsences() {
   if (!currentEtudiant) { toutesAbsences = []; return; }
-  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) {
-    toutesAbsences = [
-      { id:1, date_absence:'2026-03-10', matiere:'Mathématiques', statut:'absent',   justifiee:false, motif:'', heure:'08h00' },
-      { id:2, date_absence:'2026-02-20', matiere:'Anglais',        statut:'absent',   justifiee:true,  motif:'Maladie', heure:'10h00' },
-      { id:3, date_absence:'2026-02-05', matiere:'Philosophie',    statut:'absent',   justifiee:false, motif:'', heure:'14h00' },
-    ];
-    return;
-  }
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) { toutesAbsences = []; return; }
   const { data } = await db.from('absences').select('*').eq('etudiant_id', currentEtudiant.id).order('date_absence',{ascending:false});
   toutesAbsences = data || [];
 }
 async function chargerFactures() {
   if (!currentEtudiant) { toutesFactures = []; return; }
-  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) {
-    toutesFactures = [
-      { id:1, libelle:'Frais de scolarité — 1er trimestre', montant_total:85000, montant_paye:85000, statut:'payee',  created_at:'2025-09-01', echeance:'2025-10-01' },
-      { id:2, libelle:'Frais de scolarité — 2e trimestre',  montant_total:85000, montant_paye:85000, statut:'payee',  created_at:'2026-01-05', echeance:'2026-02-01' },
-      { id:3, libelle:'Frais de scolarité — 3e trimestre',  montant_total:85000, montant_paye:0,     statut:'impayee',created_at:'2026-03-01', echeance:'2026-04-01' },
-    ];
-    return;
-  }
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) { toutesFactures = []; return; }
   const { data } = await db.from('factures').select('*').eq('etudiant_id', currentEtudiant.id).order('created_at',{ascending:false});
   toutesFactures = data || [];
 }
 async function chargerMessages() {
-  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) {
-    tousMessages = [
-      { id:1, objet:'Réunion parents - vendredi 18 avril', contenu:'Chers parents, nous vous invitons à une réunion le vendredi 18 avril à 16h00 dans la salle polyvalente.', expediteur_role:'admin', lu:false, created_at:'2026-04-12T09:00:00' },
-      { id:2, objet:'Résultats du 2e semestre disponibles', contenu:'Les bulletins du 2e semestre sont disponibles sur votre espace. Vous pouvez les télécharger en PDF.', expediteur_role:'admin', lu:true, created_at:'2026-03-20T10:30:00' },
-      { id:3, objet:'Convocation examen blanc', contenu:'Votre enfant est convoqué pour l\'examen blanc du 25 au 28 mars. Veuillez vous assurer de sa présence.', expediteur_role:'enseignant', lu:true, created_at:'2026-03-15T08:00:00' },
-    ];
-    const b1 = document.getElementById('msg-badge');
-    const b2 = document.getElementById('nav-msg-badge');
-    const nonLus = 1;
-    if (b1) { b1.style.display='flex'; b1.textContent=nonLus; }
-    if (b2) { b2.style.display='flex'; b2.textContent=nonLus; }
-    return;
-  }
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) { tousMessages = []; return; }
   // On charge plus large (60) car le filtre client va trier ensuite.
   // Le filtre JS qui suit garde uniquement ce qui concerne le parent courant.
   let q = db.from('messages').select('*').order('created_at',{ascending:false}).limit(60);
@@ -1943,17 +1877,9 @@ function retourStep1() {
 
 async function chargerExamensPortail() {
   if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) {
-    const today = new Date();
-    const fmt = d => d.toISOString().split('T')[0];
-    const j = (n) => { const d = new Date(today); d.setDate(d.getDate()+n); return fmt(d); };
-    tousExamens = [
-      { id:1, matiere:'Mathématiques',   date_examen:j(5),  heure_debut:'08:00', duree:120, salle:'Salle A', type_examen:'partiel', statut:'programme' },
-      { id:2, matiere:'Physique-Chimie', date_examen:j(8),  heure_debut:'10:00', duree:90,  salle:'Salle B', type_examen:'partiel', statut:'programme' },
-      { id:3, matiere:'Français',        date_examen:j(12), heure_debut:'08:00', duree:180, salle:'Amphithéâtre', type_examen:'final', statut:'programme' },
-      { id:4, matiere:'Anglais',         date_examen:j(-3), heure_debut:'14:00', duree:60,  salle:'Salle C', type_examen:'controle', statut:'termine' },
-    ];
+    tousExamens = [];
     const b = document.getElementById('nav-exam-badge');
-    if (b) { b.style.display='flex'; b.textContent='3'; }
+    if (b) b.style.display = 'none';
     return;
   }
   if (!currentEcoleId) { tousExamens = []; return; }
