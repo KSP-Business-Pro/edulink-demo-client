@@ -23435,23 +23435,34 @@ const DataMask = {
 // ── 6. JOURNAL D'AUDIT CLIENT ─────────────────────────────────────
 const AuditLog = {
   async record(action, tableName, recordId, details, statut = 'success') {
-    if (!db || !currentEcoleId) return;
+    if (!db || !currentEcoleId) {
+      console.warn('[AuditLog] Skipped — db ou currentEcoleId manquant');
+      return;
+    }
+    // record_id doit être un UUID valide ou null (sinon l'INSERT échoue silencieusement)
+    const isUUID = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+    let userId = null, userEmail = null;
     try {
-      const { data: { user } } = await db.auth.getUser();
-      await db.from('audit_log').insert({
+      const auth = await db.auth.getUser();
+      userId    = auth?.data?.user?.id || null;
+      userEmail = auth?.data?.user?.email || null;
+    } catch(_) { /* utilisateur non authentifié via Supabase Auth — pas grave */ }
+    try {
+      const { error } = await db.from('audit_log').insert({
         ecole_id:   currentEcoleId,
-        user_id:    user?.id,
-        user_email: user?.email,
+        user_id:    userId,
+        user_email: userEmail,
         user_role:  currentRole || 'admin',
         action,
         table_name: tableName,
-        record_id:  recordId || null,
-        details,
+        record_id:  isUUID(recordId) ? recordId : null,
+        details:    details || null,
         statut,
         user_agent: navigator.userAgent.substring(0, 200),
       });
+      if (error) console.warn('[AuditLog] INSERT échoué :', error.message);
     } catch(e) {
-      // Silencieux — l'audit ne doit pas bloquer l'app
+      console.warn('[AuditLog] Exception :', e?.message || e);
     }
   }
 };
