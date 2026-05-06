@@ -17609,15 +17609,36 @@ function supprimerLivreBibNum(id) {
 }
 
 
-function ouvrirModalEmprunt() {
+async function ouvrirModalEmprunt() {
   const today = new Date().toISOString().split('T')[0];
   const retour = new Date(Date.now()+21*86400000).toISOString().split('T')[0];
   document.getElementById('emprunt-date').value=today;
   document.getElementById('emprunt-retour').value=retour;
   document.getElementById('emprunt-notes').value='';
-  // Peupler étudiants
+  // Peupler étudiants depuis Supabase (école active uniquement)
   const sel = document.getElementById('emprunt-etudiant-id');
-  if (sel) sel.innerHTML = '<option value="">Sélectionner...</option><option value="1">Kofi Mensah — Tle D</option><option value="2">Afi Dossou — 1ère A</option><option value="3">Brice Gbedo — Tle C</option><option value="4">Flore Akpo — 2nde B</option>';
+  if (sel) {
+    sel.innerHTML = '<option value="">Chargement…</option>';
+    try {
+      let q = db.from('etudiants').select('id,nom,prenom,classes(nom)').order('nom',{ascending:true});
+      if (window.currentEcoleId) q = q.eq('ecole_id', window.currentEcoleId);
+      const { data, error } = await q;
+      if (error) throw error;
+      const list = data || [];
+      if (!list.length) {
+        sel.innerHTML = '<option value="">Aucun étudiant enregistré</option>';
+      } else {
+        sel.innerHTML = '<option value="">Sélectionner...</option>' +
+          list.map(e => {
+            const cls = e.classes?.nom ? ` — ${e.classes.nom}` : '';
+            return `<option value="${e.id}">${(e.prenom||'')} ${(e.nom||'')}${cls}</option>`;
+          }).join('');
+      }
+    } catch(e) {
+      console.warn('[ouvrirModalEmprunt] Erreur chargement étudiants:', e);
+      sel.innerHTML = '<option value="">Erreur de chargement</option>';
+    }
+  }
   ouvrirModal('modal-emprunt-bibnum');
 }
 
@@ -17696,23 +17717,6 @@ function annulerReservation(et) {
 ══════════════════════════════════════════════════════════════════ */
 let cantOffsetSemaine = 0;
 let cantPointages = {};
-
-const MENUS_DEMO_BASE = [
-  { jour:'Lundi', entree:'Salade de légumes', plat:'Riz au gras + Poulet braisé', dessert:'Ananas', prix:600, allergenes:'Aucun' },
-  { jour:'Mardi', entree:'Soupe légère', plat:'Attiéké + Poisson braisé', dessert:'Banane', prix:550, allergenes:'Poisson' },
-  { jour:'Mercredi', entree:'—', plat:'Igname pilée + Sauce graine', dessert:'Papaye', prix:500, allergenes:'Fruits à coque' },
-  { jour:'Jeudi', entree:'Salade de crudités', plat:'Riz blanc + Haricots + Viande', dessert:'Mangue', prix:600, allergenes:'Aucun' },
-  { jour:'Vendredi', entree:'Jus naturel', plat:'Pâtes + Sauce tomate + Poisson', dessert:'Orange', prix:550, allergenes:'Gluten, Poisson' },
-];
-
-const ABONNES_DEMO = [
-  { id:1, nom:'Kofi Mensah', classe:'Tle D', type:'Mensuel', solde:3200, color:'#1e3a5f' },
-  { id:2, nom:'Afi Dossou', classe:'1ère A', type:'Mensuel', solde:800, color:'#059669' },
-  { id:3, nom:'Brice Gbedo', classe:'Tle C', type:'Trimestriel', solde:-200, color:'#dc2626' },
-  { id:4, nom:'Flore Akpo', classe:'2nde B', type:'Mensuel', solde:5000, color:'#7c3aed' },
-  { id:5, nom:'Marius Sime', classe:'Tle D', type:'Mensuel', solde:0, color:'#d97706' },
-  { id:6, nom:'Sonia Ahoton', classe:'1ère B', type:'À la carte', solde:1500, color:'#1d4ed8' },
-];
 
 async function chargerReseau() {
   console.info('[chargerReseau] Démarrage…');
@@ -19535,14 +19539,12 @@ async function actualiserDashReseau() {
 ══════════════════════════════════════════════════════════════════ */
 let iaQuestions = 0;
 
-// Helpers de formatage
 const _iaFmtFCFA = (n) => (Number(n)||0).toLocaleString('fr-FR') + ' FCFA';
 const _iaFmtPct  = (num, den) => den > 0 ? Math.round((num/den)*100) + '%' : '—';
 const _iaErr     = (e) => `⚠️ Désolé, je n'ai pas pu lire les données (${e?.message || 'erreur'}).\n\nVérifiez que vous êtes connecté et que l'école active est sélectionnée.`;
 
 const IA_RESPONSES = {
 
-  // ── PAIEMENTS ─────────────────────────────────────────────────────
   'paiement': async (q) => {
     if (!currentEcoleId) return _iaErr({message:'aucune école active'});
     try {
@@ -19551,7 +19553,7 @@ const IA_RESPONSES = {
         .eq('ecole_id', currentEcoleId);
       if (error) throw error;
       const list = factures || [];
-      const total = list.length;
+      const total    = list.length;
       const payees   = list.filter(f => f.statut === 'paye').length;
       const attente  = list.filter(f => f.statut === 'en_attente' || f.statut === 'partiel').length;
       const retard   = list.filter(f => f.statut === 'retard').length;
@@ -19560,9 +19562,7 @@ const IA_RESPONSES = {
       const reste    = Math.max(0, du - recouvre);
       const moisLbl  = new Date().toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
 
-      if (total === 0) {
-        return `💳 **État des paiements (${moisLbl}) :**\n\nAucune facture enregistrée pour le moment dans cette école.`;
-      }
+      if (total === 0) return `💳 **État des paiements (${moisLbl}) :**\n\nAucune facture enregistrée pour le moment dans cette école.`;
       let txt = `💳 **État des paiements (${moisLbl}) :**\n\n`;
       txt += `• **Factures émises** : ${total}\n`;
       txt += `• **Payées** : ${payees} (${_iaFmtPct(payees,total)})\n`;
@@ -19575,7 +19575,6 @@ const IA_RESPONSES = {
     } catch(e) { return _iaErr(e); }
   },
 
-  // ── MOYENNES PAR CLASSE ───────────────────────────────────────────
   'moyenne': async (q) => {
     if (!currentEcoleId) return _iaErr({message:'aucune école active'});
     try {
@@ -19606,7 +19605,6 @@ const IA_RESPONSES = {
     } catch(e) { return _iaErr(e); }
   },
 
-  // ── ABSENCES ──────────────────────────────────────────────────────
   'absence': async (q) => {
     if (!currentEcoleId) return _iaErr({message:'aucune école active'});
     try {
@@ -19627,7 +19625,6 @@ const IA_RESPONSES = {
         txt += `• **Justifiées** : ${just} (${_iaFmtPct(just,total)})\n`;
         txt += `• **Injustifiées** : ${injust} (${_iaFmtPct(injust,total)})\n`;
       }
-      // Top élèves absents (sur tout l'historique)
       const compteur = {};
       list.forEach(a => {
         const nom = a.etudiants ? `${a.etudiants.prenom||''} ${a.etudiants.nom||''}`.trim() : null;
@@ -19642,7 +19639,6 @@ const IA_RESPONSES = {
     } catch(e) { return _iaErr(e); }
   },
 
-  // ── MEILLEUR ÉLÈVE ────────────────────────────────────────────────
   'meilleur': async (q) => {
     if (!currentEcoleId) return _iaErr({message:'aucune école active'});
     try {
@@ -19670,7 +19666,6 @@ const IA_RESPONSES = {
     } catch(e) { return _iaErr(e); }
   },
 
-  // ── EXAMENS À VENIR ───────────────────────────────────────────────
   'examen': async (q) => {
     if (!currentEcoleId) return _iaErr({message:'aucune école active'});
     try {
@@ -19696,7 +19691,6 @@ const IA_RESPONSES = {
     } catch(e) { return _iaErr(e); }
   },
 
-  // ── TAUX DE RÉUSSITE ──────────────────────────────────────────────
   'taux': async (q) => {
     if (!currentEcoleId) return _iaErr({message:'aucune école active'});
     try {
@@ -19726,7 +19720,6 @@ const IA_RESPONSES = {
     } catch(e) { return _iaErr(e); }
   },
 
-  // ── DEFAULT ───────────────────────────────────────────────────────
   'default': async (q) => `🤖 J'ai bien reçu votre question : **"${q}"**\n\nJe peux interroger les données suivantes :\n• 📊 Notes & moyennes\n• 🚫 Absences du jour\n• 💳 État des paiements\n• 📅 Examens à venir\n• 🏆 Meilleurs élèves\n• 📈 Taux de réussite\n\nUtilisez l'un des boutons de suggestion ci-dessous, ou posez une question avec un de ces mots-clés.`,
 };
 
