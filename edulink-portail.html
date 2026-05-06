@@ -984,7 +984,11 @@ async function chargerTout() {
 // ══════════════════════════════════════════════
 //  MODE DÉMO — Accès visiteur sans OTP
 // ══════════════════════════════════════════════
-let IS_DEMO_MODE = false;
+// IS_DEMO_MODE       : true en démo (toujours)
+// IS_DEMO_LIVE_DATA  : true si la démo est branchée sur un vrai étudiant en base
+//                      (on charge alors les VRAIES données depuis Supabase, pas les fictives)
+let IS_DEMO_MODE      = false;
+let IS_DEMO_LIVE_DATA = false;
 
 async function entrerEnDemo() {
   IS_DEMO_MODE = true;
@@ -1003,6 +1007,7 @@ async function entrerEnDemo() {
         currentEtudiant = etu;
         currentUser    = { id: 'demo', email: etu.email_parent || 'demo@edulink.bj' };
         currentProfile = { id: 'demo', role: 'parent', prenom: 'Parent', nom: etu.nom };
+        IS_DEMO_LIVE_DATA = true;  // ← démo branchée sur la vraie base : pas de données fictives
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app-portail').style.display  = 'block';
         document.getElementById('greeting-nom').textContent   = 'Parent de ' + etu.prenom;
@@ -1099,7 +1104,7 @@ async function seDeconnecter() {
 // ══ DATA ══
 async function chargerNotes() {
   if (!currentEtudiant) { toutesNotes = []; return; }
-  if (IS_DEMO_MODE) {
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) {
     toutesNotes = [
       { id:1, matiere:'Mathématiques',     note:14, coefficient:4, periode:'1er Semestre', created_at:'2026-01-15' },
       { id:2, matiere:'Français',          note:12, coefficient:3, periode:'1er Semestre', created_at:'2026-01-16' },
@@ -1116,7 +1121,7 @@ async function chargerNotes() {
 }
 async function chargerAbsences() {
   if (!currentEtudiant) { toutesAbsences = []; return; }
-  if (IS_DEMO_MODE) {
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) {
     toutesAbsences = [
       { id:1, date_absence:'2026-03-10', matiere:'Mathématiques', statut:'absent',   justifiee:false, motif:'', heure:'08h00' },
       { id:2, date_absence:'2026-02-20', matiere:'Anglais',        statut:'absent',   justifiee:true,  motif:'Maladie', heure:'10h00' },
@@ -1129,7 +1134,7 @@ async function chargerAbsences() {
 }
 async function chargerFactures() {
   if (!currentEtudiant) { toutesFactures = []; return; }
-  if (IS_DEMO_MODE) {
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) {
     toutesFactures = [
       { id:1, libelle:'Frais de scolarité — 1er trimestre', montant_total:85000, montant_paye:85000, statut:'payee',  created_at:'2025-09-01', echeance:'2025-10-01' },
       { id:2, libelle:'Frais de scolarité — 2e trimestre',  montant_total:85000, montant_paye:85000, statut:'payee',  created_at:'2026-01-05', echeance:'2026-02-01' },
@@ -1141,7 +1146,7 @@ async function chargerFactures() {
   toutesFactures = data || [];
 }
 async function chargerMessages() {
-  if (IS_DEMO_MODE) {
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) {
     tousMessages = [
       { id:1, objet:'Réunion parents - vendredi 18 avril', contenu:'Chers parents, nous vous invitons à une réunion le vendredi 18 avril à 16h00 dans la salle polyvalente.', expediteur_role:'admin', lu:false, created_at:'2026-04-12T09:00:00' },
       { id:2, objet:'Résultats du 2e semestre disponibles', contenu:'Les bulletins du 2e semestre sont disponibles sur votre espace. Vous pouvez les télécharger en PDF.', expediteur_role:'admin', lu:true, created_at:'2026-03-20T10:30:00' },
@@ -1920,7 +1925,7 @@ function retourStep1() {
 // ══ EXAMENS PORTAIL ★ JOUR 12 ═══════════════════════════════
 
 async function chargerExamensPortail() {
-  if (IS_DEMO_MODE) {
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) {
     const today = new Date();
     const fmt = d => d.toISOString().split('T')[0];
     const j = (n) => { const d = new Date(today); d.setDate(d.getDate()+n); return fmt(d); };
@@ -2090,7 +2095,7 @@ function getProfPourMatiere(matiere) {
 // ══ ENSEIGNANTS PORTAIL ★ JOUR 13 ══════════════════════════════════
 
 async function chargerEnseignantsPortail() {
-  if (IS_DEMO_MODE) { tousEnseignantsPortail = []; return; }
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) { tousEnseignantsPortail = []; return; }
   if (!currentEcoleId) { tousEnseignantsPortail = []; return; }
 
   // Charger tous les enseignants de l'école.
@@ -2809,7 +2814,7 @@ const HEURES_EDT = ['07:00','08:00','09:00','10:00','11:00','12:00',
                     '13:00','14:00','15:00','16:00','17:00'];
 
 async function chargerEmploiPortail() {
-  if (IS_DEMO_MODE) { edtPortailData = []; return; }
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) { edtPortailData = []; return; }
   if (!currentEcoleId) { edtPortailData = []; return; }
   try {
     // Charger tous les créneaux de l'école
@@ -2926,7 +2931,7 @@ const CERT_TYPES_PORTAIL = {
 };
 
 async function chargerCertificatsPortailData() {
-  if (IS_DEMO_MODE) { certPortailList = []; return; }
+  if (IS_DEMO_MODE && !IS_DEMO_LIVE_DATA) { certPortailList = []; return; }
   if (!currentEtudiant?.id || !currentEcoleId) { certPortailList = []; return; }
   try {
     const { data } = await db.from('certificats')
