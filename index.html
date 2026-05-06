@@ -8180,28 +8180,55 @@ async function confirmerImportExcelEDT() {
   if (!_edtAImporter.length) return;
   let ok = 0, err = 0, firstErr = '';
   let firstFailingPayload = null;
-  for (let item of _edtAImporter) {
-    let payload = { ...item, ecole_id: currentEcoleId };
-    let { error } = await db.from('emploi_du_temps').insert([payload]);
+
+  // Préparation des payloads avec ecole_id
+  const payloads = _edtAImporter.map(item => ({ ...item, ecole_id: currentEcoleId }));
+
+  // Helper : retire automatiquement les colonnes inconnues du schéma
+  // (pattern conservé tant que P1.5 — validation stricte — n'est pas traité)
+  const insertWithSchemaRetry = async (rows) => {
+    let payload = rows.map(r => ({ ...r }));
+    let res = await db.from('emploi_du_temps').insert(payload);
     let guard = 0;
-    while (error && guard < 8) {
-      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
-      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
+    while (res.error && guard < 8) {
+      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(res.error.message || '');
+      const col = m?.[1] || m?.[2];
+      if (!col || !payload.length || !(col in payload[0])) break;
       console.warn('[Import EDT] Retrait colonne:', col);
-      delete payload[col];
-      ({ error } = await db.from('emploi_du_temps').insert([payload])); guard++;
+      payload = payload.map(r => { const c = {...r}; delete c[col]; return c; });
+      res = await db.from('emploi_du_temps').insert(payload);
+      guard++;
     }
-    if (error) {
-      err++;
-      if (!firstErr) { firstErr = error.message; firstFailingPayload = payload; }
-      console.error('[Import EDT] échec ligne — payload:', payload, '— erreur:', error.message);
-    } else ok++;
+    return res;
+  };
+
+  // UPSERT par lots de 50 avec fallback ligne par ligne en cas d'échec
+  const BATCH_SIZE = 50;
+  for (let start = 0; start < payloads.length; start += BATCH_SIZE) {
+    const batch = payloads.slice(start, start + BATCH_SIZE);
+    const res = await insertWithSchemaRetry(batch);
+
+    if (res.error) {
+      console.warn('[Import EDT] Batch échoué, fallback ligne par ligne :', res.error.message);
+      for (const item of batch) {
+        const resOne = await insertWithSchemaRetry([item]);
+        if (resOne.error) {
+          err++;
+          if (!firstErr) { firstErr = resOne.error.message; firstFailingPayload = item; }
+          console.error('[Import EDT] échec ligne — payload:', item, '— erreur:', resOne.error.message);
+        } else {
+          ok++;
+        }
+      }
+    } else {
+      ok += batch.length;
+    }
   }
+
   _edtAImporter = [];
   if (ok > 0) {
     showToast(`✅ ${ok} créneau(x) importé(s)${err ? ` · ⚠️ ${err} erreur(s)` : ''}`, 'success');
   } else {
-    // En cas d'échec total, dump détaillé en console pour diagnostic
     if (firstFailingPayload) console.error('[Import EDT] Premier payload rejeté :', firstFailingPayload, '— ecole_id =', currentEcoleId);
     const isRLS = /row-level security|violates RLS|RLS policy/i.test(firstErr || '');
     const hint = isRLS ? ' (RLS — vérifie que la classe existe pour cette école)' : '';
@@ -12319,8 +12346,8 @@ async function confirmerImportCSV() {
   btn.disabled = true; btn.textContent = 'Import en cours...';
   document.getElementById('csv-progress-bar').style.display = 'block';
   document.getElementById('csv-progress-label').style.display = 'block';
-  let succes = 0, echecs = 0;
-  const BATCH = 10;
+  let succes = 0, echecs = 0, firstErr = '';
+  const BATCH = 50;
   for (let i = 0; i < csvLignesValides.length; i += BATCH) {
     const batch = csvLignesValides.slice(i, i + BATCH).map(e => ({
       ecole_id: currentEcoleId, nom: e.nom, prenom: e.prenom,
@@ -12329,15 +12356,30 @@ async function confirmerImportCSV() {
       parent_tel: e.parent_tel||null, statut: 'actif'
     }));
     const { error } = await db.from('etudiants').insert(batch);
-    if (error) echecs += batch.length;
-    else succes += batch.length;
+    if (error) {
+      // Fallback : insertion ligne par ligne pour identifier les coupables
+      console.warn('[Import Étudiants] Batch échoué, fallback ligne par ligne :', error.message);
+      for (const item of batch) {
+        const { error: errOne } = await db.from('etudiants').insert([item]);
+        if (errOne) {
+          echecs++;
+          if (!firstErr) firstErr = errOne.message;
+          console.error('[Import Étudiants]', item.matricule, item.nom, errOne.message);
+        } else {
+          succes++;
+        }
+      }
+    } else {
+      succes += batch.length;
+    }
     const pct = Math.round(((i + BATCH) / csvLignesValides.length) * 100);
     document.getElementById('csv-progress-fill').style.width = Math.min(pct,100) + '%';
     document.getElementById('csv-progress-label').textContent = `${Math.min(i+BATCH, csvLignesValides.length)} / ${csvLignesValides.length} importés...`;
   }
   fermerModal('modal-import-csv');
   reinitialiserCSV();
-  showToast(`✅ ${succes} étudiant(s) importé(s)${echecs?` · ${echecs} erreur(s)`:''}`, succes > 0 ? 'success' : 'error');
+  const msg = `✅ ${succes} étudiant(s) importé(s)${echecs?` · ⚠️ ${echecs} erreur(s)`:''}`;
+  showToast(msg + (echecs && firstErr ? ` — ${firstErr.slice(0,80)}` : ''), succes > 0 ? 'success' : 'error');
   chargerEtudiants();
   chargerDashboard();
 }
