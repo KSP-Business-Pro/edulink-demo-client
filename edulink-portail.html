@@ -2083,10 +2083,15 @@ async function chargerEnseignantsPortail() {
   if (IS_DEMO_MODE) { tousEnseignantsPortail = []; return; }
   if (!currentEcoleId) { tousEnseignantsPortail = []; return; }
 
-  // Charger tous les enseignants actifs de l'école
-  const { data: tous } = await db.from('enseignants').select('*')
-    .eq('ecole_id', currentEcoleId).eq('statut','actif').order('nom');
-  const liste = tous || [];
+  // Charger tous les enseignants de l'école.
+  // On ne filtre PAS strictement sur statut='actif' car certains enseignants
+  // peuvent avoir statut=null (import sans valeur ou ancien schéma) — ce qui
+  // ferait remonter 0 enseignant sans raison visible. On filtre côté JS pour
+  // exclure uniquement ceux qui sont explicitement marqués 'inactif'/'suspendu'.
+  const { data: tous, error } = await db.from('enseignants').select('*')
+    .eq('ecole_id', currentEcoleId).order('nom');
+  if (error) { console.warn('[Portail Enseignants] erreur:', error.message); tousEnseignantsPortail = []; return; }
+  const liste = (tous || []).filter(e => !e.statut || (e.statut !== 'inactif' && e.statut !== 'suspendu'));
 
   // Filtrer aux enseignants qui interviennent dans la classe de l'étudiant
   // (via la table programmes : classe_id → enseignant_id)
