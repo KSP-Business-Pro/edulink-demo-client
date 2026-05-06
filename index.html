@@ -19531,16 +19531,203 @@ async function actualiserDashReseau() {
 
 /* ══════════════════════════════════════════════════════════════════
    SUITE 11 — ASSISTANT IA EDULINK ★ JOUR 35
+   Réponses connectées aux VRAIES données Supabase de l'école active.
 ══════════════════════════════════════════════════════════════════ */
 let iaQuestions = 0;
+
+// Helpers de formatage
+const _iaFmtFCFA = (n) => (Number(n)||0).toLocaleString('fr-FR') + ' FCFA';
+const _iaFmtPct  = (num, den) => den > 0 ? Math.round((num/den)*100) + '%' : '—';
+const _iaErr     = (e) => `⚠️ Désolé, je n'ai pas pu lire les données (${e?.message || 'erreur'}).\n\nVérifiez que vous êtes connecté et que l'école active est sélectionnée.`;
+
 const IA_RESPONSES = {
-  'moyenne': (q) => `📊 **Moyennes par classe :**\n\n• **Terminale D** : 13.4/20 (28 élèves)\n• **Terminale C** : 14.1/20 (25 élèves)\n• **1ère A** : 15.2/20 (30 élèves)\n• **2nde B** : 12.8/20 (32 élèves)\n\n💡 La 1ère A est la meilleure classe ce semestre avec une progression de +0.8 points vs semestre dernier.`,
-  'absence': (q) => `🚫 **Absences du jour (${new Date().toLocaleDateString('fr-FR')}) :**\n\n• **Total** : 14 absences enregistrées\n• **Justifiées** : 8 (57%)\n• **Injustifiées** : 6 (43%)\n\n**Élèves les plus absents ce mois :**\n• Kofi Mensah — 3 absences\n• Sonia Ahoton — 2 absences\n\n📧 Les parents des élèves absents non justifiés ont été notifiés.`,
-  'paiement': (q) => `💳 **État des paiements (${new Date().toLocaleDateString('fr-FR', {month:'long', year:'numeric'})}) :**\n\n• **Factures émises** : 115\n• **Payées** : 89 (77%)\n• **En attente** : 26 (23%)\n• **Montant recouvré** : 6 675 000 FCFA\n• **Reste à recouvrer** : 1 950 000 FCFA\n\n⚠️ 3 familles ont plus de 90 jours de retard.`,
-  'meilleur': (q) => `🏆 **Top étudiants de Terminale D :**\n\n1. 🥇 **Afi Dossou** — 17.1/20 (Rang 1)\n2. 🥈 **Marius Sime** — 16.4/20 (Rang 2)\n3. 🥉 **Kofi Mensah** — 14.8/20 (Rang 3)\n\n💡 Afi Dossou maintient le rang 1 depuis 2 semestres consécutifs. Excellente progression en Mathématiques (+2.5 points).`,
-  'examen': (q) => `📅 **Prochains examens planifiés :**\n\n• **08/04** — Mathématiques (Tle D) — Partiel S2\n• **10/04** — Physique-Chimie (Tle C) — Contrôle\n• **12/04** — SVT (1ère A) — Partiel S2\n• **15/04** — Philosophie (toutes Tle) — Devoir\n\n⏰ L'examen de Mathématiques du 08/04 est dans **7 jours**. 47 élèves concernés.`,
-  'taux': (q) => `📈 **Taux de réussite par filière :**\n\n• **Terminale D** (Sciences) : 78% ↑\n• **Terminale C** (Sciences) : 82% ↑\n• **Terminale A** (Lettres) : 71% →\n• **1ère A** : 88% ↑\n\n📊 Moyenne réseau EduLink : **79.8%** — en hausse de +3.2% vs année précédente.`,
-  'default': (q) => `🤖 J'ai bien reçu votre question : **"${q}"**\n\nJe suis connecté aux modules suivants :\n• 📊 Notes & Bulletins\n• 🚫 Présences & Absences\n• 💳 Paiements & Facturation\n• 📅 Examens & Planning\n• 👥 Gestion des étudiants\n• 📈 Analytics & Rapports\n\nPosez-moi une question plus spécifique sur ces données ou utilisez les suggestions rapides ci-dessous.`,
+
+  // ── PAIEMENTS ─────────────────────────────────────────────────────
+  'paiement': async (q) => {
+    if (!currentEcoleId) return _iaErr({message:'aucune école active'});
+    try {
+      const { data: factures, error } = await db.from('factures')
+        .select('statut,montant_total,montant_paye,date_emission,date_echeance')
+        .eq('ecole_id', currentEcoleId);
+      if (error) throw error;
+      const list = factures || [];
+      const total = list.length;
+      const payees   = list.filter(f => f.statut === 'paye').length;
+      const attente  = list.filter(f => f.statut === 'en_attente' || f.statut === 'partiel').length;
+      const retard   = list.filter(f => f.statut === 'retard').length;
+      const recouvre = list.reduce((s,f) => s + (Number(f.montant_paye)||0), 0);
+      const du       = list.reduce((s,f) => s + (Number(f.montant_total)||0), 0);
+      const reste    = Math.max(0, du - recouvre);
+      const moisLbl  = new Date().toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+
+      if (total === 0) {
+        return `💳 **État des paiements (${moisLbl}) :**\n\nAucune facture enregistrée pour le moment dans cette école.`;
+      }
+      let txt = `💳 **État des paiements (${moisLbl}) :**\n\n`;
+      txt += `• **Factures émises** : ${total}\n`;
+      txt += `• **Payées** : ${payees} (${_iaFmtPct(payees,total)})\n`;
+      txt += `• **En attente** : ${attente} (${_iaFmtPct(attente,total)})\n`;
+      if (retard > 0) txt += `• **En retard** : ${retard} (${_iaFmtPct(retard,total)})\n`;
+      txt += `• **Montant recouvré** : ${_iaFmtFCFA(recouvre)}\n`;
+      txt += `• **Reste à recouvrer** : ${_iaFmtFCFA(reste)}`;
+      if (retard > 0) txt += `\n\n⚠️ ${retard} facture${retard>1?'s':''} en retard de paiement.`;
+      return txt;
+    } catch(e) { return _iaErr(e); }
+  },
+
+  // ── MOYENNES PAR CLASSE ───────────────────────────────────────────
+  'moyenne': async (q) => {
+    if (!currentEcoleId) return _iaErr({message:'aucune école active'});
+    try {
+      const [{data: notes}, {data: classes}] = await Promise.all([
+        db.from('notes').select('note,etudiant_id,etudiants(classe_id)').eq('ecole_id', currentEcoleId),
+        db.from('classes').select('id,nom').eq('ecole_id', currentEcoleId)
+      ]);
+      const classMap = {}; (classes||[]).forEach(c => classMap[c.id] = c.nom);
+      const parClasse = {};
+      (notes||[]).forEach(n => {
+        const cid = n.etudiants?.classe_id;
+        if (!cid) return;
+        if (!parClasse[cid]) parClasse[cid] = { sum:0, count:0 };
+        parClasse[cid].sum   += Number(n.note)||0;
+        parClasse[cid].count += 1;
+      });
+      const lignes = Object.entries(parClasse)
+        .map(([cid, v]) => ({ nom: classMap[cid]||'?', moy: v.count?(v.sum/v.count):0, n: v.count }))
+        .filter(l => l.n > 0)
+        .sort((a,b) => b.moy - a.moy);
+      if (!lignes.length) return `📊 **Moyennes par classe :**\n\nAucune note enregistrée pour le moment.`;
+      let txt = `📊 **Moyennes par classe :**\n\n`;
+      lignes.slice(0, 8).forEach(l => {
+        txt += `• **${l.nom}** : ${l.moy.toFixed(2)}/20 (${l.n} note${l.n>1?'s':''})\n`;
+      });
+      txt += `\n💡 Meilleure moyenne : **${lignes[0].nom}** (${lignes[0].moy.toFixed(2)}/20).`;
+      return txt;
+    } catch(e) { return _iaErr(e); }
+  },
+
+  // ── ABSENCES ──────────────────────────────────────────────────────
+  'absence': async (q) => {
+    if (!currentEcoleId) return _iaErr({message:'aucune école active'});
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      const { data: abs, error } = await db.from('absences')
+        .select('statut,date_absence,etudiants(nom,prenom)')
+        .eq('ecole_id', currentEcoleId);
+      if (error) throw error;
+      const list = abs || [];
+      const dujour = list.filter(a => (a.date_absence||'').slice(0,10) === today);
+      const total  = dujour.length;
+      const just   = dujour.filter(a => a.statut === 'justifiee' || a.statut === 'justifié').length;
+      const injust = total - just;
+
+      let txt = `🚫 **Absences du jour (${new Date().toLocaleDateString('fr-FR')}) :**\n\n`;
+      txt += `• **Total** : ${total} absence${total>1?'s':''}\n`;
+      if (total > 0) {
+        txt += `• **Justifiées** : ${just} (${_iaFmtPct(just,total)})\n`;
+        txt += `• **Injustifiées** : ${injust} (${_iaFmtPct(injust,total)})\n`;
+      }
+      // Top élèves absents (sur tout l'historique)
+      const compteur = {};
+      list.forEach(a => {
+        const nom = a.etudiants ? `${a.etudiants.prenom||''} ${a.etudiants.nom||''}`.trim() : null;
+        if (nom) compteur[nom] = (compteur[nom]||0) + 1;
+      });
+      const top = Object.entries(compteur).sort((a,b) => b[1]-a[1]).slice(0,3);
+      if (top.length) {
+        txt += `\n**Élèves les plus absents (cumul) :**\n`;
+        top.forEach(([nom,n]) => { txt += `• ${nom} — ${n} absence${n>1?'s':''}\n`; });
+      }
+      return txt.trim();
+    } catch(e) { return _iaErr(e); }
+  },
+
+  // ── MEILLEUR ÉLÈVE ────────────────────────────────────────────────
+  'meilleur': async (q) => {
+    if (!currentEcoleId) return _iaErr({message:'aucune école active'});
+    try {
+      const { data: notes, error } = await db.from('notes')
+        .select('note,etudiant_id,etudiants(nom,prenom,classe_id,classes(nom))')
+        .eq('ecole_id', currentEcoleId);
+      if (error) throw error;
+      const map = {};
+      (notes||[]).forEach(n => {
+        const k = n.etudiant_id; if (!k) return;
+        if (!map[k]) map[k] = { sum:0, count:0, nom: n.etudiants ? `${n.etudiants.prenom||''} ${n.etudiants.nom||''}`.trim() : '?', classe: n.etudiants?.classes?.nom || '—' };
+        map[k].sum   += Number(n.note)||0;
+        map[k].count += 1;
+      });
+      const top = Object.values(map)
+        .filter(e => e.count > 0)
+        .map(e => ({ ...e, moy: e.sum/e.count }))
+        .sort((a,b) => b.moy - a.moy)
+        .slice(0, 5);
+      if (!top.length) return `🏆 **Top étudiants :**\n\nAucune note enregistrée pour le moment.`;
+      const medals = ['🥇','🥈','🥉','4.','5.'];
+      let txt = `🏆 **Top étudiants de l'école :**\n\n`;
+      top.forEach((e,i) => { txt += `${medals[i]} **${e.nom}** — ${e.moy.toFixed(2)}/20 _(${e.classe})_\n`; });
+      return txt;
+    } catch(e) { return _iaErr(e); }
+  },
+
+  // ── EXAMENS À VENIR ───────────────────────────────────────────────
+  'examen': async (q) => {
+    if (!currentEcoleId) return _iaErr({message:'aucune école active'});
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      const { data, error } = await db.from('examens')
+        .select('matiere,date_examen,classe_id,classes(nom)')
+        .eq('ecole_id', currentEcoleId)
+        .gte('date_examen', today)
+        .order('date_examen', { ascending: true })
+        .limit(6);
+      if (error) throw error;
+      const list = data || [];
+      if (!list.length) return `📅 **Prochains examens :**\n\nAucun examen planifié à venir.`;
+      let txt = `📅 **Prochains examens planifiés :**\n\n`;
+      list.forEach(e => {
+        const d = new Date(e.date_examen).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+        const cls = e.classes?.nom ? ` _(${e.classes.nom})_` : '';
+        txt += `• **${d}** — ${e.matiere}${cls}\n`;
+      });
+      const j = Math.ceil((new Date(list[0].date_examen) - new Date()) / 86400000);
+      if (j >= 0) txt += `\n⏰ Le prochain examen est dans **${j} jour${j>1?'s':''}**.`;
+      return txt;
+    } catch(e) { return _iaErr(e); }
+  },
+
+  // ── TAUX DE RÉUSSITE ──────────────────────────────────────────────
+  'taux': async (q) => {
+    if (!currentEcoleId) return _iaErr({message:'aucune école active'});
+    try {
+      const [{data: notes}, {data: classes}] = await Promise.all([
+        db.from('notes').select('note,etudiants(classe_id)').eq('ecole_id', currentEcoleId),
+        db.from('classes').select('id,nom').eq('ecole_id', currentEcoleId)
+      ]);
+      const classMap = {}; (classes||[]).forEach(c => classMap[c.id] = c.nom);
+      const parClasse = {};
+      (notes||[]).forEach(n => {
+        const cid = n.etudiants?.classe_id;
+        if (!cid) return;
+        if (!parClasse[cid]) parClasse[cid] = { ok:0, total:0 };
+        parClasse[cid].total += 1;
+        if (Number(n.note) >= 10) parClasse[cid].ok += 1;
+      });
+      const lignes = Object.entries(parClasse)
+        .map(([cid, v]) => ({ nom: classMap[cid]||'?', taux: v.total?(v.ok/v.total)*100:0, n: v.total }))
+        .filter(l => l.n > 0)
+        .sort((a,b) => b.taux - a.taux);
+      if (!lignes.length) return `📈 **Taux de réussite :**\n\nAucune note enregistrée.`;
+      let txt = `📈 **Taux de réussite par classe :**\n\n_(notes ≥ 10/20)_\n\n`;
+      lignes.forEach(l => { txt += `• **${l.nom}** : ${l.taux.toFixed(1)}% (${l.n} notes)\n`; });
+      const moy = lignes.reduce((s,l) => s + l.taux, 0) / lignes.length;
+      txt += `\n📊 Moyenne école : **${moy.toFixed(1)}%**`;
+      return txt;
+    } catch(e) { return _iaErr(e); }
+  },
+
+  // ── DEFAULT ───────────────────────────────────────────────────────
+  'default': async (q) => `🤖 J'ai bien reçu votre question : **"${q}"**\n\nJe peux interroger les données suivantes :\n• 📊 Notes & moyennes\n• 🚫 Absences du jour\n• 💳 État des paiements\n• 📅 Examens à venir\n• 🏆 Meilleurs élèves\n• 📈 Taux de réussite\n\nUtilisez l'un des boutons de suggestion ci-dessous, ou posez une question avec un de ces mots-clés.`,
 };
 
 function chargerAssistantIA() {
@@ -19593,13 +19780,17 @@ async function envoyerMessageIA() {
   if (typing) typing.remove();
   const q = msg.toLowerCase();
   let reponse;
-  if (q.includes('moyenne') || q.includes('note')) reponse = IA_RESPONSES.moyenne(msg);
-  else if (q.includes('absence') || q.includes('présent')) reponse = IA_RESPONSES.absence(msg);
-  else if (q.includes('paiement') || q.includes('facture') || q.includes('impayé')) reponse = IA_RESPONSES.paiement(msg);
-  else if (q.includes('meilleur') || q.includes('premier') || q.includes('rang')) reponse = IA_RESPONSES.meilleur(msg);
-  else if (q.includes('examen') || q.includes('prochain')) reponse = IA_RESPONSES.examen(msg);
-  else if (q.includes('taux') || q.includes('réussite') || q.includes('filière')) reponse = IA_RESPONSES.taux(msg);
-  else reponse = IA_RESPONSES.default(msg);
+  try {
+    if (q.includes('moyenne') || q.includes('note')) reponse = await IA_RESPONSES.moyenne(msg);
+    else if (q.includes('absence') || q.includes('présent')) reponse = await IA_RESPONSES.absence(msg);
+    else if (q.includes('paiement') || q.includes('facture') || q.includes('impayé')) reponse = await IA_RESPONSES.paiement(msg);
+    else if (q.includes('meilleur') || q.includes('premier') || q.includes('rang')) reponse = await IA_RESPONSES.meilleur(msg);
+    else if (q.includes('examen') || q.includes('prochain')) reponse = await IA_RESPONSES.examen(msg);
+    else if (q.includes('taux') || q.includes('réussite') || q.includes('filière')) reponse = await IA_RESPONSES.taux(msg);
+    else reponse = await IA_RESPONSES.default(msg);
+  } catch(e) {
+    reponse = `⚠️ Une erreur est survenue : ${e?.message || e}`;
+  }
   ajouterMessageIA('bot', reponse);
 }
 
