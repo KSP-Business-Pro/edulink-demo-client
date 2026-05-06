@@ -9503,7 +9503,8 @@ function syncFiliereNiveauEtudiant(sel){
 async function supprimerEtudiant(id,nom){
   if(!confirm(`Supprimer l'étudiant ${nom} ?\nSes notes, absences et factures seront aussi supprimées.`))return;
   await Promise.all([db.from('notes').delete().eq('etudiant_id',id),db.from('absences').delete().eq('etudiant_id',id),db.from('factures').delete().eq('etudiant_id',id)]);
-  await db.from('etudiants').delete().eq('id',id);
+  const { error } = await db.from('etudiants').delete().eq('id',id);
+  if (!error && window.AuditLog) AuditLog.record('DELETE', 'etudiants', id, `Suppression de ${nom} (cascade : notes/absences/factures)`);
   showToast('Étudiant supprimé.','success');chargerEtudiants();chargerDashboard();
 }
 async function ouvrirModifierEtudiant(id){
@@ -9849,7 +9850,8 @@ async function enregistrerOuModifierNote(){
 async function enregistrerNote(){return enregistrerOuModifierNote();}
 async function supprimerNote(id) {
   if (!confirm('Supprimer cette note ?')) return;
-  await db.from('notes').delete().eq('id',id);
+  const { error } = await db.from('notes').delete().eq('id',id);
+  if (!error && window.AuditLog) AuditLog.record('DELETE', 'notes', id, 'Suppression d\'une note');
   showToast('Note supprimée.','success');
   invalidateData('notes');
   chargerNotes(); chargerDashboard();
@@ -10607,6 +10609,7 @@ async function enregistrerPaiement() {
   // Enregistrer le paiement
   const { error:e2 } = await db.from('paiements').insert([{ ecole_id:currentEcoleId, facture_id:facId, montant:montant, montant_paye:montant, mode_paiement:mode, reference_transaction:ref, reference_facture:facture.reference, etudiant_id:facture.etudiant_id }]);
   if (e2) { showToast('Erreur enregistrement paiement : '+e2.message,'error'); return; }
+  if (window.AuditLog) AuditLog.record('CREATE', 'paiements', facId, `Paiement de ${montant.toLocaleString('fr-FR')} FCFA (${mode}) sur facture ${facture.reference} — nouveau statut: ${nouveauStatut}`);
   fermerModal('modal-paiement'); document.getElementById('input-pay-montant').value=''; document.getElementById('input-pay-ref').value='';
   showToast(nouveauStatut==='paye'?'✅ Facture entièrement payée !':'💰 Paiement partiel enregistré !','success');
   invalidateData('paiements');
@@ -10620,7 +10623,8 @@ async function enregistrerPaiement() {
 
 async function supprimerFacture(id) {
   if (!confirm('Supprimer cette facture ?')) return;
-  await db.from('factures').delete().eq('id',id);
+  const { error } = await db.from('factures').delete().eq('id',id);
+  if (!error && window.AuditLog) AuditLog.record('DELETE', 'factures', id, 'Suppression d\'une facture');
   showToast('Facture supprimée.','success');
   toutesLesFactures = [];
   invalidateCache('paiements');
@@ -11299,6 +11303,7 @@ async function creerUtilisateur() {
     if (['parent','etudiant'].includes(role) && etudiantId) payload.etudiant_id = etudiantId;
     const { error } = await db.from('utilisateurs').update(payload).eq('id', editId);
     if (error) { showToast('Erreur : '+error.message,'error'); return; }
+    if (window.AuditLog) AuditLog.record('UPDATE', 'utilisateurs', editId, `Modification du compte : ${prenom} ${nom} (${role})`);
     showToast('✅ Utilisateur modifié !','success');
   } else {
     // Création via Supabase Auth
@@ -11321,6 +11326,7 @@ async function creerUtilisateur() {
       ({ error: dbErr } = await db.from('utilisateurs').insert([insertPayload]));
     }
     if (dbErr) { showToast('Erreur DB : '+dbErr.message,'error'); return; }
+    if (window.AuditLog) AuditLog.record('CREATE', 'utilisateurs', authId, `Création du compte : ${prenom} ${nom} <${email}> (${role})`);
     showToast('✅ Utilisateur créé !','success');
   }
 
@@ -11367,6 +11373,7 @@ async function supprimerUtilisateur(id, nom) {
   if (!confirm(`Supprimer le compte de "${nom.trim()}" ?\nCette action est irréversible.`)) return;
   const { error } = await db.from('utilisateurs').delete().eq('id', id);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  if (window.AuditLog) AuditLog.record('DELETE', 'utilisateurs', id, `Suppression du compte : ${nom}`);
   showToast('Utilisateur supprimé.','success');
   chargerUtilisateurs();
 }
@@ -12207,6 +12214,7 @@ async function paramSupprimerEcole() {
   if (!confirm(`Dernière confirmation : supprimer DÉFINITIVEMENT "${ecole.nom}" ?`)) return;
   const { error } = await db.from("ecoles").delete().eq("id", currentEcoleId);
   if (error) { showToast("❌ " + error.message, "error"); return; }
+  if (window.AuditLog) AuditLog.record('DELETE_CRITICAL', 'ecoles', currentEcoleId, `Suppression DÉFINITIVE de l'école : ${ecole.nom}`);
   showToast(`💀 "${ecole.nom}" a été supprimée`, "success");
   // Recharger la liste des écoles
   if (typeof chargerEcoles === "function") {
@@ -13190,6 +13198,7 @@ async function supprimerEnseignant(id) {
   if (!confirm('Supprimer cet enseignant ?')) return;
   const { error } = await db.from('enseignants').delete().eq('id', id);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  if (window.AuditLog) AuditLog.record('DELETE', 'enseignants', id, 'Suppression d\'un enseignant');
   showToast('Enseignant supprimé.','success');
   chargerEnseignants();
 }
@@ -18138,6 +18147,7 @@ function supprimerEtablissement(id) {
   // Supprimer de Supabase
   db.from('ecoles').delete().eq('id', id).then(({ error }) => {
     if (error) console.warn('[Réseau] Supabase delete:', error.message);
+    else if (window.AuditLog) AuditLog.record('DELETE_CRITICAL', 'ecoles', id, `Suppression de l'annexe : ${e.nom}`);
   });
   // Supprimer de la mémoire
   tousLesEtablissements = tousLesEtablissements.filter(et => String(et.id) !== String(id));
@@ -19085,6 +19095,7 @@ async function supprimerNotePortail(noteId) {
   if (!confirm('Supprimer cette note ?')) return;
   const { error } = await db.from('notes').delete().eq('id', noteId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  if (window.AuditLog) AuditLog.record('DELETE', 'notes', noteId, 'Suppression d\'une note (portail étudiant)');
   showToast('🗑️ Note supprimée.','success');
   invalidateData('notes');
   chargerPortailEtudiant(getPortailEtudiantId());
@@ -19094,6 +19105,7 @@ async function supprimerAbsencePortail(absId) {
   if (!confirm('Supprimer cette absence ?')) return;
   const { error } = await db.from('absences').delete().eq('id', absId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  if (window.AuditLog) AuditLog.record('DELETE', 'absences', absId, 'Suppression d\'une absence (portail étudiant)');
   showToast('🗑️ Absence supprimée.','success');
   invalidateData('absences');
   chargerPortailEtudiant(getPortailEtudiantId());
@@ -19105,6 +19117,7 @@ async function supprimerPaiementPortail(factId) {
   await db.from('paiements').delete().eq('facture_id', factId);
   const { error } = await db.from('factures').delete().eq('id', factId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
+  if (window.AuditLog) AuditLog.record('DELETE', 'factures', factId, 'Suppression d\'une facture (portail étudiant, cascade paiements)');
   showToast('🗑️ Facture supprimée.','success');
   invalidateData('paiements');
   chargerPortailEtudiant(getPortailEtudiantId());
