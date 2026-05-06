@@ -8450,7 +8450,7 @@ function exporterUtilisateursExcel() {
     if (!data?.length) { showToast('Aucun utilisateur à exporter', 'error'); return; }
     const rows = data.map(u => [
       u.prenom||'', u.nom||'', u.email||'',
-      u.role||'', u.statut||'actif', u.created_at||''
+      u.role||'', (u.actif !== false ? 'Actif' : 'Suspendu'), u.created_at||''
     ]);
     xlsxDownload(`EduLink-Utilisateurs-${today()}.xlsx`, header, rows, 'Utilisateurs', {
       colWidths    : [16,18,28,14,12,14],
@@ -11212,13 +11212,13 @@ function afficherUtilisateurs(liste) {
         </td>
         <td style="font-size:12px">${u.email||'—'}</td>
         <td><span class="badge blue" style="font-size:11px">${roleLabels[u.role]||u.role}</span></td>
-        <td><span class="badge ${u.statut==='actif'?'green':u.statut==='suspendu'?'red':'amber'}">${u.statut||'actif'}</span></td>
+        <td><span class="badge ${u.actif !== false ? 'green' : 'red'}">${u.actif !== false ? 'actif' : 'suspendu'}</span></td>
         <td style="font-size:12px;color:#6b7280">${u.derniere_connexion ? fmtDateTime(u.derniere_connexion) : '—'}</td>
         <td style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="btn-sm btn-secondary" onclick="ouvrirModifierUser('${u.id}')">✏️</button>
-          ${u.statut==='actif'
-            ? `<button class="btn-sm btn-secondary" onclick="changerStatutUser('${u.id}','suspendu')" title="Suspendre">🔒</button>`
-            : `<button class="btn-sm btn-green" onclick="changerStatutUser('${u.id}','actif')" title="Réactiver">🔓</button>`}
+          ${u.actif !== false
+            ? `<button class="btn-sm btn-secondary" onclick="changerStatutUser('${u.id}',false)" title="Suspendre">🔒</button>`
+            : `<button class="btn-sm btn-green" onclick="changerStatutUser('${u.id}',true)" title="Réactiver">🔓</button>`}
           <button class="btn-sm btn-red" onclick="supprimerUtilisateur('${u.id}','${u.prenom||''} ${u.nom||''}')">✕</button>
         </td>
       </tr>`).join('')
@@ -11232,7 +11232,12 @@ function filtrerUtilisateurs() {
   let liste  = tousLesUtilisateurs;
   if (q)    liste = liste.filter(u => (u.nom||'').toLowerCase().includes(q) || (u.prenom||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q));
   if (role) liste = liste.filter(u => u.role === role);
-  if (stat) liste = liste.filter(u => (u.statut||'actif') === stat);
+  if (stat) {
+    // Le <select> propose 'actif'/'suspendu'/'inactif' mais en base c'est un
+    // booléen u.actif. On mappe : 'actif' = true ; tout le reste = false.
+    const wantActif = (stat === 'actif');
+    liste = liste.filter(u => (u.actif !== false) === wantActif);
+  }
   afficherUtilisateurs(liste);
 }
 
@@ -11265,12 +11270,22 @@ async function creerUtilisateur() {
     const { data: authData, error: authErr } = await db.auth.signUp({ email, password: mdp });
     if (authErr) { showToast('Erreur auth : '+authErr.message,'error'); return; }
     const authId = authData?.user?.id;
-    const payload = { ecole_id: currentEcoleId, auth_id: authId, prenom, nom, email, role, statut: 'actif' };
+    // Le trigger `handle_new_auth_user` côté DB crée déjà la ligne dans
+    // public.utilisateurs avec des valeurs par défaut (actif: true, role:
+    // 'enseignant', etc.). On UPDATE ensuite pour fixer prenom/nom/role/ecole_id
+    // que l'utilisateur a saisis dans le formulaire.
+    const payload = { ecole_id: currentEcoleId, prenom, nom, role, actif: true };
     const etudiantId = document.getElementById('input-user-etudiant')?.value||null;
     if (['parent','etudiant'].includes(role) && etudiantId) payload.etudiant_id = etudiantId;
-    const { error: dbErr } = await db.from('utilisateurs').insert([payload]);
+    let { error: dbErr } = await db.from('utilisateurs').update(payload).eq('auth_id', authId);
+    // Fallback : si le trigger n'a pas créé la ligne (improbable mais possible),
+    // on fait un INSERT direct.
+    if (dbErr) {
+      const insertPayload = { ...payload, auth_id: authId, email };
+      ({ error: dbErr } = await db.from('utilisateurs').insert([insertPayload]));
+    }
     if (dbErr) { showToast('Erreur DB : '+dbErr.message,'error'); return; }
-    showToast('✅ Utilisateur créé ! Un email de confirmation a été envoyé.','success');
+    showToast('✅ Utilisateur créé !','success');
   }
 
   fermerModal('modal-user');
@@ -11304,10 +11319,11 @@ function ouvrirModifierUser(id) {
   ouvrirModal('modal-user');
 }
 
-async function changerStatutUser(id, newStatut) {
-  const { error } = await db.from('utilisateurs').update({ statut: newStatut }).eq('id', id);
+async function changerStatutUser(id, newActif) {
+  // newActif est un booléen (true = actif, false = suspendu).
+  const { error } = await db.from('utilisateurs').update({ actif: newActif }).eq('id', id);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  showToast(newStatut==='actif' ? '🔓 Compte réactivé !' : '🔒 Compte suspendu.','success');
+  showToast(newActif ? '🔓 Compte réactivé !' : '🔒 Compte suspendu.','success');
   chargerUtilisateurs();
 }
 
