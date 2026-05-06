@@ -7959,16 +7959,11 @@ async function confirmerImportExcelEtudiants(liste) {
         ({ error } = await db.from('etudiants').insert([payloadMin]));
         if (!error) { ok++; continue; }
       }
-      // Colonne inconnue → auto-retry en retirant la colonne
-      let guard = 0;
-      while (error && guard < 8) {
-        const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message || '');
-        const col = m?.[1] || m?.[2];
-        if (!col || !(col in payload)) break;
-        console.warn('[Import] Retrait colonne inconnue:', col);
-        delete payload[col];
-        ({ error } = await db.from('etudiants').insert([payload]));
-        guard++;
+      // Colonne inconnue → ERREUR EXPLICITE (validation stricte, pas de suppression auto)
+      const mCol = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message || '');
+      const colInconnue = mCol?.[1] || mCol?.[2];
+      if (colInconnue) {
+        error = { message: `Colonne inconnue dans le fichier : "${colInconnue}". Téléchargez le modèle Excel à jour et corrigez votre fichier.` };
       }
     }
 
@@ -8185,19 +8180,16 @@ async function confirmerImportExcelEDT() {
   const payloads = _edtAImporter.map(item => ({ ...item, ecole_id: currentEcoleId }));
 
   // Helper : retire automatiquement les colonnes inconnues du schéma
-  // (pattern conservé tant que P1.5 — validation stricte — n'est pas traité)
+  // (P1.5) Validation stricte : on signale les colonnes inconnues sans les supprimer
   const insertWithSchemaRetry = async (rows) => {
-    let payload = rows.map(r => ({ ...r }));
-    let res = await db.from('emploi_du_temps').insert(payload);
-    let guard = 0;
-    while (res.error && guard < 8) {
+    const payload = rows.map(r => ({ ...r }));
+    const res = await db.from('emploi_du_temps').insert(payload);
+    if (res.error) {
       const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(res.error.message || '');
       const col = m?.[1] || m?.[2];
-      if (!col || !payload.length || !(col in payload[0])) break;
-      console.warn('[Import EDT] Retrait colonne:', col);
-      payload = payload.map(r => { const c = {...r}; delete c[col]; return c; });
-      res = await db.from('emploi_du_temps').insert(payload);
-      guard++;
+      if (col) {
+        res.error = { message: `Colonne inconnue dans le fichier : "${col}". Téléchargez le modèle Excel à jour et corrigez votre fichier.` };
+      }
     }
     return res;
   };
@@ -8296,14 +8288,12 @@ async function confirmerImportExcelExamens() {
   for (let item of _examensAImporter) {
     let payload = { ...item, ecole_id: currentEcoleId };
     let { error } = await db.from('examens').insert([payload]);
-    let guard = 0;
-    while (error && guard < 8) {
-      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
-      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
-      console.warn('[Import examens] Retrait colonne:', col);
-      delete payload[col];
-      ({ error } = await db.from('examens').insert([payload])); guard++;
-    }
+    // (P1.5) Validation stricte : on signale la colonne inconnue sans la supprimer
+          if (error) {
+            const _m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message || '');
+            const _col = _m?.[1] || _m?.[2];
+            if (_col) error = { message: `Colonne inconnue dans le fichier : "${_col}". Téléchargez le modèle Excel à jour et corrigez votre fichier.` };
+          }
     if (error) { err++; if (!firstErr) firstErr = error.message; console.error('[Import examens]', error.message); } else ok++;
   }
   _examensAImporter = [];
@@ -8432,13 +8422,12 @@ async function confirmerImportExcelPaiements() {
     const ref = 'FAC-' + Date.now() + '-' + Math.random().toString(36).slice(2,6).toUpperCase();
     let payload = { ...f, ecole_id: currentEcoleId, reference: ref };
     let { error } = await db.from('factures').insert([payload]);
-    let guard = 0;
-    while (error && guard < 8) {
-      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
-      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
-      delete payload[col];
-      ({ error } = await db.from('factures').insert([payload])); guard++;
-    }
+    // (P1.5) Validation stricte : on signale la colonne inconnue sans la supprimer
+          if (error) {
+            const _m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message || '');
+            const _col = _m?.[1] || _m?.[2];
+            if (_col) error = { message: `Colonne inconnue dans le fichier : "${_col}". Téléchargez le modèle Excel à jour et corrigez votre fichier.` };
+          }
     if (error) { err++; if (!firstErr) firstErr = error.message; } else ok++;
   }
   _paiementsAImporter = [];
@@ -8553,14 +8542,12 @@ async function confirmerImportExcelUtilisateurs() {
   for (let item of _utilisateursAImporter) {
     let payload = { ...item, ecole_id: currentEcoleId };
     let { error } = await db.from('utilisateurs').insert([payload]);
-    let guard = 0;
-    while (error && guard < 8) {
-      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
-      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
-      console.warn('[Import utilisateurs] Retrait colonne:', col);
-      delete payload[col];
-      ({ error } = await db.from('utilisateurs').insert([payload])); guard++;
-    }
+    // (P1.5) Validation stricte : on signale la colonne inconnue sans la supprimer
+          if (error) {
+            const _m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message || '');
+            const _col = _m?.[1] || _m?.[2];
+            if (_col) error = { message: `Colonne inconnue dans le fichier : "${_col}". Téléchargez le modèle Excel à jour et corrigez votre fichier.` };
+          }
     if (error) { err++; if (!firstErr) firstErr = error.message; console.error('[Import utilisateurs]', error.message); } else ok++;
   }
   _utilisateursAImporter = [];
@@ -8627,14 +8614,12 @@ async function confirmerImportExcelLivres() {
   for (let item of _livresAImporter) {
     let payload = { ...item, ecole_id: currentEcoleId };
     let { error } = await db.from('livres').insert([payload]);
-    let guard = 0;
-    while (error && guard < 8) {
-      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
-      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
-      console.warn('[Import livres] Retrait colonne:', col);
-      delete payload[col];
-      ({ error } = await db.from('livres').insert([payload])); guard++;
-    }
+    // (P1.5) Validation stricte : on signale la colonne inconnue sans la supprimer
+          if (error) {
+            const _m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message || '');
+            const _col = _m?.[1] || _m?.[2];
+            if (_col) error = { message: `Colonne inconnue dans le fichier : "${_col}". Téléchargez le modèle Excel à jour et corrigez votre fichier.` };
+          }
     if (error) { err++; if (!firstErr) firstErr = error.message; console.error('[Import livres]', error.message); } else ok++;
   }
   _livresAImporter = [];
@@ -8699,14 +8684,12 @@ async function confirmerImportExcelPersonnel() {
   for (let item of _personnelAImporter) {
     let payload = { ...item, ecole_id: currentEcoleId };
     let { error } = await db.from('personnel').insert([payload]);
-    let guard = 0;
-    while (error && guard < 8) {
-      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message||'');
-      const col = m?.[1]||m?.[2]; if (!col||!(col in payload)) break;
-      console.warn('[Import personnel] Retrait colonne:', col);
-      delete payload[col];
-      ({ error } = await db.from('personnel').insert([payload])); guard++;
-    }
+    // (P1.5) Validation stricte : on signale la colonne inconnue sans la supprimer
+          if (error) {
+            const _m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message || '');
+            const _col = _m?.[1] || _m?.[2];
+            if (_col) error = { message: `Colonne inconnue dans le fichier : "${_col}". Téléchargez le modèle Excel à jour et corrigez votre fichier.` };
+          }
     if (error) { err++; if (!firstErr) firstErr = error.message; console.error('[Import personnel]', error.message); } else ok++;
   }
   _personnelAImporter = [];
@@ -9610,29 +9593,20 @@ async function ajouterEtudiant() {
   if (editId) {
     let payloadUp = { ...payload };
     let { error } = await db.from('etudiants').update(payloadUp).eq('id', editId);
-    let guard = 0;
-    while (error && guard < 10) {
-      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/.exec(error.message || '');
-      const col = m?.[1] || m?.[2];
-      console.warn('[Étudiant] Retrait colonne:', col);
-      if (!col || !(col in payloadUp)) break;
-      delete payloadUp[col];
-      ({ error } = await db.from('etudiants').update(payloadUp).eq('id', editId));
-      guard++;
+    if (error) {
+      const _m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message || '');
+      const _col = _m?.[1] || _m?.[2];
+      if (_col) error = { message: `Champ inconnu en base : "${_col}". Contactez l'administrateur (schéma à mettre à jour).` };
     }
     if (error) { showToast('Erreur sauvegarde : ' + error.message, 'error'); return; }
     console.log('[Étudiant] ✅ Modifié:', JSON.stringify(payloadUp));
   } else {
     const insertPayload = { ...payload, ecole_id: currentEcoleId, statut: 'actif' };
     let { data: ins, error } = await db.from('etudiants').insert([insertPayload]).select('id').single();
-    let guard = 0;
-    while (error && guard < 8) {
-      const m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/.exec(error.message || '');
-      const col = m?.[1] || m?.[2];
-      if (!col || !(col in insertPayload)) break;
-      delete insertPayload[col];
-      ({ data: ins, error } = await db.from('etudiants').insert([insertPayload]).select('id').single());
-      guard++;
+    if (error) {
+      const _m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message || '');
+      const _col = _m?.[1] || _m?.[2];
+      if (_col) error = { message: `Champ inconnu en base : "${_col}". Contactez l'administrateur (schéma à mettre à jour).` };
     }
     if (error) { showToast('Erreur : ' + (error.message.includes('unique') ? 'Matricule déjà utilisé.' : error.message), 'error'); return; }
     etudiantId = ins?.id;
@@ -11554,15 +11528,11 @@ async function sauvegarderParametres() {
       devise:            orNull(data.devise),
       agrement:          orNull(data.agrement),
     };
-    // Auto-retry : retirer les colonnes absentes du schéma
+    // (P1.5) Validation stricte : signaler les colonnes inconnues sans les supprimer
     let { error } = await db.from("ecoles").update(payload).eq("id", principalId);
-    let guard = 0;
-    while (error && guard < 15) {
-      const m = /Could not find the '([^']+)' column/.exec(error.message || "");
-      if (!m || !(m[1] in payload)) break;
-      delete payload[m[1]];
-      ({ error } = await db.from("ecoles").update(payload).eq("id", principalId));
-      guard++;
+    if (error) {
+      const _m = /Could not find the '([^']+)' column/.exec(error.message || "");
+      if (_m) error = { message: `Champ inconnu en base : "${_m[1]}". Contactez l'administrateur (schéma à mettre à jour).` };
     }
     if (error) {
       showToast("❌ Erreur Supabase : " + error.message, "error");
@@ -14209,28 +14179,22 @@ async function sauvegarderBranding() {
     logo_url:           brandingData.logo_url || null,
     slogan:             brandingData.slogan   || null,
   };
+  // (P1.5) Validation stricte : si une colonne est inconnue, ne PAS la supprimer
+  // mais informer l'admin avec le SQL à exécuter pour ajouter la colonne.
   let { error } = await db.from("ecoles").update(payload).eq("id", currentEcoleId);
-  let guard = 0;
-  let droppedCols = [];
-  while (error && guard < 10) {
-    const m = /Could not find the '([^']+)' column/.exec(error.message || "");
-    if (!m || !(m[1] in payload)) break;
-    droppedCols.push(m[1]);
-    delete payload[m[1]];
-    if (Object.keys(payload).length === 0) break;
-    ({ error } = await db.from("ecoles").update(payload).eq("id", currentEcoleId));
-    guard++;
-  }
   if (error) {
-    showToast("🎨 Branding sauvegardé localement (colonnes Supabase indisponibles)", "info");
+    const _m = /Could not find the '([^']+)' column/.exec(error.message || "");
+    if (_m) {
+      const col = _m[1];
+      const sql = `ALTER TABLE ecoles ADD COLUMN IF NOT EXISTS ${col} text;`;
+      console.warn("[Branding] Colonne manquante en Supabase :", col, "\nSQL :", sql);
+      showToast(`❌ Colonne "${col}" inexistante dans la base. SQL à exécuter (voir console)`, "error");
+      return;
+    }
+    showToast("❌ Erreur Supabase : " + error.message, "error");
     return;
   }
-  if (droppedCols.length) {
-    showToast(`🎨 Branding enregistré (${droppedCols.length} colonne(s) Supabase non créée(s) — voir SQL ci-dessous)`, "success");
-    console.warn("[Branding] Colonnes manquantes en Supabase :", droppedCols.join(", "), "\nSQL :", droppedCols.map(c => `ALTER TABLE ecoles ADD COLUMN IF NOT EXISTS ${c} text;`).join("\n"));
-  } else {
-    showToast("🎨 Branding enregistré ! Le portail sera mis à jour.", "success");
-  }
+  showToast("🎨 Branding enregistré ! Le portail sera mis à jour.", "success");
   if (typeof invalidateData === "function") invalidateData("ecoles");
 }
 
@@ -17037,16 +17001,10 @@ async function ajouterPersonnel() {
   };
   let result = await tryUpsert(payload, !!editId);
   error = result.error;
-  // Si erreur de colonne inconnue, retirer la colonne et réessayer
-  while (error && error.message.includes("column of 'personnel'")) {
+  // (P1.5) Validation stricte : signaler la colonne inconnue sans la supprimer
+  if (error && error.message?.includes("column of 'personnel'")) {
     const match = error.message.match(/find the '([^']+)' column/);
-    if (!match) break;
-    const badCol = match[1];
-    console.warn('[RH] Colonne absente du schema:', badCol);
-    delete payload[badCol];
-    result = await tryUpsert(payload, !!editId);
-    error = result.error;
-    if (!optionalCols.includes(badCol)) break; // sécurité anti-boucle
+    if (match) error = { message: `Champ inconnu en base (personnel) : "${match[1]}". Contactez l'administrateur (schéma à mettre à jour).` };
   }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-personnel');
@@ -18104,13 +18062,10 @@ async function ajouterEtablissement() {
     if (editId) {
       // ── Modification ──
       let { error } = await db.from('ecoles').update(payload).eq('id', editId);
-      let guard = 0;
-      while (error && guard < 10) {
-        const m = /Could not find the '([^']+)' column/.exec(error.message || '');
-        if (!m || !(m[1] in payload)) break;
-        delete payload[m[1]];
-        ({ error } = await db.from('ecoles').update(payload).eq('id', editId));
-        guard++;
+      // (P1.5) Validation stricte
+      if (error) {
+        const _m = /Could not find the '([^']+)' column/.exec(error.message || '');
+        if (_m) error = { message: `Champ inconnu en base : "${_m[1]}". Contactez l'administrateur (schéma à mettre à jour).` };
       }
       if (error) throw new Error('Supabase update : ' + (error.message || 'erreur inconnue'));
       const idx = tousLesEtablissements.findIndex(e => String(e.id) === String(editId));
@@ -18120,13 +18075,10 @@ async function ajouterEtablissement() {
       // ── Création ──
       let supaPayload = { ...payload };
       let { data: newEcole, error } = await db.from('ecoles').insert([supaPayload]).select('id').single();
-      let guard = 0;
-      while (error && guard < 10) {
-        const m = /Could not find the '([^']+)' column/.exec(error.message || '');
-        if (!m) break;
-        delete supaPayload[m[1]];
-        ({ data: newEcole, error } = await db.from('ecoles').insert([supaPayload]).select('id').single());
-        guard++;
+      // (P1.5) Validation stricte
+      if (error) {
+        const _m = /Could not find the '([^']+)' column/.exec(error.message || '');
+        if (_m) error = { message: `Champ inconnu en base : "${_m[1]}". Contactez l'administrateur (schéma à mettre à jour).` };
       }
       if (newEcole?.id) {
         ecoleId = newEcole.id;
