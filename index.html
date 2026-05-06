@@ -20730,7 +20730,7 @@ async function chargerExecDashboard() {
     db.from("classes").select("id,nom,filiere,niveau").eq("ecole_id", currentEcoleId),
     db.from("notes").select("note,coefficient,etudiant_id,matiere,periode,created_at").eq("ecole_id", currentEcoleId),
     db.from("absences").select("etudiant_id,date_absence,statut,classe_id").eq("ecole_id", currentEcoleId),
-    db.from("factures").select("statut,montant_total,montant_paye,type_frais,date_emission,date_echeance,etudiant_id,created_at").eq("ecole_id", currentEcoleId),
+    db.from("factures").select("statut,montant_total,montant_paye,type_frais,date_echeance,etudiant_id,created_at").eq("ecole_id", currentEcoleId),
     db.from("paiements").select("montant_paye,created_at,etudiant_id").eq("ecole_id", currentEcoleId),
     db.from("incidents").select("severite,statut,created_at").eq("ecole_id", currentEcoleId),
     db.from("personnel").select("*").eq("ecole_id", currentEcoleId),
