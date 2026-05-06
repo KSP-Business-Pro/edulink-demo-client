@@ -184,6 +184,11 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
 .badge.blue{background:#dbeafe;color:#1d4ed8}
 .badge.gray{background:#f3f4f6;color:#6b7280}
 .badge.teal{background:#e1f5ee;color:#0f6e56}
+.badge.purple{background:#ede9fe;color:#6d28d9}
+.badge.warning{background:#fef9c3;color:#d97706}
+.badge.info{background:#dbeafe;color:#1d4ed8}
+.badge.success{background:#dcfce7;color:#059669}
+.badge.error{background:#fee2e2;color:#dc2626}
 
 /* ══ LISTES ══ */
 .list-item{
@@ -370,14 +375,19 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
 .pn-ico-wrap{
   width:38px;height:38px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;
-  font-size:16px;flex-shrink:0;
+  font-size:16px;line-height:1;flex-shrink:0;
 }
-.pn-ico-wrap.blue  {background:#dbeafe}
-.pn-ico-wrap.green {background:#dcfce7}
-.pn-ico-wrap.red   {background:#fee2e2}
-.pn-ico-wrap.amber {background:#fef9c3}
-.pn-ico-wrap.purple{background:#ede9fe}
-.pn-ico-wrap.teal  {background:#e1f5ee}
+.pn-ico-wrap.blue   {background:#dbeafe}
+.pn-ico-wrap.green  {background:#dcfce7}
+.pn-ico-wrap.red    {background:#fee2e2}
+.pn-ico-wrap.amber  {background:#fef9c3}
+.pn-ico-wrap.purple {background:#ede9fe}
+.pn-ico-wrap.teal   {background:#e1f5ee}
+/* Sévérités (fallback si la BD utilise warning/info/success/error comme couleur) */
+.pn-ico-wrap.warning{background:#fef9c3}
+.pn-ico-wrap.info   {background:#dbeafe}
+.pn-ico-wrap.success{background:#dcfce7}
+.pn-ico-wrap.error  {background:#fee2e2}
 
 .pn-body{flex:1;min-width:0}
 .pn-titre{font-size:13px;font-weight:600;color:#111827;margin-bottom:2px}
@@ -2410,24 +2420,57 @@ function renderNotifsListe() {
   const el = document.getElementById('pn-liste');
   if (!el) return;
 
+  // Helper de détection (partagé avec le rendu) — extrait la catégorie métier
+  // depuis le titre/corps quand type est une sévérité (warning/info/...)
+  const _SEVERITES = ['warning','info','success','error','alert','urgent'];
+  const _detecterCat = (n) => {
+    const txt = ((n.titre || '') + ' ' + (n.corps || '')).toLowerCase();
+    if (/absen/i.test(txt))                        return 'absence';
+    if (/\bnote\b|moyenne|bulletin/i.test(txt))    return 'note';
+    if (/examen|composition|interrog/i.test(txt))  return 'examen';
+    if (/paiement|facture|scolarit[eé]|frais/i.test(txt)) return 'paiement';
+    if (/annonce|communiqué/i.test(txt))           return 'annonce';
+    if (/message|courrier/i.test(txt))             return 'message';
+    return null;
+  };
+  const _categorieDe = (n) => {
+    const t = n.type || '';
+    return _SEVERITES.includes(t) ? (_detecterCat(n) || t) : t;
+  };
+
   const liste = notifsFiltreActif === 'tous'
     ? toutesNotifsPortail
-    : toutesNotifsPortail.filter(n => n.type === notifsFiltreActif);
+    : toutesNotifsPortail.filter(n => _categorieDe(n) === notifsFiltreActif);
 
   if (!liste.length) {
     el.innerHTML = `<div class="pn-empty"><div class="pn-ico">🔔</div><p>Aucune alerte${notifsFiltreActif !== 'tous' ? ' dans cette catégorie' : ''}.</p></div>`;
     return;
   }
 
-  const ICONES   = { annonce:'📢', absence:'🚫', note:'📊', examen:'📝', paiement:'💳', message:'✉️', systeme:'🔔' };
-  const COULEURS = { annonce:'blue', absence:'red', note:'teal', examen:'purple', paiement:'amber', message:'green', systeme:'blue' };
-  const TYPE_LBL = { annonce:'Annonce', absence:'Absence', note:'Note', examen:'Examen', paiement:'Paiement', message:'Message', systeme:'Système' };
+  const ICONES   = {
+    annonce:'📢', absence:'🚫', note:'📊', examen:'📝', paiement:'💳',
+    message:'✉️', systeme:'🔔',
+    // Sévérités (fallback si la BD utilise warning/info/success/error comme type)
+    warning:'⚠️', info:'ℹ️', success:'✅', error:'⛔', alert:'⚠️', urgent:'🚨'
+  };
+  const COULEURS = {
+    annonce:'blue', absence:'red', note:'teal', examen:'purple', paiement:'amber',
+    message:'green', systeme:'blue',
+    warning:'amber', info:'blue', success:'green', error:'red', alert:'amber', urgent:'red'
+  };
+  const TYPE_LBL = {
+    annonce:'Annonce', absence:'Absence', note:'Note', examen:'Examen', paiement:'Paiement',
+    message:'Message', systeme:'Système',
+    warning:'Alerte', info:'Info', success:'Succès', error:'Erreur', alert:'Alerte', urgent:'Urgent'
+  };
 
   el.innerHTML = liste.map(n => {
-    const ico     = ICONES[n.type]   || '🔔';
-    const couleur = COULEURS[n.type] || 'blue';
-    const lbl     = TYPE_LBL[n.type] || n.type;
-    const urgent  = n.priorite === 'high';
+    const typeBrut    = n.type || '';
+    const categorie   = _categorieDe(n);
+    const ico         = ICONES[categorie]   || ICONES[typeBrut]   || '🔔';
+    const couleur     = COULEURS[categorie] || COULEURS[typeBrut] || 'blue';
+    const lbl         = TYPE_LBL[categorie] || TYPE_LBL[typeBrut] || (typeBrut ? typeBrut.charAt(0).toUpperCase()+typeBrut.slice(1) : '—');
+    const urgent      = n.priorite === 'high' || typeBrut === 'urgent';
     return `
     <div class="pn-item ${!n.lu ? 'unread' : ''} ${urgent ? 'high' : ''}"
          onclick="marquerLuePortail('${n.id}',this)">
