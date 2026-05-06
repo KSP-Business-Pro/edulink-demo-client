@@ -18970,22 +18970,34 @@ async function chargerPortailEtudiant(id) {
     : '<div class="empty-state" style="padding:2rem">✅ Aucune absence enregistrée</div>';
 
   // ── Paiements ─────────────────────────────────────────────────────────
-  const { data: paiements } = await db.from('paiements').select('*').eq('etudiant_id', id).eq('ecole_id', currentEcoleId).order('date_echeance', {ascending:false}).limit(10);
-  const paiOk = paiements||[];
-  // KPI paiements dans le hero
-  const nbEnAttente = paiOk.filter(p => p.statut && !['payé','Payé','payee','Payée'].includes(p.statut)).length;
+  // Affiche les FACTURES de l'étudiant (objet, montant, statut, échéance) — comme
+  // le module Paiements principal. Lire la table 'paiements' donnerait seulement
+  // les paiements effectifs, ce qui n'a pas de sens ici puisque le tableau
+  // affiche aussi les factures non payées en attente.
+  const { data: factEtu } = await db.from('factures').select('*')
+    .eq('etudiant_id', id).eq('ecole_id', currentEcoleId)
+    .order('date_echeance', {ascending:false}).limit(20);
+  const factOk = factEtu || [];
+  // Helpers d'humanisation alignés sur l'export Paiements
+  const humaniseStatutFac = s => ({ paye:'Payée', en_attente:'En attente', partiel:'Partielle', retard:'En retard' }[s] || s || '—');
+  const humaniseTypeFac   = t => ({ scolarite:'Scolarité', examen:'Examen', bibliotheque:'Bibliothèque', inscription:'Inscription', mensualite:'Mensualité' }[t] || t || '');
+  const colorStatut = s => (s==='paye') ? 'green' : (s==='retard') ? 'red' : 'amber';
+  // KPI paiements dans le hero : nombre de factures non soldées
+  const nbEnAttente = factOk.filter(f => f.statut !== 'paye').length;
   const kpiPai = document.getElementById('portail-paiements');
   if (kpiPai) kpiPai.textContent = nbEnAttente > 0 ? `${nbEnAttente} en attente` : '✅';
   const paiTbody = document.getElementById('portail-paiements-tbody');
-  if (paiTbody) paiTbody.innerHTML = paiOk.length
-    ? paiOk.map(p=>`<tr>
-        <td>${p.libelle||p.type_paiement||'—'}</td>
-        <td><strong style="color:#1e3a5f">${(p.montant||0).toLocaleString('fr-FR')} F</strong></td>
-        <td>${p.date_echeance ? fmtDate(p.date_echeance) : '—'}</td>
-        <td><span class="badge ${p.statut==='payé'||p.statut==='Payé'?'green':'amber'}">${p.statut||'—'}</span></td>
-        <td><button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px" onclick="supprimerPaiementPortail('${p.id}')">🗑️</button></td>
-      </tr>`).join('')
-    : '<tr><td colspan="5" class="loading">Aucun paiement enregistré</td></tr>';
+  if (paiTbody) paiTbody.innerHTML = factOk.length
+    ? factOk.map(f=>{
+        const libelle = f.description || humaniseTypeFac(f.type_frais) || '—';
+        return `<tr>
+        <td>${libelle}</td>
+        <td><strong style="color:#1e3a5f">${(f.montant_total||0).toLocaleString('fr-FR')} F</strong></td>
+        <td>${f.date_echeance ? fmtDate(f.date_echeance) : '—'}</td>
+        <td><span class="badge ${colorStatut(f.statut)}">${humaniseStatutFac(f.statut)}</span></td>
+        <td><button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px" onclick="supprimerPaiementPortail('${f.id}')">🗑️</button></td>
+      </tr>`;}).join('')
+    : '<tr><td colspan="5" class="loading">Aucune facture enregistrée</td></tr>';
 
   // ── Examens à venir sidebar ────────────────────────────────────────────
   const { data: examens } = await db.from('examens').select('*').eq('ecole_id', currentEcoleId).order('date_examen').limit(5);
@@ -19129,11 +19141,13 @@ async function supprimerAbsencePortail(absId) {
   chargerPortailEtudiant(getPortailEtudiantId());
 }
 
-async function supprimerPaiementPortail(paiId) {
-  if (!confirm('Supprimer ce paiement ?')) return;
-  const { error } = await db.from('paiements').delete().eq('id', paiId);
+async function supprimerPaiementPortail(factId) {
+  if (!confirm('Supprimer cette facture ?\n\nLes paiements liés seront aussi supprimés.')) return;
+  // Supprimer d'abord les paiements liés à cette facture (FK), puis la facture.
+  await db.from('paiements').delete().eq('facture_id', factId);
+  const { error } = await db.from('factures').delete().eq('id', factId);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  showToast('🗑️ Paiement supprimé.','success');
+  showToast('🗑️ Facture supprimée.','success');
   invalidateData('paiements');
   chargerPortailEtudiant(getPortailEtudiantId());
 }
