@@ -5179,6 +5179,16 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div class="form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="pref-confirm-suppr" style="width:auto"> Demander confirmation avant suppression
         </label></div>
+        <!-- (P2.5) Mode débutant : masque les modules avancés -->
+        <div class="form-group" style="background:#eff6ff;border-radius:8px;padding:.8rem;border:1px solid #dbeafe">
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:0">
+            <input type="checkbox" id="pref-mode-debutant" style="width:auto;margin-top:3px" onchange="ModeDebutant.toggle(this.checked)">
+            <span>
+              <span style="font-weight:600;color:#1e3a5f">🎓 Mode débutant</span>
+              <span style="display:block;font-size:11px;color:#64748b;margin-top:2px">Masque les modules avancés du menu (Analytics IA, Réseau, Dashboard Directeur, PWA, Paramètres avancés...) pour une interface simplifiée. Idéal pour les utilisateurs qui débutent.</span>
+            </span>
+          </label>
+        </div>
         <button class="btn-blue" onclick="paramSauverPreferences()" style="width:100%">💾 Sauvegarder préférences</button>
       </div>
 
@@ -9109,6 +9119,76 @@ function showTab(page, tabId) {
 }
 
 // ══ MODALS ════════════════════════════════════
+// ══ (P2.5) MODE DÉBUTANT ════════════════════════════════════════
+// Masque les modules avancés du menu pour les utilisateurs non techniques.
+// Préférence stockée par utilisateur dans localStorage.
+const ModeDebutant = {
+  // Modules masqués en mode débutant
+  MODULES_AVANCES: [
+    'analytics',           // Analytics IA
+    'reseau',              // Réseau Écoles
+    'dashboard-reseau',    // Dashboard Réseau
+    'parametres-avances',  // Paramètres Avancés
+    'assistant-ia',        // Assistant IA
+    'pwa-avancee',         // PWA Avancée
+    'exec-dashboard',      // Dashboard Directeur
+    'portail-public',      // Portail Public
+    'bibliotheque-num',    // Bibliothèque Numérique
+  ],
+
+  _userId: null,
+  cle() { return 'edulink_mode_debutant_' + (this._userId || 'pending'); },
+
+  async resoudreUserId() {
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      this._userId = session?.user?.id || null;
+    } catch(_) { this._userId = null; }
+  },
+
+  estActif() {
+    try { return localStorage.getItem(this.cle()) === '1'; }
+    catch(_) { return false; }
+  },
+
+  // Active ou désactive le mode et applique le filtrage
+  toggle(actif) {
+    try { localStorage.setItem(this.cle(), actif ? '1' : '0'); } catch(_) {}
+    this.appliquer();
+    if (typeof showToast === 'function') {
+      showToast(actif ? '🎓 Mode débutant activé — modules avancés masqués' : '✅ Mode complet activé — tous les modules visibles', 'info');
+    }
+  },
+
+  // Masque ou affiche les modules avancés dans le menu
+  appliquer() {
+    const actif = this.estActif();
+    this.MODULES_AVANCES.forEach(pageId => {
+      const lien = document.getElementById('nav-' + pageId);
+      if (lien) lien.style.display = actif ? 'none' : '';
+    });
+  },
+
+  // À appeler une fois la session prête
+  async init() {
+    await this.resoudreUserId();
+    // Cocher la checkbox dans Paramètres si déjà actif
+    const chk = document.getElementById('pref-mode-debutant');
+    if (chk) chk.checked = this.estActif();
+    this.appliquer();
+  },
+};
+
+// Init après chargement de la session
+setTimeout(() => ModeDebutant.init(), 800);
+// Re-init à chaque login
+if (typeof db !== 'undefined' && db.auth && db.auth.onAuthStateChange) {
+  db.auth.onAuthStateChange((event, session) => {
+    ModeDebutant._userId = session?.user?.id || null;
+    setTimeout(() => ModeDebutant.init(), 200);
+  });
+}
+
 // ══ (P2.1) BROUILLONS AUTOMATIQUES ══════════════════════════════
 // Sauvegarde automatique des formulaires longs en localStorage pour éviter
 // les pertes en cas de plantage, fermeture d'onglet ou rafraîchissement.
