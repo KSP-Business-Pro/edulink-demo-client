@@ -8993,9 +8993,124 @@ function escapeHTML(v) {
 // Alias court pour les templates (utilisable comme `${esc(nom)}`)
 const esc = escapeHTML;
 
+// ══ (P2.6) GESTION CLAIRE DES ERREURS ════════════════════════════
+// Traduit les messages techniques (Supabase, réseau, validation) en
+// phrases claires avec suggestion d'action concrète pour l'utilisateur.
+const ErreurFR = {
+  // Règles ordonnées : la première qui matche gagne
+  REGLES: [
+    // ── Erreurs réseau / connexion ────────────────────────────────
+    { match: /failed to fetch|networkerror|err_network|err_internet/i,
+      msg: '🌐 Connexion internet indisponible. Vérifiez votre réseau et réessayez.' },
+    { match: /timeout|timed out/i,
+      msg: '⏱️ Le serveur met trop de temps à répondre. Réessayez dans quelques instants.' },
+    { match: /cors|preflight/i,
+      msg: '🔒 Service temporairement indisponible. Réessayez dans quelques minutes.' },
+
+    // ── Authentification ─────────────────────────────────────────
+    { match: /invalid login credentials|invalid_credentials/i,
+      msg: '🔑 Email ou mot de passe incorrect. Vérifiez vos identifiants.' },
+    { match: /email not confirmed/i,
+      msg: '📧 Email non confirmé. Vérifiez votre boîte mail (et le dossier spam).' },
+    { match: /jwt expired|token has expired|session_not_found/i,
+      msg: '⏰ Session expirée. Reconnectez-vous pour continuer.' },
+    { match: /user already registered|already exists.*email/i,
+      msg: '👤 Un compte existe déjà avec cet email. Connectez-vous ou utilisez un autre email.' },
+    { match: /password should be at least|weak password/i,
+      msg: '🔐 Mot de passe trop faible. Utilisez au moins 8 caractères avec majuscules, chiffres et symboles.' },
+
+    // ── Permissions / RLS ────────────────────────────────────────
+    { match: /row[- ]level security|rls|new row violates|policy/i,
+      msg: '🚫 Action non autorisée pour votre profil. Contactez votre administrateur si nécessaire.' },
+    { match: /permission denied|insufficient_privilege|42501/i,
+      msg: '🚫 Vous n\'avez pas les droits nécessaires pour cette action.' },
+
+    // ── Contraintes de base de données ───────────────────────────
+    { match: /duplicate key.*matricule|unique.*matricule/i,
+      msg: '📛 Ce matricule est déjà utilisé. Choisissez un matricule différent.' },
+    { match: /duplicate key.*email|unique.*email/i,
+      msg: '📧 Cet email est déjà utilisé. Choisissez un email différent.' },
+    { match: /duplicate key.*reference|unique.*reference/i,
+      msg: '🏷️ Cette référence existe déjà. Choisissez une autre référence.' },
+    { match: /duplicate key|unique constraint|23505/i,
+      msg: '⚠️ Cette information existe déjà dans la base. Vérifiez les doublons.' },
+    { match: /foreign key|violates foreign key|23503/i,
+      msg: '🔗 Référence invalide : un élément lié n\'existe plus ou a été supprimé. Rafraîchissez la page.' },
+    { match: /not[- ]null|null value.*violates|23502/i,
+      msg: '📝 Un champ obligatoire est vide. Vérifiez que tous les champs marqués * sont remplis.' },
+    { match: /check constraint|23514/i,
+      msg: '✏️ Une valeur saisie ne respecte pas les règles attendues. Vérifiez vos saisies.' },
+    { match: /could not find the '([^']+)' column|column "([^"]+)" of relation/i,
+      msg: (m) => `📋 Colonne inconnue : "${m[1] || m[2]}". Téléchargez le modèle Excel à jour.` },
+    { match: /value too long|22001/i,
+      msg: '📏 Une valeur saisie est trop longue. Raccourcissez le contenu.' },
+    { match: /invalid input syntax.*uuid|invalid uuid/i,
+      msg: '🔑 Identifiant invalide. Rafraîchissez la page et réessayez.' },
+    { match: /invalid input syntax.*date|invalid input syntax.*timestamp/i,
+      msg: '📅 Date invalide. Utilisez le format JJ/MM/AAAA.' },
+    { match: /invalid input syntax.*number|invalid input syntax.*integer/i,
+      msg: '🔢 Valeur numérique invalide. Saisissez un nombre.' },
+
+    // ── Stockage / fichiers ──────────────────────────────────────
+    { match: /payload too large|file too large|413/i,
+      msg: '📎 Fichier trop volumineux. Réduisez sa taille (max recommandé : 5 Mo).' },
+    { match: /storage|bucket.*not.*found/i,
+      msg: '📂 Espace de stockage indisponible. Contactez le support.' },
+    { match: /quota|limit reached/i,
+      msg: '📊 Limite atteinte. Contactez votre administrateur pour augmenter la capacité.' },
+
+    // ── Erreurs HTTP courantes ───────────────────────────────────
+    { match: /404|not.found/i,
+      msg: '❓ Élément introuvable. Il a peut-être été supprimé. Rafraîchissez la page.' },
+    { match: /500|internal server error/i,
+      msg: '⚙️ Erreur du serveur. Réessayez dans quelques instants. Si le problème persiste, contactez le support.' },
+    { match: /503|service unavailable/i,
+      msg: '🛠️ Service temporairement indisponible. Réessayez dans quelques minutes.' },
+    { match: /429|too many requests|rate limit/i,
+      msg: '⏸️ Trop de requêtes en peu de temps. Patientez quelques secondes avant de réessayer.' },
+  ],
+
+  // Renvoie un message clair à partir d'une erreur (string, Error, ou objet Supabase)
+  traduire(erreur) {
+    if (!erreur) return '';
+    // Extraire le message brut
+    let texte = '';
+    if (typeof erreur === 'string') texte = erreur;
+    else if (erreur.message) texte = erreur.message;
+    else if (erreur.error_description) texte = erreur.error_description;
+    else if (erreur.details) texte = erreur.details;
+    else { try { texte = JSON.stringify(erreur); } catch(_) { texte = String(erreur); } }
+    if (!texte) return '';
+
+    // Si le texte est déjà un message clair (commence par un emoji), on le laisse
+    if (/^[^\w\s]/.test(texte) && texte.length < 200) {
+      // Texte court avec emoji au début → probablement déjà clair
+      const premierMot = texte.replace(/^[^\w\s]+\s*/, '').toLowerCase();
+      if (!/error|exception|violates|invalid|failed|denied/.test(premierMot.slice(0, 30))) {
+        return texte;
+      }
+    }
+
+    // Chercher une règle qui matche
+    for (const r of this.REGLES) {
+      const m = texte.match(r.match);
+      if (m) return typeof r.msg === 'function' ? r.msg(m) : r.msg;
+    }
+
+    // Aucune règle ne matche : on renvoie le texte original
+    // mais en supprimant les détails techniques en parenthèses/brackets
+    return texte.replace(/\s*\([^)]*\)$/, '').replace(/\s*\[[^\]]*\]$/, '').trim();
+  },
+};
+// Alias court pour usage dans le code
+function expliquerErreur(err) { return ErreurFR.traduire(err); }
+
 function showToast(msg, type='') {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast show ' + type;
+  // (P2.6) Traduire automatiquement les messages techniques
+  const texte = (type === 'error' && msg) ? ErreurFR.traduire(msg) : msg;
+  t.textContent = texte;
+  t.className = 'toast show ' + type;
   setTimeout(() => t.className = 'toast', 3500);
 }
 function getApp(note) {
