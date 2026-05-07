@@ -5,11 +5,11 @@
 <!-- (P1.8) Content Security Policy : bloque les scripts externes non autorisés (filet anti-XSS) -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.firebaseio.com https://*.googleapis.com https://www.gstatic.com;
+  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.firebaseio.com https://*.googleapis.com https://www.gstatic.com https://js-de.sentry-cdn.com https://*.sentry-cdn.com https://browser.sentry-cdn.com;
   style-src  'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
   font-src   'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com;
   img-src    'self' data: blob: https: ;
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.brevo.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://quickchart.io https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com;
+  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.brevo.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://quickchart.io https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io;
   frame-src  'self' https://app.brevo.com;
   object-src 'none';
   base-uri   'self';
@@ -34,6 +34,63 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js" integrity="sha384-nQIZ6tIcczKARkLebcfqb6P67Pcv2p+KIX3NH6oGaIBc64j2HxDKerK6Efn4aeiY" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+
+<!-- (P3.4) Sentry Error Monitoring : capture les erreurs JS en production
+     DSN publique (semi-publique par conception, ne permet QUE l'envoi d'erreurs).
+     Loader Script Sentry — chargement asynchrone, n'impacte pas les performances. -->
+<script src="https://js-de.sentry-cdn.com/a77c651fc2868f9668a2d8151d73077e.min.js" crossorigin="anonymous"></script>
+<script>
+  // Configuration Sentry — chargée dès que le SDK est prêt
+  window.sentryOnLoad = function() {
+    Sentry.init({
+      dsn: "https://a77c651fc2868f9668a2d8151d73077e@o4511350725476352.ingest.de.sentry.io/4511350732816464",
+      environment: location.hostname === 'edulink-demo-client.vercel.app' ? 'production' : 'development',
+      release: 'edulink@' + (window.APP_VERSION || '2026.05'),
+      // Échantillonnage : on capture 100% des erreurs (gratuit jusqu'à 5K/mois)
+      sampleRate: 1.0,
+      // Pas de Session Replay (consomme trop de quota)
+      replaysSessionSampleRate: 0,
+      replaysOnErrorSampleRate: 0,
+      // Pas de Performance Monitoring (consomme trop de quota)
+      tracesSampleRate: 0,
+      // Filtrer les erreurs non pertinentes
+      ignoreErrors: [
+        // Erreurs réseau temporaires (utilisateur sans connexion)
+        'Failed to fetch', 'NetworkError', 'Load failed', 'TypeError: Failed to fetch',
+        // Erreurs d'extensions Chrome / scripts tiers
+        'ResizeObserver loop limit exceeded',
+        'ResizeObserver loop completed with undelivered notifications',
+        'Non-Error promise rejection captured',
+        // Bloqueurs de pubs / extensions navigateur
+        /chrome-extension:\/\//, /moz-extension:\/\//, /safari-extension:\/\//,
+      ],
+      denyUrls: [
+        // Ne pas envoyer les erreurs venant des extensions
+        /chrome-extension:\/\//, /moz-extension:\/\//, /safari-extension:\/\//,
+      ],
+      beforeSend(event, hint) {
+        // Ne pas envoyer les erreurs venant du localhost (dev)
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return null;
+        return event;
+      },
+    });
+    console.log('[Sentry] ✅ Monitoring activé');
+
+    // Ajouter le contexte utilisateur dès qu'il se connecte
+    if (typeof db !== 'undefined' && db.auth && db.auth.onAuthStateChange) {
+      db.auth.onAuthStateChange((event, session) => {
+        if (session && session.user) {
+          Sentry.setUser({
+            id: session.user.id,
+            email: session.user.email,
+          });
+        } else {
+          Sentry.setUser(null);
+        }
+      });
+    }
+  };
+</script>
 <!-- Firebase SDK ★ JOUR 15 -->
 
 
