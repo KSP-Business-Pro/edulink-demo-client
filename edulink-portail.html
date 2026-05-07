@@ -5,11 +5,11 @@
 <!-- (P1.8) Content Security Policy : bloque les scripts externes non autorisés (filet anti-XSS) -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://*.firebaseio.com https://*.googleapis.com;
+  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://*.firebaseio.com https://*.googleapis.com https://js-de.sentry-cdn.com https://*.sentry-cdn.com https://browser.sentry-cdn.com;
   style-src  'self' 'unsafe-inline' https://fonts.googleapis.com;
   font-src   'self' data: https://fonts.gstatic.com;
   img-src    'self' data: blob: https: ;
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com;
+  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io;
   frame-src  'self';
   object-src 'none';
   base-uri   'self';
@@ -30,6 +30,37 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js" integrity="sha384-MiR5OstmujbPpU5nzD986OTopb4Kveb2WX4EmKuqeCU1hCWlxMYL8gBBY7vDSYLF" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js" integrity="sha384-nQIZ6tIcczKARkLebcfqb6P67Pcv2p+KIX3NH6oGaIBc64j2HxDKerK6Efn4aeiY" crossorigin="anonymous"></script>
+
+<!-- (P3.4) Sentry Error Monitoring -->
+<script src="https://js-de.sentry-cdn.com/a77c651fc2868f9668a2d8151d73077e.min.js" crossorigin="anonymous"></script>
+<script>
+  window.sentryOnLoad = function() {
+    Sentry.init({
+      dsn: "https://a77c651fc2868f9668a2d8151d73077e@o4511350725476352.ingest.de.sentry.io/4511350732816464",
+      environment: location.hostname === 'edulink-demo-client.vercel.app' ? 'production' : 'development',
+      release: 'edulink-portail@2026.05',
+      sampleRate: 1.0,
+      replaysSessionSampleRate: 0,
+      replaysOnErrorSampleRate: 0,
+      tracesSampleRate: 0,
+      ignoreErrors: [
+        'Failed to fetch', 'NetworkError', 'Load failed', 'TypeError: Failed to fetch',
+        'ResizeObserver loop limit exceeded',
+        'ResizeObserver loop completed with undelivered notifications',
+        'Non-Error promise rejection captured',
+        /chrome-extension:\/\//, /moz-extension:\/\//,
+      ],
+      denyUrls: [/chrome-extension:\/\//, /moz-extension:\/\//],
+      beforeSend(event) {
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return null;
+        return event;
+      },
+    });
+    // Tag spécial pour distinguer le portail famille du back-office
+    Sentry.setTag('app', 'portail-famille');
+    console.log('[Sentry] ✅ Monitoring activé (portail famille)');
+  };
+</script>
 <style>
 /* ══ BASE ══ */
 *{margin:0;box-sizing:border-box}
