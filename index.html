@@ -7885,17 +7885,48 @@ function ouvrirImportExcelEtudiants() {
 function previewImportEtudiants(liste) {
   const prevEl = document.getElementById('preview-import');
   if (!prevEl) { confirmerImportExcelEtudiants(liste); return; }
-  prevEl.innerHTML = `<p style="color:#059669;font-weight:600">✅ ${liste.length} étudiant(s) prêt(s) à importer</p>`
-    + `<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#f3f4f6"><th style="padding:4px 8px">Nom</th><th>Prénom</th><th>Filière</th><th>Niveau</th><th>Statut</th></tr></thead><tbody>`
-    + liste.slice(0,10).map(e => `<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">${esc(e.nom)}</td><td>${esc(e.prenom)}</td><td>${esc(e.filiere)}</td><td>${e.niveau}</td><td>${e.statut}</td></tr>`).join('')
-    + (liste.length > 10 ? `<tr><td colspan="5" style="padding:4px 8px;color:#6b7280">... et ${liste.length-10} autres</td></tr>` : '')
-    + '</tbody></table>';
+
+  // (P2.2) Validation ligne par ligne avant import
+  const regles = [
+    { champ: 'nom', label: 'Nom', regle: 'requis' },
+    { champ: 'prenom', label: 'Prénom', regle: 'requis' },
+    { champ: 'matricule', label: 'Matricule', regle: 'requis' },
+    { champ: 'email_parent', label: 'Email parent', regle: 'email' },
+    { champ: 'telephone_parent', label: 'Téléphone parent', regle: 'telephone' },
+    { champ: 'sexe', label: 'Sexe', regle: (v) => {
+      if (!v) return null;
+      const norm = String(v).trim().toUpperCase();
+      if (!['M','F','MASCULIN','FÉMININ','FEMININ','HOMME','FEMME'].includes(norm)) return `valeur invalide "${v}" (attendu : M ou F)`;
+      return null;
+    }},
+  ];
+  const resultat = ImportValidator.valider(liste, regles);
+  ImportValidator._dernierResultat = resultat;
+  _etudiantsAImporter = resultat.valides; // n'importer que les lignes valides
+
+  // Construire le rapport
+  let html = ImportValidator.rapportHTML(resultat, liste.length);
+  // Aperçu des 5 premières lignes valides
+  if (resultat.valides.length > 0) {
+    html += `<div style="margin-top:.8rem"><p style="font-size:12px;font-weight:600;margin-bottom:.4rem">Aperçu (5 premières lignes valides) :</p>`
+          + `<table style="width:100%;font-size:11px;border-collapse:collapse"><thead><tr style="background:#f3f4f6"><th style="padding:4px 8px;text-align:left">Nom</th><th style="text-align:left">Prénom</th><th style="text-align:left">Matricule</th><th style="text-align:left">Filière</th><th style="text-align:left">Niveau</th></tr></thead><tbody>`
+          + resultat.valides.slice(0,5).map(e => `<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">${esc(e.nom)}</td><td>${esc(e.prenom)}</td><td>${esc(e.matricule)}</td><td>${esc(e.filiere)}</td><td>${esc(e.niveau)}</td></tr>`).join('')
+          + '</tbody></table></div>';
+  }
+  prevEl.innerHTML = html;
+
   const btn = document.getElementById('btn-import-confirm');
   if (btn) {
-    btn.disabled = false;
-    btn.style.opacity = '1';
-    btn.textContent = `🚀 Importer ${liste.length} étudiant(s)`;
-    btn.onclick = () => confirmerImportExcelEtudiants(_etudiantsAImporter);
+    if (resultat.valides.length === 0) {
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      btn.textContent = '❌ Aucune ligne valide à importer';
+    } else {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.textContent = `🚀 Importer ${resultat.valides.length} étudiant(s) valide(s)`;
+      btn.onclick = () => confirmerImportExcelEtudiants(_etudiantsAImporter);
+    }
   }
 }
 async function confirmerImportExcelEtudiants(liste) {
@@ -23808,6 +23839,96 @@ window.addEventListener('appinstalled', function() {
 // ══════════════════════════════════════════════════════════════════════
 //  IMPORT EXCEL — HELPERS COMMUNS
 // ══════════════════════════════════════════════════════════════════════
+// ══ (P2.2) ASSISTANT D'IMPORT — Moteur de validation et rapport ══════════════
+// Valide chaque ligne d'un import contre des règles, renvoie {valides, erreurs}
+// Utilisable pour tous types d'import (étudiants, enseignants, EDT, etc.)
+const ImportValidator = {
+  // règles : tableau d'objets { champ, label, regle: 'requis'|'email'|'telephone'|'in:val1,val2'|'date'|'min:N'|'max:N'|fonction(val,ligne) }
+  valider(lignes, regles) {
+    const valides = [];
+    const erreurs = [];
+    lignes.forEach((ligne, idx) => {
+      const erreursLigne = [];
+      regles.forEach(r => {
+        const val = ligne[r.champ];
+        const valStr = val == null ? '' : String(val).trim();
+
+        if (typeof r.regle === 'function') {
+          const msg = r.regle(val, ligne);
+          if (msg) erreursLigne.push({ champ: r.label || r.champ, message: msg });
+          return;
+        }
+        if (r.regle === 'requis' && !valStr) {
+          erreursLigne.push({ champ: r.label || r.champ, message: 'champ obligatoire vide' });
+          return;
+        }
+        if (!valStr) return; // champs optionnels vides = OK
+        if (r.regle === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valStr)) {
+          erreursLigne.push({ champ: r.label || r.champ, message: `email invalide : "${valStr}"` });
+        } else if (r.regle === 'telephone' && !/^[\d\s+()-]{6,}$/.test(valStr)) {
+          erreursLigne.push({ champ: r.label || r.champ, message: `téléphone invalide : "${valStr}"` });
+        } else if (r.regle === 'date' && !/^\d{4}-\d{2}-\d{2}/.test(valStr)) {
+          erreursLigne.push({ champ: r.label || r.champ, message: `date invalide (format attendu YYYY-MM-DD) : "${valStr}"` });
+        } else if (typeof r.regle === 'string' && r.regle.startsWith('in:')) {
+          const options = r.regle.slice(3).split(',').map(s => s.trim().toLowerCase());
+          if (!options.includes(valStr.toLowerCase())) {
+            erreursLigne.push({ champ: r.label || r.champ, message: `valeur invalide "${valStr}" (attendu : ${options.join(' / ')})` });
+          }
+        }
+      });
+      if (erreursLigne.length === 0) valides.push(ligne);
+      else erreurs.push({ ligne: idx + 2, donnees: ligne, problemes: erreursLigne }); // +2 = ligne Excel (header + base 1)
+    });
+    return { valides, erreurs };
+  },
+
+  // Génère le HTML du rapport pour l'aperçu de l'import
+  rapportHTML(resultat, totalLignes) {
+    const okCount = resultat.valides.length;
+    const errCount = resultat.erreurs.length;
+    let html = '';
+    if (errCount === 0) {
+      html += `<p style="color:#059669;font-weight:600;font-size:14px">✅ ${okCount} ligne(s) valide(s) · Aucune erreur détectée</p>`;
+    } else {
+      html += `<div style="display:flex;gap:1rem;align-items:center;margin-bottom:.8rem;flex-wrap:wrap">`
+            + `<span style="background:#dcfce7;color:#059669;padding:4px 10px;border-radius:6px;font-weight:600;font-size:12px">✅ ${okCount} valides</span>`
+            + `<span style="background:#fee2e2;color:#dc2626;padding:4px 10px;border-radius:6px;font-weight:600;font-size:12px">❌ ${errCount} erreurs</span>`
+            + `<button onclick="ImportValidator.telechargerRapportErreurs()" style="margin-left:auto;background:#1e3a5f;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">📥 Télécharger le rapport d'erreurs</button>`
+            + `</div>`;
+      // Tableau d'erreurs (max 20 affichées)
+      html += `<div style="max-height:240px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px"><table style="width:100%;font-size:11px;border-collapse:collapse">`
+            + `<thead style="position:sticky;top:0;background:#fee2e2"><tr><th style="padding:6px 8px;text-align:left">Ligne Excel</th><th style="padding:6px 8px;text-align:left">Problème</th></tr></thead><tbody>`;
+      resultat.erreurs.slice(0, 20).forEach(e => {
+        const probs = e.problemes.map(p => `<strong>${esc(p.champ)}</strong> : ${esc(p.message)}`).join(' · ');
+        html += `<tr><td style="padding:5px 8px;border-bottom:1px solid #fef2f2;font-weight:600;color:#dc2626">L. ${e.ligne}</td><td style="padding:5px 8px;border-bottom:1px solid #fef2f2">${probs}</td></tr>`;
+      });
+      if (errCount > 20) html += `<tr><td colspan="2" style="padding:6px 8px;color:#6b7280;font-style:italic">... et ${errCount - 20} autre(s) erreur(s) — voir le rapport Excel</td></tr>`;
+      html += '</tbody></table></div>';
+      html += `<p style="margin-top:.6rem;color:#6b7280;font-size:11px">💡 Si vous confirmez l'import, seules les ${okCount} ligne(s) valide(s) seront importées. Les ${errCount} ligne(s) en erreur seront ignorées.</p>`;
+    }
+    return html;
+  },
+
+  _dernierResultat: null, // utilisé pour le bouton de téléchargement
+
+  // Génère et télécharge un fichier Excel avec le détail des erreurs
+  telechargerRapportErreurs() {
+    if (!this._dernierResultat || !window.XLSX) { showToast('Aucun rapport à télécharger', 'error'); return; }
+    const erreurs = this._dernierResultat.erreurs;
+    const lignes = erreurs.map(e => ({
+      'Ligne Excel': e.ligne,
+      'Champ(s) en erreur': e.problemes.map(p => p.champ).join(' · '),
+      'Problème(s)': e.problemes.map(p => p.message).join(' · '),
+      ...e.donnees,
+    }));
+    const ws = XLSX.utils.json_to_sheet(lignes);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Erreurs');
+    XLSX.writeFile(wb, `rapport-erreurs-import-${new Date().toISOString().slice(0,10)}.xlsx`);
+    showToast('📥 Rapport téléchargé', 'success');
+  },
+};
+
 function lireExcel(file, callback) {
   if (!window.XLSX) { showToast('SheetJS non chargé.','error'); return; }
   var reader = new FileReader();
