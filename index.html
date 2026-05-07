@@ -9119,10 +9119,19 @@ function showTab(page, tabId) {
 // Permet à chaque utilisateur d'épingler ses modules les plus utilisés
 // en haut du menu. Sauvegardé dans localStorage par utilisateur.
 const Favoris = {
+  _userId: null, // mémorisé une fois la session prête
+
+  async resoudreUserId() {
+    if (this._userId) return this._userId;
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      this._userId = session?.user?.id || null;
+    } catch(_) { this._userId = null; }
+    return this._userId;
+  },
+
   cle() {
-    // Stockage par utilisateur (fallback : clé globale si pas de session)
-    const uid = (window.currentUser && window.currentUser.id) || 'anonyme';
-    return 'edulink_favoris_' + uid;
+    return 'edulink_favoris_' + (this._userId || 'anonyme');
   },
 
   charger() {
@@ -9186,15 +9195,15 @@ const Favoris = {
   injecterEtoiles() {
     document.querySelectorAll('nav > a[id^="nav-"]').forEach(lien => {
       const pageId = lien.id.replace(/^nav-/, '');
-      // Ignorer les éléments hors-menu (dashboard est toujours en haut, on n'y met pas d'étoile)
-      if (pageId === 'dashboard') return;
+      // Ne pas mettre d'étoile sur le dashboard ni sur les liens favoris clonés
+      if (pageId === 'dashboard' || pageId.startsWith('fav-')) return;
       // Retirer l'ancienne étoile si présente
       const ancienne = lien.querySelector('.fav-star');
       if (ancienne) ancienne.remove();
       // Créer la nouvelle étoile
       const star = document.createElement('span');
       star.className = 'fav-star';
-      star.style.cssText = 'margin-left:auto;cursor:pointer;font-size:13px;opacity:.5;transition:opacity .15s,transform .15s;padding:0 4px';
+      star.style.cssText = 'margin-left:auto;cursor:pointer;font-size:13px;transition:opacity .15s,transform .15s;padding:0 4px';
       const fav = this.estFavori(pageId);
       star.textContent = fav ? '⭐' : '☆';
       star.style.opacity = fav ? '1' : '.4';
@@ -9206,18 +9215,22 @@ const Favoris = {
     });
   },
 
-  // À appeler une fois le DOM et la session prêts
-  init() {
+  // À appeler une fois la session prête (login)
+  async init() {
+    await this.resoudreUserId();
     this.injecterEtoiles();
     this.afficher();
   },
 };
 
-// Initialiser après chargement du DOM
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => setTimeout(() => Favoris.init(), 500));
-} else {
-  setTimeout(() => Favoris.init(), 500);
+// Initialisation : essai immédiat (cas anonyme), puis re-essai après chaque login
+setTimeout(() => Favoris.init(), 800);
+// Re-init quand l'auth change (login/logout)
+if (typeof db !== 'undefined' && db.auth && db.auth.onAuthStateChange) {
+  db.auth.onAuthStateChange((event, session) => {
+    Favoris._userId = session?.user?.id || null;
+    setTimeout(() => Favoris.init(), 300);
+  });
 }
 
 // ══ (P2.1) BROUILLONS AUTOMATIQUES ══════════════════════════════
