@@ -9011,6 +9011,109 @@ function showTab(page, tabId) {
 }
 
 // ══ MODALS ════════════════════════════════════
+// ══ (P2.1) BROUILLONS AUTOMATIQUES ══════════════════════════════
+// Sauvegarde automatique des formulaires longs en localStorage pour éviter
+// les pertes en cas de plantage, fermeture d'onglet ou rafraîchissement.
+const Brouillons = {
+  PREFIX: 'edulink_brouillon_',
+  TIMER: null,
+  // Modaux à NE PAS protéger (recherche, simples confirmations, etc.)
+  EXCLUS: new Set(['modal-confirm', 'modal-paiement', 'modal-annonce', 'modal-stats', 'modal-otp', 'modal-export', 'modal-import-csv', 'modal-import-enseignants', 'modal-import-edt']),
+  // Champs à ignorer (mots de passe, fichiers, etc.)
+  CHAMPS_IGNORES: new Set(['password', 'file', 'hidden']),
+
+  cle(modalId) { return this.PREFIX + modalId; },
+
+  // Récupère les inputs/textareas/selects significatifs d'un modal
+  champs(modal) {
+    return [...modal.querySelectorAll('input, textarea, select')].filter(el => {
+      if (!el.id) return false;
+      if (this.CHAMPS_IGNORES.has(el.type)) return false;
+      if (el.type === 'checkbox' || el.type === 'radio') return true;
+      return true;
+    });
+  },
+
+  // Sauvegarde le contenu courant du modal
+  sauvegarder(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal || this.EXCLUS.has(modalId)) return;
+    const champs = this.champs(modal);
+    if (champs.length < 4) return; // pas assez long pour valoir un brouillon
+    const data = {};
+    let aDuContenu = false;
+    champs.forEach(el => {
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        data[el.id] = el.checked;
+        if (el.checked) aDuContenu = true;
+      } else if (el.value && el.value.trim()) {
+        data[el.id] = el.value;
+        aDuContenu = true;
+      }
+    });
+    if (aDuContenu) {
+      try { localStorage.setItem(this.cle(modalId), JSON.stringify({ data, ts: Date.now() })); }
+      catch(e) { console.warn('[Brouillons] localStorage plein', e); }
+    } else {
+      this.effacer(modalId);
+    }
+  },
+
+  // Charge un brouillon (renvoie null s'il n'y en a pas)
+  charger(modalId) {
+    try {
+      const raw = localStorage.getItem(this.cle(modalId));
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch(_) { return null; }
+  },
+
+  // Restaure les valeurs dans le modal
+  restaurer(modalId) {
+    const brouillon = this.charger(modalId);
+    if (!brouillon) return false;
+    const modal = document.getElementById(modalId);
+    if (!modal) return false;
+    Object.entries(brouillon.data).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox' || el.type === 'radio') el.checked = !!val;
+      else el.value = val;
+      // Déclencher l'événement change pour les sélecteurs en cascade
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    return true;
+  },
+
+  effacer(modalId) {
+    try { localStorage.removeItem(this.cle(modalId)); } catch(_) {}
+  },
+
+  // Démarre la sauvegarde automatique pour un modal
+  demarrer(modalId) {
+    this.arreter();
+    this.TIMER = setInterval(() => this.sauvegarder(modalId), 2000);
+  },
+
+  arreter() {
+    if (this.TIMER) { clearInterval(this.TIMER); this.TIMER = null; }
+  },
+
+  // Propose à l'utilisateur de restaurer un brouillon (au moment d'ouvrir un modal)
+  proposerRestauration(modalId) {
+    const brouillon = this.charger(modalId);
+    if (!brouillon) return;
+    const minutes = Math.round((Date.now() - brouillon.ts) / 60000);
+    const quand = minutes < 1 ? 'à l\'instant' : minutes < 60 ? `il y a ${minutes} min` : `il y a ${Math.round(minutes/60)} h`;
+    if (confirm(`📝 Un brouillon non terminé existe (${quand}).\n\nVoulez-vous le restaurer ?\n\n• OK : restaurer le brouillon\n• Annuler : repartir de zéro`)) {
+      this.restaurer(modalId);
+      if (typeof showToast === 'function') showToast('📝 Brouillon restauré', 'info');
+    } else {
+      this.effacer(modalId);
+    }
+  },
+};
+
 function ouvrirModal(id) {
   document.getElementById(id).classList.add('open');
   if (id === 'modal-etudiant') remplirSelectClassesEtudiant();
@@ -9039,9 +9142,15 @@ function ouvrirModal(id) {
     window._ensModeEdition = false; // reset le drapeau après usage
   }
   if (id === 'modal-matiere') { remplirSelectEnsModal(); peuplerFiliereMatiere(); }
+  // (P2.1) Brouillons : proposer la restauration et démarrer la sauvegarde auto
+  setTimeout(() => Brouillons.proposerRestauration(id), 200);
+  Brouillons.demarrer(id);
 }
 function fermerModal(id) {
   document.getElementById(id).classList.remove('open');
+  // (P2.1) Brouillons : arrêter la sauvegarde et effacer le brouillon en cours
+  Brouillons.arreter();
+  Brouillons.effacer(id);
   if (id === 'modal-examen') { const el=document.getElementById('input-exam-id'); if(el) el.value=''; }
   if (id === 'modal-facture') {
     const modal=document.getElementById('modal-facture');
