@@ -7349,7 +7349,7 @@ function _syncSelecteursEcoles() {
       if (!sel || !tousLesEcoles?.length) return;
       const cur = sel.value;
       sel.innerHTML = tousLesEcoles.map(e =>
-        `<option value="${e.id}">${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
+        `<option value="${e.id}">${esc(e.nom)}${e._from_reseau ? ' ✦' : ''}</option>`
       ).join('');
       if (cur && tousLesEcoles.some(e => e.id === cur)) sel.value = cur;
       else if (currentEcoleId) sel.value = currentEcoleId;
@@ -7873,7 +7873,7 @@ function previewImportEtudiants(liste) {
   if (!prevEl) { confirmerImportExcelEtudiants(liste); return; }
   prevEl.innerHTML = `<p style="color:#059669;font-weight:600">✅ ${liste.length} étudiant(s) prêt(s) à importer</p>`
     + `<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#f3f4f6"><th style="padding:4px 8px">Nom</th><th>Prénom</th><th>Filière</th><th>Niveau</th><th>Statut</th></tr></thead><tbody>`
-    + liste.slice(0,10).map(e => `<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">${e.nom}</td><td>${e.prenom}</td><td>${e.filiere}</td><td>${e.niveau}</td><td>${e.statut}</td></tr>`).join('')
+    + liste.slice(0,10).map(e => `<tr><td style="padding:3px 8px;border-bottom:1px solid #f3f4f6">${esc(e.nom)}</td><td>${esc(e.prenom)}</td><td>${esc(e.filiere)}</td><td>${e.niveau}</td><td>${e.statut}</td></tr>`).join('')
     + (liste.length > 10 ? `<tr><td colspan="5" style="padding:4px 8px;color:#6b7280">... et ${liste.length-10} autres</td></tr>` : '')
     + '</tbody></table>';
   const btn = document.getElementById('btn-import-confirm');
@@ -8858,6 +8858,19 @@ const ROLE_PERMISSIONS = {
 // tousLesEnseignants déclaré plus haut (Jour 13)
 
 // ══ UTILS ══════════════════════════════════════
+// (P1.7) Échappement HTML pour prévenir le XSS lors de l'injection de données utilisateur via innerHTML
+function escapeHTML(v) {
+  if (v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+// Alias court pour les templates (utilisable comme `${esc(nom)}`)
+const esc = escapeHTML;
+
 function showToast(msg, type='') {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast show ' + type;
@@ -9120,7 +9133,7 @@ async function chargerEcoles() {
 
     if (tousLesEcoles.length > 0) {
       sel.innerHTML = tousLesEcoles.map(e =>
-        `<option value="${e.id}">${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
+        `<option value="${e.id}">${esc(e.nom)}${e._from_reseau ? ' ✦' : ''}</option>`
       ).join('');
       // Garder la sélection courante si elle existe encore, sinon prendre la première
       const existingOption = tousLesEcoles.find(e => e.id === currentEcoleId);
@@ -9241,7 +9254,7 @@ function peuplerExecSelector() {
   const sel = document.getElementById('exec-ecole-selector');
   if (!sel || !tousLesEcoles.length) return;
   sel.innerHTML = tousLesEcoles.map(e =>
-    `<option value="${e.id}" style="background:#1e3a5f" ${e.id === currentEcoleId ? 'selected' : ''}>${e.nom}${e._from_reseau ? ' ✦' : ''}</option>`
+    `<option value="${e.id}" style="background:#1e3a5f" ${e.id === currentEcoleId ? 'selected' : ''}>${esc(e.nom)}${e._from_reseau ? ' ✦' : ''}</option>`
   ).join('');
 }
 function mettreAJourBadgeEcole(ecole) {
@@ -9453,7 +9466,7 @@ function afficherEtudiants(liste) {
   t.innerHTML=liste?.length
     ?liste.map(e=>{
       const cls=e.classes;
-      const badge=cls?`<span class="badge blue" style="font-size:10px">${cls.nom||cls.filiere+' '+cls.niveau}</span>`:`<span class="badge gray" style="font-size:10px">${e.niveau||'—'}</span>`;
+      const badge=cls?`<span class="badge blue" style="font-size:10px">${esc(cls.nom||cls.filiere+' '+cls.niveau)}</span>`:`<span class="badge gray" style="font-size:10px">${e.niveau||'—'}</span>`;
       return`<tr>
         <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${e.matricule}</code></td>
         <td><strong>${e.nom} ${e.prenom}</strong></td>
@@ -9486,13 +9499,13 @@ function resetFiltresEtudiants(){
 async function peuplerFiltresEtudiants(){
   const sc=document.getElementById('filter-etu-classe');if(!sc)return;
   if(!toutesLesClasses?.length)await chargerClasses();
-  sc.innerHTML='<option value="">Toutes les classes</option>'+(toutesLesClasses||[]).filter(c=>c.statut!=='archive').map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+  sc.innerHTML='<option value="">Toutes les classes</option>'+(toutesLesClasses||[]).filter(c=>c.statut!=='archive').map(c=>`<option value="${c.id}">${esc(c.nom||c.filiere+' '+c.niveau)}</option>`).join('');
 }
 async function remplirSelectClassesEtudiant(){
   const sel=document.getElementById('input-classe-etudiant');if(!sel)return;
   if(!toutesLesClasses?.length)await chargerClasses();
   const actives=(toutesLesClasses||[]).filter(c=>c.statut!=='archive');
-  sel.innerHTML='<option value="">— Sélectionner (optionnel) —</option>'+actives.map(c=>`<option value="${c.id}" data-filiere="${c.filiere||''}" data-niveau="${c.niveau||''}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+  sel.innerHTML='<option value="">— Sélectionner (optionnel) —</option>'+actives.map(c=>`<option value="${c.id}" data-filiere="${esc(c.filiere||'')}" data-niveau="${esc(c.niveau||'')}">${esc(c.nom||c.filiere+' '+c.niveau)}</option>`).join('');
 }
 function syncFiliereNiveauEtudiant(sel){
   const opt=sel.options[sel.selectedIndex];if(!opt||!opt.value)return;
@@ -9548,7 +9561,7 @@ async function voirEtudiant(id) {
       <div class="info-item"><div class="ii-label">Sexe</div><div class="ii-val">${etudiant.sexe==='M'?'Masculin':'Féminin'}</div></div>
       <div class="info-item"><div class="ii-label">Filière</div><div class="ii-val">${etudiant.filiere||'—'}</div></div>
       <div class="info-item"><div class="ii-label">Niveau</div><div class="ii-val">${etudiant.niveau||'—'}</div></div>
-      <div class="info-item"><div class="ii-label">Classe</div><div class="ii-val">${cls?`<span class="badge blue">${cls.nom||cls.filiere+' '+cls.niveau}</span>`:'<span style="color:#9ca3af">Non affecté</span>'}</div></div>
+      <div class="info-item"><div class="ii-label">Classe</div><div class="ii-val">${cls?`<span class="badge blue">${esc(cls.nom||cls.filiere+' '+cls.niveau)}</span>`:'<span style="color:#9ca3af">Non affecté</span>'}</div></div>
       <div class="info-item"><div class="ii-label">Statut</div><div class="ii-val"><span class="badge ${etudiant.statut==='actif'?'green':'amber'}">${etudiant.statut}</span></div></div>
     </div>
     ${(etudiant.email_parent||etudiant.nom_parent||etudiant.telephone_parent)?`
@@ -9671,7 +9684,7 @@ async function filtrerAbsencesParClasse() {
     const {data}=await q; tousLesEtudiants=data||[];
   }
   const etus=cls?tousLesEtudiants.filter(e=>e.classe_id===cls):tousLesEtudiants;
-  sel.innerHTML='<option value="">Tous les étudiants</option>'+etus.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  sel.innerHTML='<option value="">Tous les étudiants</option>'+etus.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
   sel.value=''; chargerAbsences();
 }
 function resetFiltresAbsences() {
@@ -9682,9 +9695,9 @@ function resetFiltresAbsences() {
 async function peuplerFiltresAbsences() {
   const sc=document.getElementById('filter-absence-classe'); if(!sc) return;
   if(!toutesLesClasses?.length) await chargerClasses();
-  sc.innerHTML='<option value="">Toutes les classes</option>'+(toutesLesClasses||[]).filter(c=>c.statut!=='archive').map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+  sc.innerHTML='<option value="">Toutes les classes</option>'+(toutesLesClasses||[]).filter(c=>c.statut!=='archive').map(c=>`<option value="${c.id}">${esc(c.nom||c.filiere+' '+c.niveau)}</option>`).join('');
   if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const{data}=await q;tousLesEtudiants=data||[];}
-  document.getElementById('filter-absence-etudiant').innerHTML='<option value="">Tous les étudiants</option>'+tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  document.getElementById('filter-absence-etudiant').innerHTML='<option value="">Tous les étudiants</option>'+tousLesEtudiants.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
 }
 async function remplirSelect(selectId, withEmpty=false) {
   if (tousLesEtudiants.length === 0) {
@@ -9694,7 +9707,7 @@ async function remplirSelect(selectId, withEmpty=false) {
   }
   const sel = document.getElementById(selectId);
   const emptyOpt = withEmpty ? '<option value="">— Aucun (général) —</option>' : '';
-  sel.innerHTML = emptyOpt + tousLesEtudiants.map(e => `<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  sel.innerHTML = emptyOpt + tousLesEtudiants.map(e => `<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
   if (selectId === 'input-absence-etudiant')
     document.getElementById('input-absence-date').value = new Date().toISOString().split('T')[0];
 }
@@ -9804,16 +9817,16 @@ async function filtrerNotesParClasse(){
   if(!sel)return;
   if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const{data}=await q;tousLesEtudiants=data||[];}
   const etus=cls?tousLesEtudiants.filter(e=>e.classe_id===cls):tousLesEtudiants;
-  sel.innerHTML='<option value="">Tous les étudiants</option>'+etus.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  sel.innerHTML='<option value="">Tous les étudiants</option>'+etus.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
   sel.value=''; chargerNotes();
 }
 async function peuplerFiltresNotes(){
   const sc=document.getElementById('filter-notes-classe');if(!sc)return;
   if(!toutesLesClasses?.length)await chargerClasses();
-  sc.innerHTML='<option value="">Toutes les classes</option>'+(toutesLesClasses||[]).filter(c=>c.statut!=='archive').map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+  sc.innerHTML='<option value="">Toutes les classes</option>'+(toutesLesClasses||[]).filter(c=>c.statut!=='archive').map(c=>`<option value="${c.id}">${esc(c.nom||c.filiere+' '+c.niveau)}</option>`).join('');
   if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const{data}=await q;tousLesEtudiants=data||[];}
   const se=document.getElementById('filter-notes-etudiant');
-  if(se)se.innerHTML='<option value="">Tous les étudiants</option>'+tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  if(se)se.innerHTML='<option value="">Tous les étudiants</option>'+tousLesEtudiants.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
 }
 function ouvrirModifierNote(id,etudiantId,matiere,note,coeff,periode,commentaire){
   document.getElementById('input-note-etudiant').value=etudiantId;
@@ -9931,7 +9944,7 @@ async function remplirSelectBulletin() {
     tousLesEtudiants = data || [];
   }
   const sel = document.getElementById('select-bulletin-etudiant');
-  sel.innerHTML = '<option value="">— Sélectionner un étudiant —</option>' + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+  sel.innerHTML = '<option value="">— Sélectionner un étudiant —</option>' + tousLesEtudiants.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
 }
 
 async function mettreAJourPeriodesBulletin(etudiantId) {
@@ -10350,11 +10363,11 @@ async function peuplerDestinataires() {
   }
   sel.innerHTML = '<option value="">— Sélectionner ou saisir manuellement —</option>'
     + '<optgroup label="👨‍🏫 Enseignants">'
-    + tousLesEnseignants.map(e=>`<option value="${e.nom+' '+e.prenom}" data-role="professeur">${e.nom} ${e.prenom}</option>`).join('')
+    + tousLesEnseignants.map(e=>`<option value="${e.nom+' '+e.prenom}" data-role="professeur">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('')
     + '</optgroup><optgroup label="🎓 Étudiants">'
-    + tousLesEtudiants.map(e=>`<option value="${e.nom+' '+e.prenom}" data-role="etudiant">${e.nom} ${e.prenom}</option>`).join('')
+    + tousLesEtudiants.map(e=>`<option value="${e.nom+' '+e.prenom}" data-role="etudiant">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('')
     + '</optgroup><optgroup label="👨‍👩‍👧 Parents">'
-    + tousLesEtudiants.filter(e=>e.email_parent).map(e=>`<option value="Parent de ${e.nom} ${e.prenom}" data-role="parent" data-email="${e.email_parent||''}">Parent de ${e.nom} ${e.prenom}</option>`).join('')
+    + tousLesEtudiants.filter(e=>e.email_parent).map(e=>`<option value="Parent de ${esc(e.nom)} ${esc(e.prenom)}" data-role="parent" data-email="${e.email_parent||''}">Parent de ${esc(e.nom)} ${esc(e.prenom)}</option>`).join('')
     + '</optgroup>';
 }
 
@@ -10483,7 +10496,7 @@ async function peuplerFiltreEtudiantPay() {
     const { data } = await q; tousLesEtudiants = data||[];
   }
   const opts = '<option value="">Tous les étudiants</option>'
-    + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+    + tousLesEtudiants.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
   if (selF) selF.innerHTML = opts;
   if (selH) selH.innerHTML = opts;
 }
@@ -10524,7 +10537,7 @@ async function chargerFactures() {
           <td><span class="badge ${sClass}">${f.statut}</span>${retard?'<span class="badge red" style="font-size:9px;margin-left:2px">⚠ retard</span>':''}</td>
           <td>${fmtDate(f.date_echeance)}</td>
           <td style="display:flex;gap:4px;flex-wrap:wrap">
-            ${f.statut!=='paye'?`<button class="btn-sm btn-green" onclick="ouvrirPaiement('${f.id}','${f.reference||''}',${f.montant_total-(f.montant_paye||0)})">💰</button>`:''}
+            ${f.statut!=='paye'?`<button class="btn-sm btn-green" onclick="ouvrirPaiement('${f.id}','${esc(f.reference||'')}',${f.montant_total-(f.montant_paye||0)})">💰</button>`:''}
             <button class="btn-sm btn-secondary" onclick="ouvrirModifierFacture('${f.id}')">✏️</button>
             <button class="btn-sm btn-red" onclick="supprimerFacture('${f.id}')">✕</button>
           </td>
@@ -10763,7 +10776,7 @@ async function peuplerFiltresDisc() {
     const { data } = await q; tousLesEtudiants = data||[];
   }
   sel.innerHTML = '<option value="">Tous les étudiants</option>'
-    + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+    + tousLesEtudiants.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
 }
 function ouvrirResolution(id) {
   document.getElementById('input-res-id').value = id;
@@ -10834,7 +10847,7 @@ function afficherDocumentsGalerie() {
         <div class="dc-ico">${getDocIcon(d.nom_fichier||d.nom)}</div>
         <div class="dc-nom" title="${d.nom}">${d.nom}</div>
         <div class="dc-meta">${fmtDate(d.created_at)}${d.taille_affichage?' · '+d.taille_affichage:''}</div>
-        ${d.etudiants?`<div class="dc-meta" style="margin-top:2px;color:#7c3aed">👤 ${d.etudiants.nom} ${d.etudiants.prenom}</div>`:''}
+        ${d.etudiants?`<div class="dc-meta" style="margin-top:2px;color:#7c3aed">👤 ${esc(d.etudiants.nom)} ${esc(d.etudiants.prenom)}</div>`:''}
         <div class="dc-actions">
           ${d.url?`<button class="btn-sm btn-blue" onclick="window.open('${d.url}','_blank')">Ouvrir</button>`:''}
           <button class="btn-sm btn-secondary" onclick="ouvrirModifierDocument('${d.id}')">✏️</button>
@@ -10955,7 +10968,7 @@ async function peuplerFiltresRapports() {
   if (!toutesLesClasses?.length) await chargerClasses();
   sel.innerHTML = '<option value="">Toutes les classes</option>'
     + (toutesLesClasses||[]).filter(c=>c.statut!=='archive')
-        .map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+        .map(c=>`<option value="${c.id}">${esc(c.nom||c.filiere+' '+c.niveau)}</option>`).join('');
 }
 
 function getRptFilters() {
@@ -11399,7 +11412,7 @@ async function remplirSelectUserEtudiant() {
     const { data } = await q; tousLesEtudiants = data||[];
   }
   sel.innerHTML = '<option value="">— Sélectionner —</option>'
-    + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+    + tousLesEtudiants.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
 }
 
 
@@ -12755,11 +12768,11 @@ async function peuplerFiltresExamens() {
   const actives = (toutesLesClasses || []).filter(c => c.statut !== 'archive');
   if (selFil) {
     selFil.innerHTML = '<option value="">Toutes classes</option>'
-      + actives.map(c => `<option value="${c.id}">${c.nom || c.filiere + ' ' + c.niveau}</option>`).join('');
+      + actives.map(c => `<option value="${c.id}">${esc(c.nom || c.filiere + ' ' + c.niveau)}</option>`).join('');
   }
   if (selMod) {
     selMod.innerHTML = '<option value="">— Toutes les classes —</option>'
-      + actives.map(c => `<option value="${c.id}" data-filiere="${c.filiere||''}" data-niveau="${c.niveau||''}">${c.nom || c.filiere + ' ' + c.niveau}</option>`).join('');
+      + actives.map(c => `<option value="${c.id}" data-filiere="${esc(c.filiere||'')}" data-niveau="${c.niveau||''}">${esc(c.nom || c.filiere + ' ' + c.niveau)}</option>`).join('');
   }
   if (selFil2) {
     const filieres = [...new Set(actives.map(c => c.filiere).filter(Boolean))].sort();
@@ -13002,7 +13015,7 @@ async function showFicheEnsTab(tab) {
   else if (tab === 'matieres') {
     const matieres = Array.isArray(ens.matieres) ? ens.matieres : (ens.matieres ? ens.matieres.split(',').map(m=>m.trim()) : []);
     content.innerHTML = matieres.length
-      ? matieres.map(m => `<div class="matiere-assign-row"><span style="font-size:18px">📚</span><span class="mar-name">${m}</span><span class="ens-matiere-pill">${ens.specialite||''}</span></div>`).join('')
+      ? matieres.map(m => `<div class="matiere-assign-row"><span style="font-size:18px">📚</span><span class="mar-name">${m}</span><span class="ens-matiere-pill">${esc(ens.specialite||'')}</span></div>`).join('')
       : '<div class="empty-state"><div class="icon">📚</div><h3>Aucune matière attribuée</h3></div>';
   }
 
@@ -13219,8 +13232,8 @@ function afficherMatieres() {
     return;
   }
   tbody.innerHTML = toutesMatieres.map(m => `<tr>
-    <td><strong>${m.nom}</strong>${m.description?`<div style="font-size:11px;color:#9ca3af">${m.description.slice(0,50)}</div>`:''}</td>
-    <td>${m.enseignants?`<span class="badge blue">${m.enseignants.nom} ${m.enseignants.prenom}</span>`:'<span class="badge gray">Non assigné</span>'}</td>
+    <td><strong>${esc(m.nom)}</strong>${m.description?`<div style="font-size:11px;color:#9ca3af">${m.description.slice(0,50)}</div>`:''}</td>
+    <td>${m.enseignants?`<span class="badge blue">${esc(m.enseignants.nom)} ${esc(m.enseignants.prenom)}</span>`:'<span class="badge gray">Non assigné</span>'}</td>
     <td>${m.filiere||'<span class="badge gray">Toutes</span>'}</td>
     <td>${m.niveau||'<span class="badge gray">Tous</span>'}</td>
     <td><span class="badge purple">Coeff. ${m.coefficient||1}</span></td>
@@ -13236,7 +13249,7 @@ async function remplirSelectEnsModal() {
   const sel = document.getElementById('input-mat-enseignant');
   sel.innerHTML = '<option value="">— Assigner un enseignant —</option>';
   tousLesEnseignants.forEach(e => {
-    sel.innerHTML += `<option value="${e.id}">${e.nom} ${e.prenom}</option>`;
+    sel.innerHTML += `<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`;
   });
 }
 
@@ -13252,7 +13265,7 @@ async function remplirSelectEnsProgModal() {
   }
   sel.innerHTML = '<option value="">— Assigner un enseignant —</option>';
   (tousLesEnseignants || []).forEach(e => {
-    sel.innerHTML += `<option value="${e.id}">${e.nom} ${e.prenom}</option>`;
+    sel.innerHTML += `<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`;
   });
 }
 
@@ -13313,7 +13326,7 @@ function remplirSelectEnsPlanning() {
   if (!sel) return;
   sel.innerHTML = '<option value="">— Sélectionner —</option>';
   tousLesEnseignants.forEach(e => {
-    sel.innerHTML += `<option value="${e.id}">${e.nom} ${e.prenom}</option>`;
+    sel.innerHTML += `<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`;
   });
 }
 
@@ -14291,7 +14304,7 @@ function afficherCertificats(liste) {
     return `<tr>
       <td><span class="cert-ref">${c.reference}</span></td>
       <td><strong>${e ? e.nom+' '+e.prenom : '—'}</strong>
-        ${e?.matricule ? `<br><span style="font-size:10.5px;color:#9ca3af">${e.matricule}</span>` : ''}</td>
+        ${e?.matricule ? `<br><span style="font-size:10.5px;color:#9ca3af">${esc(e.matricule)}</span>` : ''}</td>
       <td>${t.ico} <span style="font-weight:600;color:${t.color}">${t.label}</span>
         ${c.periode ? `<br><span class="badge gray" style="font-size:9.5px">${c.periode}</span>` : ''}</td>
       <td style="font-size:12px;color:#6b7280">${c.delivre_par||'—'}</td>
@@ -14327,14 +14340,14 @@ async function peuplerFiltresCert() {
   if (!toutesLesClasses?.length) await chargerClasses();
   if (selCls) selCls.innerHTML = '<option value="">Toutes les classes</option>'
     + (toutesLesClasses||[]).filter(c=>c.statut!=='archive')
-        .map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+        .map(c=>`<option value="${c.id}">${esc(c.nom||c.filiere+' '+c.niveau)}</option>`).join('');
   if (!tousLesEtudiants.length) {
     let q = db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');
     if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
     const { data } = await q; tousLesEtudiants = data||[];
   }
   if (selEtu) selEtu.innerHTML = '<option value="">Tous les étudiants</option>'
-    + tousLesEtudiants.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+    + tousLesEtudiants.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
 }
 
 async function filtrerCertParClasse() {
@@ -14343,7 +14356,7 @@ async function filtrerCertParClasse() {
   if (!sel) return;
   const etus = cls ? tousLesEtudiants.filter(e=>e.classe_id===cls) : tousLesEtudiants;
   sel.innerHTML = '<option value="">Tous les étudiants</option>'
-    + etus.map(e=>`<option value="${e.id}">${e.nom} ${e.prenom}</option>`).join('');
+    + etus.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
   sel.value = '';
   filtrerCertificats();
 }
@@ -14378,7 +14391,7 @@ async function ouvrirModalCertificat(type = 'attestation_inscription') {
   const sel = document.getElementById('input-cert-etudiant');
   if (sel) {
     const opts = tousLesEtudiants.map(e =>
-      `<option value="${e.id}">${e.nom} ${e.prenom} — ${e.filiere} ${e.niveau}</option>`
+      `<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)} — ${esc(e.filiere)} ${e.niveau}</option>`
     ).join('');
     sel.innerHTML = '<option value="">— Sélectionner un étudiant —</option>' + opts;
   }
@@ -15133,7 +15146,7 @@ async function remplirSelectEmprunt() {
   const sel = document.getElementById('input-emprunt-livre');
   sel.innerHTML = '<option value="">— Sélectionner —</option>' +
     (livres||[]).filter(l => (l.exemplaires||1)-(l.exemplaires_empruntes||0) > 0)
-    .map(l => `<option value="${l.id}">${l.titre} — ${l.auteur} (${(l.exemplaires||1)-(l.exemplaires_empruntes||0)} dispo.)</option>`).join('');
+    .map(l => `<option value="${l.id}">${esc(l.titre)} — ${l.auteur} (${(l.exemplaires||1)-(l.exemplaires_empruntes||0)} dispo.)</option>`).join('');
   // Étudiants
   await remplirSelect('input-emprunt-etudiant');
   // Dates par défaut
@@ -15824,7 +15837,7 @@ async function remplirSelectClasseProg() {
   const selModal = document.getElementById('input-prog-classe');
   const selAff   = document.getElementById('filter-aff-classe');
   if (!toutesLesClasses.length) await chargerClasses();
-  const opts = '<option value="">— Sélectionner —</option>' + toutesLesClasses.map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+  const opts = '<option value="">— Sélectionner —</option>' + toutesLesClasses.map(c=>`<option value="${c.id}">${esc(c.nom||c.filiere+' '+c.niveau)}</option>`).join('');
   if (selProg)  selProg.innerHTML  = opts;
   if (selModal) selModal.innerHTML = opts;
   if (selAff)   selAff.innerHTML   = opts;
@@ -16047,10 +16060,10 @@ async function chargerAffectation() {
   const libres   = (etus||[]).filter(e => !e.classe_id);
   cAff.innerHTML = !affectes.length
     ? '<div class="empty-state" style="padding:1.5rem"><p>Aucun étudiant affecté.</p></div>'
-    : `<table><tr><th>Étudiant</th><th>Filière</th><th>Actions</th></tr>${affectes.map(e=>`<tr><td><strong>${e.nom} ${e.prenom}</strong></td><td>${e.filiere}</td><td><button class="btn-sm btn-red" onclick="retirerAffectation('${e.id}','${classeId}')">Retirer</button></td></tr>`).join('')}</table>`;
+    : `<table><tr><th>Étudiant</th><th>Filière</th><th>Actions</th></tr>${affectes.map(e=>`<tr><td><strong>${esc(e.nom)} ${esc(e.prenom)}</strong></td><td>${esc(e.filiere)}</td><td><button class="btn-sm btn-red" onclick="retirerAffectation('${e.id}','${classeId}')">Retirer</button></td></tr>`).join('')}</table>`;
   cLib.innerHTML = !libres.length
     ? '<div style="font-size:12.5px;color:#9ca3af;padding:1rem">Tous les étudiants sont déjà affectés.</div>'
-    : `<table><tr><th>Étudiant</th><th>Filière</th><th>Actions</th></tr>${libres.map(e=>`<tr><td><strong>${e.nom} ${e.prenom}</strong></td><td>${e.filiere}</td><td><button class="btn-sm btn-green" onclick="affecterEtudiant('${e.id}','${classeId}')">+ Affecter</button></td></tr>`).join('')}</table>`;
+    : `<table><tr><th>Étudiant</th><th>Filière</th><th>Actions</th></tr>${libres.map(e=>`<tr><td><strong>${esc(e.nom)} ${esc(e.prenom)}</strong></td><td>${esc(e.filiere)}</td><td><button class="btn-sm btn-green" onclick="affecterEtudiant('${e.id}','${classeId}')">+ Affecter</button></td></tr>`).join('')}</table>`;
 }
 
 async function affecterEtudiant(etuId, classeId) {
@@ -16324,7 +16337,7 @@ async function toggleLotClasseSelect(val) {
     if (!toutesLesClasses?.length) await chargerClasses();
     sel.innerHTML = '<option value="">— Sélectionner une classe —</option>'
       + (toutesLesClasses||[]).filter(c=>c.statut!=='archive')
-          .map(c=>`<option value="${c.id}">${c.nom||c.filiere+' '+c.niveau}</option>`).join('');
+          .map(c=>`<option value="${c.id}">${esc(c.nom||c.filiere+' '+c.niveau)}</option>`).join('');
   } else {
     inp.style.display = 'block'; sel.style.display = 'none';
     inp.value = '';
@@ -16368,7 +16381,7 @@ async function mettreAJourAperçuLot() {
     <div class="lot-preview-table">
       <table>
         <tr><th>Étudiant</th><th>Filière</th><th>Niveau</th><th>Email parent</th></tr>
-        ${liste.slice(0,15).map(e=>`<tr><td><strong>${e.nom} ${e.prenom}</strong></td><td>${e.filiere}</td><td><span class="badge gray">${e.niveau}</span></td><td style="font-size:11px;color:#6b7280">${e.parent_email||'—'}</td></tr>`).join('')}
+        ${liste.slice(0,15).map(e=>`<tr><td><strong>${esc(e.nom)} ${esc(e.prenom)}</strong></td><td>${esc(e.filiere)}</td><td><span class="badge gray">${e.niveau}</span></td><td style="font-size:11px;color:#6b7280">${e.parent_email||'—'}</td></tr>`).join('')}
         ${liste.length>15?`<tr><td colspan="4" style="text-align:center;font-size:12px;color:#6b7280;padding:.5rem">... et ${liste.length-15} autres</td></tr>`:''}
       </table>
     </div>`;
@@ -16613,7 +16626,7 @@ async function chargerPortailEnseignant() {
     // Repeupler la liste à chaque appel pour suivre les changements d'école.
     const currentVal = adminSelect.value;
     adminSelect.innerHTML = '<option value="">— Sélectionner un enseignant —</option>'
-      + liste.map(e => `<option value="${e.id}">${(e.nom||'').toUpperCase()} ${e.prenom||''}${e.specialite?' · '+e.specialite:''}</option>`).join('');
+      + liste.map(e => `<option value="${e.id}">${(e.nom||'').toUpperCase()} ${esc(e.prenom||'')}${e.specialite?' · '+e.specialite:''}</option>`).join('');
     // Restaurer la sélection si l'enseignant existe encore après rechargement.
     if (ensActif && liste.some(e => e.id === ensActif.id)) {
       adminSelect.value = ensActif.id;
@@ -17057,7 +17070,7 @@ async function supprimerPersonnel(id) {
 async function remplirSelectAgentConge() {
   if (!toutLePersonnel.length) await chargerRH();
   const sel = document.getElementById('input-conge-agent');
-  sel.innerHTML = '<option value="">— Sélectionner —</option>' + toutLePersonnel.map(p=>`<option value="${p.id}">${p.prenom} ${p.nom} — ${p.poste||''}</option>`).join('');
+  sel.innerHTML = '<option value="">— Sélectionner —</option>' + toutLePersonnel.map(p=>`<option value="${p.id}">${esc(p.prenom)} ${esc(p.nom)} — ${esc(p.poste||'')}</option>`).join('');
 }
 
 async function chargerConges() {
@@ -17125,7 +17138,7 @@ async function traiterConge(id, decision) {
 async function remplirSelectAgentPaie() {
   if (!toutLePersonnel.length) await chargerRH();
   const sel = document.getElementById('filter-paie-agent');
-  sel.innerHTML = '<option value="">— Sélectionner un agent —</option>' + toutLePersonnel.map(p=>`<option value="${p.id}">${p.prenom} ${p.nom}</option>`).join('');
+  sel.innerHTML = '<option value="">— Sélectionner un agent —</option>' + toutLePersonnel.map(p=>`<option value="${p.id}">${esc(p.prenom)} ${esc(p.nom)}</option>`).join('');
   // Set mois courant
   const moisSel = document.getElementById('filter-paie-mois');
   if (moisSel) moisSel.value = new Date().getMonth()+1;
@@ -17475,7 +17488,7 @@ function peuplerSelectLivres() {
   const sel = document.getElementById('emprunt-livre-id');
   if (!sel) return;
   sel.innerHTML = '<option value="">Sélectionner un livre...</option>' +
-    bib8Livres.filter(l=>l.disponibles>0).map(l=>`<option value="${l.id}">${l.titre} — ${l.auteur} (${l.disponibles} dispo.)</option>`).join('');
+    bib8Livres.filter(l=>l.disponibles>0).map(l=>`<option value="${l.id}">${esc(l.titre)} — ${l.auteur} (${l.disponibles} dispo.)</option>`).join('');
 }
 
 function bibSwitchTab(tab, btn) {
@@ -18833,7 +18846,7 @@ async function peuplerSelectPortailEtudiant() {
     .order('nom');
   if (error) { sel.innerHTML = '<option value="">Erreur de chargement</option>'; return; }
   if (!data?.length) { sel.innerHTML = '<option value="">Aucun étudiant en base</option>'; return; }
-  sel.innerHTML = data.map(e => `<option value="${e.id}">${e.prenom||''} ${e.nom||''} ${e.classe?'· '+e.classe:''}</option>`).join('');
+  sel.innerHTML = data.map(e => `<option value="${e.id}">${esc(e.prenom||'')} ${esc(e.nom||'')} ${e.classe?'· '+e.classe:''}</option>`).join('');
   chargerPortailEtudiant(data[0].id);
 }
 
@@ -19947,7 +19960,7 @@ async function chargerSMSParents() {
   if (banner && bannerTx) {
     const risque = checkDmarcRisque(cfg.fromEmail);
     if (risque) {
-      bannerTx.innerHTML = `L'adresse expéditrice configurée (<b>${cfg.fromEmail}</b>) utilise un domaine à politique DMARC stricte (<code>${cfg.fromEmail.split("@")[1]}</code>). Les emails envoyés via Brevo sont probablement <b>rejetés ou marqués comme spam</b> par les fournisseurs (Gmail, Outlook, Yahoo). Configurez un domaine que vous possédez (ex. <code>noreply@votre-ecole.com</code>) et validez-le dans Brevo → Senders.`;
+      bannerTx.innerHTML = `L'adresse expéditrice configurée (<b>${esc(cfg.fromEmail)}</b>) utilise un domaine à politique DMARC stricte (<code>${cfg.fromEmail.split("@")[1]}</code>). Les emails envoyés via Brevo sont probablement <b>rejetés ou marqués comme spam</b> par les fournisseurs (Gmail, Outlook, Yahoo). Configurez un domaine que vous possédez (ex. <code>noreply@votre-ecole.com</code>) et validez-le dans Brevo → Senders.`;
       banner.style.display = "block";
     } else {
       banner.style.display = "none";
@@ -20219,7 +20232,7 @@ async function diagnostiquerLivraisonBrevo() {
     });
     const data = await resp.json();
     if (!resp.ok) {
-      out.innerHTML = `<div style="color:#dc2626;font-size:13px">❌ Erreur API Brevo : ${data.message || resp.status}</div>`;
+      out.innerHTML = `<div style="color:#dc2626;font-size:13px">❌ Erreur API Brevo : ${esc(data.message || resp.status)}</div>`;
       return;
     }
     const events = data.events || [];
@@ -20301,7 +20314,7 @@ async function diagnostiquerLivraisonBrevo() {
       </div>
       <div style="margin-top:.75rem;font-size:11px;color:#9ca3af">Source : API Brevo · ${events.length} événement(s) récents · ${new Date().toLocaleString("fr-FR")}</div>`;
   } catch(e) {
-    out.innerHTML = `<div style="color:#dc2626;font-size:13px">❌ Erreur réseau : ${e.message}</div>`;
+    out.innerHTML = `<div style="color:#dc2626;font-size:13px">❌ Erreur réseau : ${esc(e.message)}</div>`;
   }
 }
 
@@ -22844,8 +22857,8 @@ async function chargerMessages_chat(userId) {
       const isMine = m.expediteur_id === user.id;
       const time = new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
       return `<div class="chat-msg ${isMine?'mine':''}">
-        <div class="chat-bubble ${isMine?'mine':'other'}">${m.contenu}</div>
-        <div class="chat-time">${time}</div>
+        <div class="chat-bubble ${isMine?'mine':'other'}">${esc(m.contenu)}</div>
+        <div class="chat-time">${esc(time)}</div>
       </div>`;
     }).join('');
 
@@ -22876,7 +22889,7 @@ async function envoyerChatMessage() {
     const time = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
     const div = document.createElement('div');
     div.className = 'chat-msg mine';
-    div.innerHTML = `<div class="chat-bubble mine">${contenu}</div><div class="chat-time">${time}</div>`;
+    div.innerHTML = `<div class="chat-bubble mine">${esc(contenu)}</div><div class="chat-time">${esc(time)}</div>`;
     list.appendChild(div);
     list.scrollTop = list.scrollHeight;
   } catch(e) {
