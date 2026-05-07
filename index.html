@@ -2341,12 +2341,6 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
   <a onclick="showPage('dashboard')" id="nav-dashboard" class="on"><span class="ico">⊞</span> Tableau de bord</a>
 
-  <!-- (P2.4) Favoris : section dynamique, peuplée par Favoris.afficher() -->
-  <div id="nav-favoris-section" style="display:none">
-    <div class="nav-section">⭐ Favoris</div>
-    <div id="nav-favoris-liste"></div>
-  </div>
-
   <div class="nav-section">Académique</div>
   <a onclick="showPage('etudiants')" id="nav-etudiants"><span class="ico">👥</span> Étudiants</a>
   <a onclick="showPage('classes')" id="nav-classes"><span class="ico">🏫</span> Classes & Prog.</a>
@@ -9115,124 +9109,6 @@ function showTab(page, tabId) {
 }
 
 // ══ MODALS ════════════════════════════════════
-// ══ (P2.4) FAVORIS DE MODULES ═══════════════════════════════════
-// Permet à chaque utilisateur d'épingler ses modules les plus utilisés
-// en haut du menu. Sauvegardé dans localStorage par utilisateur.
-const Favoris = {
-  _userId: null, // mémorisé une fois la session prête
-
-  async resoudreUserId() {
-    if (this._userId) return this._userId;
-    try {
-      const { data: { session } } = await db.auth.getSession();
-      this._userId = session?.user?.id || null;
-    } catch(_) { this._userId = null; }
-    return this._userId;
-  },
-
-  cle() {
-    return 'edulink_favoris_' + (this._userId || 'anonyme');
-  },
-
-  charger() {
-    try {
-      const raw = localStorage.getItem(this.cle());
-      return raw ? JSON.parse(raw) : [];
-    } catch(_) { return []; }
-  },
-
-  sauvegarder(liste) {
-    try { localStorage.setItem(this.cle(), JSON.stringify(liste)); }
-    catch(e) { console.warn('[Favoris] localStorage', e); }
-  },
-
-  estFavori(pageId) {
-    return this.charger().includes(pageId);
-  },
-
-  toggle(pageId, event) {
-    if (event) { event.stopPropagation(); event.preventDefault(); }
-    let liste = this.charger();
-    if (liste.includes(pageId)) {
-      liste = liste.filter(p => p !== pageId);
-      if (typeof showToast === 'function') showToast('⭐ Retiré des favoris', 'info');
-    } else {
-      liste.push(pageId);
-      if (typeof showToast === 'function') showToast('⭐ Ajouté aux favoris', 'success');
-    }
-    this.sauvegarder(liste);
-    this.afficher();
-    this.injecterEtoiles();
-  },
-
-  // Affiche la section "⭐ Favoris" en haut du menu en clonant les liens correspondants
-  afficher() {
-    const section = document.getElementById('nav-favoris-section');
-    const liste = document.getElementById('nav-favoris-liste');
-    if (!section || !liste) return;
-    const favs = this.charger();
-    if (favs.length === 0) {
-      section.style.display = 'none';
-      return;
-    }
-    section.style.display = 'block';
-    liste.innerHTML = '';
-    favs.forEach(pageId => {
-      const original = document.getElementById('nav-' + pageId);
-      if (!original) return;
-      // Cloner sans l'étoile (qui sera ajoutée dans le menu principal)
-      const clone = original.cloneNode(true);
-      clone.id = 'nav-fav-' + pageId;
-      clone.classList.remove('on');
-      // Retirer l'étoile clonée si présente
-      const etoile = clone.querySelector('.fav-star');
-      if (etoile) etoile.remove();
-      liste.appendChild(clone);
-    });
-  },
-
-  // Ajoute une étoile cliquable à droite de chaque lien du menu principal
-  injecterEtoiles() {
-    document.querySelectorAll('nav > a[id^="nav-"]').forEach(lien => {
-      const pageId = lien.id.replace(/^nav-/, '');
-      // Ne pas mettre d'étoile sur le dashboard ni sur les liens favoris clonés
-      if (pageId === 'dashboard' || pageId.startsWith('fav-')) return;
-      // Retirer l'ancienne étoile si présente
-      const ancienne = lien.querySelector('.fav-star');
-      if (ancienne) ancienne.remove();
-      // Créer la nouvelle étoile
-      const star = document.createElement('span');
-      star.className = 'fav-star';
-      star.style.cssText = 'margin-left:auto;cursor:pointer;font-size:13px;transition:opacity .15s,transform .15s;padding:0 4px';
-      const fav = this.estFavori(pageId);
-      star.textContent = fav ? '⭐' : '☆';
-      star.style.opacity = fav ? '1' : '.4';
-      star.title = fav ? 'Retirer des favoris' : 'Ajouter aux favoris';
-      star.onclick = (e) => Favoris.toggle(pageId, e);
-      star.onmouseover = () => { star.style.opacity = '1'; star.style.transform = 'scale(1.2)'; };
-      star.onmouseout = () => { star.style.opacity = fav ? '1' : '.4'; star.style.transform = 'scale(1)'; };
-      lien.appendChild(star);
-    });
-  },
-
-  // À appeler une fois la session prête (login)
-  async init() {
-    await this.resoudreUserId();
-    this.injecterEtoiles();
-    this.afficher();
-  },
-};
-
-// Initialisation : essai immédiat (cas anonyme), puis re-essai après chaque login
-setTimeout(() => Favoris.init(), 800);
-// Re-init quand l'auth change (login/logout)
-if (typeof db !== 'undefined' && db.auth && db.auth.onAuthStateChange) {
-  db.auth.onAuthStateChange((event, session) => {
-    Favoris._userId = session?.user?.id || null;
-    setTimeout(() => Favoris.init(), 300);
-  });
-}
-
 // ══ (P2.1) BROUILLONS AUTOMATIQUES ══════════════════════════════
 // Sauvegarde automatique des formulaires longs en localStorage pour éviter
 // les pertes en cas de plantage, fermeture d'onglet ou rafraîchissement.
