@@ -22973,7 +22973,15 @@ function fermerRecherche() {
   document.getElementById('search-results').innerHTML = '<div class="search-empty">Commencez à taper pour rechercher...</div>';
 }
 
-async function rechercherGlobal(query) {
+// (P2.7) Recherche globale étendue : 9 entités + debounce
+let _rechercheTimer = null;
+function rechercherGlobal(query) {
+  // Debounce 250ms : évite de spammer Supabase à chaque frappe
+  clearTimeout(_rechercheTimer);
+  _rechercheTimer = setTimeout(() => _rechercherGlobalImpl(query), 250);
+}
+
+async function _rechercherGlobalImpl(query) {
   const container = document.getElementById('search-results');
   searchIndex = -1;
   if (!query.trim()) {
@@ -22981,41 +22989,207 @@ async function rechercherGlobal(query) {
     return;
   }
   const q = query.toLowerCase();
+  const qEsc = q.replace(/[%_]/g, '\\$&'); // échapper les wildcards SQL
   let html = '';
-  // Modules
+
+  // ── Modules (toujours en premier, instantané) ────────────────
   const modules = SEARCH_MODULES.filter(m => m.titre.toLowerCase().includes(q));
   if (modules.length > 0) {
     html += `<div class="search-result-section">Modules</div>`;
     modules.slice(0,5).forEach(m => {
       html += `<div class="search-result-item" onclick="showPage('${m.module}');fermerRecherche()">
         <div class="sri-ico" style="background:${m.bg}">${m.ico}</div>
-        <div class="sri-body"><div class="sri-title">${m.titre}</div><div class="sri-meta">Module EduLink</div></div>
+        <div class="sri-body"><div class="sri-title">${esc(m.titre)}</div><div class="sri-meta">Module EduLink</div></div>
         <span class="sri-badge" style="background:#f3f4f6;color:#6b7280">→</span>
       </div>`;
     });
   }
-  // Étudiants depuis Supabase
-  if (q.length >= 2) {
-    try {
-      let query_q = db.from('etudiants').select('id,nom,prenom,classe,matricule').ilike('nom', `%${q}%`).limit(5);
-      if (currentEcoleId) query_q = query_q.eq('ecole_id', currentEcoleId);
-      const { data } = await query_q;
-      if (data && data.length > 0) {
-        html += `<div class="search-result-section">Étudiants</div>`;
-        data.forEach(e => {
-          html += `<div class="search-result-item" onclick="showPage('etudiants');fermerRecherche()">
-            <div class="sri-ico" style="background:#dcfce7">🎓</div>
-            <div class="sri-body">
-              <div class="sri-title">${e.prenom || ''} ${e.nom}</div>
-              <div class="sri-meta">${e.classe || '—'} · ${e.matricule || ''}</div>
-            </div>
-            <span class="sri-badge" style="background:#dcfce7;color:#059669">Étudiant</span>
-          </div>`;
-        });
-      }
-    } catch(e) {}
+
+  // ── Tout le reste nécessite ≥ 2 caractères ──────────────────
+  if (q.length < 2) {
+    if (!html) html = '<div class="search-empty">Tapez au moins 2 caractères...</div>';
+    container.innerHTML = html;
+    return;
   }
-  if (!html) html = '<div class="search-empty">Aucun résultat pour "' + query + '"</div>';
+
+  // Indicateur de chargement pendant les requêtes Supabase
+  container.innerHTML = html + '<div class="search-empty">🔍 Recherche en cours...</div>';
+
+  // Helper : ajoute un filtre ecole si défini
+  const withEcole = (q) => currentEcoleId ? q.eq('ecole_id', currentEcoleId) : q;
+
+  // Lancer toutes les recherches en parallèle pour la rapidité
+  const [
+    etudiantsRes, enseignantsRes, classesRes, facturesRes, personnelRes,
+    messagesRes, documentsRes, examensRes, incidentsRes
+  ] = await Promise.all([
+    // Étudiants : nom OU prénom OU matricule
+    withEcole(db.from('etudiants').select('id,nom,prenom,matricule,classe').or(`nom.ilike.%${qEsc}%,prenom.ilike.%${qEsc}%,matricule.ilike.%${qEsc}%`)).limit(5).then(r => r.data || []).catch(() => []),
+    // Enseignants : nom OU prénom OU matricule
+    withEcole(db.from('enseignants').select('id,nom,prenom,matricule,specialite').or(`nom.ilike.%${qEsc}%,prenom.ilike.%${qEsc}%,matricule.ilike.%${qEsc}%`)).limit(5).then(r => r.data || []).catch(() => []),
+    // Classes : nom OU filière
+    withEcole(db.from('classes').select('id,nom,filiere,niveau').or(`nom.ilike.%${qEsc}%,filiere.ilike.%${qEsc}%`)).limit(5).then(r => r.data || []).catch(() => []),
+    // Factures : référence OU type_frais
+    withEcole(db.from('factures').select('id,reference,type_frais,montant_total,statut').or(`reference.ilike.%${qEsc}%,type_frais.ilike.%${qEsc}%`)).limit(5).then(r => r.data || []).catch(() => []),
+    // Personnel : nom OU prénom OU poste
+    withEcole(db.from('personnel').select('id,nom,prenom,poste,departement').or(`nom.ilike.%${qEsc}%,prenom.ilike.%${qEsc}%,poste.ilike.%${qEsc}%`)).limit(5).then(r => r.data || []).catch(() => []),
+    // Messages : sujet OU contenu
+    withEcole(db.from('messages').select('id,sujet,contenu,expediteur_nom,created_at').or(`sujet.ilike.%${qEsc}%,contenu.ilike.%${qEsc}%`)).limit(5).then(r => r.data || []).catch(() => []),
+    // Documents : titre OU type
+    withEcole(db.from('documents').select('id,titre,type,etudiants(nom,prenom)').or(`titre.ilike.%${qEsc}%,type.ilike.%${qEsc}%`)).limit(5).then(r => r.data || []).catch(() => []),
+    // Examens : matière OU type
+    withEcole(db.from('examens').select('id,matiere,type_examen,date_examen').or(`matiere.ilike.%${qEsc}%,type_examen.ilike.%${qEsc}%`)).limit(5).then(r => r.data || []).catch(() => []),
+    // Incidents : type OU description
+    withEcole(db.from('incidents').select('id,type,description,date_incident,etudiants(nom,prenom)').or(`type.ilike.%${qEsc}%,description.ilike.%${qEsc}%`)).limit(5).then(r => r.data || []).catch(() => []),
+  ]);
+
+  // Reconstruire le HTML maintenant qu'on a tous les résultats
+  html = '';
+  if (modules.length > 0) {
+    html += `<div class="search-result-section">Modules</div>`;
+    modules.slice(0,5).forEach(m => {
+      html += `<div class="search-result-item" onclick="showPage('${m.module}');fermerRecherche()">
+        <div class="sri-ico" style="background:${m.bg}">${m.ico}</div>
+        <div class="sri-body"><div class="sri-title">${esc(m.titre)}</div><div class="sri-meta">Module EduLink</div></div>
+        <span class="sri-badge" style="background:#f3f4f6;color:#6b7280">→</span>
+      </div>`;
+    });
+  }
+
+  // Étudiants
+  if (etudiantsRes.length) {
+    html += `<div class="search-result-section">Étudiants (${etudiantsRes.length})</div>`;
+    etudiantsRes.forEach(e => {
+      html += `<div class="search-result-item" onclick="showPage('etudiants');fermerRecherche()">
+        <div class="sri-ico" style="background:#dcfce7">🎓</div>
+        <div class="sri-body">
+          <div class="sri-title">${esc(e.prenom || '')} ${esc(e.nom || '')}</div>
+          <div class="sri-meta">${esc(e.matricule || '—')} · ${esc(e.classe || 'sans classe')}</div>
+        </div>
+        <span class="sri-badge" style="background:#dcfce7;color:#059669">Étudiant</span>
+      </div>`;
+    });
+  }
+  // Enseignants
+  if (enseignantsRes.length) {
+    html += `<div class="search-result-section">Enseignants (${enseignantsRes.length})</div>`;
+    enseignantsRes.forEach(e => {
+      html += `<div class="search-result-item" onclick="showPage('enseignants');fermerRecherche()">
+        <div class="sri-ico" style="background:#dbeafe">👨‍🏫</div>
+        <div class="sri-body">
+          <div class="sri-title">${esc(e.prenom || '')} ${esc(e.nom || '')}</div>
+          <div class="sri-meta">${esc(e.matricule || '—')} · ${esc(e.specialite || 'spécialité non renseignée')}</div>
+        </div>
+        <span class="sri-badge" style="background:#dbeafe;color:#1d4ed8">Enseignant</span>
+      </div>`;
+    });
+  }
+  // Classes
+  if (classesRes.length) {
+    html += `<div class="search-result-section">Classes (${classesRes.length})</div>`;
+    classesRes.forEach(c => {
+      html += `<div class="search-result-item" onclick="showPage('classes');fermerRecherche()">
+        <div class="sri-ico" style="background:#fef3c7">🏫</div>
+        <div class="sri-body">
+          <div class="sri-title">${esc(c.nom || '—')}</div>
+          <div class="sri-meta">${esc(c.filiere || '—')} · Niveau ${esc(c.niveau || '—')}</div>
+        </div>
+        <span class="sri-badge" style="background:#fef3c7;color:#b45309">Classe</span>
+      </div>`;
+    });
+  }
+  // Factures
+  if (facturesRes.length) {
+    html += `<div class="search-result-section">Factures (${facturesRes.length})</div>`;
+    facturesRes.forEach(f => {
+      const statutColor = f.statut === 'payée' ? '#dcfce7' : f.statut === 'en_attente' ? '#fef3c7' : '#fee2e2';
+      const statutText = f.statut === 'payée' ? '#059669' : f.statut === 'en_attente' ? '#b45309' : '#dc2626';
+      html += `<div class="search-result-item" onclick="showPage('paiements');fermerRecherche()">
+        <div class="sri-ico" style="background:#fef3c7">💳</div>
+        <div class="sri-body">
+          <div class="sri-title">${esc(f.reference || '—')}</div>
+          <div class="sri-meta">${esc(f.type_frais || '—')} · ${fmtMontant(f.montant_total || 0)}</div>
+        </div>
+        <span class="sri-badge" style="background:${statutColor};color:${statutText}">${esc(f.statut || '—')}</span>
+      </div>`;
+    });
+  }
+  // Personnel
+  if (personnelRes.length) {
+    html += `<div class="search-result-section">Personnel (${personnelRes.length})</div>`;
+    personnelRes.forEach(p => {
+      html += `<div class="search-result-item" onclick="showPage('rh');fermerRecherche()">
+        <div class="sri-ico" style="background:#ede9fe">🧑‍💼</div>
+        <div class="sri-body">
+          <div class="sri-title">${esc(p.prenom || '')} ${esc(p.nom || '')}</div>
+          <div class="sri-meta">${esc(p.poste || '—')} · ${esc(p.departement || '—')}</div>
+        </div>
+        <span class="sri-badge" style="background:#ede9fe;color:#7c3aed">Personnel</span>
+      </div>`;
+    });
+  }
+  // Messages
+  if (messagesRes.length) {
+    html += `<div class="search-result-section">Messages (${messagesRes.length})</div>`;
+    messagesRes.forEach(m => {
+      const apercu = (m.contenu || '').slice(0, 60).replace(/\s+/g, ' ');
+      html += `<div class="search-result-item" onclick="showPage('messages');fermerRecherche()">
+        <div class="sri-ico" style="background:#fce7f3">✉️</div>
+        <div class="sri-body">
+          <div class="sri-title">${esc(m.sujet || '(sans sujet)')}</div>
+          <div class="sri-meta">${esc(m.expediteur_nom || '—')} · ${esc(apercu)}${apercu.length === 60 ? '...' : ''}</div>
+        </div>
+        <span class="sri-badge" style="background:#fce7f3;color:#be185d">Message</span>
+      </div>`;
+    });
+  }
+  // Documents
+  if (documentsRes.length) {
+    html += `<div class="search-result-section">Documents (${documentsRes.length})</div>`;
+    documentsRes.forEach(d => {
+      const etu = d.etudiants ? `${d.etudiants.prenom || ''} ${d.etudiants.nom || ''}`.trim() : '—';
+      html += `<div class="search-result-item" onclick="showPage('documents');fermerRecherche()">
+        <div class="sri-ico" style="background:#e0e7ff">📄</div>
+        <div class="sri-body">
+          <div class="sri-title">${esc(d.titre || '—')}</div>
+          <div class="sri-meta">${esc(d.type || '—')} · ${esc(etu)}</div>
+        </div>
+        <span class="sri-badge" style="background:#e0e7ff;color:#4338ca">Document</span>
+      </div>`;
+    });
+  }
+  // Examens
+  if (examensRes.length) {
+    html += `<div class="search-result-section">Examens (${examensRes.length})</div>`;
+    examensRes.forEach(ex => {
+      html += `<div class="search-result-item" onclick="showPage('examens');fermerRecherche()">
+        <div class="sri-ico" style="background:#f3e8ff">📝</div>
+        <div class="sri-body">
+          <div class="sri-title">${esc(ex.matiere || '—')}</div>
+          <div class="sri-meta">${esc(ex.type_examen || '—')} · ${ex.date_examen ? fmtDate(ex.date_examen) : '—'}</div>
+        </div>
+        <span class="sri-badge" style="background:#f3e8ff;color:#7c3aed">Examen</span>
+      </div>`;
+    });
+  }
+  // Incidents
+  if (incidentsRes.length) {
+    html += `<div class="search-result-section">Incidents (${incidentsRes.length})</div>`;
+    incidentsRes.forEach(i => {
+      const etu = i.etudiants ? `${i.etudiants.prenom || ''} ${i.etudiants.nom || ''}`.trim() : '—';
+      const apercu = (i.description || '').slice(0, 50);
+      html += `<div class="search-result-item" onclick="showPage('discipline');fermerRecherche()">
+        <div class="sri-ico" style="background:#fee2e2">⚠️</div>
+        <div class="sri-body">
+          <div class="sri-title">${esc(i.type || '—')} — ${esc(etu)}</div>
+          <div class="sri-meta">${esc(apercu)}${apercu.length === 50 ? '...' : ''}</div>
+        </div>
+        <span class="sri-badge" style="background:#fee2e2;color:#dc2626">Incident</span>
+      </div>`;
+    });
+  }
+
+  if (!html) html = '<div class="search-empty">Aucun résultat pour "' + esc(query) + '"</div>';
   container.innerHTML = html;
 }
 
