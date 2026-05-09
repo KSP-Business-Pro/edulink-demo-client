@@ -3238,6 +3238,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
   <!-- Stats cards -->
   <div class="cards">
+    <div class="card"><div class="i">🎓</div><div class="n" id="cnt-directeurs">0</div><div class="l">Directeurs</div></div>
     <div class="card"><div class="i">👨‍💼</div><div class="n" id="cnt-admins">0</div><div class="l">Administrateurs</div></div>
     <div class="card"><div class="i">👨‍🏫</div><div class="n" id="cnt-profs">0</div><div class="l">Enseignants</div></div>
     <div class="card"><div class="i">💰</div><div class="n" id="cnt-comptas">0</div><div class="l">Comptables</div></div>
@@ -3249,6 +3250,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <span class="filter-label">Filtrer :</span>
     <select id="filter-user-role" onchange="filtrerUtilisateurs()">
       <option value="">Tous les rôles</option>
+      <option value="directeur">Directeur</option>
       <option value="admin">Administrateur</option>
       <option value="enseignant">Enseignant</option>
       <option value="comptable">Comptable</option>
@@ -11700,8 +11702,10 @@ async function chargerUtilisateurs() {
   tousLesUtilisateurs = data || [];
 
   // Stats par rôle
-  const roles = { admin:0, enseignant:0, comptable:0, parent:0, etudiant:0 };
+  const roles = { directeur:0, admin:0, enseignant:0, comptable:0, parent:0, etudiant:0 };
   tousLesUtilisateurs.forEach(u => { if (roles[u.role] !== undefined) roles[u.role]++; });
+  const elDir = document.getElementById('cnt-directeurs');
+  if (elDir) elDir.textContent = roles.directeur;
   document.getElementById('cnt-admins').textContent  = roles.admin;
   document.getElementById('cnt-profs').textContent   = roles.enseignant;
   document.getElementById('cnt-comptas').textContent = roles.comptable;
