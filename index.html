@@ -22839,63 +22839,24 @@ function previsualiserSitePublic() {
       if (modal) modal.classList.remove("show");
       document.body.style.overflow = "";
     }
+    // ─── P3.7 (2026-05-09) : Inscription publique désactivée par décision sécurité ───
+    // Les inscriptions doivent désormais être saisies par l'administration de l'école.
+    // Pour réactiver : restaurer le code original ET recréer une politique RLS INSERT
+    // ciblée sur public.inscriptions_demandes (cf. décision Q2 du 09/05/2026).
     async function ppSubmitForm(e) {
       e.preventDefault();
-      var cfg  = ppGetCfg();
+      var msg = document.getElementById("formMsg");
       var form = document.getElementById("formInscr");
-      var msg  = document.getElementById("formMsg");
       var btn  = document.getElementById("btnSubmit");
-      if (!cfg.ecoleId) {
-        msg.textContent = "⚠️ Aucune école sélectionnée dans EduLink. Sélectionnez une école avant la prévisualisation.";
-        msg.className = "form-msg show err"; return;
-      }
-      if (!cfg.supabaseUrl || !cfg.supabaseKey) {
-        msg.textContent = "⚠️ Configuration Supabase indisponible.";
-        msg.className = "form-msg show err"; return;
-      }
-      var data = new FormData(form);
-      var payload = {
-        ecole_id:        cfg.ecoleId,
-        nom:             (data.get("nom")||"").trim(),
-        prenom:          (data.get("prenom")||"").trim(),
-        email:           (data.get("email")||"").trim(),
-        telephone:       (data.get("telephone")||"").trim(),
-        niveau_actuel:   (data.get("niveau_actuel")||"").trim(),
-        niveau_demande:  (data.get("niveau_demande")||"").trim(),
-        filiere:         (data.get("filiere")||"").trim(),
-        message:         (data.get("message")||"").trim(),
-        statut:          "nouveau"
-      };
-      if (!payload.nom || !payload.prenom || !payload.email || !payload.niveau_demande) {
-        msg.textContent = "Merci de remplir tous les champs obligatoires.";
-        msg.className = "form-msg show err"; return;
-      }
-      btn.disabled = true; btn.textContent = "Envoi...";
-      try {
-        var resp = await fetch(cfg.supabaseUrl + "/rest/v1/inscriptions_demandes", {
-          method: "POST",
-          headers: {
-            "Content-Type":  "application/json",
-            "apikey":        cfg.supabaseKey,
-            "Authorization": "Bearer " + cfg.supabaseKey,
-            "Prefer":        "return=minimal"
-          },
-          body: JSON.stringify(payload)
-        });
-        if (!resp.ok) {
-          var errTxt = await resp.text();
-          throw new Error(errTxt || ("HTTP " + resp.status));
-        }
-        msg.textContent = "✅ Votre demande a bien été envoyée ! Nous vous recontacterons rapidement.";
-        msg.className = "form-msg show ok";
-        form.reset();
-        setTimeout(ppCloseModal, 2500);
-      } catch(err) {
-        msg.textContent = "❌ Erreur lors de l'envoi : " + (err.message || err);
+      if (msg) {
+        msg.innerHTML =
+          "ℹ️ <strong>Inscriptions en ligne temporairement indisponibles.</strong><br>" +
+          "Veuillez contacter directement l'administration de l'établissement " +
+          "(téléphone ou email affichés sur cette page) pour déposer votre demande.";
         msg.className = "form-msg show err";
-      } finally {
-        btn.disabled = false; btn.textContent = "Envoyer ma demande";
       }
+      if (btn) { btn.disabled = true; btn.textContent = "Indisponible"; }
+      // Le formulaire reste visible pour info, mais ne soumet plus rien.
     }
     // Bouton retour en haut au scroll
     window.addEventListener("scroll", function(){
