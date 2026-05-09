@@ -9915,7 +9915,9 @@ function invalidateData(table) {
 async function chargerEtudiants() {
   // Cache 30s : évite de re-charger à chaque navigation si les données sont fraîches
   if (_cacheValide('etudiants') && tousLesEtudiants?.length) { afficherEtudiants(tousLesEtudiants); return; }
-  document.getElementById('tbody-etudiants').innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
+  // ─── P3.7 (2026-05-09) : sécuriser pour les pages sans tbody-etudiants (ex: Portail Enseignant) ───
+  const tbody = document.getElementById('tbody-etudiants');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
   let data=null;
   try {
     let q=db.from('etudiants').select('*, classes(id,nom,filiere,niveau)').order('nom');
@@ -9937,7 +9939,9 @@ async function chargerEtudiants() {
   afficherEtudiants(tousLesEtudiants);
 }
 function afficherEtudiants(liste) {
+  // ─── P3.7 (2026-05-09) : sécuriser si tbody-etudiants absent (Portail Enseignant) ───
   const t=document.getElementById('tbody-etudiants');
+  if (!t) return;
   t.innerHTML=liste?.length
     ?liste.map(e=>{
       const cls=e.classes;
@@ -17132,6 +17136,10 @@ async function chargerPortailEnseignant() {
     document.getElementById('pens-nom').textContent = (ensActif.prenom||'') + ' ' + (ensActif.nom||'');
     document.getElementById('pens-poste').textContent = (ensActif.specialite||'Enseignant') + ' · ' + (ensActif.email||'');
     document.getElementById('pens-kpi-cours').textContent    = ensActif.heures_semaine || '—';
+    // ─── P3.7 (2026-05-09) : si tousLesEtudiants pas en cache, charger d'abord ───
+    if (!tousLesEtudiants?.length) {
+      try { await chargerEtudiants(); } catch(e) { console.warn('[Portail Enseignant] chargerEtudiants:', e); }
+    }
     document.getElementById('pens-kpi-etudiants').textContent= tousLesEtudiants.length || '—';
 
     let qN = db.from('notes').select('id',{count:'exact',head:true});
