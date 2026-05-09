@@ -17191,18 +17191,26 @@ async function chargerSaisieRapideNotes() {
   if (!tousLesEtudiants.length) await chargerEtudiants();
   pensEtudiantsSaisie = tousLesEtudiants;
   // ─── P3.7 (2026-05-09) : pré-remplir les notes existantes ───
-  // Les notes peuvent être stockées avec periode = 'S1'/'S2'/'T1'... (saisie rapide)
-  // OU periode = 'EXAM-{uuid}' (saisie via module Examens). Pour l'option robuste,
-  // on charge les 2 catégories et on garde la note la plus récente par étudiant.
+  // Les notes peuvent être stockées avec periode = 'S1'/'S2'/'T1'/etc. (saisie rapide)
+  // OU periode = 'EXAM-{uuid}' (saisie via module Examens). Pour matcher proprement,
+  // on s'appuie sur la table periodes_scolaires (date_debut / date_fin) configurée
+  // pour cette école.
   let notesExistantes = {}; // etudiant_id -> {note, source}
   try {
-    // Toutes les notes de cette matière dans cette école
+    // 1. Récupérer les bornes réelles de la période sélectionnée
+    const { data: pData } = await db.from('periodes_scolaires')
+      .select('nom, date_debut, date_fin')
+      .eq('ecole_id', currentEcoleId)
+      .eq('nom', periode)
+      .limit(1);
+    const periodeBornes = pData && pData[0] ? pData[0] : null;
+    // 2. Toutes les notes de cette matière dans cette école
     const { data: toutesNotes } = await db.from('notes')
       .select('id, etudiant_id, note, coefficient, periode, created_at')
       .eq('ecole_id', currentEcoleId)
       .eq('matiere', matiere)
       .order('created_at', { ascending: false });
-    // Récupérer en parallèle les examens dont les UUIDs apparaissent dans les périodes
+    // 3. Charger en parallèle les examens dont les UUIDs apparaissent dans les périodes
     const examIds = [...new Set((toutesNotes || [])
       .map(n => n.periode)
       .filter(p => typeof p === 'string' && p.startsWith('EXAM-'))
@@ -17210,46 +17218,36 @@ async function chargerSaisieRapideNotes() {
     let examensIndex = new Map();
     if (examIds.length) {
       const { data: exData } = await db.from('examens')
-        .select('id, date_examen, periode_scolaire')
+        .select('id, date_examen, trimestre')
         .in('id', examIds);
       (exData || []).forEach(e => examensIndex.set(e.id, e));
     }
-    // Map période visible -> détection mois (1er sem. = août→janvier ou janvier→juin)
-    // On considère qu'un examen "appartient" à la période sélectionnée si :
-    //   - son champ examens.periode_scolaire match (si renseigné)
-    //   - OU son mois tombe dans la fenêtre théorique (heuristique pour S1/S2/T1/T2/T3)
-    const moisDansPeriode = (mois, periode) => {
-      // mois est 1-12
-      if (periode === 'S1') return mois >= 8 || mois <= 1;       // août → janvier
-      if (periode === 'S2') return mois >= 2 && mois <= 7;       // février → juillet
-      if (periode === 'T1') return mois >= 9 && mois <= 12;      // sept → déc
-      if (periode === 'T2') return mois >= 1 && mois <= 3;       // jan → mars
-      if (periode === 'T3') return mois >= 4 && mois <= 7;       // avril → juillet
-      return true;
+    // 4. Filtrer les notes : match direct OU examen dont la date tombe dans les bornes
+    const dateDansBornes = (dateStr, bornes) => {
+      if (!bornes || !dateStr) return false;
+      const d = dateStr.substring(0, 10); // YYYY-MM-DD
+      return d >= bornes.date_debut && d <= bornes.date_fin;
     };
     (toutesNotes || []).forEach(n => {
       // Si déjà une note plus récente pour cet étudiant, on skip (tri DESC déjà appliqué)
       if (notesExistantes[n.etudiant_id]) return;
-      // Cas 1 : période simple (S1, S2, T1, T2, T3) — match direct
+      // Cas 1 : période simple (S1/S2/T1/T2/T3) — match direct sur la chaîne
       if (n.periode === periode) {
         notesExistantes[n.etudiant_id] = { note: n.note, source: 'saisie' };
         return;
       }
-      // Cas 2 : période est un EXAM-{uuid} — vérifier si l'examen tombe dans la période
+      // Cas 2 : période est un EXAM-{uuid} — utiliser les bornes réelles
       if (typeof n.periode === 'string' && n.periode.startsWith('EXAM-')) {
         const examen = examensIndex.get(n.periode.slice(5));
         if (!examen) return;
-        // Priorité 1 : champ examens.periode_scolaire si renseigné
-        if (examen.periode_scolaire && examen.periode_scolaire === periode) {
+        // Priorité 1 : champ examens.trimestre si renseigné et match
+        if (examen.trimestre && examen.trimestre === periode) {
           notesExistantes[n.etudiant_id] = { note: n.note, source: 'examen' };
           return;
         }
-        // Priorité 2 : heuristique sur date_examen
-        if (!examen.periode_scolaire && examen.date_examen) {
-          const m = new Date(examen.date_examen).getMonth() + 1; // 1-12
-          if (moisDansPeriode(m, periode)) {
-            notesExistantes[n.etudiant_id] = { note: n.note, source: 'examen' };
-          }
+        // Priorité 2 : date_examen tombe dans les bornes de la période sélectionnée
+        if (dateDansBornes(examen.date_examen, periodeBornes)) {
+          notesExistantes[n.etudiant_id] = { note: n.note, source: 'examen' };
         }
       }
     });
