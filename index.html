@@ -17181,6 +17181,7 @@ async function remplirSelectMatieresPens() {
 
 async function chargerSaisieRapideNotes() {
   const matiere = document.getElementById('pens-filter-matiere')?.value;
+  const periode = document.getElementById('pens-filter-periode')?.value || 'S1';
   const container = document.getElementById('pens-saisie-container');
   const actions   = document.getElementById('pens-saisie-actions');
   if (!matiere) {
@@ -17189,6 +17190,18 @@ async function chargerSaisieRapideNotes() {
   }
   if (!tousLesEtudiants.length) await chargerEtudiants();
   pensEtudiantsSaisie = tousLesEtudiants;
+  // ─── P3.7 (2026-05-09) : pré-remplir les notes déjà saisies pour cette matière + période ───
+  let notesExistantes = {};
+  try {
+    const { data: notesData } = await db.from('notes')
+      .select('id, etudiant_id, note, coefficient')
+      .eq('ecole_id', currentEcoleId)
+      .eq('matiere', matiere)
+      .eq('periode', periode);
+    (notesData || []).forEach(n => { notesExistantes[n.etudiant_id] = n; });
+  } catch (e) {
+    console.warn('[Portail Enseignant] Impossible de pré-charger les notes existantes:', e);
+  }
   // Grouper par filière
   const parFiliere = {};
   pensEtudiantsSaisie.forEach(e => {
@@ -17200,12 +17213,18 @@ async function chargerSaisieRapideNotes() {
   container.innerHTML = Object.entries(parFiliere).map(([filiere, etus]) => `
     <div class="qn-card">
       <div class="qnc-mat"><span class="badge purple">${filiere}</span> <span style="font-size:11px;color:#6b7280">${etus.length} étudiants</span></div>
-      ${etus.map(e=>`
+      ${etus.map(e=>{
+        const noteExist = notesExistantes[e.id];
+        const valAttr = noteExist ? ` value="${noteExist.note}"` : '';
+        const savedClass = noteExist ? ' saisie' : '';
+        const savedBadge = noteExist ? ' <span style="font-size:10px;color:#059669;margin-left:6px">✓ saisie</span>' : '';
+        return `
         <div class="qn-row">
-          <span class="qn-nom">${e.nom} ${e.prenom}</span>
-          <input type="number" class="qn-input" id="note-${e.id}" min="0" max="20" step="0.5"
-            placeholder="/20" oninput="this.classList.toggle('saisie',this.value!='')">
-        </div>`).join('')}
+          <span class="qn-nom">${e.nom} ${e.prenom}${savedBadge}</span>
+          <input type="number" class="qn-input${savedClass}" id="note-${e.id}" min="0" max="20" step="0.5"
+            placeholder="/20"${valAttr} oninput="this.classList.toggle('saisie',this.value!='')">
+        </div>`;
+      }).join('')}
     </div>`).join('');
 }
 
