@@ -1820,6 +1820,7 @@ const EDGE_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/bright-h
 const SUPABASE_ANON = 'sb_publishable_qRSHSH88vHxJ9pfXJMHksQ_iVawwupX';
 let otpTimer = null;
 let otpTelephone = '';
+let otpEtudiantTrouve = null; // P2.9 : stocke l'étudiant trouvé à l'étape 1
 
 function switchLoginTab(tab) {
   document.getElementById('tab-sms').style.display   = tab === 'sms'   ? 'block' : 'none';
@@ -1835,42 +1836,41 @@ function showOTPError(step, msg) {
 }
 
 async function envoyerOTP() {
+  // ─── P2.9 (2026-05-11) : Recherche de l'étudiant par téléphone ───
   const phone = document.getElementById('otp-phone').value.trim();
   if (!phone || phone.length < 8) { showOTPError(1, 'Entrez un numéro valide (8 à 10 chiffres)'); return; }
-  const tel = '+229' + phone;
+  const tel  = '+229' + phone;
+  const tel8 = phone.replace(/^229/, '');
   otpTelephone = tel;
   const btn = document.getElementById('btn-envoyer-otp');
-  btn.disabled = true; btn.textContent = 'Envoi en cours...';
+  btn.disabled = true; btn.textContent = 'Recherche en cours...';
+
+  // Rechercher l'étudiant par téléphone parent
   try {
-    const resp = await fetch(EDGE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON,
-        'Authorization': 'Bearer ' + SUPABASE_ANON
-      },
-      body: JSON.stringify({ action: 'envoyer', telephone: tel })
-    });
-    const data = await resp.json();
-    if (!data.success) throw new Error(data.error || 'Échec envoi');
-    // Passer à l'étape 2
-    document.getElementById('otp-step1').style.display = 'none';
-    document.getElementById('otp-step2').style.display = 'block';
-    document.getElementById('otp-phone-display').textContent = tel;
-    document.getElementById('d0').focus();
-    lancerCompteur();
+    const { data: liste } = await db.from('etudiants')
+      .select('id, nom, prenom, matricule, email_parent, ecole_id, telephone_parent, auth_id')
+      .or(`telephone_parent.eq.${tel},telephone_parent.eq.${tel8},telephone_parent.eq.${phone}`);
+    if (!liste || liste.length === 0) {
+      showOTPError(1, 'Aucun enfant lié à ce numéro. Vérifiez ou contactez l\'administration.');
+      btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
+      return;
+    }
+    otpEtudiantTrouve = liste[0];
+    console.log('[OTP] Étudiant trouvé:', otpEtudiantTrouve.nom, otpEtudiantTrouve.prenom);
   } catch(e) {
-    // Mode démo : si Edge Function indisponible, accepter code 123456
-    console.warn('[OTP] Edge Function indisponible, mode démo activé:', e.message);
-    document.getElementById('otp-step1').style.display = 'none';
-    document.getElementById('otp-step2').style.display = 'block';
-    document.getElementById('otp-phone-display').textContent = tel;
-    document.getElementById('d0').focus();
-    lancerCompteur();
-    // Afficher un hint discret pour la démo
-    const hint = document.getElementById('otp-demo-hint');
-    if (hint) { hint.style.display = 'block'; }
+    showOTPError(1, 'Erreur de connexion. Réessayez.');
+    btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
+    return;
   }
+
+  // Passer à l'étape 2
+  document.getElementById('otp-step1').style.display = 'none';
+  document.getElementById('otp-step2').style.display = 'block';
+  document.getElementById('otp-phone-display').textContent = tel;
+  document.getElementById('d0').focus();
+  lancerCompteur();
+  const hint = document.getElementById('otp-demo-hint');
+  if (hint) { hint.style.display = 'block'; }
 }
 
 function otpNext(el, idx) {
@@ -1888,79 +1888,105 @@ async function verifierOTP() {
   const btn = document.getElementById('btn-verifier-otp');
   btn.disabled = true; btn.textContent = 'Vérification...';
 
-  // ── MODE DÉMO : code 123456 accepté directement sans Edge Function ──
-  if (code === '123456') {
-    clearInterval(otpTimer);
-    await connecterParTelephone(otpTelephone);
+  // ─── P2.9 (2026-05-11) : signInWithPassword au lieu du bypass OTP applicatif ───
+  // Le "code OTP" devient le mot de passe Supabase Auth.
+  // En mode démo : 123456 est le mot de passe. En prod : l'OTP SMS sera le mot de passe.
+  if (!otpEtudiantTrouve) {
+    showOTPError(2, 'Session expirée. Recommencez depuis le début.');
+    btn.disabled = false; btn.textContent = '✅ Confirmer le code';
     return;
   }
 
-  // ── MODE PRODUCTION : vérification via Edge Function ──
+  // Déterminer l'email de connexion
+  const emailConn = (otpEtudiantTrouve.email_parent && otpEtudiantTrouve.email_parent.trim() !== '')
+    ? otpEtudiantTrouve.email_parent.toLowerCase().trim()
+    : otpEtudiantTrouve.matricule.toLowerCase() + '@portail.edulink.bj';
+
+  // Mot de passe = code saisi (123456 en démo = matricule de la migration)
+  // En démo, on accepte 123456 OU le matricule comme mot de passe
+  let motDePasse = code;
+  const isDemoCode = (code === '123456');
+
   try {
-    const resp = await fetch(EDGE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON,
-        'Authorization': 'Bearer ' + SUPABASE_ANON
-      },
-      body: JSON.stringify({ action: 'verifier', telephone: otpTelephone, code })
-    });
-    const data = await resp.json();
-    if (!data.success) throw new Error(data.error || 'Code invalide');
+    let authResult = await db.auth.signInWithPassword({ email: emailConn, password: motDePasse });
+
+    // Si démo (123456) et que ça échoue, retenter avec le matricule (mot de passe réel)
+    if (authResult.error && isDemoCode) {
+      console.log('[OTP] Code démo 123456 → tentative avec matricule:', otpEtudiantTrouve.matricule);
+      authResult = await db.auth.signInWithPassword({
+        email: emailConn,
+        password: otpEtudiantTrouve.matricule
+      });
+    }
+
+    if (authResult.error) {
+      console.error('[OTP] Échec signIn:', authResult.error.message);
+      showOTPError(2, isDemoCode
+        ? 'Code incorrect. En mode démo, utilisez le code 123456.'
+        : 'Code incorrect. Vérifiez et réessayez.'
+      );
+      btn.disabled = false; btn.textContent = '✅ Confirmer le code';
+      [0,1,2,3,4,5].forEach(i => { const d = document.getElementById('d'+i); d.value=''; d.classList.remove('filled'); });
+      document.getElementById('d0').focus();
+      return;
+    }
+
+    // ✅ Connexion Supabase Auth réussie !
+    console.log('[OTP] ✅ Connecté via Supabase Auth:', authResult.data.user.id);
     clearInterval(otpTimer);
-    await connecterParTelephone(otpTelephone);
+    await connecterEtudiant(otpEtudiantTrouve);
+
   } catch(e) {
-    showOTPError(2, 'Code incorrect. En mode démo, utilisez le code 123456.');
+    console.error('[OTP] Erreur inattendue:', e);
+    showOTPError(2, 'Erreur de connexion. Réessayez.');
     btn.disabled = false; btn.textContent = '✅ Confirmer le code';
-    [0,1,2,3,4,5].forEach(i => { const d = document.getElementById('d'+i); d.value=''; d.classList.remove('filled'); });
-    document.getElementById('d0').focus();
   }
 }
 
-async function connecterParTelephone(tel) {
-  // Normaliser les formats de numéro
-  const telSans = tel.replace(/^[+]/, '');
-  const telAvec = '+' + telSans;
-  const tel8    = telSans.replace(/^229/, '');
-
-  // Charger tous les étudiants et filtrer côté JS
-  // (évite les problèmes d'encodage du + dans PostgREST)
-  let trouve = null;
+async function connecterEtudiant(etudiant) {
+  // ─── P2.9 (2026-05-11) : connexion avec vrai auth Supabase ───
+  // À ce stade, db.auth.getUser() retourne l'utilisateur authentifié.
+  // On recharge les données de l'étudiant depuis la base pour avoir les données fraîches.
   try {
-    const { data } = await db.from('etudiants').select('*');
-    const liste = (data || []).filter(e => {
-      const t = (e.telephone_parent || '').trim();
-      return t === telAvec || t === telSans || t === tel8;
-    });
-    console.log('[Portail] Recherche tel:', telAvec, '/', telSans, '/', tel8, '->', liste.length, 'résultat(s)');
-    if (liste.length > 0) trouve = liste[0];
+    const { data: etu } = await db.from('etudiants')
+      .select('*')
+      .eq('id', etudiant.id)
+      .single();
+    if (etu) etudiant = etu;
   } catch(e) {
-    console.error('[Portail] Erreur:', e.message);
+    console.warn('[Portail] Rechargement étudiant échoué, on utilise le cache:', e);
   }
 
-  if (trouve) {
-    currentEtudiant = trouve;
-    currentEcoleId  = trouve.ecole_id;
-    currentProfile  = { role: 'parent', prenom: 'Parent', nom: trouve.nom };
-    currentUser     = { email: tel };
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app-portail').style.display  = 'block';
-    document.getElementById('greeting-nom').textContent   = 'Parent de ' + trouve.prenom;
-    document.getElementById('greeting-role').textContent  = 'Espace parent';
-    document.getElementById('student-pill-wrap').innerHTML =
-      `<div class="student-pill">👨‍🎓 ${trouve.nom} ${trouve.prenom} · ${trouve.filiere} ${trouve.niveau}</div>`;
-    // Résoudre le nom de classe AVANT chargerTout (l'EDT en dépend)
-    await resoudreClasseEtudiant();
-    chargerTout();
-    // Branding dynamique (logo + nom d'école dans le header)
-    chargerBrandingPortail();
+  currentEtudiant = etudiant;
+  currentEcoleId  = etudiant.ecole_id;
+  currentProfile  = { role: 'parent', prenom: 'Parent', nom: etudiant.nom };
+  currentUser     = { email: etudiant.email_parent || etudiant.matricule };
+
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-portail').style.display  = 'block';
+  document.getElementById('greeting-nom').textContent   = 'Parent de ' + etudiant.prenom;
+  document.getElementById('greeting-role').textContent  = 'Espace parent';
+  document.getElementById('student-pill-wrap').innerHTML =
+    `<div class="student-pill">👨‍🎓 ${etudiant.nom} ${etudiant.prenom} · ${etudiant.filiere || ''} ${etudiant.niveau || ''}</div>`;
+
+  await resoudreClasseEtudiant();
+  chargerTout();
+  chargerBrandingPortail();
+}
+
+// ─── ANCIENNE FONCTION CONSERVÉE POUR COMPATIBILITÉ (ne fait que rediriger) ───
+async function connecterParTelephone(tel) {
+  // P2.9 : cette fonction ne devrait plus être appelée directement
+  // Elle reste en place par sécurité au cas où d'autres parties du code l'appellent
+  console.warn('[Portail] connecterParTelephone() appelée — redirection vers connecterEtudiant');
+  if (otpEtudiantTrouve) {
+    await connecterEtudiant(otpEtudiantTrouve);
   } else {
-    showOTPError(2, "Aucun enfant lié à ce numéro. Vérifiez ou contactez l'administration.");
-    const btn = document.getElementById('btn-verifier-otp');
-    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmer le code'; }
+    showOTPError(2, 'Session expirée. Recommencez depuis le début.');
   }
 }
+
+
 
 function lancerCompteur() {
   let secs = 300;
