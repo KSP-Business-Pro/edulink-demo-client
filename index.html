@@ -6680,6 +6680,17 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <option value="annule">Annulé</option>
       </select>
     </div>
+    <!-- ─── P4.0 (2026-05-11) : Champ Période ajouté ─── -->
+    <div class="form-group"><label>Période / Trimestre</label>
+      <select id="input-exam-trimestre">
+        <option value="">— Non définie —</option>
+        <option value="S1">Semestre 1</option>
+        <option value="S2">Semestre 2</option>
+        <option value="T1">Trimestre 1</option>
+        <option value="T2">Trimestre 2</option>
+        <option value="T3">Trimestre 3</option>
+      </select>
+    </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="fermerModal('modal-examen')">Annuler</button>
       <button onclick="sauvegarderExamen()">Enregistrer</button>
@@ -13166,6 +13177,7 @@ function initModalExamen() {
   document.getElementById('input-exam-surveillant').value = '';
   document.getElementById('input-exam-instructions').value = '';
   document.getElementById('input-exam-statut').value = 'planifie';
+  const tr = document.getElementById('input-exam-trimestre'); if (tr) tr.value = '';
 }
 
 async function editerExamen(examId) {
@@ -13184,6 +13196,7 @@ async function editerExamen(examId) {
   document.getElementById('input-exam-surveillant').value= ex.surveillant||'';
   document.getElementById('input-exam-instructions').value= ex.instructions||'';
   document.getElementById('input-exam-statut').value     = ex.statut||'planifie';
+  const trEl = document.getElementById('input-exam-trimestre'); if (trEl) trEl.value = ex.trimestre||'';
   // Ouvrir la modale (peuplerFiltresExamens est appelé dedans)
   document.getElementById('modal-examen').classList.add('open');
   // Attendre que peuplerFiltresExamens soit terminé, puis sélectionner filière/niveau
@@ -13212,6 +13225,8 @@ async function sauvegarderExamen() {
     surveillant:  document.getElementById('input-exam-surveillant').value.trim()||null,
     instructions: document.getElementById('input-exam-instructions').value.trim()||null,
     statut:       document.getElementById('input-exam-statut').value,
+    // ─── P4.0 (2026-05-11) : Période/Trimestre ajouté ───
+    trimestre:    document.getElementById('input-exam-trimestre')?.value || null,
   };
   let error;
   if (id) { ({ error } = await db.from('examens').update(payload).eq('id', id)); }
@@ -17299,18 +17314,23 @@ async function validerSaisieNotes() {
   const periode  = document.getElementById('pens-filter-periode')?.value || 'S1';
   const coeff    = parseInt(document.getElementById('pens-filter-coeff')?.value) || 2;
   const inputs   = document.querySelectorAll('.qn-input');
-  const toInsert = [];
+  const toUpsert = [];
   inputs.forEach(input => {
     const val = parseFloat(input.value);
     if (!isNaN(val) && val >= 0 && val <= 20) {
       const etuId = input.id.replace('note-', '');
-      toInsert.push({ ecole_id:currentEcoleId, etudiant_id:etuId, matiere, note:val, coefficient:coeff, periode });
+      toUpsert.push({ ecole_id:currentEcoleId, etudiant_id:etuId, matiere, note:val, coefficient:coeff, periode });
     }
   });
-  if (!toInsert.length) { showToast('Aucune note à saisir.','error'); return; }
-  const { error } = await db.from('notes').insert(toInsert);
+  if (!toUpsert.length) { showToast('Aucune note à saisir.','error'); return; }
+  // ─── P3.9 (2026-05-11) : UPSERT au lieu d'INSERT pour éviter les doublons ───
+  // Si une note existe déjà pour (ecole_id, etudiant_id, matiere, periode), elle est mise à jour.
+  const { error } = await db.from('notes').upsert(toUpsert, {
+    onConflict: 'ecole_id,etudiant_id,matiere,periode',
+    ignoreDuplicates: false
+  });
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
-  showToast(`✅ ${toInsert.length} note(s) enregistrée(s) !`, 'success');
+  showToast(`✅ ${toUpsert.length} note(s) enregistrée(s) !`, 'success');
   viderSaisieNotes();
   chargerPortailEnseignant();
 }
