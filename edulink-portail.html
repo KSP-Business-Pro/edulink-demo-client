@@ -1848,7 +1848,7 @@ async function envoyerOTP() {
   // Rechercher l'étudiant par téléphone parent
   try {
     const { data: liste } = await db.from('etudiants')
-      .select('id, nom, prenom, matricule, email_parent, ecole_id, telephone_parent, auth_id')
+      .select('id, nom, prenom, matricule, email_parent, email_auth, ecole_id, telephone_parent, auth_id')
       .or(`telephone_parent.eq.${tel},telephone_parent.eq.${tel8},telephone_parent.eq.${phone}`);
     if (!liste || liste.length === 0) {
       showOTPError(1, 'Aucun enfant lié à ce numéro. Vérifiez ou contactez l\'administration.');
@@ -1898,9 +1898,10 @@ async function verifierOTP() {
   }
 
   // Déterminer l'email de connexion
-  const emailConn = (otpEtudiantTrouve.email_parent && otpEtudiantTrouve.email_parent.trim() !== '')
-    ? otpEtudiantTrouve.email_parent.toLowerCase().trim()
-    : otpEtudiantTrouve.matricule.toLowerCase() + '@portail.edulink.bj';
+  // ─── P2.9 Option B : utiliser email_auth (colonne dédiée, toujours unique) ───
+  const emailConn = otpEtudiantTrouve.email_auth
+    || (otpEtudiantTrouve.matricule.toLowerCase().replace(/_/g, '-') + '@portail.edulink.bj');
+  console.log('[OTP] Email Auth utilisé:', emailConn);
 
   // Mot de passe = code saisi (123456 en démo = matricule de la migration)
   // En démo, on accepte 123456 OU le matricule comme mot de passe
@@ -1960,7 +1961,7 @@ async function connecterEtudiant(etudiant) {
   currentEtudiant = etudiant;
   currentEcoleId  = etudiant.ecole_id;
   currentProfile  = { role: 'parent', prenom: 'Parent', nom: etudiant.nom };
-  currentUser     = { email: etudiant.email_parent || etudiant.matricule };
+  currentUser     = { email: etudiant.email_auth || etudiant.email_parent || etudiant.matricule };
 
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-portail').style.display  = 'block';
