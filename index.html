@@ -46,35 +46,80 @@
       dsn: "https://a77c651fc2868f9668a2d8151d73077e@o4511350725476352.ingest.de.sentry.io/4511350732816464",
       environment: location.hostname === 'edulink-demo-client.vercel.app' ? 'production' : 'development',
       release: 'edulink@' + (window.APP_VERSION || '2026.05'),
-      // Échantillonnage : on capture 100% des erreurs (gratuit jusqu'à 5K/mois)
+      // ─── P3.4 (2026-05-12) : Échantillonnage enrichi ───
       sampleRate: 1.0,
-      // Pas de Session Replay (consomme trop de quota)
+      // Performance Monitoring : 10% des transactions (économe en quota)
+      tracesSampleRate: 0.1,
+      // Session Replay uniquement sur erreur (très économe)
       replaysSessionSampleRate: 0,
-      replaysOnErrorSampleRate: 0,
-      // Pas de Performance Monitoring (consomme trop de quota)
-      tracesSampleRate: 0,
+      replaysOnErrorSampleRate: 0.5,
       // Filtrer les erreurs non pertinentes
       ignoreErrors: [
-        // Erreurs réseau temporaires (utilisateur sans connexion)
         'Failed to fetch', 'NetworkError', 'Load failed', 'TypeError: Failed to fetch',
-        // Erreurs d'extensions Chrome / scripts tiers
         'ResizeObserver loop limit exceeded',
         'ResizeObserver loop completed with undelivered notifications',
         'Non-Error promise rejection captured',
-        // Bloqueurs de pubs / extensions navigateur
-        /chrome-extension:\/\//, /moz-extension:\/\//, /safari-extension:\/\//,
+        /chrome-extension:\/\//,/moz-extension:\/\//,/safari-extension:\/\//,
+        // Ignorer l'erreur de récursion invalidateData connue
+        'Maximum call stack size exceeded',
       ],
       denyUrls: [
-        // Ne pas envoyer les erreurs venant des extensions
-        /chrome-extension:\/\//, /moz-extension:\/\//, /safari-extension:\/\//,
+        /chrome-extension:\/\//,/moz-extension:\/\//,/safari-extension:\/\//,
       ],
+      // ─── P3.4 : Enrichir chaque événement avec le contexte EduLink ───
       beforeSend(event, hint) {
-        // Ne pas envoyer les erreurs venant du localhost (dev)
         if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return null;
+        // Ajouter le contexte école/module actif
+        try {
+          if (typeof currentEcoleId !== 'undefined' && currentEcoleId) {
+            event.tags = event.tags || {};
+            event.tags['ecole_id'] = currentEcoleId;
+          }
+          if (typeof tousLesEcoles !== 'undefined' && tousLesEcoles?.length) {
+            const ecoleActive = tousLesEcoles.find(e => e.id === currentEcoleId);
+            if (ecoleActive) {
+              event.tags['ecole_nom'] = ecoleActive.nom;
+            }
+          }
+          // Module actif (l'onglet nav actif)
+          const navActive = document.querySelector('nav a.on');
+          if (navActive) event.tags['module'] = navActive.textContent?.trim()?.substring(0, 30);
+        } catch(e) { /* ignore */ }
         return event;
       },
     });
     console.log('[Sentry] ✅ Monitoring activé');
+
+    // ─── P3.4 : Intercepter les erreurs Supabase (403, 500, RLS) ───
+    const _origFetch = window.fetch;
+    window.fetch = async function(...args) {
+      const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+      const isSupabase = url.includes('.supabase.co');
+      try {
+        const response = await _origFetch.apply(this, args);
+        // Capturer les erreurs HTTP Supabase importantes
+        if (isSupabase && !response.ok && response.status !== 400) {
+          const cloned = response.clone();
+          const body = await cloned.text().catch(() => '');
+          Sentry.captureMessage(`Supabase HTTP ${response.status}`, {
+            level: response.status >= 500 ? 'error' : 'warning',
+            tags: {
+              supabase_status: response.status,
+              supabase_url: url.replace(/https:\/\/[^/]+/, '').substring(0, 80),
+            },
+            extra: { body: body.substring(0, 200) }
+          });
+        }
+        return response;
+      } catch(err) {
+        if (isSupabase) {
+          Sentry.captureException(err, {
+            tags: { supabase_url: url.substring(0, 80), type: 'network_error' }
+          });
+        }
+        throw err;
+      }
+    };
 
     // Ajouter le contexte utilisateur dès qu'il se connecte
     if (typeof db !== 'undefined' && db.auth && db.auth.onAuthStateChange) {
@@ -83,6 +128,12 @@
           Sentry.setUser({
             id: session.user.id,
             email: session.user.email,
+          });
+          // ─── P3.4 : Breadcrumb de connexion ───
+          Sentry.addBreadcrumb({
+            category: 'auth',
+            message: `Connexion : ${session.user.email}`,
+            level: 'info',
           });
         } else {
           Sentry.setUser(null);
