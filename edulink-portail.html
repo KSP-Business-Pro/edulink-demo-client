@@ -740,9 +740,6 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
         </div>
         <div class="otp-timer">⏱ Code valable <span id="otp-countdown">5:00</span></div>
         <button class="login-btn" id="btn-verifier-otp" onclick="verifierOTP()">✅ Confirmer le code</button>
-        <div id="otp-demo-hint" style="display:none;margin-top:.75rem;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:.6rem .9rem;font-size:12px;color:#92400e;text-align:center">
-          🎯 <strong>Mode démo</strong> — Utilisez le code <strong>123456</strong>
-        </div>
         <div class="login-error" id="otp-error2"></div>
         <div style="text-align:center;margin-top:.75rem">
           <span style="font-size:12px;color:#6b7280">Pas reçu ? </span>
@@ -1703,14 +1700,36 @@ async function envoyerOTP() {
     return;
   }
 
+  // ─── 2026-05-12 : appel Edge Function bright-handler pour envoyer un vrai SMS ───
+  btn.textContent = 'Envoi du SMS...';
+  try {
+    const resp = await fetch(EDGE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send', telephone: tel })
+    });
+    const result = await resp.json();
+    if (!resp.ok || !result.success) {
+      console.error('[OTP] Échec envoi SMS:', result);
+      showOTPError(1, result.error || 'Erreur d\'envoi du SMS. Réessayez.');
+      btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
+      return;
+    }
+    console.log('[OTP] SMS envoyé (mode:', result.mode || '?', ')');
+  } catch(e) {
+    console.error('[OTP] Erreur réseau Edge Function:', e);
+    showOTPError(1, 'Erreur réseau. Vérifiez votre connexion.');
+    btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
+    return;
+  }
+
   // Passer à l'étape 2
   document.getElementById('otp-step1').style.display = 'none';
   document.getElementById('otp-step2').style.display = 'block';
   document.getElementById('otp-phone-display').textContent = tel;
   document.getElementById('d0').focus();
   lancerCompteur();
-  const hint = document.getElementById('otp-demo-hint');
-  if (hint) { hint.style.display = 'block'; }
+  // Le hint démo 123456 n'est plus pertinent — vrai SMS envoyé
 }
 
 function otpNext(el, idx) {
@@ -1728,51 +1747,56 @@ async function verifierOTP() {
   const btn = document.getElementById('btn-verifier-otp');
   btn.disabled = true; btn.textContent = 'Vérification...';
 
-  // ─── P2.9 (2026-05-11) : signInWithPassword au lieu du bypass OTP applicatif ───
-  // Le "code OTP" devient le mot de passe Supabase Auth.
-  // En mode démo : 123456 est le mot de passe. En prod : l'OTP SMS sera le mot de passe.
   if (!otpEtudiantTrouve) {
     showOTPError(2, 'Session expirée. Recommencez depuis le début.');
     btn.disabled = false; btn.textContent = '✅ Confirmer le code';
     return;
   }
 
-  // Déterminer l'email de connexion
-  // ─── P2.9 Option B : utiliser email_auth (colonne dédiée, toujours unique) ───
-  const emailConn = otpEtudiantTrouve.email_auth
-    || (otpEtudiantTrouve.matricule.toLowerCase().replace(/_/g, '-') + '@portail.edulink.bj');
-  console.log('[OTP] Email Auth utilisé:', emailConn);
-
-  // Mot de passe = code saisi (123456 en démo = matricule de la migration)
-  // En démo, on accepte 123456 OU le matricule comme mot de passe
-  let motDePasse = code;
-  const isDemoCode = (code === '123456');
-
+  // ─── 2026-05-12 : vérification de l'OTP via Edge Function bright-handler ───
   try {
-    let authResult = await db.auth.signInWithPassword({ email: emailConn, password: motDePasse });
-
-    // Si démo (123456) et que ça échoue, retenter avec le matricule (mot de passe réel)
-    if (authResult.error && isDemoCode) {
-      console.log('[OTP] Code démo 123456 → tentative avec matricule:', otpEtudiantTrouve.matricule);
-      authResult = await db.auth.signInWithPassword({
-        email: emailConn,
-        password: otpEtudiantTrouve.matricule
-      });
-    }
-
-    if (authResult.error) {
-      console.error('[OTP] Échec signIn:', authResult.error.message);
-      showOTPError(2, isDemoCode
-        ? 'Code incorrect. En mode démo, utilisez le code 123456.'
-        : 'Code incorrect. Vérifiez et réessayez.'
-      );
+    const resp = await fetch(EDGE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', telephone: otpTelephone, code })
+    });
+    const result = await resp.json();
+    if (!resp.ok || !result.success) {
+      console.error('[OTP] Échec vérification:', result);
+      showOTPError(2, result.error || 'Code incorrect. Vérifiez et réessayez.');
       btn.disabled = false; btn.textContent = '✅ Confirmer le code';
       [0,1,2,3,4,5].forEach(i => { const d = document.getElementById('d'+i); d.value=''; d.classList.remove('filled'); });
       document.getElementById('d0').focus();
       return;
     }
+    console.log('[OTP] ✅ Code vérifié par bright-handler');
+  } catch(e) {
+    console.error('[OTP] Erreur réseau vérification:', e);
+    showOTPError(2, 'Erreur réseau. Réessayez.');
+    btn.disabled = false; btn.textContent = '✅ Confirmer le code';
+    return;
+  }
 
-    // ✅ Connexion Supabase Auth réussie !
+  // ─── OTP validé → connexion Supabase Auth avec le matricule comme password ───
+  // Le matricule est le "secret" partagé connu de la base. L'OTP a déjà été
+  // validé via bright-handler, donc on peut signer-in en toute confiance.
+  const emailConn = otpEtudiantTrouve.email_auth
+    || (otpEtudiantTrouve.matricule.toLowerCase().replace(/_/g, '-') + '@portail.edulink.bj');
+  console.log('[OTP] Email Auth utilisé:', emailConn);
+
+  try {
+    const authResult = await db.auth.signInWithPassword({
+      email: emailConn,
+      password: otpEtudiantTrouve.matricule
+    });
+
+    if (authResult.error) {
+      console.error('[OTP] Échec signIn après OTP validé:', authResult.error.message);
+      showOTPError(2, 'Erreur de connexion. Contactez l\'administration.');
+      btn.disabled = false; btn.textContent = '✅ Confirmer le code';
+      return;
+    }
+
     console.log('[OTP] ✅ Connecté via Supabase Auth:', authResult.data.user.id);
     clearInterval(otpTimer);
     await connecterEtudiant(otpEtudiantTrouve);
