@@ -10016,7 +10016,7 @@ function afficherEtudiants(liste) {
         <td style="display:flex;gap:4px">
           <button class="btn-sm btn-blue" onclick="voirEtudiant('${e.id}')">👁️</button>
           <button class="btn-sm btn-secondary" onclick="ouvrirModifierEtudiant('${e.id}')">✏️</button>
-          <button class="btn-sm btn-red" onclick="supprimerEtudiant('${e.id}','${e.nom} ${e.prenom}')">✕</button>
+          <button class="btn-sm btn-red" data-action="del-etudiant" data-id="${e.id}" data-nom="${e.nom} ${e.prenom}">✕</button>
         </td></tr>`;
     }).join('')
     :'<tr><td colspan="6" class="loading">Aucun étudiant.</td></tr>';
@@ -10116,7 +10116,7 @@ async function voirEtudiant(id) {
     </div>`:`<div style="margin-top:1rem"><div style="background:#fff8e6;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:12px;color:#d97706">⚠️ Aucun parent lié.</div></div>`}
     <div style="margin-top:1rem;display:flex;gap:8px">
       <button class="btn-sm btn-secondary" onclick="fermerModal('modal-fiche-etudiant');ouvrirModifierEtudiant('${id}')">✏️ Modifier</button>
-      <button class="btn-sm btn-red" onclick="fermerModal('modal-fiche-etudiant');supprimerEtudiant('${id}','${etudiant.nom} ${etudiant.prenom}')">🗑️ Supprimer</button>
+      <button class="btn-sm btn-red" data-action="del-etudiant-modal" data-id="${id}" data-nom="${etudiant.nom} ${etudiant.prenom}">🗑️ Supprimer</button>
     </div>`;
   document.getElementById('modal-fiche-etudiant').classList.add('open');
 }
@@ -10212,7 +10212,7 @@ async function chargerAbsences() {
         <td><span class="badge ${a.parent_notifie?'green':'amber'}" style="cursor:pointer" onclick="toggleNotifParent('${a.id}',${!a.parent_notifie})" title="Cliquer pour basculer">${a.parent_notifie?'✓ Notifié':'En attente'}</span></td>
         <td style="display:flex;gap:4px">
           <button class="btn-sm btn-blue" onclick="ouvrirModifierAbsence('${a.id}','${a.etudiant_id}','${a.matiere||''}','${a.date_absence}','${a.statut}','${(a.justification||'').replace(/'/g,'&apos;')}')">✏️</button>
-          <button class="btn-sm btn-red" onclick="supprimerAbsence('${a.id}')">✕</button>
+          <button class="btn-sm btn-red" data-action="del-absence" data-id="${a.id}">✕</button>
         </td></tr>`).join('')
     : '<tr><td colspan="7" class="loading">Aucune absence.</td></tr>';
 }
@@ -10348,7 +10348,7 @@ async function chargerNotes() {
         <td><span class="badge ${a.cls}">${a.label}</span></td>
         <td style="display:flex;gap:4px">
           <button class="btn-sm btn-blue" onclick="ouvrirModifierNote('${n.id}','${n.etudiant_id}','${n.matiere}',${n.note},${n.coefficient||1},'${n.periode}','${(n.commentaire||'').replace(/'/g,'&apos;')}')">✏️</button>
-          <button class="btn-sm btn-red" onclick="supprimerNote('${n.id}')">✕</button>
+          <button class="btn-sm btn-red" data-action="del-note" data-id="${n.id}">✕</button>
         </td></tr>`;}).join('')
     : '<tr><td colspan="7" class="loading">Aucune note.</td></tr>';
 }
@@ -11080,7 +11080,7 @@ async function chargerFactures() {
           <td style="display:flex;gap:4px;flex-wrap:wrap">
             ${f.statut!=='paye'?`<button class="btn-sm btn-green" onclick="ouvrirPaiement('${f.id}','${esc(f.reference||'')}',${f.montant_total-(f.montant_paye||0)})">💰</button>`:''}
             <button class="btn-sm btn-secondary" onclick="ouvrirModifierFacture('${f.id}')">✏️</button>
-            <button class="btn-sm btn-red" onclick="supprimerFacture('${f.id}')">✕</button>
+            <button class="btn-sm btn-red" data-action="del-facture" data-id="${f.id}">✕</button>
           </td>
         </tr>`;
       }).join('')
@@ -11256,7 +11256,7 @@ async function chargerIncidents() {
       <div class="incident-actions">
         <button class="btn-sm btn-secondary" onclick="ouvrirModifierIncident('${i.id}')">✏️</button>
         ${!estResolu(i)?`<button class="btn-sm btn-green" onclick="ouvrirResolution('${i.id}')">✅ Résoudre</button>`:''}
-        <button class="btn-sm btn-red" onclick="supprimerIncident('${i.id}')">✕</button>
+        <button class="btn-sm btn-red" data-action="del-incident" data-id="${i.id}">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -11392,7 +11392,7 @@ function afficherDocumentsGalerie() {
         <div class="dc-actions">
           ${d.url?`<button class="btn-sm btn-blue" onclick="window.open('${d.url}','_blank')">Ouvrir</button>`:''}
           <button class="btn-sm btn-secondary" onclick="ouvrirModifierDocument('${d.id}')">✏️</button>
-          <button class="btn-sm btn-red" onclick="supprimerDocument('${d.id}')">✕</button>
+          <button class="btn-sm btn-red" data-action="del-document" data-id="${d.id}">✕</button>
         </div>
       </div>`).join('')}</div>`;
   });
@@ -11412,7 +11412,7 @@ function afficherDocumentsListe() {
         <td style="display:flex;gap:4px">
           ${d.url?`<button class="btn-sm btn-blue" onclick="window.open('${d.url}','_blank')">Ouvrir</button>`:''}
           <button class="btn-sm btn-secondary" onclick="ouvrirModifierDocument('${d.id}')">✏️</button>
-          <button class="btn-sm btn-red" onclick="supprimerDocument('${d.id}')">✕</button>
+          <button class="btn-sm btn-red" data-action="del-document" data-id="${d.id}">✕</button>
         </td>
       </tr>`).join('')
     : '<tr><td colspan="7" class="loading">Aucun document trouvé.</td></tr>';
@@ -11815,7 +11815,7 @@ function afficherUtilisateurs(liste) {
           ${u.actif !== false
             ? `<button class="btn-sm btn-secondary" onclick="changerStatutUser('${u.id}',false)" title="Suspendre">🔒</button>`
             : `<button class="btn-sm btn-green" onclick="changerStatutUser('${u.id}',true)" title="Réactiver">🔓</button>`}
-          <button class="btn-sm btn-red" onclick="supprimerUtilisateur('${u.id}','${u.prenom||''} ${u.nom||''}')">✕</button>
+          <button class="btn-sm btn-red" data-action="del-utilisateur" data-id="${u.id}" data-nom="${u.prenom||''} ${u.nom||''}">✕</button>
         </td>
       </tr>`).join('')
     : '<tr><td colspan="6" class="loading">Aucun utilisateur trouvé.</td></tr>';
@@ -13093,7 +13093,7 @@ function afficherListeExamens(liste) {
         <button class="btn-sm btn-blue" onclick="editerExamen('${ex.id}')">✏️ Éditer</button>
         ${ex.statut === 'termine' ? `<button class="btn-sm btn-green" onclick="ouvrirPV('${ex.id}')">📋 PV</button>`:''}
         ${ex.statut !== 'termine' ? `<button class="btn-sm btn-secondary" onclick="changerStatutExamen('${ex.id}','termine')">✅ Terminer</button>`:''}
-        <button class="btn-sm btn-red" onclick="supprimerExamen('${ex.id}','${ex.matiere}')">✕</button>
+        <button class="btn-sm btn-red" data-action="del-examen" data-id="${ex.id}" data-nom="${ex.matiere}">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -13415,7 +13415,7 @@ function afficherEnseignants(liste) {
       <div class="ens-card-actions">
         <button class="btn-sm btn-blue" style="flex:1" onclick="voirFicheEnseignant('${ens.id}')">👁️ Voir fiche</button>
         <button class="btn-sm btn-secondary" onclick="editerEnseignant('${ens.id}')">✏️</button>
-        <button class="btn-sm btn-red" onclick="supprimerEnseignant('${ens.id}')">🗑️</button>
+        <button class="btn-sm btn-red" data-action="del-enseignant" data-id="${ens.id}">🗑️</button>
       </div>
     </div>`;
   }).join('');
@@ -13787,7 +13787,7 @@ function afficherMatieres() {
     <td>${m.heures_semaine||'—'} h</td>
     <td>
       <button class="btn-sm btn-blue" onclick="editerMatiere('${m.id}')">✏️</button>
-      <button class="btn-sm btn-red" onclick="supprimerMatiere('${m.id}')">🗑️</button>
+      <button class="btn-sm btn-red" data-action="del-matiere" data-id="${m.id}">🗑️</button>
     </td>
   </tr>`).join('');
 }
@@ -15609,7 +15609,7 @@ function afficherCatalogueLivres(liste) {
       <div class="bib-book-actions">
         ${dispo > 0 ? `<button class="btn-sm btn-blue" onclick="preRemplirEmprunt('${l.id}')">📤 Emprunter</button>` : ''}
         <button class="btn-sm btn-secondary" onclick="ouvrirModifierLivre('${l.id}')">✏️</button>
-        <button class="btn-sm btn-red" onclick="supprimerLivre('${l.id}')">✕</button>
+        <button class="btn-sm btn-red" data-action="del-livre" data-id="${l.id}">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -16323,7 +16323,7 @@ function afficherListeClasses(liste) {
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn-sm btn-blue" onclick="voirProgrammeClasse('${c.id}','${(c.nom||c.filiere+' '+c.niveau).replace(/'/g,'&apos;')}')">📚 Programme</button>
         <button class="btn-sm btn-secondary" onclick="voirAffectationClasse('${c.id}')">👥 Élèves</button>
-        <button class="btn-sm btn-red" onclick="supprimerClasse('${c.id}')">✕</button>
+        <button class="btn-sm btn-red" data-action="del-classe" data-id="${c.id}">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -16422,7 +16422,7 @@ async function chargerProgramme() {
         <td>${p.obligatoire!=='non'?'<span class="badge green">Oui</span>':'<span class="badge gray">Opt.</span>'}</td>
         <td>
           <button class="btn-sm" style="background:#f59e0b;color:#fff" onclick="editerMatiereProgramme('${p.id}','${classeId}')" title="Modifier">✏️</button>
-          <button class="btn-sm btn-red" onclick="supprimerMatiereProgamme('${p.id}','${classeId}')" title="Supprimer">✕</button>
+          <button class="btn-sm btn-red" data-action="del-matiere-prog" data-id="${p.id}" data-classe="${classeId}" title="Supprimer">✕</button>
         </td>
       </tr>`).join('')}
     </table>`;
@@ -16551,7 +16551,7 @@ async function chargerCalendrierScolaire() {
         <div class="cal-period-nom">${p.nom}</div>
         <div class="cal-period-dates">📅 ${fmtDate(p.date_debut)} → ${fmtDate(p.date_fin)}</div>
         ${p.observations?`<div style="font-size:11px;color:#9ca3af;margin-top:4px">${p.observations}</div>`:''}
-        <button class="btn-sm btn-red" style="margin-top:.6rem" onclick="supprimerPeriode('${p.id}')">✕ Supprimer</button>
+        <button class="btn-sm btn-red" style="margin-top:.6rem" data-action="del-periode" data-id="${p.id}">✕ Supprimer</button>
       </div>`;
     }).join('');
   }
@@ -16561,7 +16561,7 @@ async function chargerCalendrierScolaire() {
         <span class="badge ${c.type_periode==='ferie'?'amber':'blue'}">${c.type_periode==='ferie'?'Férié':'Vacances'}</span>
         <div style="flex:1;font-size:12.5px;font-weight:600;color:#374151">${c.nom}</div>
         <div style="font-size:11px;color:#6b7280">${fmtDate(c.date_debut)} → ${fmtDate(c.date_fin)}</div>
-        <button class="btn-sm btn-red" onclick="supprimerPeriode('${c.id}')">✕</button>
+        <button class="btn-sm btn-red" data-action="del-periode" data-id="${c.id}">✕</button>
       </div>`).join('');
 }
 
@@ -16812,7 +16812,7 @@ async function chargerCaisse() {
         <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${t.reference||'—'}</code></td>
         <td style="display:flex;gap:4px">
           <button class="btn-sm btn-secondary" onclick="ouvrirModifierTransaction('${t.id}')">✏️</button>
-          <button class="btn-sm btn-red" onclick="supprimerTransaction('${t.id}')">✕</button>
+          <button class="btn-sm btn-red" data-action="del-transaction" data-id="${t.id}">✕</button>
         </td>
       </tr>`).join('')
     : '<tr><td colspan="7" class="loading">Aucune opération enregistrée.</td></tr>';
@@ -17616,7 +17616,7 @@ function afficherPersonnel(liste) {
         <button class="btn-sm btn-blue" onclick="voirFichePaieAgent('${p.id}')">💰 Paie</button>
         <button class="btn-sm btn-secondary" onclick="ouvrirModifierPersonnel('${p.id}')">✏️</button>
         <button class="btn-sm btn-secondary" onclick="ouvrirModal('modal-conge')" title="Demande de congé">🏖️</button>
-        <button class="btn-sm btn-red" onclick="supprimerPersonnel('${p.id}')">✕</button>
+        <button class="btn-sm btn-red" data-action="del-personnel" data-id="${p.id}">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -17886,7 +17886,7 @@ async function chargerContrats() {
           <td>${p.date_fin_contrat?fmtDate(p.date_fin_contrat):'<span style="color:#9ca3af">Indéterminée</span>'}</td>
           <td><strong>${p.salaire_brut?fmtMontant(p.salaire_brut):'—'}</strong></td>
           <td><span class="badge ${expire?'red':expireBientot?'amber':'green'}">${expire?'Expiré':expireBientot?'Expire bientôt':'Actif'}</span></td>
-          <td><button class="btn-sm btn-red" onclick="supprimerPersonnel('${p.id}')">✕</button></td>
+          <td><button class="btn-sm btn-red" data-action="del-personnel" data-id="${p.id}">✕</button></td>
         </tr>`;
       }).join('')
     : '<tr><td colspan="8" class="loading">Aucun agent.</td></tr>';
@@ -18032,7 +18032,7 @@ function renderLivres(livres) {
         <span class="badge ${l.disponibles>0?'green':'red'}" style="font-size:10px">${dispoTxt}</span>
         <div style="display:flex;gap:4px;margin-top:6px">
           <button class="btn-sm btn-secondary" style="flex:1;padding:3px 6px;font-size:10px" onclick="ouvrirModificationLivreBibNum(${l.id})">${"✏️ Modifier"}</button>
-          <button class="btn-sm btn-red" style="flex:1;padding:3px 6px;font-size:10px" onclick="supprimerLivreBibNum(${l.id})">${"🗑️ Suppr"}</button>
+          <button class="btn-sm btn-red" style="flex:1;padding:3px 6px;font-size:10px" data-action="del-livre-bib" data-id="${l.id}">${"🗑️ Suppr"}</button>
         </div>
       </div>
     </div>`;
@@ -18476,7 +18476,7 @@ function renderEtablissements(etabs) {
     </div>
     <div style="display:flex;gap:6px;margin-top:8px;border-top:1px solid #f3f4f6;padding-top:8px">
       <button class="btn-sm btn-secondary" style="flex:1" onclick="ouvrirModificationEtablissement('${e.id}')">✏️ Modifier</button>
-      <button class="btn-sm btn-red" style="flex:1" onclick="supprimerEtablissement('${e.id}')">🗑️ Suppr</button>
+      <button class="btn-sm btn-red" style="flex:1" data-action="del-etablissement" data-id="${e.id}">🗑️ Suppr</button>
     </div>
   </div>`;
   }).join('');
@@ -18864,7 +18864,7 @@ function renderRoles(roles) {
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn-sm btn-secondary" onclick="ouvrirModalRole('${r.id}')">✏️ Modifier</button>
-          <button class="btn-sm btn-red" onclick="supprimerRole('${r.id}','${r.nom}')">🗑️</button>
+          <button class="btn-sm btn-red" data-action="del-role" data-id="${r.id}" data-nom="${r.nom}">🗑️</button>
         </div>
       </div>
       <div class="perm-grid">
@@ -19525,7 +19525,7 @@ async function chargerPortailEtudiant(id) {
           <div class="bm-coef">Coef. ${n.coefficient||1}</div>
           <div class="bm-note ${cls}">${v}/20</div>
           <div class="bm-trend">${n.appreciation?'📝':'➡️'}</div>
-          <button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px" onclick="supprimerNotePortail('${n.id}')">🗑️</button>
+          <button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px" data-action="del-note-portail" data-id="${n.id}">🗑️</button>
         </div>`;
       }).join('')
     : '<div class="empty-state" style="padding:1.5rem">📊 Aucune note enregistrée</div>';
@@ -19569,7 +19569,7 @@ async function chargerPortailEtudiant(id) {
           <div class="abs-date">${fmtDate(a.date_absence)}</div>
           <div class="abs-cours">${a.matiere||a.cours||'—'} · <span class="badge ${a.justifiee?'green':'red'}" style="font-size:10px">${a.justifiee?'justifiée':'injustifiée'}</span></div>
         </div>
-        <button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px;flex-shrink:0" onclick="supprimerAbsencePortail('${a.id}')">🗑️</button>
+        <button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px;flex-shrink:0" data-action="del-absence-portail" data-id="${a.id}">🗑️</button>
       </div>`).join('')
     : '<div class="empty-state" style="padding:2rem">✅ Aucune absence enregistrée</div>';
 
@@ -19599,7 +19599,7 @@ async function chargerPortailEtudiant(id) {
         <td><strong style="color:#1e3a5f">${(f.montant_total||0).toLocaleString('fr-FR')} F</strong></td>
         <td>${f.date_echeance ? fmtDate(f.date_echeance) : '—'}</td>
         <td><span class="badge ${colorStatut(f.statut)}">${humaniseStatutFac(f.statut)}</span></td>
-        <td><button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px" onclick="supprimerPaiementPortail('${f.id}')">🗑️</button></td>
+        <td><button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px" data-action="del-paiement-portail" data-id="${f.id}">🗑️</button></td>
       </tr>`;}).join('')
     : '<tr><td colspan="5" class="loading">Aucune facture enregistrée</td></tr>';
 
@@ -19639,7 +19639,7 @@ async function chargerPortailEtudiant(id) {
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
             <div class="mmi-date">${fmtDate(m.created_at)}</div>
-            <button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px" onclick="supprimerMessagePortail('${m.id}')">🗑️</button>
+            <button class="btn-sm btn-red" style="padding:2px 7px;font-size:10px" data-action="del-message-portail" data-id="${m.id}">🗑️</button>
           </div>
         </div>`).join('')
       : '<div class="empty-state" style="padding:1.5rem">💬 Aucun message</div>';
@@ -25675,6 +25675,47 @@ function telechargerModeleEnseignantsExcel() {
   setTimeout(()=>{ injectNavOrganizer(); injectDashboardHub(); enhanceForms(); }, 800);
 })();
 /* EDULINK MODULE REORG UX JS - END */
+</script>
+
+<script>
+// ─── P1.9 (2026-05-12) : Event Delegation globale — remplace les onclick="supprimer*()" inline ───
+// Tous les boutons data-action="del-*" sont gérés ici au lieu d'avoir des onclick inline.
+// Avantage sécurité : élimine le risque d'injection XSS via les paramètres interpolés.
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id     = btn.dataset.id;
+  const nom    = btn.dataset.nom || '';
+  const classe = btn.dataset.classe || '';
+
+  switch(action) {
+    case 'del-etudiant':       supprimerEtudiant(id, nom); break;
+    case 'del-etudiant-modal': fermerModal('modal-fiche-etudiant'); supprimerEtudiant(id, nom); break;
+    case 'del-absence':        supprimerAbsence(id); break;
+    case 'del-note':           supprimerNote(id); break;
+    case 'del-facture':        supprimerFacture(id); break;
+    case 'del-incident':       supprimerIncident(id); break;
+    case 'del-document':       supprimerDocument(id); break;
+    case 'del-utilisateur':    supprimerUtilisateur(id, nom); break;
+    case 'del-examen':         supprimerExamen(id, nom); break;
+    case 'del-enseignant':     supprimerEnseignant(id); break;
+    case 'del-matiere':        supprimerMatiere(id); break;
+    case 'del-livre':          supprimerLivre(id); break;
+    case 'del-classe':         supprimerClasse(id); break;
+    case 'del-matiere-prog':   supprimerMatiereProgamme(id, classe); break;
+    case 'del-periode':        supprimerPeriode(id); break;
+    case 'del-transaction':    supprimerTransaction(id); break;
+    case 'del-personnel':      supprimerPersonnel(id); break;
+    case 'del-livre-bib':      supprimerLivreBibNum(id); break;
+    case 'del-etablissement':  supprimerEtablissement(id); break;
+    case 'del-role':           supprimerRole(id, nom); break;
+    case 'del-note-portail':   supprimerNotePortail(id); break;
+    case 'del-absence-portail':    supprimerAbsencePortail(id); break;
+    case 'del-paiement-portail':   supprimerPaiementPortail(id); break;
+    case 'del-message-portail':    supprimerMessagePortail(id); break;
+  }
+});
 </script>
 
 
