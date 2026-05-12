@@ -10059,7 +10059,7 @@ async function supprimerEtudiant(id,nom){
   await Promise.all([db.from('notes').delete().eq('etudiant_id',id),db.from('absences').delete().eq('etudiant_id',id),db.from('factures').delete().eq('etudiant_id',id)]);
   const { error } = await db.from('etudiants').delete().eq('id',id);
   if (window.AuditLog) AuditLog.record('DELETE', 'etudiants', id, `Suppression de ${nom} (cascade : notes/absences/factures)`);
-  showToast('Étudiant supprimé.','success');chargerEtudiants();chargerDashboard();
+  showToast('Étudiant supprimé.','success'); invalidateCache('etudiants'); chargerEtudiants(); chargerDashboard();
 }
 async function ouvrirModifierEtudiant(id){
   const e=tousLesEtudiants.find(x=>x.id===id);if(!e)return;
@@ -10407,7 +10407,7 @@ async function supprimerNote(id) {
   const { error } = await db.from('notes').delete().eq('id',id);
   if (window.AuditLog) AuditLog.record('DELETE', 'notes', id, 'Suppression d\'une note');
   showToast('Note supprimée.','success');
-  invalidateData('notes');
+  invalidateData('notes'); invalidateCache('notes');
   chargerNotes(); chargerDashboard();
 }
 function labelPeriodeBulletin(p, examensIndex) {
@@ -11931,7 +11931,7 @@ async function supprimerUtilisateur(id, nom) {
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   if (window.AuditLog) AuditLog.record('DELETE', 'utilisateurs', id, `Suppression du compte : ${nom}`);
   showToast('Utilisateur supprimé.','success');
-  chargerUtilisateurs();
+  invalidateCache('utilisateurs'); chargerUtilisateurs();
 }
 
 function toggleEtudiantField() {
@@ -13294,7 +13294,7 @@ async function supprimerExamen(id, matiere) {
   await db.from('notes').delete().eq('periode', 'EXAM-' + id);
   await db.from('examens').delete().eq('id', id);
   showToast('Examen supprimé.', 'success');
-  chargerExamens();
+  invalidateCache('examens'); chargerExamens();
 }
 
 async function changerStatutExamen(id, newStatut) {
@@ -13760,7 +13760,7 @@ async function supprimerEnseignant(id) {
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   if (window.AuditLog) AuditLog.record('DELETE', 'enseignants', id, 'Suppression d\'un enseignant');
   showToast('Enseignant supprimé.','success');
-  chargerEnseignants();
+  invalidateCache('enseignants'); chargerEnseignants();
 }
 
 // ── Matières ──
@@ -13864,7 +13864,7 @@ async function supprimerMatiere(id) {
   const { error } = await db.from('matieres').delete().eq('id', id);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast('Matière supprimée.','success');
-  chargerMatieres();
+  invalidateCache('matieres'); chargerMatieres();
 }
 
 // ── Planning par enseignant ──
