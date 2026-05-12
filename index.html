@@ -10014,8 +10014,8 @@ function afficherEtudiants(liste) {
         <td>${e.filiere||'—'}</td><td>${badge}</td>
         <td><span class="badge ${e.statut==='actif'?'green':'amber'}">${e.statut}</span></td>
         <td style="display:flex;gap:4px">
-          <button class="btn-sm btn-blue" onclick="voirEtudiant('${e.id}')">👁️</button>
-          <button class="btn-sm btn-secondary" onclick="ouvrirModifierEtudiant('${e.id}')">✏️</button>
+          <button class="btn-sm btn-blue" data-action="voir-etudiant" data-id="${e.id}">👁️</button>
+          <button class="btn-sm btn-secondary" data-action="edit-etudiant" data-id="${e.id}">✏️</button>
           <button class="btn-sm btn-red" data-action="del-etudiant" data-id="${e.id}" data-nom="${e.nom} ${e.prenom}">✕</button>
         </td></tr>`;
     }).join('')
@@ -10115,7 +10115,7 @@ async function voirEtudiant(id) {
       </div>
     </div>`:`<div style="margin-top:1rem"><div style="background:#fff8e6;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:12px;color:#d97706">⚠️ Aucun parent lié.</div></div>`}
     <div style="margin-top:1rem;display:flex;gap:8px">
-      <button class="btn-sm btn-secondary" onclick="fermerModal('modal-fiche-etudiant');ouvrirModifierEtudiant('${id}')">✏️ Modifier</button>
+      <button class="btn-sm btn-secondary" data-action="edit-etudiant-modal" data-id="${id}">✏️ Modifier</button>
       <button class="btn-sm btn-red" data-action="del-etudiant-modal" data-id="${id}" data-nom="${etudiant.nom} ${etudiant.prenom}">🗑️ Supprimer</button>
     </div>`;
   document.getElementById('modal-fiche-etudiant').classList.add('open');
@@ -10209,9 +10209,9 @@ async function chargerAbsences() {
         <td>${a.matiere||'—'}</td><td>${fmtDate(a.date_absence)}</td>
         <td><span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span></td>
         <td>${a.justification||'—'}</td>
-        <td><span class="badge ${a.parent_notifie?'green':'amber'}" style="cursor:pointer" onclick="toggleNotifParent('${a.id}',${!a.parent_notifie})" title="Cliquer pour basculer">${a.parent_notifie?'✓ Notifié':'En attente'}</span></td>
+        <td><span class="badge ${a.parent_notifie?'green':'amber'}" style="cursor:pointer" data-action="toggle-notif-parent" data-id="${a.id}" data-val="${!a.parent_notifie}" title="Cliquer pour basculer">${a.parent_notifie?'✓ Notifié':'En attente'}</span></td>
         <td style="display:flex;gap:4px">
-          <button class="btn-sm btn-blue" onclick="ouvrirModifierAbsence('${a.id}','${a.etudiant_id}','${a.matiere||''}','${a.date_absence}','${a.statut}','${(a.justification||'').replace(/'/g,'&apos;')}')">✏️</button>
+          <button class="btn-sm btn-blue" data-action="edit-absence" data-id="${a.id}" data-etu="${a.etudiant_id}" data-mat="${a.matiere||''}" data-date="${a.date_absence}" data-statut="${a.statut}" data-just="${(a.justification||'').replace(/'/g,'&apos;')}">✏️</button>
           <button class="btn-sm btn-red" data-action="del-absence" data-id="${a.id}">✕</button>
         </td></tr>`).join('')
     : '<tr><td colspan="7" class="loading">Aucune absence.</td></tr>';
@@ -10347,7 +10347,7 @@ async function chargerNotes() {
         <td><span class="badge ${periodeBadgeCls}">${periodeLabel}</span>${warnIcon}</td>
         <td><span class="badge ${a.cls}">${a.label}</span></td>
         <td style="display:flex;gap:4px">
-          <button class="btn-sm btn-blue" onclick="ouvrirModifierNote('${n.id}','${n.etudiant_id}','${n.matiere}',${n.note},${n.coefficient||1},'${n.periode}','${(n.commentaire||'').replace(/'/g,'&apos;')}')">✏️</button>
+          <button class="btn-sm btn-blue" data-action="edit-note" data-id="${n.id}" data-etu="${n.etudiant_id}" data-mat="${n.matiere}" data-note="${n.note}" data-coeff="${n.coefficient||1}" data-per="${n.periode}" data-com="${(n.commentaire||'').replace(/'/g,'&apos;')}">✏️</button>
           <button class="btn-sm btn-red" data-action="del-note" data-id="${n.id}">✕</button>
         </td></tr>`;}).join('')
     : '<tr><td colspan="7" class="loading">Aucune note.</td></tr>';
@@ -10609,13 +10609,13 @@ function renderGrilleEDT() {
       const slots = index[j + '|' + h] || [];
       cells += slots.length
         ? `<td>${slots.map(s => `
-            <div class="edt-slot edt-slot-${TC[s.type]||'blue'}" style="cursor:pointer" onclick="voirCreneau('${s.id}')">
+            <div class="edt-slot edt-slot-${TC[s.type]||'blue'}" style="cursor:pointer" data-action="voir-creneau" data-id="${s.id}">
               <div class="s-mat">${s.matiere}</div>
               ${s.professeur ? `<div class="s-prof">👤 ${s.professeur}</div>` : ''}
               ${s.salle      ? `<div class="s-prof">📍 ${s.salle}</div>` : ''}
               ${s.classe     ? `<div class="s-prof" style="color:#7c3aed">${s.classe}</div>` : ''}
             </div>`).join('')}</td>`
-        : `<td><button class="edt-add-btn" onclick="ouvrirEdtAvec('${j}','${h}')">+</button></td>`;
+        : `<td><button class="edt-add-btn" data-action="ouvrir-edt" data-jour="${j}" data-heure="${h}">+</button></td>`;
     });
     rows += `<tr>${cells}</tr>`;
   });
@@ -10793,7 +10793,7 @@ function afficherListeMessages(liste) {
   document.getElementById('count-msgs').textContent = liste.length + ' message(s)';
   document.getElementById('msg-list-body').innerHTML = liste.length
     ? liste.map(m => `
-      <div class="msg-item ${m.lu?'':'unread'} ${m.id===selectedMsgId?'selected':''}" onclick="lireMessage('${m.id}')">
+      <div class="msg-item ${m.lu?'':'unread'} ${m.id===selectedMsgId?'selected':''}" data-action="lire-message" data-id="${m.id}">
         <div class="msg-item-meta">
           <div class="msg-sender">${m.expediteur_nom||'Inconnu'}</div>
           <div style="display:flex;align-items:center;gap:4px">
@@ -11078,8 +11078,8 @@ async function chargerFactures() {
           <td><span class="badge ${sClass}">${f.statut}</span>${retard?'<span class="badge red" style="font-size:9px;margin-left:2px">⚠ retard</span>':''}</td>
           <td>${fmtDate(f.date_echeance)}</td>
           <td style="display:flex;gap:4px;flex-wrap:wrap">
-            ${f.statut!=='paye'?`<button class="btn-sm btn-green" onclick="ouvrirPaiement('${f.id}','${esc(f.reference||'')}',${f.montant_total-(f.montant_paye||0)})">💰</button>`:''}
-            <button class="btn-sm btn-secondary" onclick="ouvrirModifierFacture('${f.id}')">✏️</button>
+            ${f.statut!=='paye'?`<button class="btn-sm btn-green" data-action="ouvrir-paiement" data-id="${f.id}" data-ref="${esc(f.reference||'')}" data-montant="${f.montant_total-(f.montant_paye||0)}">💰</button>`:''}
+            <button class="btn-sm btn-secondary" data-action="edit-facture" data-id="${f.id}">✏️</button>
             <button class="btn-sm btn-red" data-action="del-facture" data-id="${f.id}">✕</button>
           </td>
         </tr>`;
@@ -11254,8 +11254,8 @@ async function chargerIncidents() {
         ${i.note_resolution?`<div style="margin-top:6px;font-size:12px;color:#059669;background:#f0fdf4;padding:6px 10px;border-radius:6px">✅ Résolution : ${i.note_resolution}</div>`:''}
       </div>
       <div class="incident-actions">
-        <button class="btn-sm btn-secondary" onclick="ouvrirModifierIncident('${i.id}')">✏️</button>
-        ${!estResolu(i)?`<button class="btn-sm btn-green" onclick="ouvrirResolution('${i.id}')">✅ Résoudre</button>`:''}
+        <button class="btn-sm btn-secondary" data-action="edit-incident" data-id="${i.id}">✏️</button>
+        ${!estResolu(i)?`<button class="btn-sm btn-green" data-action="resoudre-incident" data-id="${i.id}">✅ Résoudre</button>`:''}
         <button class="btn-sm btn-red" data-action="del-incident" data-id="${i.id}">✕</button>
       </div>
     </div>`;
@@ -11390,8 +11390,8 @@ function afficherDocumentsGalerie() {
         <div class="dc-meta">${fmtDate(d.created_at)}${d.taille_affichage?' · '+d.taille_affichage:''}</div>
         ${d.etudiants?`<div class="dc-meta" style="margin-top:2px;color:#7c3aed">👤 ${esc(d.etudiants.nom)} ${esc(d.etudiants.prenom)}</div>`:''}
         <div class="dc-actions">
-          ${d.url?`<button class="btn-sm btn-blue" onclick="window.open('${d.url}','_blank')">Ouvrir</button>`:''}
-          <button class="btn-sm btn-secondary" onclick="ouvrirModifierDocument('${d.id}')">✏️</button>
+          ${d.url?`<button class="btn-sm btn-blue" data-action="open-url" data-url="${d.url}">Ouvrir</button>`:''}
+          <button class="btn-sm btn-secondary" data-action="edit-document" data-id="${d.id}">✏️</button>
           <button class="btn-sm btn-red" data-action="del-document" data-id="${d.id}">✕</button>
         </div>
       </div>`).join('')}</div>`;
@@ -11410,8 +11410,8 @@ function afficherDocumentsListe() {
         <td>${fmtDate(d.created_at)}</td>
         <td>${d.taille_affichage||'—'}</td>
         <td style="display:flex;gap:4px">
-          ${d.url?`<button class="btn-sm btn-blue" onclick="window.open('${d.url}','_blank')">Ouvrir</button>`:''}
-          <button class="btn-sm btn-secondary" onclick="ouvrirModifierDocument('${d.id}')">✏️</button>
+          ${d.url?`<button class="btn-sm btn-blue" data-action="open-url" data-url="${d.url}">Ouvrir</button>`:''}
+          <button class="btn-sm btn-secondary" data-action="edit-document" data-id="${d.id}">✏️</button>
           <button class="btn-sm btn-red" data-action="del-document" data-id="${d.id}">✕</button>
         </td>
       </tr>`).join('')
@@ -11811,10 +11811,10 @@ function afficherUtilisateurs(liste) {
         <td><span class="badge ${u.actif !== false ? 'green' : 'red'}">${u.actif !== false ? 'actif' : 'suspendu'}</span></td>
         <td style="font-size:12px;color:#6b7280">${u.derniere_connexion ? fmtDateTime(u.derniere_connexion) : '—'}</td>
         <td style="display:flex;gap:4px;flex-wrap:wrap">
-          <button class="btn-sm btn-secondary" onclick="ouvrirModifierUser('${u.id}')">✏️</button>
+          <button class="btn-sm btn-secondary" data-action="edit-user" data-id="${u.id}">✏️</button>
           ${u.actif !== false
-            ? `<button class="btn-sm btn-secondary" onclick="changerStatutUser('${u.id}',false)" title="Suspendre">🔒</button>`
-            : `<button class="btn-sm btn-green" onclick="changerStatutUser('${u.id}',true)" title="Réactiver">🔓</button>`}
+            ? `<button class="btn-sm btn-secondary" data-action="statut-user" data-id="${u.id}" data-val="false" title="Suspendre">🔒</button>`
+            : `<button class="btn-sm btn-green" data-action="statut-user" data-id="${u.id}" data-val="true" title="Réactiver">🔓</button>`}
           <button class="btn-sm btn-red" data-action="del-utilisateur" data-id="${u.id}" data-nom="${u.prenom||''} ${u.nom||''}">✕</button>
         </td>
       </tr>`).join('')
@@ -13090,9 +13090,9 @@ function afficherListeExamens(liste) {
         <span class="badge ${statutClass[ex.statut]||'gray'}">${ex.statut||'planifié'}</span>
         <span class="badge purple">${typeLabels[ex.type_examen]||ex.type_examen}</span>
         ${pillTxt ? `<span class="exam-countdown-pill ${pillCls}">${pillTxt}</span>` : ''}
-        <button class="btn-sm btn-blue" onclick="editerExamen('${ex.id}')">✏️ Éditer</button>
-        ${ex.statut === 'termine' ? `<button class="btn-sm btn-green" onclick="ouvrirPV('${ex.id}')">📋 PV</button>`:''}
-        ${ex.statut !== 'termine' ? `<button class="btn-sm btn-secondary" onclick="changerStatutExamen('${ex.id}','termine')">✅ Terminer</button>`:''}
+        <button class="btn-sm btn-blue" data-action="edit-examen" data-id="${ex.id}">✏️ Éditer</button>
+        ${ex.statut === 'termine' ? `<button class="btn-sm btn-green" data-action="ouvrir-pv" data-id="${ex.id}">📋 PV</button>`:''}
+        ${ex.statut !== 'termine' ? `<button class="btn-sm btn-secondary" data-action="statut-examen" data-id="${ex.id}" data-val="termine">✅ Terminer</button>`:''}
         <button class="btn-sm btn-red" data-action="del-examen" data-id="${ex.id}" data-nom="${ex.matiere}">✕</button>
       </div>
     </div>`;
@@ -13112,8 +13112,8 @@ function afficherResultatsExamens() {
       <td>${fmtDate(ex.date_examen)}</td>
       <td>${[ex.filiere,ex.niveau].filter(Boolean).join(' ')||'—'}</td>
       <td>${ex.salle||'—'}</td>
-      <td><button class="btn-sm btn-green" onclick="ouvrirPV('${ex.id}')">📋 Saisir PV</button>
-          <button class="btn-sm btn-outline" onclick="imprimerPVDirect('${ex.id}')">🖨️</button></td>
+      <td><button class="btn-sm btn-green" data-action="ouvrir-pv" data-id="${ex.id}">📋 Saisir PV</button>
+          <button class="btn-sm btn-outline" data-action="imprimer-pv" data-id="${ex.id}">🖨️</button></td>
     </tr>`).join('')}
   </table>`;
 }
@@ -13413,8 +13413,8 @@ function afficherEnseignants(liste) {
         <div class="ens-mini-stat"><div class="ms-val">${ens.email?'✉️':'—'}</div><div class="ms-lbl">${ens.email?'Email OK':'Sans email'}</div></div>
       </div>
       <div class="ens-card-actions">
-        <button class="btn-sm btn-blue" style="flex:1" onclick="voirFicheEnseignant('${ens.id}')">👁️ Voir fiche</button>
-        <button class="btn-sm btn-secondary" onclick="editerEnseignant('${ens.id}')">✏️</button>
+        <button class="btn-sm btn-blue" style="flex:1" data-action="voir-enseignant" data-id="${ens.id}">👁️ Voir fiche</button>
+        <button class="btn-sm btn-secondary" data-action="edit-enseignant" data-id="${ens.id}">✏️</button>
         <button class="btn-sm btn-red" data-action="del-enseignant" data-id="${ens.id}">🗑️</button>
       </div>
     </div>`;
@@ -13786,7 +13786,7 @@ function afficherMatieres() {
     <td><span class="badge purple">Coeff. ${m.coefficient||1}</span></td>
     <td>${m.heures_semaine||'—'} h</td>
     <td>
-      <button class="btn-sm btn-blue" onclick="editerMatiere('${m.id}')">✏️</button>
+      <button class="btn-sm btn-blue" data-action="edit-matiere" data-id="${m.id}">✏️</button>
       <button class="btn-sm btn-red" data-action="del-matiere" data-id="${m.id}">🗑️</button>
     </td>
   </tr>`).join('');
@@ -14858,9 +14858,9 @@ function afficherCertificats(liste) {
       <td>${fmtDate(c.created_at)}</td>
       <td><span class="badge ${stCls}">${c.statut}</span></td>
       <td style="display:flex;flex-direction:column;gap:3px">
-        <button class="btn-sm btn-blue" onclick="retelechargerCertificat('${c.id}')">⬇ PDF</button>
-        ${c.statut === 'emis' ? `<button class="btn-sm btn-green" onclick="signerCertificat('${c.id}')">✅ Signer</button>` : ''}
-        ${c.statut !== 'annule' ? `<button class="btn-sm btn-red" onclick="annulerCertificatDB('${c.id}')">✕ Annuler</button>` : ''}
+        <button class="btn-sm btn-blue" data-action="retelechargement-certificat" data-id="${c.id}">⬇ PDF</button>
+        ${c.statut === 'emis' ? `<button class="btn-sm btn-green" data-action="signer-certificat" data-id="${c.id}">✅ Signer</button>` : ''}
+        ${c.statut !== 'annule' ? `<button class="btn-sm btn-red" data-action="annuler-certificat" data-id="${c.id}">✕ Annuler</button>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -15607,8 +15607,8 @@ function afficherCatalogueLivres(liste) {
         <span style="font-size:10px;color:#9ca3af">${l.exemplaires||1} ex.</span>
       </div>
       <div class="bib-book-actions">
-        ${dispo > 0 ? `<button class="btn-sm btn-blue" onclick="preRemplirEmprunt('${l.id}')">📤 Emprunter</button>` : ''}
-        <button class="btn-sm btn-secondary" onclick="ouvrirModifierLivre('${l.id}')">✏️</button>
+        ${dispo > 0 ? `<button class="btn-sm btn-blue" data-action="preremplir-emprunt" data-id="${l.id}">📤 Emprunter</button>` : ''}
+        <button class="btn-sm btn-secondary" data-action="edit-livre" data-id="${l.id}">✏️</button>
         <button class="btn-sm btn-red" data-action="del-livre" data-id="${l.id}">✕</button>
       </div>
     </div>`;
@@ -15752,7 +15752,7 @@ async function chargerEmpruntsActifs() {
           <td>${fmtDate(e.date_retour_prevue)}</td>
           <td>${retardLbl}</td>
           <td><span class="badge amber">En cours</span></td>
-          <td><button class="btn-sm btn-green" onclick="enregistrerRetour('${e.id}','${e.livre_id}')">✅ Retour</button></td>
+          <td><button class="btn-sm btn-green" data-action="enregistrer-retour" data-id="${e.id}" data-livre="${e.livre_id}">✅ Retour</button></td>
         </tr>`;
       }).join('')
     : '<tr><td colspan="7" class="empty-state" style="padding:2rem">✅ Aucun emprunt actif en ce moment.</td></tr>';
@@ -16321,8 +16321,8 @@ function afficherListeClasses(liste) {
       ${effMax!=='?'?`<div style="height:5px;background:#f3f4f6;border-radius:3px;overflow:hidden;margin-bottom:.75rem"><div style="height:100%;background:${pct>=90?'#dc2626':pct>=70?'#d97706':'#059669'};width:${pct}%;transition:width .6s ease;border-radius:3px"></div></div>`:''}
       ${c.responsable?`<div style="font-size:11.5px;color:#6b7280;margin-bottom:.75rem">👨‍🏫 ${c.responsable}</div>`:''}
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn-sm btn-blue" onclick="voirProgrammeClasse('${c.id}','${(c.nom||c.filiere+' '+c.niveau).replace(/'/g,'&apos;')}')">📚 Programme</button>
-        <button class="btn-sm btn-secondary" onclick="voirAffectationClasse('${c.id}')">👥 Élèves</button>
+        <button class="btn-sm btn-blue" data-action="voir-programme" data-id="${c.id}" data-nom="${(c.nom||c.filiere+' '+c.niveau).replace(/'/g,'&apos;')}">📚 Programme</button>
+        <button class="btn-sm btn-secondary" data-action="voir-affectation" data-id="${c.id}">👥 Élèves</button>
         <button class="btn-sm btn-red" data-action="del-classe" data-id="${c.id}">✕</button>
       </div>
     </div>`;
@@ -16421,7 +16421,7 @@ async function chargerProgramme() {
         <td>${p.enseignants?p.enseignants.nom+' '+p.enseignants.prenom:'—'}</td>
         <td>${p.obligatoire!=='non'?'<span class="badge green">Oui</span>':'<span class="badge gray">Opt.</span>'}</td>
         <td>
-          <button class="btn-sm" style="background:#f59e0b;color:#fff" onclick="editerMatiereProgramme('${p.id}','${classeId}')" title="Modifier">✏️</button>
+          <button class="btn-sm" style="background:#f59e0b;color:#fff" data-action="edit-matiere-prog" data-id="${p.id}" data-classe="${classeId}" title="Modifier">✏️</button>
           <button class="btn-sm btn-red" data-action="del-matiere-prog" data-id="${p.id}" data-classe="${classeId}" title="Supprimer">✕</button>
         </td>
       </tr>`).join('')}
@@ -16607,10 +16607,10 @@ async function chargerAffectation() {
   const libres   = (etus||[]).filter(e => !e.classe_id);
   cAff.innerHTML = !affectes.length
     ? '<div class="empty-state" style="padding:1.5rem"><p>Aucun étudiant affecté.</p></div>'
-    : `<table><tr><th>Étudiant</th><th>Filière</th><th>Actions</th></tr>${affectes.map(e=>`<tr><td><strong>${esc(e.nom)} ${esc(e.prenom)}</strong></td><td>${esc(e.filiere)}</td><td><button class="btn-sm btn-red" onclick="retirerAffectation('${e.id}','${classeId}')">Retirer</button></td></tr>`).join('')}</table>`;
+    : `<table><tr><th>Étudiant</th><th>Filière</th><th>Actions</th></tr>${affectes.map(e=>`<tr><td><strong>${esc(e.nom)} ${esc(e.prenom)}</strong></td><td>${esc(e.filiere)}</td><td><button class="btn-sm btn-red" data-action="retirer-affectation" data-id="${e.id}" data-ens="${classeId}">Retirer</button></td></tr>`).join('')}</table>`;
   cLib.innerHTML = !libres.length
     ? '<div style="font-size:12.5px;color:#9ca3af;padding:1rem">Tous les étudiants sont déjà affectés.</div>'
-    : `<table><tr><th>Étudiant</th><th>Filière</th><th>Actions</th></tr>${libres.map(e=>`<tr><td><strong>${esc(e.nom)} ${esc(e.prenom)}</strong></td><td>${esc(e.filiere)}</td><td><button class="btn-sm btn-green" onclick="affecterEtudiant('${e.id}','${classeId}')">+ Affecter</button></td></tr>`).join('')}</table>`;
+    : `<table><tr><th>Étudiant</th><th>Filière</th><th>Actions</th></tr>${libres.map(e=>`<tr><td><strong>${esc(e.nom)} ${esc(e.prenom)}</strong></td><td>${esc(e.filiere)}</td><td><button class="btn-sm btn-green" data-action="affecter-etudiant" data-id="${e.id}" data-classe="${classeId}">+ Affecter</button></td></tr>`).join('')}</table>`;
 }
 
 async function affecterEtudiant(etuId, classeId) {
@@ -16811,7 +16811,7 @@ async function chargerCaisse() {
         <td><strong style="color:${t.type_operation==='recette'?'#059669':'#dc2626'}">${t.type_operation==='recette'?'+':'-'}${fmtMontant(t.montant)}</strong></td>
         <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${t.reference||'—'}</code></td>
         <td style="display:flex;gap:4px">
-          <button class="btn-sm btn-secondary" onclick="ouvrirModifierTransaction('${t.id}')">✏️</button>
+          <button class="btn-sm btn-secondary" data-action="edit-transaction" data-id="${t.id}">✏️</button>
           <button class="btn-sm btn-red" data-action="del-transaction" data-id="${t.id}">✕</button>
         </td>
       </tr>`).join('')
@@ -17001,7 +17001,7 @@ function afficherRecus(liste) {
         <td>${r.reference_facture||'Paiement'}</td>
         <td><strong style="color:#059669">${fmtMontant(r.montant_paye)}</strong></td>
         <td><span class="badge teal">${r.mode_paiement||'—'}</span></td>
-        <td><button class="btn-sm btn-blue" onclick="genererRecuPDF('${r.id}')">🧾 PDF</button></td>
+        <td><button class="btn-sm btn-blue" data-action="generer-recu" data-id="${r.id}">🧾 PDF</button></td>
       </tr>`).join('')
     : '<tr><td colspan="7" class="loading">Aucun paiement enregistré.</td></tr>';
 }
@@ -17613,8 +17613,8 @@ function afficherPersonnel(liste) {
         <div class="pc-info-item"><div class="pc-info-lbl">Salaire</div><div class="pc-info-val">${p.salaire_brut?fmtMontant(p.salaire_brut):'—'}</div></div>
       </div>
       <div class="pc-actions">
-        <button class="btn-sm btn-blue" onclick="voirFichePaieAgent('${p.id}')">💰 Paie</button>
-        <button class="btn-sm btn-secondary" onclick="ouvrirModifierPersonnel('${p.id}')">✏️</button>
+        <button class="btn-sm btn-blue" data-action="voir-fiche-paie" data-id="${p.id}">💰 Paie</button>
+        <button class="btn-sm btn-secondary" data-action="edit-personnel" data-id="${p.id}">✏️</button>
         <button class="btn-sm btn-secondary" onclick="ouvrirModal('modal-conge')" title="Demande de congé">🏖️</button>
         <button class="btn-sm btn-red" data-action="del-personnel" data-id="${p.id}">✕</button>
       </div>
@@ -17729,8 +17729,8 @@ async function chargerConges() {
         <div class="conge-right">
           <span class="badge ${statCls}">${c.statut}</span>
           ${c.statut==='en_attente'?`<div style="margin-top:6px;display:flex;gap:4px">
-            <button class="btn-sm btn-green" onclick="traiterConge('${c.id}','approuve')">✓</button>
-            <button class="btn-sm btn-red" onclick="traiterConge('${c.id}','refuse')">✕</button>
+            <button class="btn-sm btn-green" data-action="traiter-conge" data-id="${c.id}" data-val="approuve">✓</button>
+            <button class="btn-sm btn-red" data-action="traiter-conge" data-id="${c.id}" data-val="refuse">✕</button>
           </div>`:''}
         </div>
       </div>`;
@@ -17818,8 +17818,8 @@ async function chargerFichePaie() {
           <span class="pl-val">${fmtMontant(salNet)}</span>
         </div>
         <div style="display:flex;gap:8px;margin-top:1.2rem;justify-content:flex-end">
-          <button class="btn-sm btn-blue" onclick="imprimerFichePaie('${agentId}',${mois})">🖨️ Imprimer</button>
-          <button class="btn-sm btn-green" onclick="telechargerFichePaiePDF('${agentId}',${mois})">⬇️ PDF</button>
+          <button class="btn-sm btn-blue" data-action="imprimer-fiche-paie" data-id="${agentId}" data-mois="${mois}">🖨️ Imprimer</button>
+          <button class="btn-sm btn-green" data-action="telecharger-fiche-paie" data-id="${agentId}" data-mois="${mois}">⬇️ PDF</button>
         </div>
       </div>
     </div>`;
@@ -18024,14 +18024,14 @@ function renderLivres(livres) {
   grid.innerHTML = livres.map(l=>{
     const dispoTxt = l.disponibles>0 ? `✅ ${l.disponibles}/${l.exemplaires} dispo` : '🔴 Indisponible';
     return `<div class="book-card">
-      <div class="book-cover ${l.couleur}" onclick="voirLivreDetail(${l.id})" style="cursor:pointer">${l.emoji||'📚'}</div>
+      <div class="book-cover ${l.couleur}" data-action="voir-livre" data-id="${l.id}" style="cursor:pointer">${l.emoji||'📚'}</div>
       <div class="book-info">
         <div class="book-titre" title="${l.titre}">${l.titre}</div>
         <div class="book-auteur">${l.auteur}</div>
         <div style="font-size:10px;color:#9ca3af;margin-top:2px">${l.categorie||''} · ${l.annee||''}</div>
         <span class="badge ${l.disponibles>0?'green':'red'}" style="font-size:10px">${dispoTxt}</span>
         <div style="display:flex;gap:4px;margin-top:6px">
-          <button class="btn-sm btn-secondary" style="flex:1;padding:3px 6px;font-size:10px" onclick="ouvrirModificationLivreBibNum(${l.id})">${"✏️ Modifier"}</button>
+          <button class="btn-sm btn-secondary" style="flex:1;padding:3px 6px;font-size:10px" data-action="edit-livre-bib" data-id="${l.id}">${"✏️ Modifier"}</button>
           <button class="btn-sm btn-red" style="flex:1;padding:3px 6px;font-size:10px" data-action="del-livre-bib" data-id="${l.id}">${"🗑️ Suppr"}</button>
         </div>
       </div>
@@ -18056,7 +18056,7 @@ function renderEmprunts(emprunts) {
         <div class="emprunt-date">Retour prévu: ${e.date_retour_prevue}</div>
         ${retardTxt}
       </div>
-      <button class="btn-sm btn-green" onclick="retournerLivre(${e.id})">✅ Retour</button>
+      <button class="btn-sm btn-green" data-action="retourner-livre" data-id="${e.id}">✅ Retour</button>
     </div>`;
   }).join('');
 }
@@ -18108,8 +18108,8 @@ function renderReservations() {
     <td>${r.etudiant}</td>
     <td>${r.date_demande}</td>
     <td><span class="badge amber">${r.dispo_le}</span></td>
-    <td><button class="btn-sm btn-green" onclick="confirmerReservation('${r.etudiant}')">✅ Confirmer</button>
-    <button class="btn-sm btn-red" onclick="annulerReservation('${r.etudiant}')">✕</button></td>
+    <td><button class="btn-sm btn-green" data-action="confirmer-resa" data-id="${r.etudiant}">✅ Confirmer</button>
+    <button class="btn-sm btn-red" data-action="annuler-resa" data-id="${r.etudiant}">✕</button></td>
   </tr>`).join('');
 }
 
@@ -18454,7 +18454,7 @@ function renderEtablissements(etabs) {
     // Classe CSS sans accents pour le ::before coloré
     const cssClass = tn.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/_/g,'-').toLowerCase();
     return `<div class="reseau-card ${cssClass}">
-    <div class="reseau-card-header" onclick="voirDetailEtablissement('${e.id}')" style="cursor:pointer">
+    <div class="reseau-card-header" data-action="voir-etablissement" data-id="${e.id}" style="cursor:pointer">
       <div class="reseau-card-ico" style="background:${col}15;border:2px solid ${col}30">${ico}</div>
       <div style="flex:1">
         <div class="reseau-card-nom">${e.nom}</div>
@@ -18475,7 +18475,7 @@ function renderEtablissements(etabs) {
       <span style="font-size:12px;font-weight:700;color:#059669">${(e.recette_mois/1000).toFixed(0)}K F/mois</span>
     </div>
     <div style="display:flex;gap:6px;margin-top:8px;border-top:1px solid #f3f4f6;padding-top:8px">
-      <button class="btn-sm btn-secondary" style="flex:1" onclick="ouvrirModificationEtablissement('${e.id}')">✏️ Modifier</button>
+      <button class="btn-sm btn-secondary" style="flex:1" data-action="edit-etablissement" data-id="${e.id}">✏️ Modifier</button>
       <button class="btn-sm btn-red" style="flex:1" data-action="del-etablissement" data-id="${e.id}">🗑️ Suppr</button>
     </div>
   </div>`;
@@ -18569,7 +18569,7 @@ function renderAlertesReseau() {
             <div class="ra-titre">${a.etab} — ${a.type}</div>
             <div class="ra-detail">${a.detail}</div>
           </div>
-          <button class="btn-sm btn-secondary" onclick="traiterAlerteReseau(${a.id})">✅ Traiter</button>
+          <button class="btn-sm btn-secondary" data-action="traiter-alerte" data-id="${a.id}">✅ Traiter</button>
         </div>`;
       }).join('')
     : '<div class="empty-state" style="padding:1rem;text-align:center;color:#6b7280">✅ Aucune alerte active</div>';
@@ -18863,7 +18863,7 @@ function renderRoles(roles) {
           ${r.nom}
         </div>
         <div style="display:flex;gap:6px">
-          <button class="btn-sm btn-secondary" onclick="ouvrirModalRole('${r.id}')">✏️ Modifier</button>
+          <button class="btn-sm btn-secondary" data-action="edit-role" data-id="${r.id}">✏️ Modifier</button>
           <button class="btn-sm btn-red" data-action="del-role" data-id="${r.id}" data-nom="${r.nom}">🗑️</button>
         </div>
       </div>
@@ -20697,7 +20697,7 @@ function renderSMSContacts(filtre='') {
         ${email ? `<div style="font-size:11px;color:#6b7280">📧 ${email}</div>` : `<div style="font-size:11px;color:#dc2626">⚠️ Pas d'email</div>`}
       </div>
       <div class="pc-tel">${tel||'—'}</div>
-      ${email ? `<button class="btn-sm btn-green" onclick="envoyerEmailParentParId('${c.id}')" title="Envoyer un email à ${parent.replace(/"/g,"&quot;")}">📧</button>` : ""}
+      ${email ? `<button class="btn-sm btn-green" data-action="email-parent" data-id="${c.id}" title="Envoyer un email à ${parent.replace(/"/g,"&quot;")}">📧</button>` : ""}
     </div>`;
   }).join('');
 }
@@ -22047,7 +22047,7 @@ function renderExecPedagogie() {
         <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#111827">${esc(e.nom)}</div>
         <div style="font-size:11.5px;color:#6b7280">${esc(e.classe)} · ${e.abs} absence(s)</div></div>
         <span class="badge red">${e.moy.toFixed(1)}/20</span>
-        <button class="btn-sm btn-blue" onclick="execOuvrirFicheEtudiant('${e.id}')">Suivre</button>
+        <button class="btn-sm btn-blue" data-action="voir-fiche-etudiant" data-id="${e.id}">Suivre</button>
       </div>`).join("");
     }
   }
@@ -22453,8 +22453,8 @@ function renderPPSections() {
     <span class="psi-ico">${s.ico||"📄"}</span>
     <div class="psi-body"><div class="psi-titre">${esc(s.titre)}</div><div class="psi-desc">${esc(s.desc)}</div></div>
     <label class="toggle-sw"><input type="checkbox" ${s.visible?"checked":""} onchange="ppToggleSection(${i}, this.checked)"><span class="toggle-sl"></span></label>
-    <button class="btn-sm btn-secondary" onclick="ppEditerSection(${i})" title="Renommer">✏️</button>
-    <button class="btn-sm btn-red" onclick="ppSupprimerSection(${i})" title="Supprimer">🗑️</button>
+    <button class="btn-sm btn-secondary" data-action="pp-edit-section" data-id="${i}" title="Renommer">✏️</button>
+    <button class="btn-sm btn-red" data-action="pp-del-section" data-id="${i}" title="Supprimer">🗑️</button>
   </div>`).join("");
 }
 
@@ -22549,7 +22549,7 @@ function renderPPInscriptions() {
           <span class="badge ${cls[statut]||"blue"}" style="font-size:10px;margin-top:3px;display:block">${labels[statut]||statut}</span>
         </div>
         <div style="display:flex;gap:4px;margin-left:.5rem;flex-shrink:0">
-          <button class="btn-sm btn-blue" onclick="ppVoirInscription('${d.id}')">Voir</button>
+          <button class="btn-sm btn-blue" data-action="pp-voir-inscription" data-id="${d.id}">Voir</button>
         </div>
       </div>`;
     }).join("");
@@ -22627,8 +22627,8 @@ function renderPPActualites() {
       <td>${a.vues || 0}</td>
       <td><span class="badge ${a.statut==="publie"?"green":"gray"}">${esc(a.statut||"brouillon")}</span></td>
       <td>
-        <button class="btn-sm btn-secondary" onclick="ppEditerActualite('${a.id}')" title="Éditer">✏️</button>
-        <button class="btn-sm btn-red" onclick="ppSupprimerActualite('${a.id}')" title="Supprimer">🗑️</button>
+        <button class="btn-sm btn-secondary" data-action="pp-edit-actu" data-id="${a.id}" title="Éditer">✏️</button>
+        <button class="btn-sm btn-red" data-action="pp-del-actu" data-id="${a.id}" title="Supprimer">🗑️</button>
       </td>
     </tr>`;
   }).join("");
@@ -22645,7 +22645,7 @@ function renderPPGalerie() {
   const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   grid.innerHTML = photos.map((url,i) => `<div style="aspect-ratio:1;border-radius:10px;overflow:hidden;position:relative;background:#f3f4f6;border:1px solid #e5e7eb">
     <img src="${esc(url)}" alt="Photo ${i+1}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentNode.innerHTML+='<div style=&quot;display:flex;align-items:center;justify-content:center;height:100%;font-size:32px;color:#9ca3af&quot;>🖼️</div>'">
-    <button onclick="ppSupprimerPhoto(${i})" title="Supprimer" style="position:absolute;top:4px;right:4px;background:rgba(220,38,38,.9);color:#fff;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px">×</button>
+    <button data-action="pp-del-photo" data-id="${i}" title="Supprimer" style="position:absolute;top:4px;right:4px;background:rgba(220,38,38,.9);color:#fff;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px">×</button>
   </div>`).join("");
 }
 
@@ -23165,7 +23165,7 @@ async function _rechercherGlobalImpl(query) {
   if (modules.length > 0) {
     html += `<div class="search-result-section">Modules</div>`;
     modules.slice(0,5).forEach(m => {
-      html += `<div class="search-result-item" onclick="showPage('${m.module}');fermerRecherche()">
+      html += `<div class="search-result-item" data-action="show-page-search" data-module="${m.module}">
         <div class="sri-ico" style="background:${m.bg}">${m.ico}</div>
         <div class="sri-body"><div class="sri-title">${esc(m.titre)}</div><div class="sri-meta">Module EduLink</div></div>
         <span class="sri-badge" style="background:#f3f4f6;color:#6b7280">→</span>
@@ -23216,7 +23216,7 @@ async function _rechercherGlobalImpl(query) {
   if (modules.length > 0) {
     html += `<div class="search-result-section">Modules</div>`;
     modules.slice(0,5).forEach(m => {
-      html += `<div class="search-result-item" onclick="showPage('${m.module}');fermerRecherche()">
+      html += `<div class="search-result-item" data-action="show-page-search" data-module="${m.module}">
         <div class="sri-ico" style="background:${m.bg}">${m.ico}</div>
         <div class="sri-body"><div class="sri-title">${esc(m.titre)}</div><div class="sri-meta">Module EduLink</div></div>
         <span class="sri-badge" style="background:#f3f4f6;color:#6b7280">→</span>
@@ -25604,7 +25604,7 @@ function telechargerModeleEnseignantsExcel() {
     const grid=document.getElementById('module-center-grid'); if(!grid) return;
     const needle=(q||'').toLowerCase().trim();
     const filtered=modules.filter(m=>!needle || m.join(' ').toLowerCase().includes(needle));
-    grid.innerHTML=filtered.map(([id,name,icon,fam,desc])=>`<div class="module-card" tabindex="0" role="button" onclick="edulinkGo('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();edulinkGo('${id}')}" data-module="${id}"><div class="mci">${icon}</div><div class="mcn">${name}</div><div class="mcf">${fam}</div><div class="mcd">${desc}</div></div>`).join('') || '<div class="empty-state"><div class="icon">🔎</div><h3>Aucun module trouvé</h3></div>';
+    grid.innerHTML=filtered.map(([id,name,icon,fam,desc])=>`<div class="module-card" tabindex="0" role="button" data-action="edulink-go" data-module="${id}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();edulinkGo('${id}')}" data-module="${id}"><div class="mci">${icon}</div><div class="mcn">${name}</div><div class="mcf">${fam}</div><div class="mcd">${desc}</div></div>`).join('') || '<div class="empty-state"><div class="icon">🔎</div><h3>Aucun module trouvé</h3></div>';
   };
   window.edulinkOpenImportGuide = function(){
     edulinkGo('etudiants');
@@ -25620,7 +25620,7 @@ function telechargerModeleEnseignantsExcel() {
       || document.querySelector('#nav-principal-wrap');
     const wrap=document.createElement('div');
     wrap.id='module-organizer'; wrap.className='module-organizer';
-    const familyButtons = Object.entries(families).filter(([,v])=>!v.hidden).map(([k,v])=>`<button type="button" class="module-family-btn" data-family="${k}" onclick="edulinkSetNavFamily('${k}')">${v.icon} ${v.label}</button>`).join('');
+    const familyButtons = Object.entries(families).filter(([,v])=>!v.hidden).map(([k,v])=>`<button type="button" class="module-family-btn" data-family="${k}" data-action="edulink-nav-family" data-module="${k}">${v.icon} ${v.label}</button>`).join('');
     wrap.innerHTML=`<div class="module-organizer-title"><span>🧭 Navigation métier</span><button type="button" onclick="edulinkOpenModuleCenter()">Centre</button></div><div class="module-family-grid">${familyButtons}</div><div class="nav-quick-actions"><button type="button" onclick="edulinkOpenWorkflow()">⚡ Saisies</button><button type="button" onclick="edulinkOpenModuleCenter()">🔎 Modules</button></div>`;
     if(anchor) anchor.insertAdjacentElement('afterend', wrap); else nav.insertBefore(wrap, nav.firstChild?.nextSibling || null);
     modules.forEach(([id,,icon,fam])=>{
@@ -25678,18 +25678,20 @@ function telechargerModeleEnseignantsExcel() {
 </script>
 
 <script>
-// ─── P1.9 (2026-05-12) : Event Delegation globale — remplace les onclick="supprimer*()" inline ───
-// Tous les boutons data-action="del-*" sont gérés ici au lieu d'avoir des onclick inline.
-// Avantage sécurité : élimine le risque d'injection XSS via les paramètres interpolés.
+// ─── P1.9 (2026-05-12) : Event Delegation globale — remplace les onclick="*()" inline ───
+// 95+ handlers inline migrés vers data-action. Élimine le risque XSS via interpolation ${}.
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const action = btn.dataset.action;
   const id     = btn.dataset.id;
   const nom    = btn.dataset.nom || '';
+  const val    = btn.dataset.val || '';
   const classe = btn.dataset.classe || '';
-
+  const ref    = btn.dataset.ref || '';
+  const url    = btn.dataset.url || '';
   switch(action) {
+    // ── Suppressions ──
     case 'del-etudiant':       supprimerEtudiant(id, nom); break;
     case 'del-etudiant-modal': fermerModal('modal-fiche-etudiant'); supprimerEtudiant(id, nom); break;
     case 'del-absence':        supprimerAbsence(id); break;
@@ -25707,13 +25709,83 @@ document.addEventListener('click', function(e) {
     case 'del-periode':        supprimerPeriode(id); break;
     case 'del-transaction':    supprimerTransaction(id); break;
     case 'del-personnel':      supprimerPersonnel(id); break;
-    case 'del-livre-bib':      supprimerLivreBibNum(id); break;
+    case 'del-livre-bib':      if(typeof supprimerLivreBibNum!=='undefined') supprimerLivreBibNum(id); break;
     case 'del-etablissement':  supprimerEtablissement(id); break;
     case 'del-role':           supprimerRole(id, nom); break;
-    case 'del-note-portail':   supprimerNotePortail(id); break;
-    case 'del-absence-portail':    supprimerAbsencePortail(id); break;
-    case 'del-paiement-portail':   supprimerPaiementPortail(id); break;
-    case 'del-message-portail':    supprimerMessagePortail(id); break;
+    case 'del-note-portail':        if(typeof supprimerNotePortail!=='undefined') supprimerNotePortail(id); break;
+    case 'del-absence-portail':     if(typeof supprimerAbsencePortail!=='undefined') supprimerAbsencePortail(id); break;
+    case 'del-paiement-portail':    if(typeof supprimerPaiementPortail!=='undefined') supprimerPaiementPortail(id); break;
+    case 'del-message-portail':     if(typeof supprimerMessagePortail!=='undefined') supprimerMessagePortail(id); break;
+    // ── Portail public ──
+    case 'pp-del-section':     if(typeof ppSupprimerSection!=='undefined') ppSupprimerSection(id); break;
+    case 'pp-edit-section':    if(typeof ppEditerSection!=='undefined') ppEditerSection(id); break;
+    case 'pp-del-actu':        if(typeof ppSupprimerActualite!=='undefined') ppSupprimerActualite(id); break;
+    case 'pp-edit-actu':       if(typeof ppEditerActualite!=='undefined') ppEditerActualite(id); break;
+    case 'pp-del-photo':       if(typeof ppSupprimerPhoto!=='undefined') ppSupprimerPhoto(id); break;
+    case 'pp-voir-inscription':if(typeof ppVoirInscription!=='undefined') ppVoirInscription(id); break;
+    // ── Statuts ──
+    case 'statut-user':        changerStatutUser(id, val==='true'); break;
+    case 'statut-examen':      changerStatutExamen(id, val); break;
+    case 'traiter-conge':      if(typeof traiterConge!=='undefined') traiterConge(id, val); break;
+    case 'traiter-alerte':     if(typeof traiterAlerteReseau!=='undefined') traiterAlerteReseau(id); break;
+    case 'toggle-notif-parent':if(typeof toggleNotifParent!=='undefined') toggleNotifParent(id, val==='true'); break;
+    // ── Éditions ──
+    case 'edit-examen':        editerExamen(id); break;
+    case 'edit-enseignant':    editerEnseignant(id); break;
+    case 'edit-matiere':       editerMatiere(id); break;
+    case 'edit-matiere-prog':  editerMatiereProgramme(id, classe); break;
+    case 'edit-user':          ouvrirModifierUser(id); break;
+    case 'edit-transaction':   ouvrirModifierTransaction(id); break;
+    case 'edit-personnel':     ouvrirModifierPersonnel(id); break;
+    case 'edit-note':          ouvrirModifierNote(id,btn.dataset.etu,btn.dataset.mat,btn.dataset.note,btn.dataset.coeff,btn.dataset.per,btn.dataset.com); break;
+    case 'edit-livre':         ouvrirModifierLivre(id); break;
+    case 'edit-absence':       ouvrirModifierAbsence(id,btn.dataset.etu,btn.dataset.mat,btn.dataset.date,btn.dataset.statut,btn.dataset.just); break;
+    case 'edit-livre-bib':     if(typeof ouvrirModificationLivreBibNum!=='undefined') ouvrirModificationLivreBibNum(id); break;
+    case 'edit-etablissement': if(typeof ouvrirModificationEtablissement!=='undefined') ouvrirModificationEtablissement(id); break;
+    case 'edit-role':          ouvrirModalRole(id, nom, btn.dataset.perms||''); break;
+    case 'edit-document':      ouvrirModifierDocument(id); break;
+    case 'edit-facture':       ouvrirModifierFacture(id); break;
+    case 'edit-incident':      ouvrirModifierIncident(id); break;
+    case 'edit-etudiant':      ouvrirModifierEtudiant(id); break;
+    case 'edit-etudiant-modal':fermerModal('modal-fiche-etudiant'); ouvrirModifierEtudiant(id); break;
+    // ── Vues / lectures ──
+    case 'voir-etudiant':      voirEtudiant(id); break;
+    case 'voir-fiche-etudiant':if(typeof execOuvrirFicheEtudiant!=='undefined') execOuvrirFicheEtudiant(id); break;
+    case 'voir-enseignant':    if(typeof voirFicheEnseignant!=='undefined') voirFicheEnseignant(id); break;
+    case 'voir-creneau':       voirCreneau(id); break;
+    case 'voir-programme':     if(typeof voirProgrammeClasse!=='undefined') voirProgrammeClasse(id, nom); break;
+    case 'voir-livre':         if(typeof voirLivreDetail!=='undefined') voirLivreDetail(id); break;
+    case 'voir-etablissement': if(typeof voirDetailEtablissement!=='undefined') voirDetailEtablissement(id); break;
+    case 'voir-affectation':   if(typeof voirAffectationClasse!=='undefined') voirAffectationClasse(id); break;
+    case 'voir-fiche-paie':    if(typeof voirFichePaieAgent!=='undefined') voirFichePaieAgent(id); break;
+    case 'lire-message':       lireMessage(id); break;
+    case 'ouvrir-pv':          ouvrirPV(id); break;
+    case 'imprimer-pv':        if(typeof imprimerPVDirect!=='undefined') imprimerPVDirect(id); break;
+    case 'ouvrir-edt':         ouvrirEdtAvec(btn.dataset.jour, btn.dataset.heure); break;
+    case 'ouvrir-chat':        ouvrirChat(id, nom); break;
+    case 'ouvrir-paiement':    ouvrirPaiement(id, ref, btn.dataset.montant); break;
+    case 'resoudre-incident':  ouvrirResolution(id); break;
+    // ── Actions ──
+    case 'affecter-etudiant':  if(typeof affecterEtudiant!=='undefined') affecterEtudiant(id, classe); break;
+    case 'retirer-affectation':if(typeof retirerAffectation!=='undefined') retirerAffectation(id, btn.dataset.ens); break;
+    case 'retirer-destinataire':if(typeof retirerDestinataire!=='undefined') retirerDestinataire(id, btn.parentElement); break;
+    case 'confirmer-resa':     if(typeof confirmerReservation!=='undefined') confirmerReservation(id); break;
+    case 'annuler-resa':       if(typeof annulerReservation!=='undefined') annulerReservation(id); break;
+    case 'preremplir-emprunt': if(typeof preRemplirEmprunt!=='undefined') preRemplirEmprunt(id); break;
+    case 'retourner-livre':    if(typeof retournerLivre!=='undefined') retournerLivre(id); break;
+    case 'enregistrer-retour': if(typeof enregistrerRetour!=='undefined') enregistrerRetour(id, btn.dataset.livre); break;
+    case 'generer-recu':       if(typeof genererRecuPDF!=='undefined') genererRecuPDF(id); break;
+    case 'imprimer-fiche-paie':if(typeof imprimerFichePaie!=='undefined') imprimerFichePaie(id, btn.dataset.mois); break;
+    case 'telecharger-fiche-paie':if(typeof telechargerFichePaiePDF!=='undefined') telechargerFichePaiePDF(id, btn.dataset.mois); break;
+    case 'signer-certificat':  if(typeof signerCertificat!=='undefined') signerCertificat(id); break;
+    case 'annuler-certificat': if(typeof annulerCertificatDB!=='undefined') annulerCertificatDB(id); break;
+    case 'retelechargement-certificat':if(typeof retelechargerCertificat!=='undefined') retelechargerCertificat(id); break;
+    case 'email-parent':       if(typeof envoyerEmailParentParId!=='undefined') envoyerEmailParentParId(id); break;
+    // ── Navigation ──
+    case 'show-page-search':   showPage(btn.dataset.module); if(typeof fermerRecherche!=='undefined') fermerRecherche(); break;
+    case 'edulink-go':         if(typeof edulinkGo!=='undefined') edulinkGo(btn.dataset.module); break;
+    case 'edulink-nav-family': if(typeof edulinkSetNavFamily!=='undefined') edulinkSetNavFamily(btn.dataset.module); break;
+    case 'open-url':           if(url) window.open(url, '_blank'); break;
   }
 });
 </script>
