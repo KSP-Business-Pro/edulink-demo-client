@@ -19905,7 +19905,7 @@ async function chargerPortailEtudiant(id) {
   const ressList = document.getElementById('portail-ressources-list');
   if (ressList) {
     const { data: docs } = await db.from('documents')
-      .select('id, titre, type_fichier, categorie, url_fichier, taille_fichier, created_at')
+      .select('id, nom, type, url, taille, created_at')
       .eq('ecole_id', currentEcoleId)
       .order('created_at', {ascending: false})
       .limit(20);
@@ -19918,15 +19918,15 @@ async function chargerPortailEtudiant(id) {
     } else {
       const typeIco = { pdf:'📄', docx:'📝', xlsx:'📊', pptx:'📊', image:'🖼️', doc:'📝' };
       ressList.innerHTML = docsOk.map(d => {
-        const ext = (d.type_fichier||'').toLowerCase().replace('application/','').replace('vnd.openxmlformats-officedocument.wordprocessingml.document','docx').replace('vnd.ms-excel','xlsx').split('/').pop().substring(0,4);
+        const ext = (d.type||'').toLowerCase().replace('application/','').replace('vnd.openxmlformats-officedocument.wordprocessingml.document','docx').replace('vnd.ms-excel','xlsx').split('/').pop().substring(0,4);
         const ico = typeIco[ext] || '📎';
-        const taille = d.taille_fichier ? (d.taille_fichier > 1048576 ? (d.taille_fichier/1048576).toFixed(1)+' MB' : Math.round(d.taille_fichier/1024)+' KB') : '';
+        const taille = d.taille ? (d.taille > 1048576 ? (d.taille/1048576).toFixed(1)+' MB' : Math.round(d.taille/1024)+' KB') : '';
         return `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:.85rem;cursor:pointer;transition:all .15s"
           onmouseenter="this.style.borderColor='#1e3a5f'" onmouseleave="this.style.borderColor='#e5e7eb'"
-          onclick="${d.url_fichier ? `window.open('${d.url_fichier}','_blank')` : `showToast('📂 ${d.titre} — Pas de lien disponible','info')`}">
+          onclick="${d.url ? `window.open('${d.url}','_blank')` : `showToast('📂 ${d.nom} — Pas de lien disponible','info')`}">
           <div style="font-size:24px;margin-bottom:.4rem">${ico}</div>
-          <div style="font-size:12.5px;font-weight:700;color:#111827;margin-bottom:2px">${d.titre||'—'}</div>
-          <div style="font-size:11px;color:#9ca3af">${d.categorie||ext.toUpperCase()||'Fichier'}${taille?' · '+taille:''}</div>
+          <div style="font-size:12.5px;font-weight:700;color:#111827;margin-bottom:2px">${d.nom||'—'}</div>
+          <div style="font-size:11px;color:#9ca3af">${ext.toUpperCase()||'Fichier'}${taille?' · '+taille:''}</div>
         </div>`;
       }).join('');
     }
@@ -20493,7 +20493,7 @@ const IA_RESPONSES = {
     try {
       const today = new Date().toISOString().slice(0,10);
       const { data, error } = await db.from('examens')
-        .select('matiere,date_examen,classe_id,classes(nom)')
+        .select('matiere,date_examen,classe')
         .eq('ecole_id', currentEcoleId)
         .gte('date_examen', today)
         .order('date_examen', { ascending: true })
@@ -20504,7 +20504,7 @@ const IA_RESPONSES = {
       let txt = `📅 **Prochains examens planifiés :**\n\n`;
       list.forEach(e => {
         const d = new Date(e.date_examen).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-        const cls = e.classes?.nom ? ` _(${e.classes.nom})_` : '';
+        const cls = e.classe ? ` _(${e.classe})_` : '';
         txt += `• **${d}** — ${e.matiere}${cls}\n`;
       });
       const j = Math.ceil((new Date(list[0].date_examen) - new Date()) / 86400000);
