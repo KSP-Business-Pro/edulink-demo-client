@@ -10910,12 +10910,15 @@ function resetFiltresMessages() {
 }
 
 async function marquerTousLus() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[marquerTousLus] aucune école active'); return; }
   const nonLus = tousLesMessages.filter(m => !m.lu);
   if (!nonLus.length) { showToast("Tous les messages sont déjà lus ✅", "info"); return; }
   const now = new Date().toISOString();
   const ids = nonLus.map(m => m.id);
   // Tentative Supabase (peut échouer silencieusement selon RLS)
-  await db.from("messages").update({ lu: true, lu_at: now }).in("id", ids);
+  await db.from("messages").update({ lu: true, lu_at: now }).in("id", ids).eq("ecole_id", _eid);
   // Forcer la mise à jour locale dans tous les cas
   tousLesMessages.forEach(m => { m.lu = true; m.lu_at = m.lu_at || now; });
   showToast(`✅ ${nonLus.length} message(s) marqué(s) comme lu(s)`, "success");
@@ -11004,13 +11007,16 @@ function syncDestinataire(sel) {
   if (role && opt.dataset.role) Array.from(role.options).forEach(o=>{o.selected=o.value===opt.dataset.role;});
 }
 async function lireMessage(id) {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[lireMessage] aucune école active'); return; }
   selectedMsgId = id;
   const msg = tousLesMessages.find(m=>m.id===id);
   if (!msg) return;
   // Marquer lu + enregistrer lu_at
   if (!msg.lu) {
     const now = new Date().toISOString();
-    await db.from('messages').update({ lu:true, lu_at:now }).eq('id',id);
+    await db.from('messages').update({ lu:true, lu_at:now }).eq('id',id).eq('ecole_id', _eid);
     msg.lu = true; msg.lu_at = now;
     chargerMessages();
   }
@@ -11194,6 +11200,9 @@ function ouvrirModifierFacture(id) {
 }
 
 async function creerFacture() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[creerFacture] aucune école active'); showToast('Aucune école active','error'); return; }
   const montant = parseFloat(document.getElementById('input-fac-montant').value);
   if (!montant || montant<=0) { showToast('Entrez un montant valide.','error'); return; }
   const modal = document.getElementById('modal-facture');
@@ -11207,7 +11216,7 @@ async function creerFacture() {
   };
   let error;
   if (editId) {
-    ({ error } = await db.from('factures').update(payload).eq('id', editId));
+    ({ error } = await db.from('factures').update(payload).eq('id', editId).eq('ecole_id', _eid));
   } else {
     ({ error } = await db.from('factures').insert([{
       ...payload, ecole_id: currentEcoleId,
@@ -11236,6 +11245,9 @@ function ouvrirPaiement(facId, facRef, restant) {
 }
 
 async function enregistrerPaiement() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[enregistrerPaiement] aucune école active'); showToast('Aucune école active','error'); return; }
   const facId   = document.getElementById('input-pay-fac-id').value;
   const montant = parseFloat(document.getElementById('input-pay-montant').value);
   const mode    = document.getElementById('input-pay-mode').value;
@@ -11246,7 +11258,7 @@ async function enregistrerPaiement() {
   const nouveauPaye = (facture.montant_paye||0) + montant;
   const nouveauStatut = nouveauPaye >= facture.montant_total ? 'paye' : 'partiel';
   // Mettre à jour la facture
-  const { error:e1 } = await db.from('factures').update({ montant_paye:nouveauPaye, statut:nouveauStatut }).eq('id',facId);
+  const { error:e1 } = await db.from('factures').update({ montant_paye:nouveauPaye, statut:nouveauStatut }).eq('id',facId).eq('ecole_id', _eid);
   if (e1) { showToast('Erreur mise à jour : '+e1.message,'error'); return; }
   // Mettre à jour l'objet en mémoire immédiatement
   const facObj = toutesLesFactures.find(f=>f.id===facId);
@@ -11360,6 +11372,9 @@ async function chargerIncidents() {
   }).join('');
 }
 async function enregistrerIncident() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[enregistrerIncident] aucune école active'); showToast('Aucune école active','error'); return; }
   const desc = document.getElementById('input-inc-desc').value.trim();
   if (!desc) { showToast("Décrivez l'incident.",'error'); return; }
   const modal = document.getElementById('modal-incident');
@@ -11374,7 +11389,7 @@ async function enregistrerIncident() {
   };
   let error;
   if (editId) {
-    ({ error } = await db.from('incidents').update(payload).eq('id', editId));
+    ({ error } = await db.from('incidents').update(payload).eq('id', editId).eq('ecole_id', _eid));
   } else {
     ({ error } = await db.from('incidents').insert([{ ...payload, ecole_id:currentEcoleId, statut:'ouvert' }]));
   }
@@ -11426,10 +11441,13 @@ function ouvrirResolution(id) {
   ouvrirModal('modal-resoudre');
 }
 async function confirmerResolution() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[confirmerResolution] aucune école active'); showToast('Aucune école active','error'); return; }
   const id   = document.getElementById('input-res-id').value;
   const note = document.getElementById('input-res-note').value.trim();
   if (!note) { showToast('Décrivez la résolution.','error'); return; }
-  const { error } = await db.from('incidents').update({ statut:'résolu', note_resolution:note }).eq('id',id);
+  const { error } = await db.from('incidents').update({ statut:'résolu', note_resolution:note }).eq('id',id).eq('ecole_id', _eid);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-resoudre'); showToast('Incident marqué résolu !','success'); chargerIncidents(); chargerDashboard();
 }
@@ -11545,6 +11563,9 @@ function ouvrirModifierDocument(id) {
 }
 
 async function ajouterDocument() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[ajouterDocument] aucune école active'); showToast('Aucune école active','error'); return; }
   const nom  = document.getElementById('input-doc-nom').value.trim();
   const cat  = document.getElementById('input-doc-categorie').value;
   const etId = document.getElementById('input-doc-etudiant').value || null;
@@ -11555,7 +11576,7 @@ async function ajouterDocument() {
   const payload = { nom, categorie:cat, etudiant_id:etId };
   let error;
   if (editId) {
-    ({ error } = await db.from('documents').update(payload).eq('id', editId));
+    ({ error } = await db.from('documents').update(payload).eq('id', editId).eq('ecole_id', _eid));
   } else {
     const taille = file ? (file.size<1048576?(file.size/1024).toFixed(1)+' Ko':(file.size/1048576).toFixed(1)+' Mo') : null;
     ({ error } = await db.from('documents').insert([{
@@ -15074,8 +15095,11 @@ function resetFiltresCert() {
 }
 
 async function signerCertificat(id) {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[signerCertificat] aucune école active'); return; }
   if (!confirm('Marquer ce certificat comme signé ?')) return;
-  const { error } = await db.from('certificats').update({ statut:'signe' }).eq('id', id);
+  const { error } = await db.from('certificats').update({ statut:'signe' }).eq('id', id).eq('ecole_id', _eid);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast('✅ Certificat signé !','success');
   chargerCertificats();
@@ -15230,8 +15254,11 @@ async function retelechargerCertificat(id) {
 }
 
 async function annulerCertificatDB(id) {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[annulerCertificatDB] aucune école active'); return; }
   if (!confirm('Annuler ce document ? Il restera en historique mais sera marqué annulé.')) return;
-  const { error } = await db.from('certificats').update({ statut:'annule' }).eq('id', id);
+  const { error } = await db.from('certificats').update({ statut:'annule' }).eq('id', id).eq('ecole_id', _eid);
   if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
   showToast('Document annulé.', 'info');
   chargerCertificats();
@@ -15796,6 +15823,9 @@ function filtrerLivres() {
 }
 
 async function ajouterLivre() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[ajouterLivre] aucune école active'); showToast('Aucune école active','error'); return; }
   const titre = document.getElementById('input-livre-titre').value.trim();
   const auteur= document.getElementById('input-livre-auteur').value.trim();
   if (!titre || !auteur) { showToast('Titre et auteur obligatoires.','error'); return; }
@@ -15812,7 +15842,7 @@ async function ajouterLivre() {
   };
   let error;
   if (editId) {
-    ({ error } = await db.from('livres').update(payload).eq('id', editId));
+    ({ error } = await db.from('livres').update(payload).eq('id', editId).eq('ecole_id', _eid));
   } else {
     ({ error } = await db.from('livres').insert([{ ...payload, ecole_id:currentEcoleId, exemplaires_empruntes:0, statut:'disponible' }]));
   }
@@ -15880,6 +15910,9 @@ async function preRemplirEmprunt(livreId) {
 }
 
 async function enregistrerEmprunt() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[enregistrerEmprunt] aucune école active'); showToast('Aucune école active','error'); return; }
   const livreId    = document.getElementById('input-emprunt-livre').value;
   const etudiantId = document.getElementById('input-emprunt-etudiant').value;
   const dateEmp    = document.getElementById('input-emprunt-date').value;
@@ -15894,7 +15927,7 @@ async function enregistrerEmprunt() {
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   // Incrémenter exemplaires_empruntes
   const livre = tousLesLivres.find(l=>l.id===livreId);
-  if (livre) await db.from('livres').update({ exemplaires_empruntes:(livre.exemplaires_empruntes||0)+1 }).eq('id',livreId);
+  if (livre) await db.from('livres').update({ exemplaires_empruntes:(livre.exemplaires_empruntes||0)+1 }).eq('id',livreId).eq('ecole_id', _eid);
   fermerModal('modal-emprunt');
   document.getElementById('input-emprunt-obs').value='';
   showToast('📤 Emprunt enregistré — Réf. '+ref,'success');
@@ -15933,11 +15966,14 @@ async function chargerEmpruntsActifs() {
 }
 
 async function enregistrerRetour(empruntId, livreId) {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[enregistrerRetour] aucune école active'); return; }
   if (!confirm('Confirmer le retour de cet ouvrage ?')) return;
-  const { error } = await db.from('emprunts').update({ statut:'rendu', date_retour_reel:new Date().toISOString().split('T')[0] }).eq('id',empruntId);
+  const { error } = await db.from('emprunts').update({ statut:'rendu', date_retour_reel:new Date().toISOString().split('T')[0] }).eq('id',empruntId).eq('ecole_id', _eid);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   const livre = tousLesLivres.find(l=>l.id===livreId);
-  if (livre) await db.from('livres').update({ exemplaires_empruntes:Math.max(0,(livre.exemplaires_empruntes||1)-1) }).eq('id',livreId);
+  if (livre) await db.from('livres').update({ exemplaires_empruntes:Math.max(0,(livre.exemplaires_empruntes||1)-1) }).eq('id',livreId).eq('ecole_id', _eid);
   showToast('📥 Retour enregistré !','success');
   chargerBibliotheque();
   chargerEmpruntsActifs();
