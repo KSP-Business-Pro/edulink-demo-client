@@ -10153,6 +10153,9 @@ async function voirEtudiant(id) {
   document.getElementById('modal-fiche-etudiant').classList.add('open');
 }
 async function ajouterEtudiant() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id pour UPDATE/INSERT ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[ajouterEtudiant] aucune école active'); showToast('Aucune école active','error'); return; }
   const nom      = document.getElementById('input-nom').value.trim();
   const prenom   = document.getElementById('input-prenom').value.trim();
   const matricule= document.getElementById('input-matricule').value.trim();
@@ -10179,7 +10182,7 @@ async function ajouterEtudiant() {
   let etudiantId = editId;
   if (editId) {
     let payloadUp = { ...payload };
-    let { error } = await db.from('etudiants').update(payloadUp).eq('id', editId);
+    let { error } = await db.from('etudiants').update(payloadUp).eq('id', editId).eq('ecole_id', _eid);
     if (error) {
       const _m = /Could not find the '([^']+)' column|column "([^"]+)" of relation/i.exec(error.message || '');
       const _col = _m?.[1] || _m?.[2];
@@ -10198,7 +10201,7 @@ async function ajouterEtudiant() {
     if (error) { showToast('Erreur : ' + (error.message.includes('unique') ? 'Matricule déjà utilisé.' : error.message), 'error'); return; }
     etudiantId = ins?.id;
   }
-  if (etudiantId) await db.from('etudiants').update({classe_id:classeId||null}).eq('id',etudiantId);
+  if (etudiantId) await db.from('etudiants').update({classe_id:classeId||null}).eq('id',etudiantId).eq('ecole_id', _eid);
   fermerModal('modal-etudiant');
   if (modal) delete modal.dataset.editId;
   const h3m = document.querySelector('#modal-etudiant h3'); if(h3m) h3m.textContent='👥 Ajouter un étudiant';
@@ -10297,13 +10300,16 @@ async function remplirSelect(selectId, withEmpty=false) {
     document.getElementById('input-absence-date').value = new Date().toISOString().split('T')[0];
 }
 async function enregistrerAbsence() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[enregistrerAbsence] aucune école active'); showToast('Aucune école active','error'); return; }
   const matiere=document.getElementById('input-absence-matiere').value.trim();
   if (!matiere) { showToast('Entrez la matière.','error'); return; }
   const modal=document.getElementById('modal-absence');
   const editId=modal?.dataset?.editId;
   const payload={etudiant_id:document.getElementById('input-absence-etudiant').value,matiere,date_absence:document.getElementById('input-absence-date').value,statut:document.getElementById('input-absence-statut').value,justification:document.getElementById('input-absence-justification').value.trim()};
   let error;
-  if(editId){({error}=await db.from('absences').update(payload).eq('id',editId));}
+  if(editId){({error}=await db.from('absences').update(payload).eq('id',editId).eq('ecole_id', _eid));}
   else{({error}=await db.from('absences').insert([{...payload,ecole_id:currentEcoleId}]));}
   if(error){showToast('Erreur : '+error.message,'error');return;}
   fermerModal('modal-absence');
@@ -10343,7 +10349,10 @@ async function supprimerAbsence(id){
   chargerAbsences(); chargerDashboard();
 }
 async function toggleNotifParent(id,newVal){
-  await db.from('absences').update({parent_notifie:newVal}).eq('id',id);
+  // ─── F-008 (2026-05-13) : garde + filtre ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[toggleNotifParent] aucune école active'); return; }
+  await db.from('absences').update({parent_notifie:newVal}).eq('id',id).eq('ecole_id', _eid);
   showToast(newVal?'✅ Parent marqué notifié':'Notification annulée','success');
   chargerAbsences();
 }
@@ -10434,6 +10443,9 @@ function ouvrirModifierNote(id,etudiantId,matiere,note,coeff,periode,commentaire
   ouvrirModal('modal-note');
 }
 async function enregistrerOuModifierNote(){
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[enregistrerOuModifierNote] aucune école active'); showToast('Aucune école active','error'); return; }
   const modal=document.getElementById('modal-note');
   const editId=modal?.dataset?.editId;
   const matiere=document.getElementById('input-note-matiere').value.trim();
@@ -10442,7 +10454,7 @@ async function enregistrerOuModifierNote(){
   if(note<0||note>20){showToast('Note entre 0 et 20.','error');return;}
   const payload={matiere,note,coefficient:parseInt(document.getElementById('input-note-coeff').value)||2,periode:document.getElementById('input-note-periode').value,commentaire:document.getElementById('input-note-commentaire')?.value.trim()||''};
   let error;
-  if(editId){({error}=await db.from('notes').update(payload).eq('id',editId));}
+  if(editId){({error}=await db.from('notes').update(payload).eq('id',editId).eq('ecole_id', _eid));}
   else{({error}=await db.from('notes').insert([{...payload,ecole_id:currentEcoleId,etudiant_id:document.getElementById('input-note-etudiant').value}]));}
   if(error){showToast('Erreur : '+error.message,'error');return;}
   fermerModal('modal-note');
@@ -10765,6 +10777,9 @@ function ouvrirModifierCreneau(id) {
 }
 
 async function ajouterCreneau() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[ajouterCreneau] aucune école active'); showToast('Aucune école active','error'); return; }
   const matiere = document.getElementById('input-edt-matiere').value.trim();
   if (!matiere) { showToast('Entrez la matière.', 'error'); return; }
   const modal = document.getElementById('modal-emploi');
@@ -10784,7 +10799,7 @@ async function ajouterCreneau() {
   };
   let error;
   if (editId) {
-    ({ error } = await db.from('emploi_du_temps').update(payload).eq('id', editId));
+    ({ error } = await db.from('emploi_du_temps').update(payload).eq('id', editId).eq('ecole_id', _eid));
   } else {
     ({ error } = await db.from('emploi_du_temps').insert([{ ...payload, ecole_id: currentEcoleId }]));
   }
@@ -13267,6 +13282,9 @@ function rafraichirMentionPV(etudiantId) {
 }
 
 async function sauvegarderPV() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[sauvegarderPV] aucune école active'); showToast('Aucune école active','error'); return; }
   const examId = document.getElementById('pv-exam-id').value;
   const examen = tousLesExamens.find(e => e.id === examId);
   if (!examen) return;
@@ -13279,7 +13297,7 @@ async function sauvegarderPV() {
     if (isNaN(val) || inp.value === '') continue;
     const { data: existing } = await db.from('notes').select('id').eq('etudiant_id', etudiantId).eq('matiere', examen.matiere).eq('periode', periode).maybeSingle();
     let error;
-    if (existing) { ({ error } = await db.from('notes').update({ note: val }).eq('id', existing.id)); }
+    if (existing) { ({ error } = await db.from('notes').update({ note: val }).eq('id', existing.id).eq('ecole_id', _eid)); }
     else { ({ error } = await db.from('notes').insert([{ ecole_id: currentEcoleId||null, etudiant_id: etudiantId, matiere: examen.matiere, note: val, coefficient: 1, periode: periode }])); }
     if (error) errs++; else nb++;
   }
@@ -13370,6 +13388,9 @@ async function editerExamen(examId) {
 }
 
 async function sauvegarderExamen() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[sauvegarderExamen] aucune école active'); showToast('Aucune école active','error'); return; }
   const matiere = document.getElementById('input-exam-matiere').value.trim();
   const date    = document.getElementById('input-exam-date').value;
   if (!matiere || !date) { showToast('Matière et date obligatoires','error'); return; }
@@ -13391,7 +13412,7 @@ async function sauvegarderExamen() {
     trimestre:    document.getElementById('input-exam-trimestre')?.value || null,
   };
   let error;
-  if (id) { ({ error } = await db.from('examens').update(payload).eq('id', id)); }
+  if (id) { ({ error } = await db.from('examens').update(payload).eq('id', id).eq('ecole_id', _eid)); }
   else    { ({ error } = await db.from('examens').insert([payload])); }
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-examen');
@@ -13409,7 +13430,10 @@ async function supprimerExamen(id, matiere) {
 }
 
 async function changerStatutExamen(id, newStatut) {
-  await db.from('examens').update({ statut: newStatut }).eq('id', id);
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[changerStatutExamen] aucune école active'); return; }
+  await db.from('examens').update({ statut: newStatut }).eq('id', id).eq('ecole_id', _eid);
   const labels = { termine:'✅ Terminé', en_cours:'En cours', planifie:'Planifié', annule:'Annulé' };
   showToast(labels[newStatut] || 'Statut mis à jour', 'success');
   chargerExamens();
@@ -16797,13 +16821,19 @@ async function chargerAffectation() {
 }
 
 async function affecterEtudiant(etuId, classeId) {
-  const { error } = await db.from('etudiants').update({ classe_id: classeId }).eq('id', etuId);
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[affecterEtudiant] aucune école active'); return; }
+  const { error } = await db.from('etudiants').update({ classe_id: classeId }).eq('id', etuId).eq('ecole_id', _eid);
   if (error) { showToast('Erreur.','error'); return; }
   showToast('Étudiant affecté !','success'); chargerAffectation(); chargerClasses();
 }
 
 async function retirerAffectation(etuId, classeId) {
-  const { error } = await db.from('etudiants').update({ classe_id: null }).eq('id', etuId);
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[retirerAffectation] aucune école active'); return; }
+  const { error } = await db.from('etudiants').update({ classe_id: null }).eq('id', etuId).eq('ecole_id', _eid);
   if (error) { showToast('Erreur.','error'); return; }
   showToast('Affectation retirée.','success'); chargerAffectation(); chargerClasses();
 }
