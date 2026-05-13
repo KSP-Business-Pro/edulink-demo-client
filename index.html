@@ -11978,6 +11978,9 @@ function resetFiltresUsers() {
 }
 
 async function creerUtilisateur() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[creerUtilisateur] aucune école active'); showToast('Aucune école active','error'); return; }
   const prenom = document.getElementById('input-user-prenom').value.trim();
   const nom    = document.getElementById('input-user-nom').value.trim();
   const email  = document.getElementById('input-user-email').value.trim();
@@ -11992,7 +11995,7 @@ async function creerUtilisateur() {
     const payload = { prenom, nom, role };
     const etudiantId = document.getElementById('input-user-etudiant')?.value||null;
     if (['parent','etudiant'].includes(role) && etudiantId) payload.etudiant_id = etudiantId;
-    const { error } = await db.from('utilisateurs').update(payload).eq('id', editId);
+    const { error } = await db.from('utilisateurs').update(payload).eq('id', editId).eq('ecole_id', _eid);
     if (error) { showToast('Erreur : '+error.message,'error'); return; }
     if (window.AuditLog) AuditLog.record('UPDATE', 'utilisateurs', editId, `Modification du compte : ${prenom} ${nom} (${role})`);
     showToast('✅ Utilisateur modifié !','success');
@@ -12053,8 +12056,11 @@ function ouvrirModifierUser(id) {
 }
 
 async function changerStatutUser(id, newActif) {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[changerStatutUser] aucune école active'); return; }
   // newActif est un booléen (true = actif, false = suspendu).
-  const { error } = await db.from('utilisateurs').update({ actif: newActif }).eq('id', id);
+  const { error } = await db.from('utilisateurs').update({ actif: newActif }).eq('id', id).eq('ecole_id', _eid);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast(newActif ? '🔓 Compte réactivé !' : '🔒 Compte suspendu.','success');
   chargerUtilisateurs();
@@ -13832,6 +13838,9 @@ function editerEnseignant(id) {
 }
 
 async function sauvegarderEnseignant() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[sauvegarderEnseignant] aucune école active'); showToast('Aucune école active','error'); return; }
   const id = document.getElementById('input-ens-id').value;
   const nom    = document.getElementById('input-ens-nom').value.trim();
   const prenom = document.getElementById('input-ens-prenom').value.trim();
@@ -13884,7 +13893,7 @@ async function sauvegarderEnseignant() {
 
   let error;
   if (id) {
-    ({ error } = await db.from('enseignants').update(payload).eq('id', id));
+    ({ error } = await db.from('enseignants').update(payload).eq('id', id).eq('ecole_id', _eid));
   } else {
     ({ error } = await db.from('enseignants').insert([payload]));
   }
@@ -13999,6 +14008,9 @@ function editerMatiere(id) {
 }
 
 async function sauvegarderMatiere() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[sauvegarderMatiere] aucune école active'); showToast('Aucune école active','error'); return; }
   const nom = document.getElementById('input-mat-nom').value.trim();
   if (!nom) { showToast('Nom de la matière obligatoire','error'); return; }
   const id = document.getElementById('input-mat-id').value;
@@ -14014,7 +14026,7 @@ async function sauvegarderMatiere() {
   };
   let error;
   if (id) {
-    ({ error } = await db.from('matieres').update(payload).eq('id', id));
+    ({ error } = await db.from('matieres').update(payload).eq('id', id).eq('ecole_id', _eid));
   } else {
     ({ error } = await db.from('matieres').insert([payload]));
   }
@@ -16682,6 +16694,9 @@ function ouvrirModalAjoutProgramme() {
 }
 
 async function sauvegarderProgramme() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[sauvegarderProgramme] aucune école active'); showToast('Aucune école active','error'); return; }
   const id       = document.getElementById('input-prog-id').value;
   const classeId = document.getElementById('input-prog-classe').value;
   const matiere  = document.getElementById('input-prog-matiere').value.trim();
@@ -16701,7 +16716,7 @@ async function sauvegarderProgramme() {
   if (id) {
     // Mode édition : ne pas écraser ecole_id (utile si peut_voir_ecole évolue)
     delete payload.ecole_id;
-    ({ error } = await db.from('programmes').update(payload).eq('id', id));
+    ({ error } = await db.from('programmes').update(payload).eq('id', id).eq('ecole_id', _eid));
   } else {
     ({ error } = await db.from('programmes').insert([payload]));
   }
@@ -17095,6 +17110,9 @@ function ouvrirModifierTransaction(id) {
 }
 
 async function enregistrerTransaction() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[enregistrerTransaction] aucune école active'); showToast('Aucune école active','error'); return; }
   const libelle = document.getElementById('input-trans-libelle').value.trim();
   const montant = parseFloat(document.getElementById('input-trans-montant').value);
   if (!libelle||!montant||montant<=0) { showToast('Remplissez libellé et montant.','error'); return; }
@@ -17111,7 +17129,7 @@ async function enregistrerTransaction() {
   };
   let error;
   if (editId) {
-    ({ error } = await db.from('transactions_caisse').update(payload).eq('id', editId));
+    ({ error } = await db.from('transactions_caisse').update(payload).eq('id', editId).eq('ecole_id', _eid));
   } else {
     ({ error } = await db.from('transactions_caisse').insert([{ ...payload, ecole_id: currentEcoleId }]));
   }
@@ -17907,6 +17925,9 @@ function afficherPersonnel(liste) {
 function filtrerPersonnel() { chargerListePersonnel(); }
 
 async function ajouterPersonnel() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[ajouterPersonnel] aucune école active'); showToast('Aucune école active','error'); return; }
   const nom = document.getElementById('input-rh-nom').value.trim();
   const prenom = document.getElementById('input-rh-prenom').value.trim();
   const poste  = document.getElementById('input-rh-poste').value.trim();
@@ -17929,7 +17950,7 @@ async function ajouterPersonnel() {
   // Colonnes optionnelles à retirer si absent du schema
   const optionalCols = ['salaire_brut','date_fin_contrat','observations','type_contrat','telephone'];
   const tryUpsert = async (p, isEdit) => {
-    if (isEdit) return db.from('personnel').update(p).eq('id', editId);
+    if (isEdit) return db.from('personnel').update(p).eq('id', editId).eq('ecole_id', _eid);
     return db.from('personnel').insert([{ ...p, ecole_id:currentEcoleId, statut:'actif' }]);
   };
   let result = await tryUpsert(payload, !!editId);
@@ -18042,7 +18063,10 @@ async function soumettreConge() {
 }
 
 async function traiterConge(id, decision) {
-  const { error } = await db.from('conges_personnel').update({ statut:decision }).eq('id',id);
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[traiterConge] aucune école active'); return; }
+  const { error } = await db.from('conges_personnel').update({ statut:decision }).eq('id',id).eq('ecole_id', _eid);
   if (error) { showToast('Erreur.','error'); return; }
   showToast(decision==='approuve'?'✅ Congé approuvé !':'❌ Congé refusé.', decision==='approuve'?'success':'error');
   chargerConges();
@@ -19182,6 +19206,9 @@ function ouvrirModalRole(id) {
 }
 
 async function sauvegarderRole() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[sauvegarderRole] aucune école active'); showToast('Aucune école active','error'); return; }
   const nom   = document.getElementById('role-nom')?.value.trim();
   const ico   = document.getElementById('role-ico')?.value.trim() || '👤';
   const color = document.getElementById('role-color')?.value || '#1e3a5f';
@@ -19191,7 +19218,7 @@ async function sauvegarderRole() {
   const payload = { nom, ico, color, perms, ecole_id: currentEcoleId, updated_at: new Date().toISOString() };
 
   if (roleEditId && !roleEditId.startsWith('local-')) {
-    const { error } = await db.from('roles').update(payload).eq('id', roleEditId);
+    const { error } = await db.from('roles').update(payload).eq('id', roleEditId).eq('ecole_id', _eid);
     if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
     showToast(`✅ Rôle "${nom}" modifié !`, 'success');
   } else {
@@ -22859,6 +22886,9 @@ function renderPPInscriptions() {
 }
 
 async function ppVoirInscription(id) {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[ppVoirInscription] aucune école active'); showToast('Aucune école active','error'); return; }
   const d = (_ppState.inscriptions || []).find(x => String(x.id) === String(id));
   if (!d) return;
   const nomComplet = `${d.prenom||""} ${d.nom||""}`.trim();
@@ -22884,7 +22914,7 @@ async function ppVoirInscription(id) {
   else if (choix === "2") nouveauStatut = "refuse";
   else if (choix === "3") nouveauStatut = "en_cours";
   if (!nouveauStatut) { showToast("Action annulée", "info"); return; }
-  const { error } = await db.from("inscriptions_demandes").update({ statut: nouveauStatut }).eq("id", id);
+  const { error } = await db.from("inscriptions_demandes").update({ statut: nouveauStatut }).eq("id", id).eq("ecole_id", _eid);
   if (error) { showToast("❌ " + error.message, "error"); return; }
   showToast("✅ Statut mis à jour : " + nouveauStatut, "success");
   invalidateData("inscriptions_demandes");
@@ -23339,6 +23369,9 @@ function ouvrirModalActualite(id) {
 }
 
 async function publierActualite() {
+  // ─── F-008 (2026-05-13) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[publierActualite] aucune école active'); showToast('Aucune école active','error'); return; }
   const titre    = document.getElementById("actu-titre")?.value.trim();
   const categorie= document.getElementById("actu-cat")?.value || "Actualités";
   const contenu  = document.getElementById("actu-contenu")?.value.trim() || "";
@@ -23353,14 +23386,14 @@ async function publierActualite() {
   };
   let res;
   if (editId) {
-    res = await db.from("actualites").update(payload).eq("id", editId);
+    res = await db.from("actualites").update(payload).eq("id", editId).eq("ecole_id", _eid);
   } else {
     res = await db.from("actualites").insert([payload]);
   }
   if (res.error && /column .* does not exist/i.test(res.error.message)) {
     const minimal = { ecole_id: currentEcoleId, titre, contenu, statut: "publie" };
     res = editId
-      ? await db.from("actualites").update(minimal).eq("id", editId)
+      ? await db.from("actualites").update(minimal).eq("id", editId).eq("ecole_id", _eid)
       : await db.from("actualites").insert([minimal]);
   }
   if (res.error) { showToast("❌ " + res.error.message, "error"); return; }
