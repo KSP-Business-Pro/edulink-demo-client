@@ -7659,7 +7659,7 @@ const DATA_CONSUMERS = {
   actualites:           ["portail-public"],
 };
 
-function invalidateData(table) {
+function refreshActiveConsumers(table) {
   const consumers = DATA_CONSUMERS[table] || [];
   if (!consumers.includes(currentPage)) return; // page inactive → pas de refresh
   // Recharger le loader de la page courante
@@ -9991,7 +9991,7 @@ function _cacheMaj(key) { _cache[key] = Date.now(); }
 function invalidateCache(...keys) { keys.forEach(k => { delete _cache[k]; }); }
 
 // Invalider le cache d'une table quand des données sont modifiées
-const _origInvalidateData = typeof invalidateData === 'function' ? invalidateData : null;
+// Puis déclencher le refresh des consommateurs actifs (refreshActiveConsumers)
 function invalidateData(table) {
   const map = {
     etudiants: 'etudiants', enseignants: 'enseignants',
@@ -10000,7 +10000,7 @@ function invalidateData(table) {
     livres: 'livres', personnel: 'rh',
   };
   if (map[table]) invalidateCache(map[table]);
-  if (_origInvalidateData) _origInvalidateData(table);
+  if (typeof refreshActiveConsumers === 'function') refreshActiveConsumers(table);
 }
 
 async function chargerEtudiants() {
