@@ -11447,7 +11447,7 @@ async function confirmerResolution() {
   const id   = document.getElementById('input-res-id').value;
   const note = document.getElementById('input-res-note').value.trim();
   if (!note) { showToast('Décrivez la résolution.','error'); return; }
-  const { error } = await db.from('incidents').update({ statut:'résolu', note_resolution:note }).eq('id',id).eq('ecole_id', _eid);
+  const { error } = await db.from('incidents').update({ statut:'resolu', note_resolution:note }).eq('id',id).eq('ecole_id', _eid);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   fermerModal('modal-resoudre'); showToast('Incident marqué résolu !','success'); chargerIncidents(); chargerDashboard();
 }
