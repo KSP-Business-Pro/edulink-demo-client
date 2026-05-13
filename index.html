@@ -8188,8 +8188,10 @@ async function confirmerImportExcelEtudiants(liste) {
 //  EXPORTS EXCEL — MODULE ABSENCES / PRÉSENCES
 // ══════════════════════════════════════════════════════════════════════
 async function exporterAbsencesCSV() {
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exporterAbsencesCSV] aucune école identifiée'); showToast('Aucune école sélectionnée', 'error'); return; }
   let q = db.from('absences').select('*, etudiants(nom,prenom)').order('date_absence', { ascending: false });
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid);
   const { data } = await q;
   if (!data?.length) { showToast('Aucune absence à exporter', 'error'); return; }
   const header = ['Date','Étudiant','Matière','Statut','Justifié','Commentaire'];
@@ -8523,6 +8525,9 @@ function exporterMessagesExcel() {
 //  EXPORTS EXCEL — MODULE PAIEMENTS
 // ══════════════════════════════════════════════════════════════════════
 async function exporterPaiementsExcel() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exporterPaiementsExcel] aucune école identifiée'); return; }
   if (!toutesLesFactures?.length) { showToast('Aucun paiement à exporter', 'error'); return; }
   // Helper local : nom complet d'un étudiant à partir de la jointure du select.
   // Si la jointure manque (cache rare), on retombe sur l'UUID préfixé pour signaler la donnée incomplète.
@@ -8550,7 +8555,7 @@ async function exporterPaiementsExcel() {
   let paiements = [];
   try {
     let qP = db.from('paiements').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
-    if (currentEcoleId) qP = qP.eq('ecole_id', currentEcoleId);
+    qP = qP.eq('ecole_id', _eid)
     const { data } = await qP;
     paiements = data || [];
   } catch (e) { console.warn('[Export Paiements] paiements reçus :', e); }
@@ -8654,12 +8659,15 @@ async function confirmerImportExcelPaiements() {
 //  EXPORTS EXCEL — MODULE INCIDENTS / DISCIPLINE
 // ══════════════════════════════════════════════════════════════════════
 function exporterIncidentsExcel() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exporterIncidentsExcel] aucune école identifiée'); return; }
   // Les données sont chargées dans le contexte local de exporterIncidentsCSV
   // On refait la requête Supabase pour avoir les données fraîches
   const header = ['Étudiant','Type','Sévérité','Date','Statut','Sanction','Description'];
   (async () => {
     let q = db.from('incidents').select('*, etudiants(nom,prenom)').order('created_at', { ascending: false });
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     if (!data?.length) { showToast('Aucun incident à exporter', 'error'); return; }
     const rows = data.map(i => [
@@ -8681,10 +8689,13 @@ function exporterIncidentsExcel() {
 //  EXPORTS EXCEL — MODULE DOCUMENTS
 // ══════════════════════════════════════════════════════════════════════
 function exporterDocumentsExcel() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exporterDocumentsExcel] aucune école identifiée'); return; }
   const header = ['Nom','Catégorie','Type fichier','Étudiant','Taille','Date ajout'];
   (async () => {
     let q = db.from('documents').select('*, etudiants(nom,prenom)').order('created_at', { ascending: false });
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     if (!data?.length) { showToast('Aucun document à exporter', 'error'); return; }
     const rows = data.map(d => [
@@ -8707,10 +8718,13 @@ function exporterDocumentsExcel() {
 //  EXPORTS EXCEL — MODULE UTILISATEURS
 // ══════════════════════════════════════════════════════════════════════
 function exporterUtilisateursExcel() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exporterUtilisateursExcel] aucune école identifiée'); return; }
   const header = ['Prénom','Nom','Email','Rôle','Statut','Date création'];
   (async () => {
     let q = db.from('utilisateurs').select('*').order('created_at', { ascending: false });
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     if (!data?.length) { showToast('Aucun utilisateur à exporter', 'error'); return; }
     const rows = data.map(u => [
@@ -8788,10 +8802,13 @@ async function confirmerImportExcelUtilisateurs() {
 //  EXPORTS EXCEL — MODULE BIBLIOTHÈQUE
 // ══════════════════════════════════════════════════════════════════════
 function exporterBiblioExcel() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exporterBiblioExcel] aucune école identifiée'); return; }
   const header = ['Titre','Auteur','ISBN','Année','Catégorie','Exemplaires','Disponibles','Cote'];
   (async () => {
     let q = db.from('livres').select('*').order('titre');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     if (!data?.length) { showToast('Aucun ouvrage à exporter', 'error'); return; }
     const rows = data.map(l => [
@@ -8945,10 +8962,13 @@ async function confirmerImportExcelPersonnel() {
 //  EXPORTS EXCEL — MODULE CAISSE / COMPTABILITÉ
 // ══════════════════════════════════════════════════════════════════════
 function exporterCaisseExcel() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exporterCaisseExcel] aucune école identifiée'); return; }
   const header = ['Date','Libellé','Catégorie','Type','Montant','Référence'];
   (async () => {
     let q = db.from('caisse').select('*').order('date', { ascending: false });
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     if (!data?.length) { showToast('Aucune opération caisse à exporter', 'error'); return; }
     const rows = data.map(c => [
@@ -8993,10 +9013,13 @@ function exporterRapportReseauExcel() {
 //  EXPORTS EXCEL — MODULE CERTIFICATS
 // ══════════════════════════════════════════════════════════════════════
 function exporterCertificatsExcel() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exporterCertificatsExcel] aucune école identifiée'); return; }
   const header = ['Référence','Type','Étudiant','Matricule','Signataire','Statut','Période','Date'];
   (async () => {
     let q = db.from('certificats').select('*, etudiants(nom,prenom,matricule)').order('created_at', { ascending: false });
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     if (!data?.length) { showToast('Aucun certificat à exporter', 'error'); return; }
     const rows = data.map(c => [
@@ -9019,8 +9042,11 @@ function exporterCertificatsExcel() {
 //  EXPORTS EXCEL — MODULE HISTORIQUE PAIEMENTS
 // ══════════════════════════════════════════════════════════════════════
 async function exporterHistoriqueExcel() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exporterHistoriqueExcel] aucune école identifiée'); return; }
   let q = db.from('paiements').select('*, factures(reference, etudiants(nom,prenom))').order('created_at', { ascending: false });
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   if (!data?.length) { showToast('Aucun historique à exporter', 'error'); return; }
   const header = ['Date','Référence facture','Étudiant','Montant','Mode paiement','Référence transaction'];
@@ -9045,10 +9071,13 @@ async function exporterHistoriqueExcel() {
 //  EXPORTS EXCEL — MODULE BIBLIOTHÈQUE NUMÉRIQUE
 // ══════════════════════════════════════════════════════════════════════
 function exportCatalogueBibNumExcel() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exportCatalogueBibNumExcel] aucune école identifiée'); return; }
   const header = ['Titre','Auteur','ISBN','Catégorie','Exemplaires','Disponibles','Année'];
   (async () => {
     let q = db.from('bibnum_documents').select('*').order('titre');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     if (!data?.length) { showToast('Aucun document à exporter', 'error'); return; }
     const rows = data.map(d => [
@@ -9977,16 +10006,19 @@ function invalidateData(table) {
 async function chargerEtudiants() {
   // Cache 30s : évite de re-charger à chaque navigation si les données sont fraîches
   if (_cacheValide('etudiants') && tousLesEtudiants?.length) { afficherEtudiants(tousLesEtudiants); return; }
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerEtudiants] aucune école identifiée'); tousLesEtudiants = []; return; }
   // ─── P3.7 (2026-05-09) : sécuriser pour les pages sans tbody-etudiants (ex: Portail Enseignant) ───
   const tbody = document.getElementById('tbody-etudiants');
   if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
   let data=null;
   try {
     let q=db.from('etudiants').select('*, classes(id,nom,filiere,niveau)').order('nom');
-    if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);
+    q=q.eq('ecole_id',_eid);
     const res=await q; if(!res.error&&res.data)data=res.data;
   } catch(e){}
-  if(!data){let q=db.from('etudiants').select('*').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const res=await q;data=res.data||[];}
+  if(!data){let q=db.from('etudiants').select('*').order('nom');q=q.eq('ecole_id',_eid);const res=await q;data=res.data||[];}
   tousLesEtudiants=data;
   _cacheMaj('etudiants');
   // Stats
@@ -10187,9 +10219,12 @@ async function ajouterEtudiant() {
 
 // ══ ABSENCES ══════════════════════════════════
 async function chargerAbsences() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerAbsences] aucune école identifiée'); return; }
   document.getElementById('tbody-presences').innerHTML = '<tr><td colspan="7" class="loading">Chargement...</td></tr>';
   let q = db.from('absences').select('*, etudiants(nom,prenom)').order('date_absence',{ascending:false}).order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const fs=document.getElementById('filter-absence-statut')?.value;
   const fd=document.getElementById('filter-absence-date')?.value;
   const fe=document.getElementById('filter-absence-etudiant')?.value;
@@ -10217,11 +10252,14 @@ async function chargerAbsences() {
     : '<tr><td colspan="7" class="loading">Aucune absence.</td></tr>';
 }
 async function filtrerAbsencesParClasse() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[filtrerAbsencesParClasse] aucune école identifiée'); return; }
   const cls=document.getElementById('filter-absence-classe')?.value;
   const sel=document.getElementById('filter-absence-etudiant');
   if (!tousLesEtudiants.length) {
     let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');
-    if(currentEcoleId) q=q.eq('ecole_id',currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const {data}=await q; tousLesEtudiants=data||[];
   }
   const etus=cls?tousLesEtudiants.filter(e=>e.classe_id===cls):tousLesEtudiants;
@@ -10234,16 +10272,22 @@ function resetFiltresAbsences() {
   chargerAbsences();
 }
 async function peuplerFiltresAbsences() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[peuplerFiltresAbsences] aucune école identifiée'); return; }
   const sc=document.getElementById('filter-absence-classe'); if(!sc) return;
   if(!toutesLesClasses?.length) await chargerClasses();
   sc.innerHTML='<option value="">Toutes les classes</option>'+(toutesLesClasses||[]).filter(c=>c.statut!=='archive').map(c=>`<option value="${c.id}">${esc(c.nom||c.filiere+' '+c.niveau)}</option>`).join('');
-  if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const{data}=await q;tousLesEtudiants=data||[];}
+  if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');q = q.eq('ecole_id', _eid);const{data}=await q;tousLesEtudiants=data||[];}
   document.getElementById('filter-absence-etudiant').innerHTML='<option value="">Tous les étudiants</option>'+tousLesEtudiants.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
 }
 async function remplirSelect(selectId, withEmpty=false) {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[remplirSelect] aucune école identifiée'); return; }
   if (tousLesEtudiants.length === 0) {
     let q = db.from('etudiants').select('id, nom, prenom').order('nom');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q; tousLesEtudiants = data || [];
   }
   const sel = document.getElementById(selectId);
@@ -10306,9 +10350,12 @@ async function toggleNotifParent(id,newVal){
 
 // ══ NOTES & BULLETINS ════════════════════════
 async function chargerNotes() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerNotes] aucune école identifiée'); return; }
   document.getElementById('tbody-notes').innerHTML = '<tr><td colspan="7" class="loading">Chargement...</td></tr>';
   let q = db.from('notes').select('*, etudiants(nom,prenom,classe_id)').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const fp=document.getElementById('filter-notes-periode')?.value;
   const fm=document.getElementById('filter-notes-matiere')?.value;
   const fe=document.getElementById('filter-notes-etudiant')?.value;
@@ -10320,7 +10367,7 @@ async function chargerNotes() {
   // afficher un ⚠️ pédagogique : ces notes ne s'affichent dans le bulletin que si
   // l'utilisateur sélectionne explicitement la période examen correspondante.
   let qEx = db.from('examens').select('id,matiere,date_examen');
-  if (currentEcoleId) qEx = qEx.eq('ecole_id', currentEcoleId);
+  qEx = qEx.eq('ecole_id', _eid)
   const [{data}, {data:examens}] = await Promise.all([q, qEx]);
   const examensIndex = new Map((examens||[]).map(e => [e.id, e]));
   toutesLesNotes = data||[];
@@ -10353,19 +10400,25 @@ async function chargerNotes() {
     : '<tr><td colspan="7" class="loading">Aucune note.</td></tr>';
 }
 async function filtrerNotesParClasse(){
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[filtrerNotesParClasse] aucune école identifiée'); return; }
   const cls=document.getElementById('filter-notes-classe')?.value;
   const sel=document.getElementById('filter-notes-etudiant');
   if(!sel)return;
-  if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const{data}=await q;tousLesEtudiants=data||[];}
+  if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');q = q.eq('ecole_id', _eid);const{data}=await q;tousLesEtudiants=data||[];}
   const etus=cls?tousLesEtudiants.filter(e=>e.classe_id===cls):tousLesEtudiants;
   sel.innerHTML='<option value="">Tous les étudiants</option>'+etus.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
   sel.value=''; chargerNotes();
 }
 async function peuplerFiltresNotes(){
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[peuplerFiltresNotes] aucune école identifiée'); return; }
   const sc=document.getElementById('filter-notes-classe');if(!sc)return;
   if(!toutesLesClasses?.length)await chargerClasses();
   sc.innerHTML='<option value="">Toutes les classes</option>'+(toutesLesClasses||[]).filter(c=>c.statut!=='archive').map(c=>`<option value="${c.id}">${esc(c.nom||c.filiere+' '+c.niveau)}</option>`).join('');
-  if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');if(currentEcoleId)q=q.eq('ecole_id',currentEcoleId);const{data}=await q;tousLesEtudiants=data||[];}
+  if(!tousLesEtudiants.length){let q=db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');q = q.eq('ecole_id', _eid);const{data}=await q;tousLesEtudiants=data||[];}
   const se=document.getElementById('filter-notes-etudiant');
   if(se)se.innerHTML='<option value="">Tous les étudiants</option>'+tousLesEtudiants.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
 }
@@ -10477,10 +10530,13 @@ function pdfSafe(str) {
 }
 
 async function remplirSelectBulletin() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[remplirSelectBulletin] aucune école identifiée'); return; }
   // Charger les étudiants depuis DB si cache vide
   if (!tousLesEtudiants.length) {
     let q = db.from('etudiants').select('*').order('nom');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     tousLesEtudiants = data || [];
   }
@@ -10489,13 +10545,16 @@ async function remplirSelectBulletin() {
 }
 
 async function mettreAJourPeriodesBulletin(etudiantId) {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[mettreAJourPeriodesBulletin] aucune école identifiée'); return; }
   if (!etudiantId) return;
   // Charger toutes les périodes réelles de cet étudiant
   // ET en parallèle l'index des examens pour afficher un libellé lisible
   // (ex. "Examen - Droit des Affaires (12/03/2026)") dans le <select> au lieu
   // de "Examen" générique pour toutes les périodes EXAM-{uuid}.
   let qEx = db.from('examens').select('id,matiere,date_examen');
-  if (currentEcoleId) qEx = qEx.eq('ecole_id', currentEcoleId);
+  qEx = qEx.eq('ecole_id', _eid)
   const [{data}, {data:examens}] = await Promise.all([
     db.from('notes').select('periode').eq('etudiant_id', etudiantId),
     qEx
@@ -10570,9 +10629,12 @@ const JOURS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 const HEURES=['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
 const TC={ cours:'blue', td:'green', tp:'purple', exam:'amber' };
 async function chargerEmploiDuTemps() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerEmploiDuTemps] aucune école identifiée'); return; }
   const classe = document.getElementById('edt-filter-classe')?.value;
   let q = db.from('emploi_du_temps').select('*').order('heure_debut');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   if (classe) q = q.eq('classe', classe);
   const { data } = await q;
   tousLesCreneaux = data || [];
@@ -10771,9 +10833,12 @@ async function peuplerClassesEDT() {
 
 // ══ MESSAGERIE ════════════════════════════════
 async function chargerMessages() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerMessages] aucune école identifiée'); return; }
   document.getElementById('msg-list-body').innerHTML='<div class="loading">Chargement...</div>';
   let q = db.from('messages').select('*').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   tousLesMessages = data || [];
   // Stats
@@ -10890,16 +10955,19 @@ async function supprimerMessageActif() {
 
 
 async function peuplerDestinataires() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[peuplerDestinataires] aucune école identifiée'); return; }
   const sel = document.getElementById('input-msg-destinataire-select');
   if (!sel) return;
   if (!tousLesEnseignants.length) {
     let qe = db.from('enseignants').select('id,nom,prenom').order('nom');
-    if(currentEcoleId) qe=qe.eq('ecole_id',currentEcoleId);
+    qe = qe.eq('ecole_id', _eid)
     const {data} = await qe; tousLesEnseignants = data||[];
   }
   if (!tousLesEtudiants.length) {
     let qet = db.from('etudiants').select('id,nom,prenom,email_parent,telephone_parent').order('nom');
-    if(currentEcoleId) qet=qet.eq('ecole_id',currentEcoleId);
+    qet = qet.eq('ecole_id', _eid)
     const {data} = await qet; tousLesEtudiants = data||[];
   }
   sel.innerHTML = '<option value="">— Sélectionner ou saisir manuellement —</option>'
@@ -11004,11 +11072,14 @@ async function envoyerReponse() {
 
 // ══ PAIEMENTS  ★ JOUR 3 ══════════════════════
 async function chargerPaiements() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerPaiements] aucune école identifiée'); return; }
   if (_cacheValide('paiements') && toutesLesFactures?.length) return;
   await chargerFactures();
   // Stats comptage
   let q = db.from('factures').select('statut,montant_total,montant_paye');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data:facs } = await q;
   const all = facs||[];
   document.getElementById('ps-total').textContent   = all.length;
@@ -11029,11 +11100,14 @@ async function chargerPaiements() {
 }
 
 async function peuplerFiltreEtudiantPay() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[peuplerFiltreEtudiantPay] aucune école identifiée'); return; }
   const selF = document.getElementById('filter-pay-etudiant');
   const selH = document.getElementById('filter-hist-etudiant');
   if (!tousLesEtudiants.length) {
     let q = db.from('etudiants').select('id,nom,prenom').order('nom');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q; tousLesEtudiants = data||[];
   }
   const opts = '<option value="">Tous les étudiants</option>'
@@ -11048,9 +11122,12 @@ function resetFiltresPaiements() {
 }
 
 async function chargerFactures() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerFactures] aucune école identifiée'); return; }
   document.getElementById('tbody-factures').innerHTML='<tr><td colspan="9" class="loading">Chargement...</td></tr>';
   let q = db.from('factures').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const fs  = document.getElementById('filter-pay-statut')?.value;
   const ft  = document.getElementById('filter-pay-type')?.value;
   const fe  = document.getElementById('filter-pay-etudiant')?.value;
@@ -11188,8 +11265,11 @@ async function supprimerFacture(id) {
 }
 
 async function chargerHistoriquePaiements() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerHistoriquePaiements] aucune école identifiée'); return; }
   let q = db.from('paiements').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const fe = document.getElementById('filter-hist-etudiant')?.value;
   const fm = document.getElementById('filter-hist-mode')?.value;
   if (fe) q = q.eq('etudiant_id', fe);
@@ -11209,9 +11289,12 @@ async function chargerHistoriquePaiements() {
 
 // ══ DISCIPLINE  ★ JOUR 3 ══════════════════════
 async function chargerIncidents() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerIncidents] aucune école identifiée'); return; }
   document.getElementById('incidents-list').innerHTML='<div class="loading">Chargement...</div>';
   let q = db.from('incidents').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const fs   = document.getElementById('filter-disc-sev')?.value;
   const fst  = document.getElementById('filter-disc-statut')?.value;
   const ftyp = document.getElementById('filter-disc-type')?.value;
@@ -11309,11 +11392,14 @@ function resetFiltresDisc() {
   chargerIncidents();
 }
 async function peuplerFiltresDisc() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[peuplerFiltresDisc] aucune école identifiée'); return; }
   const sel = document.getElementById('filter-disc-etudiant');
   if (!sel) return;
   if (!tousLesEtudiants.length) {
     let q = db.from('etudiants').select('id,nom,prenom').order('nom');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q; tousLesEtudiants = data||[];
   }
   sel.innerHTML = '<option value="">Tous les étudiants</option>'
@@ -11340,8 +11426,11 @@ async function supprimerIncident(id) {
 
 // ══ DOCUMENTS  ★ JOUR 3 ══════════════════════
 async function chargerDocuments() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerDocuments] aucune école identifiée'); return; }
   let q = db.from('documents').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const fcat = document.getElementById('filter-docs-categorie')?.value;
   const ftyp = document.getElementById('filter-docs-type')?.value;
   if (fcat) q = q.eq('categorie', fcat);
@@ -11527,9 +11616,13 @@ async function afficherRapport(type) {
   if (rapportChartInst) { rapportChartInst.destroy(); rapportChartInst=null; }
   const { classeId, depuis } = getRptFilters();
 
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[afficherRapport] aucune école identifiée'); view.innerHTML = '<div class="loading">Aucune école sélectionnée.</div>'; return; }
+
   if (type === 'effectifs') {
     let q = db.from('etudiants').select('filiere, niveau, sexe, classe_id');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid);
     if (classeId) q = q.eq('classe_id', classeId);
     const { data } = await q;
     const all = data||[];
@@ -11560,7 +11653,7 @@ async function afficherRapport(type) {
 
   } else if (type === 'absences') {
     let q = db.from('absences').select('statut, date_absence, matiere, etudiants(nom,prenom)').order('date_absence',{ascending:false});
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid);
     if (depuis) q = q.gte('date_absence', depuis);
     const { data } = await q;
     const stats = { absent:0, retard:0, excuse:0 };
@@ -11588,7 +11681,7 @@ async function afficherRapport(type) {
 
   } else if (type === 'moyennes') {
     let q = db.from('notes').select('matiere, note, coefficient, etudiant_id');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid);
     const { data } = await q;
     const matieres = {};
     (data||[]).forEach(n => {
@@ -11609,7 +11702,7 @@ async function afficherRapport(type) {
 
   } else if (type === 'paiements') {
     let q = db.from('factures').select('statut, montant_total, montant_paye, type_frais');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid);
     const { data } = await q;
     const all = data||[];
     const totalDu = all.reduce((s,f)=>s+(f.montant_total||0),0);
@@ -11637,7 +11730,7 @@ async function afficherRapport(type) {
 
   } else if (type === 'discipline') {
     let q = db.from('incidents').select('severite, statut, type');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid);
     if (depuis) q = q.gte('created_at', depuis);
     const { data } = await q;
     const all = data||[];
@@ -11667,7 +11760,7 @@ async function afficherRapport(type) {
   } else if (type === 'progression') {
     // Nouveau rapport : Top étudiants par moyenne
     let q = db.from('notes').select('etudiant_id, note, coefficient, etudiants(nom,prenom,filiere,niveau)');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid);
     const { data } = await q;
     const parEtu = {};
     (data||[]).forEach(n => {
@@ -11703,13 +11796,16 @@ function exporterRapport(mode) {
 }
 
 async function exporterCSV(type) {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exporterCSV] aucune école identifiée'); return; }
   showToast('Préparation export CSV...', 'info');
   let headers = [], rows = [], filename = 'export';
   const esc = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
 
   if (type === 'effectifs') {
     let q = db.from('etudiants').select('matricule,nom,prenom,filiere,niveau,sexe,email,statut,created_at');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     headers = ['Matricule','Nom','Prénom','Filière','Niveau','Sexe','Email','Statut','Date inscription'];
     rows = (data||[]).map(e => [e.matricule,e.nom,e.prenom,e.filiere,e.niveau,e.sexe,e.email||'',e.statut,fmtDate(e.created_at)]);
@@ -11721,21 +11817,21 @@ async function exporterCSV(type) {
     filename = 'edulink_absences';
   } else if (type === 'moyennes') {
     let q = db.from('notes').select('*, etudiants(nom,prenom,matricule,filiere,niveau)');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     headers = ['Matricule','Étudiant','Filière','Niveau','Matière','Note /20','Coefficient','Période'];
     rows = (data||[]).map(n => [n.etudiants?.matricule||'',n.etudiants?n.etudiants.nom+' '+n.etudiants.prenom:'N/A',n.etudiants?.filiere||'',n.etudiants?.niveau||'',n.matiere,n.note,n.coefficient||1,n.periode]);
     filename = 'edulink_notes';
   } else if (type === 'paiements') {
     let q = db.from('factures').select('*, etudiants(nom,prenom,matricule)');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     headers = ['Référence','Étudiant','Matricule','Type','Montant total','Montant payé','Reste','Statut','Échéance'];
     rows = (data||[]).map(f => [f.reference||'',f.etudiants?f.etudiants.nom+' '+f.etudiants.prenom:'N/A',f.etudiants?.matricule||'',f.type_frais||'',f.montant_total,f.montant_paye||0,f.montant_total-(f.montant_paye||0),f.statut,fmtDate(f.date_echeance)]);
     filename = 'edulink_paiements';
   } else if (type === 'discipline') {
     let q = db.from('incidents').select('*, etudiants(nom,prenom)');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     headers = ['Étudiant','Type','Sévérité','Date','Statut','Sanction'];
     rows = (data||[]).map(i => [i.etudiants?i.etudiants.nom+' '+i.etudiants.prenom:'N/A',i.type_incident,i.severite,fmtDate(i.date_incident),i.statut,i.sanction||'']);
@@ -11760,9 +11856,12 @@ async function exporterCSV(type) {
 let tousLesUtilisateurs = [];
 
 async function chargerUtilisateurs() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerUtilisateurs] aucune école identifiée'); return; }
   document.getElementById('tbody-utilisateurs').innerHTML = '<tr><td colspan="6" class="loading">Chargement...</td></tr>';
   let q = db.from('utilisateurs').select('*').order('created_at', { ascending: false });
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data, error } = await q;
   if (error) { showToast('Erreur chargement utilisateurs : ' + error.message, 'error'); return; }
   tousLesUtilisateurs = data || [];
@@ -11947,11 +12046,14 @@ function toggleEtudiantField() {
 }
 
 async function remplirSelectUserEtudiant() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[remplirSelectUserEtudiant] aucune école identifiée'); return; }
   const sel = document.getElementById('input-user-etudiant');
   if (!sel) return;
   if (!tousLesEtudiants.length) {
     let q = db.from('etudiants').select('id,nom,prenom').order('nom');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q; tousLesEtudiants = data||[];
   }
   sel.innerHTML = '<option value="">— Sélectionner —</option>'
@@ -11962,9 +12064,12 @@ async function remplirSelectUserEtudiant() {
 // ══ DASHBOARD CHARTS ══════════════════════════
 let _dashChartFil = null, _dashChartPay = null;
 async function chargerDashboardCharts() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerDashboardCharts] aucune école identifiée'); return; }
   // Chart filières
   let qE = db.from('etudiants').select('filiere');
-  if (currentEcoleId) qE = qE.eq('ecole_id', currentEcoleId);
+  qE = qE.eq('ecole_id', _eid)
   const { data: etData } = await qE;
   const filMap = {};
   (etData||[]).forEach(e => { filMap[e.filiere] = (filMap[e.filiere]||0)+1; });
@@ -11978,7 +12083,7 @@ async function chargerDashboardCharts() {
   }
   // Chart paiements
   let qP = db.from('factures').select('statut');
-  if (currentEcoleId) qP = qP.eq('ecole_id', currentEcoleId);
+  qP = qP.eq('ecole_id', _eid)
   const { data: payData } = await qP;
   const ps = { payée:0, en_attente:0, retard:0, partiellement_payée:0 };
   (payData||[]).forEach(f => { if(ps[f.statut]!==undefined) ps[f.statut]++; });
@@ -12923,8 +13028,11 @@ async function confirmerImportCSV() {
 // ══ EXAMENS & PLANNING  ★ JOUR 12 ══════════════════════════════════
 
 async function chargerExamens() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerExamens] aucune école identifiée'); return; }
   let q = db.from('examens').select('*').order('date_examen', {ascending: true});
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   tousLesExamens = data || [];
   mettreAJourStatsExamens();
@@ -13119,6 +13227,9 @@ function afficherResultatsExamens() {
 }
 
 async function ouvrirPV(examId) {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[ouvrirPV] aucune école identifiée'); return; }
   const examen = tousLesExamens.find(e => e.id === examId);
   if (!examen) return;
   document.getElementById('pv-exam-titre').textContent = examen.matiere;
@@ -13129,7 +13240,7 @@ async function ouvrirPV(examId) {
     <span>📍 ${examen.salle||'—'}</span>
     <span>🎓 ${[examen.filiere,examen.niveau].filter(Boolean).join(' ')||'Toutes classes'}</span>`;
   let q = db.from('etudiants').select('*').order('nom');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   if (examen.filiere) q = q.eq('filiere', examen.filiere);
   if (examen.niveau)  q = q.eq('niveau', examen.niveau);
   const { data: etudiants } = await q;
@@ -13344,12 +13455,15 @@ function syncFiliereNiveauExamen(sel) {
 // ══ ENSEIGNANTS  ★ JOUR 13 ═══════════════════════════════════════════
 
 async function chargerEnseignants() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerEnseignants] aucune école identifiée'); return; }
   if (_cacheValide('enseignants') && tousLesEnseignants?.length) {
     // Réafficher depuis le cache
     if (typeof afficherEnseignants === 'function') { afficherEnseignants(tousLesEnseignants); return; }
   }
   let q = db.from('enseignants').select('*').order('nom');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   tousLesEnseignants = data || [];
   _cacheMaj('enseignants');
@@ -13363,7 +13477,7 @@ async function chargerEnseignants() {
 
   // Notes saisies par les profs
   let qN = db.from('notes').select('*',{count:'exact',head:true});
-  if (currentEcoleId) qN = qN.eq('ecole_id', currentEcoleId);
+  qN = qN.eq('ecole_id', _eid)
   const { count: nbNotes } = await qN;
   document.getElementById('stat-ens-notes').textContent = nbNotes || 0;
 
@@ -13529,6 +13643,9 @@ async function voirFicheEnseignant(id) {
 }
 
 async function showFicheEnsTab(tab) {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[showFicheEnsTab] aucune école identifiée'); return; }
   document.querySelectorAll('.fiche-ens-tab').forEach((b,i) => {
     b.classList.toggle('active', ['info','matieres','notes','planning'][i] === tab);
   });
@@ -13568,7 +13685,7 @@ async function showFicheEnsTab(tab) {
 
   else if (tab === 'notes') {
     let qN = db.from('notes').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false}).limit(20);
-    if (currentEcoleId) qN = qN.eq('ecole_id', currentEcoleId);
+    qN = qN.eq('ecole_id', _eid)
     // Filtrer par matières de l'enseignant
     const matieres = Array.isArray(ens.matieres) ? ens.matieres : (ens.matieres||'').split(',').map(m=>m.trim()).filter(Boolean);
     if (matieres.length) qN = qN.in('matiere', matieres);
@@ -13594,7 +13711,7 @@ async function showFicheEnsTab(tab) {
     // Le matching est délégué à _filterCreneauxForEnseignant (utilitaire partagé
     // avec afficherPlanningEnseignant pour garantir des résultats identiques).
     let q = db.from('emploi_du_temps').select('*').order('heure_debut');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data: creneaux } = await q;
     const siens = _filterCreneauxForEnseignant(creneaux, ens, 'modal Fiche enseignant');
     const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
@@ -13765,8 +13882,11 @@ async function supprimerEnseignant(id) {
 
 // ── Matières ──
 async function chargerMatieres() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerMatieres] aucune école identifiée'); return; }
   let q = db.from('matieres').select('*, enseignants(nom,prenom)').order('nom');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   toutesMatieres = data || [];
   afficherMatieres();
@@ -13878,6 +13998,9 @@ function remplirSelectEnsPlanning() {
 }
 
 async function afficherPlanningEnseignant() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[afficherPlanningEnseignant] aucune école identifiée'); return; }
   const id = document.getElementById('filter-ens-planning')?.value;
   const container = document.getElementById('ens-planning-container');
   if (!id) {
@@ -13887,7 +14010,7 @@ async function afficherPlanningEnseignant() {
   const ens = tousLesEnseignants.find(e=>e.id===id);
   if (!ens) return;
   let q = db.from('emploi_du_temps').select('*').order('heure_debut');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data: creneaux } = await q;
   // Matching délégué à l'utilitaire partagé avec la modal — voir _filterCreneauxForEnseignant.
   const siens = _filterCreneauxForEnseignant(creneaux, ens, 'vue Planning module Enseignants');
@@ -14193,6 +14316,9 @@ async function telechargerBulletinPDF() {
 // ══ RAPPORTS PDF ══════════════════════════════════════════════════
 
 async function exporterRapportPDF() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[exporterRapportPDF] aucune école identifiée'); return; }
   const JsPDF = getJsPDF();
   if (!JsPDF) { showToast('jsPDF non chargé', 'error'); return; }
   // Récupérer le rapport actif
@@ -14214,7 +14340,7 @@ async function exporterRapportPDF() {
 
   if (type === 'effectifs') {
     let q = db.from('etudiants').select('filiere, niveau, statut');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     const filieres = {};
     (data||[]).forEach(e => { filieres[e.filiere] = (filieres[e.filiere]||0)+1; });
@@ -14301,7 +14427,7 @@ async function exporterRapportPDF() {
 
   } else if (type === 'moyennes') {
     let q = db.from('notes').select('matiere, note, coefficient, etudiants(nom, prenom)');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     const matieres = {};
     (data||[]).forEach(n => {
@@ -14331,7 +14457,7 @@ async function exporterRapportPDF() {
 
   } else if (type === 'paiements') {
     let q = db.from('factures').select('*, etudiants(nom,prenom)');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     const all = data || [];
     const totalDu = all.reduce((s,f)=>s+f.montant_total,0);
@@ -14376,7 +14502,7 @@ async function exporterRapportPDF() {
 
   } else if (type === 'discipline') {
     let q = db.from('incidents').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false});
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
 
     doc.setTextColor(...PDF_NAVY); doc.setFontSize(10); doc.setFont('helvetica','bold');
@@ -14408,6 +14534,9 @@ async function exporterRapportPDF() {
 // ══ BULLETINS EN MASSE  ★ JOUR 14 ══════════════════════════════════
 
 async function telechargerTousBulletins() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[telechargerTousBulletins] aucune école identifiée'); return; }
   const JsPDF = getJsPDF();
   if (!JsPDF) { showToast('jsPDF non chargé', 'error'); return; }
   const periode = document.getElementById('select-bulletin-periode')?.value || 'S1';
@@ -14417,7 +14546,7 @@ async function telechargerTousBulletins() {
 
   // Charger tous les étudiants + leurs notes
   let qE = db.from('etudiants').select('*').order('nom');
-  if (currentEcoleId) qE = qE.eq('ecole_id', currentEcoleId);
+  qE = qE.eq('ecole_id', _eid)
   const { data: etudiants } = await qE;
   if (!etudiants?.length) { showToast('Aucun étudiant trouvé', 'error'); return; }
 
@@ -14794,6 +14923,9 @@ let tousLesCertificats = [];
 
 // ── Chargement principal ───────────────────────────────────────────────────
 async function chargerCertificats() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerCertificats] aucune école identifiée'); return; }
   document.getElementById('tbody-certificats').innerHTML =
     '<tr><td colspan="7" class="loading">Chargement...</td></tr>';
 
@@ -14802,7 +14934,7 @@ async function chargerCertificats() {
   let q = db.from('certificats')
     .select('*, etudiants(nom, prenom, matricule, filiere, niveau)')
     .order('created_at', { ascending: false });
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
 
   const { data, error } = await q;
   if (error && error.code === '42P01') {
@@ -14882,6 +15014,9 @@ function filtrerCertificats() {
 }
 
 async function peuplerFiltresCert() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[peuplerFiltresCert] aucune école identifiée'); return; }
   const selCls = document.getElementById('filter-cert-classe');
   const selEtu = document.getElementById('filter-cert-etudiant');
   if (!toutesLesClasses?.length) await chargerClasses();
@@ -14890,7 +15025,7 @@ async function peuplerFiltresCert() {
         .map(c=>`<option value="${c.id}">${esc(c.nom||c.filiere+' '+c.niveau)}</option>`).join('');
   if (!tousLesEtudiants.length) {
     let q = db.from('etudiants').select('id,nom,prenom,classe_id').order('nom');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q; tousLesEtudiants = data||[];
   }
   if (selEtu) selEtu.innerHTML = '<option value="">Tous les étudiants</option>'
@@ -14927,10 +15062,13 @@ async function signerCertificat(id) {
 
 // ── Modal : émission ───────────────────────────────────────────────────────
 async function ouvrirModalCertificat(type = 'attestation_inscription') {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[ouvrirModalCertificat] aucune école identifiée'); return; }
   // Charger les étudiants si pas encore fait
   if (!tousLesEtudiants.length) {
     let q = db.from('etudiants').select('*').order('nom');
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid)
     const { data } = await q;
     tousLesEtudiants = data || [];
   }
@@ -15548,8 +15686,11 @@ async function chargerBibliotheque() {
 }
 
 async function chargerStatsBib() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerStatsBib] aucune école identifiée'); return; }
   let qL = db.from('livres').select('*');
-  if (currentEcoleId) qL = qL.eq('ecole_id', currentEcoleId);
+  qL = qL.eq('ecole_id', _eid)
   const { data: livres } = await qL;
   tousLesLivres = livres || [];
 
@@ -15560,7 +15701,7 @@ async function chargerStatsBib() {
   // Emprunts en retard
   const today = new Date().toISOString().split('T')[0];
   let qE = db.from('emprunts').select('*').eq('statut','actif').lt('date_retour_prevue', today);
-  if (currentEcoleId) qE = qE.eq('ecole_id', currentEcoleId);
+  qE = qE.eq('ecole_id', _eid)
   const { count: retard } = await db.from('emprunts').select('*',{count:'exact',head:true}).eq('statut','actif').lt('date_retour_prevue', today);
 
   document.getElementById('bib-stat-total').textContent     = total;
@@ -15575,10 +15716,13 @@ async function chargerStatsBib() {
 }
 
 async function chargerCatalogueLivres() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerCatalogueLivres] aucune école identifiée'); return; }
   const container = document.getElementById('bib-catalogue-container');
   container.innerHTML = '<div class="loading" style="grid-column:1/-1">Chargement...</div>';
   let q = db.from('livres').select('*').order('titre');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   tousLesLivres = data || [];
   afficherCatalogueLivres(tousLesLivres);
@@ -15686,9 +15830,12 @@ async function supprimerLivre(id) {
 }
 
 async function remplirSelectEmprunt() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[remplirSelectEmprunt] aucune école identifiée'); return; }
   // Livres disponibles
   let qL = db.from('livres').select('id,titre,auteur,exemplaires,exemplaires_empruntes').order('titre');
-  if (currentEcoleId) qL = qL.eq('ecole_id', currentEcoleId);
+  qL = qL.eq('ecole_id', _eid)
   const { data: livres } = await qL;
   const sel = document.getElementById('input-emprunt-livre');
   sel.innerHTML = '<option value="">— Sélectionner —</option>' +
@@ -15732,9 +15879,12 @@ async function enregistrerEmprunt() {
 }
 
 async function chargerEmpruntsActifs() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerEmpruntsActifs] aucune école identifiée'); return; }
   document.getElementById('tbody-bib-emprunts').innerHTML='<tr><td colspan="7" class="loading">Chargement...</td></tr>';
   let q = db.from('emprunts').select('*, livres(titre,auteur), etudiants(nom,prenom)').eq('statut','actif').order('date_retour_prevue');
-  if (currentEcoleId) q = q.eq('ecole_id',currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   const today = new Date();
   tousLesEmprunts = data || [];
@@ -15770,10 +15920,13 @@ async function enregistrerRetour(empruntId, livreId) {
 }
 
 async function chargerHistoriqueBib() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerHistoriqueBib] aucune école identifiée'); return; }
   document.getElementById('tbody-bib-historique').innerHTML='<tr><td colspan="6" class="loading">Chargement...</td></tr>';
   const periode = document.getElementById('filter-bib-hist-periode')?.value || '30';
   let q = db.from('emprunts').select('*, livres(titre,auteur), etudiants(nom,prenom)').eq('statut','rendu').order('date_retour_reel',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id',currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   if (periode !== 'all') {
     const depuis = new Date(Date.now()-parseInt(periode)*864e5).toISOString().split('T')[0];
     q = q.gte('date_retour_reel', depuis);
@@ -15826,9 +15979,12 @@ async function rafraichirAnalytics() {
 }
 
 async function chargerKPIsAnalytics() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerKPIsAnalytics] aucune école identifiée'); return; }
   // Étudiants
   let qE = db.from('etudiants').select('*',{count:'exact',head:true});
-  if (currentEcoleId) qE = qE.eq('ecole_id',currentEcoleId);
+  qE = qE.eq('ecole_id', _eid)
   const { count: nbEtu } = await qE;
 
   // Absences ce mois
@@ -15838,14 +15994,14 @@ async function chargerKPIsAnalytics() {
 
   // Notes pour moyenne
   let qN = db.from('notes').select('note');
-  if (currentEcoleId) qN = qN.eq('ecole_id',currentEcoleId);
+  qN = qN.eq('ecole_id', _eid)
   const { data: notesData } = await qN;
   const notes = notesData || [];
   const moyGen = notes.length ? (notes.reduce((s,n)=>s+parseFloat(n.note||0),0)/notes.length).toFixed(1) : '—';
 
   // Paiements
   let qF = db.from('factures').select('montant_total,montant_paye');
-  if (currentEcoleId) qF = qF.eq('ecole_id',currentEcoleId);
+  qF = qF.eq('ecole_id', _eid)
   const { data: facs } = await qF;
   const totalDu  = (facs||[]).reduce((s,f)=>s+(f.montant_total||0),0);
   const totalPay = (facs||[]).reduce((s,f)=>s+(f.montant_paye||0),0);
@@ -15853,7 +16009,7 @@ async function chargerKPIsAnalytics() {
 
   // Incidents ouverts (gère les variantes résolu/resolu)
   let qI2 = db.from('incidents').select('statut');
-  if (currentEcoleId) qI2 = qI2.eq('ecole_id',currentEcoleId);
+  qI2 = qI2.eq('ecole_id', _eid)
   const { data: incData2 } = await qI2;
   const nbInc = (incData2||[]).filter(i=>i.statut!=='résolu'&&i.statut!=='resolu'&&i.statut!=='Résolu').length;
 
@@ -15889,9 +16045,12 @@ async function chargerKPIsAnalytics() {
 }
 
 async function chargerChartsAnalytics() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerChartsAnalytics] aucune école identifiée'); return; }
   // Graphique notes par tranche
   let qN = db.from('notes').select('note');
-  if (currentEcoleId) qN = qN.eq('ecole_id',currentEcoleId);
+  qN = qN.eq('ecole_id', _eid)
   const { data: notes } = await qN;
   const tranches = { '0-5':0, '5-10':0, '10-14':0, '14-16':0, '16-20':0 };
   (notes||[]).forEach(n => {
@@ -15920,7 +16079,7 @@ async function chargerChartsAnalytics() {
 
   // Graphique paiements
   let qF = db.from('factures').select('statut,montant_total,montant_paye');
-  if (currentEcoleId) qF = qF.eq('ecole_id',currentEcoleId);
+  qF = qF.eq('ecole_id', _eid)
   const { data: facs } = await qF;
   const payees   = (facs||[]).filter(f=>f.statut==='paye').reduce((s,f)=>s+(f.montant_total||0),0);
   const partiel  = (facs||[]).filter(f=>f.statut==='partiel').reduce((s,f)=>s+(f.montant_total||0),0);
@@ -15943,30 +16102,33 @@ async function chargerChartsAnalytics() {
 }
 
 async function calculerScoreSante() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[calculerScoreSante] aucune école identifiée'); return; }
   const container  = document.getElementById('health-score-container');
   const barsContainer = document.getElementById('health-bars-container');
 
   let qE = db.from('etudiants').select('*',{count:'exact',head:true});
-  if (currentEcoleId) qE = qE.eq('ecole_id',currentEcoleId);
+  qE = qE.eq('ecole_id', _eid)
   const { count: nbEtu } = await qE;
 
   const debutMois = new Date(); debutMois.setDate(1);
   const { count: nbAbs } = await db.from('absences').select('*',{count:'exact',head:true}).gte('date_absence',debutMois.toISOString().split('T')[0]);
 
   let qN = db.from('notes').select('note');
-  if (currentEcoleId) qN = qN.eq('ecole_id',currentEcoleId);
+  qN = qN.eq('ecole_id', _eid)
   const { data: notes } = await qN;
   const moy = notes?.length ? notes.reduce((s,n)=>s+parseFloat(n.note||0),0)/notes.length : 0;
 
   let qF = db.from('factures').select('montant_total,montant_paye');
-  if (currentEcoleId) qF = qF.eq('ecole_id',currentEcoleId);
+  qF = qF.eq('ecole_id', _eid)
   const { data: facs } = await qF;
   const totalDu  = (facs||[]).reduce((s,f)=>s+(f.montant_total||0),0);
   const totalPay = (facs||[]).reduce((s,f)=>s+(f.montant_paye||0),0);
   const tauxRec  = totalDu > 0 ? totalPay/totalDu : 0;
 
   let qI3 = db.from('incidents').select('statut');
-  if (currentEcoleId) qI3 = qI3.eq('ecole_id',currentEcoleId);
+  qI3 = qI3.eq('ecole_id', _eid)
   const { data: incDataS } = await qI3;
   const nbInc = (incDataS||[]).filter(i=>i.statut!=='résolu'&&i.statut!=='resolu'&&i.statut!=='Résolu').length;
 
@@ -16005,12 +16167,15 @@ async function calculerScoreSante() {
 }
 
 async function genererAlertesIntelligentes() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[genererAlertesIntelligentes] aucune école identifiée'); return; }
   const container = document.getElementById('alerts-container');
   const alertes = [];
 
   // Alerte retards de paiement
   let qF = db.from('factures').select('*',{count:'exact',head:true}).eq('statut','retard');
-  if (currentEcoleId) qF = qF.eq('ecole_id',currentEcoleId);
+  qF = qF.eq('ecole_id', _eid)
   const { count: nbRetard } = await qF;
   if (nbRetard > 0) alertes.push({ type:'danger', ico:'💳', titre:`${nbRetard} facture(s) en retard`, msg:'Des paiements sont en souffrance. Relancez les familles concernées.', time:'Maintenant' });
 
@@ -16021,7 +16186,7 @@ async function genererAlertesIntelligentes() {
 
   // Alerte incidents non résolus (gère les variantes résolu/resolu)
   let qI = db.from('incidents').select('statut');
-  if (currentEcoleId) qI = qI.eq('ecole_id',currentEcoleId);
+  qI = qI.eq('ecole_id', _eid)
   const { data: incData } = await qI;
   const nbInc = (incData||[]).filter(i=>i.statut!=='résolu'&&i.statut!=='resolu'&&i.statut!=='Résolu').length;
   if (nbInc >= 3) alertes.push({ type:'danger', ico:'⚠️', titre:`${nbInc} incident(s) non résolus`, msg:'Plusieurs incidents disciplinaires sont en attente de traitement.', time:'En cours' });
@@ -16030,7 +16195,7 @@ async function genererAlertesIntelligentes() {
   // Examens imminents
   const dans7j = new Date(Date.now()+7*864e5).toISOString().split('T')[0];
   let qEx = db.from('examens').select('*',{count:'exact',head:true}).eq('statut','planifie').lte('date_examen',dans7j).gte('date_examen',today);
-  if (currentEcoleId) qEx = qEx.eq('ecole_id',currentEcoleId);
+  qEx = qEx.eq('ecole_id', _eid)
   const { count: nbExSem } = await qEx;
   if (nbExSem > 0) alertes.push({ type:'info', ico:'📝', titre:`${nbExSem} examen(s) cette semaine`, msg:'Des épreuves sont planifiées dans les 7 prochains jours.', time:'7 jours' });
 
@@ -16053,19 +16218,22 @@ async function genererAlertesIntelligentes() {
 }
 
 async function genererPredictions() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[genererPredictions] aucune école identifiée'); return; }
   const container = document.getElementById('predictions-container');
 
   let qE = db.from('etudiants').select('*',{count:'exact',head:true});
-  if (currentEcoleId) qE = qE.eq('ecole_id',currentEcoleId);
+  qE = qE.eq('ecole_id', _eid)
   const { count: nbEtu } = await qE;
 
   let qN = db.from('notes').select('note');
-  if (currentEcoleId) qN = qN.eq('ecole_id',currentEcoleId);
+  qN = qN.eq('ecole_id', _eid)
   const { data: notes } = await qN;
   const moy = notes?.length ? (notes.reduce((s,n)=>s+parseFloat(n.note||0),0)/notes.length) : 0;
 
   let qF = db.from('factures').select('montant_total,montant_paye');
-  if (currentEcoleId) qF = qF.eq('ecole_id',currentEcoleId);
+  qF = qF.eq('ecole_id', _eid)
   const { data: facs } = await qF;
   const totalDu  = (facs||[]).reduce((s,f)=>s+(f.montant_total||0),0);
   const totalPay = (facs||[]).reduce((s,f)=>s+(f.montant_paye||0),0);
@@ -16092,9 +16260,12 @@ async function genererPredictions() {
 }
 
 async function chargerTopEtudiants() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerTopEtudiants] aucune école identifiée'); return; }
   const container = document.getElementById('top-etudiants-container');
   let q = db.from('notes').select('etudiant_id, note, etudiants(nom,prenom)');
-  if (currentEcoleId) q = q.eq('ecole_id',currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   if (!data?.length) { container.innerHTML='<div class="empty-state" style="padding:1rem;font-size:12px">Aucune note saisie.</div>'; return; }
   const moyParEtu = {};
@@ -16120,12 +16291,15 @@ async function chargerTopEtudiants() {
 }
 
 async function analyserRisqueDécrochage() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[analyserRisqueDécrochage] aucune école identifiée'); return; }
   const container = document.getElementById('risque-container');
   let qN = db.from('notes').select('etudiant_id, note, etudiants(nom,prenom)');
-  if (currentEcoleId) qN = qN.eq('ecole_id',currentEcoleId);
+  qN = qN.eq('ecole_id', _eid)
   const { data: notes } = await qN;
   let qA = db.from('absences').select('etudiant_id, etudiants(nom,prenom)');
-  if (currentEcoleId) qA = qA.eq('ecole_id', currentEcoleId);
+  qA = qA.eq('ecole_id', _eid)
   const { data: absences } = await qA;
 
   if (!notes?.length) { container.innerHTML='<div class="empty-state" style="padding:1rem;font-size:12px">Données insuffisantes.</div>'; return; }
@@ -16248,8 +16422,11 @@ let comptaCharts = {};
 let _dernieresAffectationsClasses = [];
 
 async function chargerClasses() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerClasses] aucune école identifiée'); return; }
   let q = db.from('classes').select('*').order('filiere').order('niveau');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   toutesLesClasses = data || [];
   // Stats
@@ -16264,13 +16441,13 @@ async function chargerClasses() {
   // le hero, lui, comptait correctement. Bug visible en passant d'une école à
   // l'autre sans avoir d'abord visité le module Étudiants.
   let qE = db.from('etudiants').select('id,classe_id');
-  if (currentEcoleId) qE = qE.eq('ecole_id', currentEcoleId);
+  qE = qE.eq('ecole_id', _eid)
   const { data: etus } = await qE;
   _dernieresAffectationsClasses = etus || [];
   document.getElementById('cls-stat-etudiants').textContent = _dernieresAffectationsClasses.filter(e=>e.classe_id).length;
   // Nb matières
   let qM = db.from('programmes').select('id',{count:'exact',head:true});
-  if (currentEcoleId) qM = qM.eq('ecole_id', currentEcoleId);
+  qM = qM.eq('ecole_id', _eid)
   const { count: nbM } = await qM;
   document.getElementById('cls-stat-matieres').textContent = nbM || 0;
   // Filtre filière
@@ -16529,10 +16706,13 @@ function voirAffectationClasse(classeId) {
 
 // ── Calendrier scolaire ──────────────────────────────────────────────────
 async function chargerCalendrierScolaire() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerCalendrierScolaire] aucune école identifiée'); return; }
   const annee = getAnneeScol();
   document.getElementById('cal-annee-label').textContent = annee;
   let q = db.from('periodes_scolaires').select('*').order('date_debut');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   toutesLesPeriodes = (data||[]).filter(p => p.type_periode !== 'vacances' && p.type_periode !== 'ferie');
   const conges = (data||[]).filter(p => p.type_periode === 'vacances' || p.type_periode === 'ferie');
@@ -16593,6 +16773,9 @@ async function remplirSelectClasseAff() {
 }
 
 async function chargerAffectation() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerAffectation] aucune école identifiée'); return; }
   const classeId = document.getElementById('filter-aff-classe').value;
   const cAff = document.getElementById('aff-affectes-container');
   const cLib = document.getElementById('aff-libres-container');
@@ -16601,7 +16784,7 @@ async function chargerAffectation() {
     cAff.innerHTML = vide; cLib.innerHTML = vide; return;
   }
   let q = db.from('etudiants').select('id,nom,prenom,filiere,niveau,classe_id').order('nom');
-  if (currentEcoleId) q = q.eq('ecole_id',currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data: etus } = await q;
   const affectes = (etus||[]).filter(e => e.classe_id === classeId);
   const libres   = (etus||[]).filter(e => !e.classe_id);
@@ -16637,13 +16820,16 @@ let toutesLesTransactions = [];
 let tousLesPaiementsCompta = [];
 
 async function chargerComptabilite() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerComptabilite] aucune école identifiée'); return; }
   const ecole = tousLesEcoles.find(e=>e.id===currentEcoleId);
   document.getElementById('compta-annee').textContent   = getAnneeScol();
   document.getElementById('compta-update').textContent  = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 
   // Données paiements
   let qF = db.from('factures').select('montant_total,montant_paye,statut,type_frais');
-  if (currentEcoleId) qF = qF.eq('ecole_id',currentEcoleId);
+  qF = qF.eq('ecole_id', _eid)
   const { data: facs } = await qF;
   const allFacs = facs||[];
   const totalDu   = allFacs.reduce((s,f)=>s+(f.montant_total||0),0);
@@ -16654,7 +16840,7 @@ async function chargerComptabilite() {
 
   // Transactions (dépenses)
   let qT = db.from('transactions_caisse').select('*').order('date_operation',{ascending:false});
-  if (currentEcoleId) qT = qT.eq('ecole_id',currentEcoleId);
+  qT = qT.eq('ecole_id', _eid)
   const { data: trans } = await qT;
   toutesLesTransactions = trans||[];
   const totalDep = toutesLesTransactions.filter(t=>t.type_operation==='depense').reduce((s,t)=>s+(t.montant||0),0);
@@ -16684,9 +16870,12 @@ async function chargerComptabilite() {
 }
 
 async function chargerTableauCompta() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerTableauCompta] aucune école identifiée'); return; }
   // Graphique revenus mensuels
   let qP = db.from('paiements').select('montant_paye,created_at').order('created_at');
-  if (currentEcoleId) qP = qP.eq('ecole_id',currentEcoleId);
+  qP = qP.eq('ecole_id', _eid)
   const { data: paiements } = await qP;
   const moisLabels = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
   const revMois = new Array(12).fill(0);
@@ -16715,7 +16904,7 @@ async function chargerTableauCompta() {
   }
   // Graphique types de frais
   let qF = db.from('factures').select('type_frais,montant_paye');
-  if (currentEcoleId) qF = qF.eq('ecole_id',currentEcoleId);
+  qF = qF.eq('ecole_id', _eid)
   const { data: facs } = await qF;
   const parType = {};
   (facs||[]).forEach(f => {
@@ -16738,7 +16927,7 @@ async function chargerTableauCompta() {
   if (!recent.length) {
     // Afficher paiements récents à la place
     let qPay = db.from('paiements').select('*, etudiants(nom,prenom)').order('created_at',{ascending:false}).limit(8);
-    if (currentEcoleId) qPay = qPay.eq('ecole_id',currentEcoleId);
+    qPay = qPay.eq('ecole_id', _eid)
     const { data: pays } = await qPay;
     dt.innerHTML = (pays||[]).length ? (pays||[]).map(p=>`
       <div class="trans-item">
@@ -16784,11 +16973,14 @@ async function chargerTableauCompta() {
 
 // ── Caisse ───────────────────────────────────────────────────────────────
 async function chargerCaisse() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerCaisse] aucune école identifiée'); return; }
   const typeF    = document.getElementById('filter-caisse-type')?.value||'';
   const catF     = document.getElementById('filter-caisse-categorie')?.value||'';
   const periode  = document.getElementById('filter-caisse-periode')?.value||'30';
   let q = db.from('transactions_caisse').select('*').order('date_operation',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id',currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   if (typeF) q = q.eq('type_operation',typeF);
   if (catF)  q = q.eq('categorie',catF);
   if (periode!=='all') { const depuis=new Date(Date.now()-parseInt(periode)*864e5).toISOString().split('T')[0]; q=q.gte('date_operation',depuis); }
@@ -16895,6 +17087,9 @@ async function toggleLotClasseSelect(val) {
 let lotEtudiantsCibles = [];
 
 async function mettreAJourAperçuLot() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[mettreAJourAperçuLot] aucune école identifiée'); return; }
   const cible   = document.getElementById('lot-cible')?.value||'tous';
   const filtreV = (document.getElementById('lot-filtre-valeur')?.value||'').trim().toLowerCase();
   const montant = parseFloat(document.getElementById('lot-montant')?.value)||0;
@@ -16905,7 +17100,7 @@ async function mettreAJourAperçuLot() {
   if (cible==='classe'   && filtreV) liste = liste.filter(e=>(e.classe_nom||e.filiere)?.toLowerCase().includes(filtreV));
   if (cible==='impayés') {
     let qF = db.from('factures').select('etudiant_id').in('statut',['en_attente','retard']);
-    if (currentEcoleId) qF = qF.eq('ecole_id',currentEcoleId);
+    qF = qF.eq('ecole_id', _eid)
     const { data: fImp } = await qF;
     const idsImp = new Set((fImp||[]).map(f=>f.etudiant_id));
     liste = liste.filter(e=>idsImp.has(e.id));
@@ -16977,9 +17172,12 @@ function initialiserLot() {
 let tousLesRecus = [];
 
 async function chargerRecus() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerRecus] aucune école identifiée'); return; }
   document.getElementById('tbody-recus').innerHTML='<tr><td colspan="7" class="loading">Chargement...</td></tr>';
   let q = db.from('paiements').select('*, etudiants(nom,prenom,filiere)').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id',currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   tousLesRecus = data||[];
   afficherRecus(tousLesRecus);
@@ -17117,6 +17315,9 @@ let pensEtudiantsSaisie = [];
 let pensAbsCheckList = [];
 
 async function chargerPortailEnseignant() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerPortailEnseignant] aucune école identifiée'); return; }
   const switcher    = document.getElementById('pens-admin-switcher');
   const emptyState  = document.getElementById('pens-empty-state');
   const contentWrap = document.getElementById('pens-content-wrap');
@@ -17124,7 +17325,7 @@ async function chargerPortailEnseignant() {
 
   // Charger les enseignants de l'école active une seule fois.
   let q = db.from('enseignants').select('*').order('nom');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data: ens } = await q;
   const liste = ens || [];
 
@@ -17209,19 +17410,19 @@ async function chargerPortailEnseignant() {
     document.getElementById('pens-kpi-etudiants').textContent= tousLesEtudiants.length || '—';
 
     let qN = db.from('notes').select('id',{count:'exact',head:true});
-    if (currentEcoleId) qN = qN.eq('ecole_id', currentEcoleId);
+    qN = qN.eq('ecole_id', _eid)
     const { count: nbN } = await qN;
     document.getElementById('pens-kpi-notes').textContent           = nbN||0;
     document.getElementById('pens-stat-notes-saisies').textContent  = nbN||0;
 
     let qM = db.from('programmes').select('matiere');
-    if (currentEcoleId) qM = qM.eq('ecole_id', currentEcoleId);
+    qM = qM.eq('ecole_id', _eid)
     if (ensActif.id) qM = qM.eq('enseignant_id', ensActif.id);
     const { data: mats } = await qM;
     document.getElementById('pens-stat-matieres').textContent = (mats||[]).length;
 
     let qA = db.from('absences').select('id',{count:'exact',head:true});
-    if (currentEcoleId) qA = qA.eq('ecole_id', currentEcoleId);
+    qA = qA.eq('ecole_id', _eid)
     const { count: nbA } = await qA;
     document.getElementById('pens-stat-absences-signalees').textContent = nbA||0;
     document.getElementById('pens-stat-heures').textContent = (ensActif.heures_semaine||0) * 4 + 'h';
@@ -17233,15 +17434,18 @@ async function chargerPortailEnseignant() {
 }
 
 async function remplirSelectMatieresPens() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[remplirSelectMatieresPens] aucune école identifiée'); return; }
   if (!tousLesEtudiants.length) await chargerEtudiants();
   // Charger les matières assignées
   let qM = db.from('programmes').select('matiere');
-  if (currentEcoleId) qM = qM.eq('ecole_id', currentEcoleId);
+  qM = qM.eq('ecole_id', _eid)
   if (window._pensEnsId) qM = qM.eq('enseignant_id', window._pensEnsId);
   const { data: mats } = await qM;
   // Complément : matières des notes saisies
   let qN = db.from('notes').select('matiere');
-  if (currentEcoleId) qN = qN.eq('ecole_id', currentEcoleId);
+  qN = qN.eq('ecole_id', _eid)
   const { data: noteMats } = await qN;
   const setMats = new Set([...(mats||[]).map(m=>m.matiere), ...(noteMats||[]).map(n=>n.matiere)]);
   const allMats = [...setMats].sort();
@@ -17433,11 +17637,14 @@ async function enregistrerAbsencesBatch() {
 }
 
 async function chargerPlanningEns() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerPlanningEns] aucune école identifiée'); return; }
   const container = document.getElementById('pens-planning-container');
   // La table s'appelle emploi_du_temps (sans s)
   // Le champ du prof est 'professeur' (texte), pas enseignant_id
   let q = db.from('emploi_du_temps').select('*').order('heure_debut');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data: allCreneaux } = await q;
   // Filtrer par nom du professeur si on connait l'enseignant actif
   let data = allCreneaux || [];
@@ -17474,10 +17681,13 @@ async function chargerPlanningEns() {
 }
 
 async function chargerExamensEns() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerExamensEns] aucune école identifiée'); return; }
   const container = document.getElementById('pens-examens-container');
   const today = new Date().toISOString().split('T')[0];
   let q = db.from('examens').select('*').gte('date_examen',today).order('date_examen').limit(5);
-  if (currentEcoleId) q = q.eq('ecole_id',currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   container.innerHTML = data?.length
     ? data.map(e=>`<div style="display:flex;align-items:center;gap:10px;padding:.75rem 1.2rem;border-bottom:1px solid #f3f4f6">
@@ -17490,8 +17700,11 @@ async function chargerExamensEns() {
 }
 
 async function chargerStatsEnseignant() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerStatsEnseignant] aucune école identifiée'); return; }
   let qN = db.from('notes').select('note,matiere,etudiants(filiere)');
-  if (currentEcoleId) qN = qN.eq('ecole_id',currentEcoleId);
+  qN = qN.eq('ecole_id', _eid)
   const { data: notes } = await qN;
   if (!notes?.length) return;
   // Chart distribution notes
@@ -17553,8 +17766,11 @@ let toutLePersonnel = [];
 let tousLesCongesRH = [];
 
 async function chargerRH() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerRH] aucune école identifiée'); return; }
   let q = db.from('personnel').select('*').order('nom');
-  if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   const { data } = await q;
   toutLePersonnel = data || [];
   // Stats
@@ -17566,7 +17782,7 @@ async function chargerRH() {
   // Congés en cours
   const today = new Date().toISOString().split('T')[0];
   let qC = db.from('conges_personnel').select('*',{count:'exact',head:true}).eq('statut','approuve').gte('date_fin',today).lte('date_debut',today);
-  if (currentEcoleId) qC = qC.eq('ecole_id',currentEcoleId);
+  qC = qC.eq('ecole_id', _eid)
   const { count: nbC } = await qC;
   document.getElementById('rh-stat-conges').textContent = nbC||0;
   const badgeRH = document.getElementById('badge-rh');
@@ -17703,9 +17919,12 @@ async function remplirSelectAgentConge() {
 }
 
 async function chargerConges() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[chargerConges] aucune école identifiée'); return; }
   const statF = document.getElementById('filter-conge-statut')?.value||'';
   let q = db.from('conges_personnel').select('*, personnel(nom,prenom,poste)').order('created_at',{ascending:false});
-  if (currentEcoleId) q = q.eq('ecole_id',currentEcoleId);
+  q = q.eq('ecole_id', _eid)
   if (statF) q = q.eq('statut',statF);
   const { data } = await q;
   tousLesCongesRH = data||[];
@@ -23870,13 +24089,16 @@ window.addEventListener('load', function() {
 
 // ★ Suite 13 — Fonctions boutons dashboard
 async function envoyerNotifAbsencesJour() {
+  // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[envoyerNotifAbsencesJour] aucune école identifiée'); showToast('Aucune école sélectionnée', 'error'); return; }
   const btn = document.querySelector('[data-action="envoyer-notif-absences"]');
   if (btn) { btn.textContent = '⏳ Envoi...'; btn.disabled = true; }
   try {
     // Récupérer absences du jour
     const today = new Date().toISOString().split('T')[0];
     let q = db.from('absences').select('*, etudiants(nom,prenom,telephone_parent,nom_parent)').eq('date_absence', today).eq('justifiee', false);
-    if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
+    q = q.eq('ecole_id', _eid);
     const { data: absences } = await q;
     const nb = absences?.length || 0;
     if (nb === 0) {
@@ -23884,15 +24106,13 @@ async function envoyerNotifAbsencesJour() {
       return;
     }
     // Enregistrer dans notifications
-    if (currentEcoleId) {
-      await db.from('notifications').insert(absences.slice(0,20).map(a => ({
-        ecole_id: currentEcoleId,
-        titre: 'Absence signalée',
-        message: `${a.etudiants?.prenom||''} ${a.etudiants?.nom||''} — absent(e) ce ${today}`,
-        type: 'warning',
-        lu: false,
-      })));
-    }
+    await db.from('notifications').insert(absences.slice(0,20).map(a => ({
+      ecole_id: _eid,
+      titre: 'Absence signalée',
+      message: `${a.etudiants?.prenom||''} ${a.etudiants?.nom||''} — absent(e) ce ${today}`,
+      type: 'warning',
+      lu: false,
+    })));
     showToast(`📧 ${nb} parent(s) notifié(s) des absences du jour`, 'success');
     envoyerNotifLocale('Absences notifiées', `${nb} parents contactés`, '📧');
   } catch(e) {
