@@ -9,7 +9,7 @@
   style-src  'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
   font-src   'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com;
   img-src    'self' data: blob: https: ;
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.brevo.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://quickchart.io https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io;
+  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.brevo.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://quickchart.io https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.sentry-cdn.com https://browser.sentry-cdn.com;
   frame-src  'self' https://app.brevo.com;
   object-src 'none';
   base-uri   'self';
@@ -6156,7 +6156,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <div class="tabs">
     <button class="tab active" id="tab-rh-fiches-btn"   data-action="show-tab" data-mod="rh" data-tab="tab-rh-fiches">👥 Fiches Personnel</button>
     <button class="tab"        id="tab-rh-conges-btn"   data-action="show-tab-load" data-mod="rh" data-tab="tab-rh-conges" data-fn="chargerConges()">🏖️ Congés</button>
-    <button class="tab"        id="tab-rh-paie-btn"     data-action="show-tab-load" data-mod="rh" data-tab="tab-rh-paie" data-fn="peuplerSelectAgentPaie()">💰 Fiches de paie</button>
+    <button class="tab"        id="tab-rh-paie-btn"     data-action="show-tab-load" data-mod="rh" data-tab="tab-rh-paie" data-fn="remplirSelectAgentPaie()">💰 Fiches de paie</button>
     <button class="tab"        id="tab-rh-contrats-btn" data-action="show-tab-load" data-mod="rh" data-tab="tab-rh-contrats" data-fn="chargerContrats()">📋 Contrats</button>
   </div>
 
@@ -8766,6 +8766,9 @@ function ouvrirImportExcelUtilisateurs() {
 
 async function confirmerImportExcelUtilisateurs() {
   if (!_utilisateursAImporter.length) return;
+  // ─── F-005 (2026-05-14) : garde stricte ecole_id avant import en masse ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[confirmerImportExcelUtilisateurs] aucune école active'); showToast('Aucune école active — import annulé','error'); return; }
 
   // (P2.2) Validation préalable
   const reglesU = [
@@ -8782,7 +8785,7 @@ async function confirmerImportExcelUtilisateurs() {
 
   let ok = 0, err = 0, firstErr = '';
   for (let item of _utilisateursAImporter) {
-    let payload = { ...item, ecole_id: currentEcoleId };
+    let payload = { ...item, ecole_id: _eid };
     let { error } = await db.from('utilisateurs').insert([payload]);
     // (P1.5) Validation stricte : on signale la colonne inconnue sans la supprimer
           if (error) {
@@ -24626,10 +24629,11 @@ async function verifierPremiereMdp() {
   try {
     const { data: { user } } = await db.auth.getUser();
     if (!user) return;
-    const { data: policy } = await db.from('password_policy')
+    const { data: policyRows } = await db.from('password_policy')
       .select('force_reset, first_login_done')
       .eq('user_id', user.id)
-      .single();
+      .limit(1);
+    const policy = policyRows?.[0] ?? null;
     if (policy?.force_reset && !policy?.first_login_done) {
       afficherModalChangementMdp();
     }
