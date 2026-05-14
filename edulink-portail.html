@@ -1770,34 +1770,55 @@ async function verifierOTP() {
       return;
     }
     console.log('[OTP] ✅ Code vérifié par bright-handler');
-  } catch(e) {
-    console.error('[OTP] Erreur réseau vérification:', e);
-    showOTPError(2, 'Erreur réseau. Réessayez.');
-    btn.disabled = false; btn.textContent = '✅ Confirmer le code';
-    return;
-  }
 
-  // ─── OTP validé → connexion Supabase Auth avec le matricule comme password ───
-  // Le matricule est le "secret" partagé connu de la base. L'OTP a déjà été
-  // validé via bright-handler, donc on peut signer-in en toute confiance.
-  const emailConn = otpEtudiantTrouve.email_auth
-    || (otpEtudiantTrouve.matricule.toLowerCase().replace(/_/g, '-') + '@portail.edulink.bj');
-  console.log('[OTP] Email Auth utilisé:', emailConn);
-
-  try {
-    const authResult = await db.auth.signInWithPassword({
-      email: emailConn,
-      password: otpEtudiantTrouve.matricule
-    });
-
-    if (authResult.error) {
-      console.error('[OTP] Échec signIn après OTP validé:', authResult.error.message);
-      showOTPError(2, 'Erreur de connexion. Contactez l\'administration.');
+    // ─── Étape 4 (2026-05-14) : échange auth_token → session Supabase ───
+    // Le matricule ne quitte jamais le serveur. Le portail reçoit
+    // un auth_token temporaire (32 bytes, expire 5 min, usage unique)
+    // qu'il échange contre une vraie session Supabase Auth.
+    const authToken = result.auth_token;
+    if (!authToken) {
+      showOTPError(2, 'Token d\'authentification manquant. Contactez l\'administration.');
       btn.disabled = false; btn.textContent = '✅ Confirmer le code';
       return;
     }
 
-    console.log('[OTP] ✅ Connecté via Supabase Auth:', authResult.data.user.id);
+    // Appel exchange : bright-handler vérifie le token et retourne la session
+    btn.textContent = 'Connexion...';
+    let exchangeResult;
+    try {
+      const exchResp = await fetch(EDGE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'exchange', auth_token: authToken })
+      });
+      exchangeResult = await exchResp.json();
+      if (!exchResp.ok || !exchangeResult.success) {
+        console.error('[OTP] Échec exchange:', exchangeResult);
+        showOTPError(2, exchangeResult.error || 'Erreur de connexion. Réessayez.');
+        btn.disabled = false; btn.textContent = '✅ Confirmer le code';
+        return;
+      }
+    } catch(exchErr) {
+      console.error('[OTP] Erreur réseau exchange:', exchErr);
+      showOTPError(2, 'Erreur réseau. Réessayez.');
+      btn.disabled = false; btn.textContent = '✅ Confirmer le code';
+      return;
+    }
+
+    // Initialiser la session Supabase avec les tokens reçus
+    const { error: sessionError } = await db.auth.setSession({
+      access_token:  exchangeResult.access_token,
+      refresh_token: exchangeResult.refresh_token,
+    });
+
+    if (sessionError) {
+      console.error('[OTP] Échec setSession:', sessionError.message);
+      showOTPError(2, 'Erreur de session. Contactez l\'administration.');
+      btn.disabled = false; btn.textContent = '✅ Confirmer le code';
+      return;
+    }
+
+    console.log('[OTP] ✅ Session Supabase initialisée via exchange:', exchangeResult.user?.id);
     clearInterval(otpTimer);
     await connecterEtudiant(otpEtudiantTrouve);
 
