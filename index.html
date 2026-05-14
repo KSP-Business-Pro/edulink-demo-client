@@ -10087,9 +10087,12 @@ function syncFiliereNiveauEtudiant(sel){
   if(nv&&opt.dataset.niveau)Array.from(nv.options).forEach(o=>{o.selected=o.value===opt.dataset.niveau;});
 }
 async function supprimerEtudiant(id,nom){
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerEtudiant] aucune école active'); showToast('Aucune école active','error'); return; }
   if(!confirm(`Supprimer l'étudiant ${nom} ?\nSes notes, absences et factures seront aussi supprimées.`))return;
-  await Promise.all([db.from('notes').delete().eq('etudiant_id',id),db.from('absences').delete().eq('etudiant_id',id),db.from('factures').delete().eq('etudiant_id',id)]);
-  const { error } = await db.from('etudiants').delete().eq('id',id);
+  await Promise.all([db.from('notes').delete().eq('etudiant_id',id).eq('ecole_id',_eid),db.from('absences').delete().eq('etudiant_id',id).eq('ecole_id',_eid),db.from('factures').delete().eq('etudiant_id',id).eq('ecole_id',_eid)]);
+  const { error } = await db.from('etudiants').delete().eq('id',id).eq('ecole_id',_eid);
   if (window.AuditLog) AuditLog.record('DELETE', 'etudiants', id, `Suppression de ${nom} (cascade : notes/absences/factures)`);
   showToast('Étudiant supprimé.','success'); invalidateCache('etudiants'); chargerEtudiants(); chargerDashboard();
 }
@@ -10342,8 +10345,11 @@ function ouvrirModifierAbsence(id,etudiantId,matiere,date,statut,justification){
   ouvrirModal('modal-absence');
 }
 async function supprimerAbsence(id){
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerAbsence] aucune école active'); return; }
   if(!confirm('Supprimer cette absence ?'))return;
-  await db.from('absences').delete().eq('id',id);
+  await db.from('absences').delete().eq('id',id).eq('ecole_id',_eid);
   showToast('Absence supprimée.','success');
   invalidateData('absences');
   chargerAbsences(); chargerDashboard();
@@ -10468,8 +10474,11 @@ async function enregistrerOuModifierNote(){
 }
 async function enregistrerNote(){return enregistrerOuModifierNote();}
 async function supprimerNote(id) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerNote] aucune école active'); return; }
   if (!confirm('Supprimer cette note ?')) return;
-  const { error } = await db.from('notes').delete().eq('id',id);
+  const { error } = await db.from('notes').delete().eq('id',id).eq('ecole_id',_eid);
   if (window.AuditLog) AuditLog.record('DELETE', 'notes', id, 'Suppression d\'une note');
   showToast('Note supprimée.','success');
   invalidateData('notes'); invalidateCache('notes');
@@ -10813,11 +10822,14 @@ async function ajouterCreneau() {
 }
 
 async function supprimerCreneau(id, j, h, opts) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerCreneau] aucune école active'); return; }
   // opts.skipConfirm = true : la confirmation a déjà été faite par l'appelant
   // (ex. confirmerSuppressionCreneau depuis la modal détail). Sinon comportement
   // legacy : on demande confirmation ici.
   if (!(opts && opts.skipConfirm) && !confirm(`Supprimer ce créneau (${j||''} ${h||''}) ?`)) return;
-  await db.from('emploi_du_temps').delete().eq('id', id);
+  await db.from('emploi_du_temps').delete().eq('id', id).eq('ecole_id',_eid);
   showToast('Créneau supprimé.', 'success'); chargerEmploiDuTemps();
 }
 
@@ -10960,10 +10972,13 @@ async function supprimerTousMessages() {
 }
 
 async function supprimerMessageActif() {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerMessageActif] aucune école active'); return; }
   if (!selectedMsgId) return;
   const msg = tousLesMessages.find(m=>m.id===selectedMsgId);
   if (!confirm('Supprimer ce message ?')) return;
-  await db.from('messages').delete().eq('id', selectedMsgId);
+  await db.from('messages').delete().eq('id', selectedMsgId).eq('ecole_id',_eid);
   selectedMsgId = null;
   document.getElementById('msg-detail-empty').style.display = 'block';
   document.getElementById('msg-detail-content').style.display = 'none';
@@ -11280,8 +11295,11 @@ async function enregistrerPaiement() {
 }
 
 async function supprimerFacture(id) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerFacture] aucune école active'); return; }
   if (!confirm('Supprimer cette facture ?')) return;
-  const { error } = await db.from('factures').delete().eq('id',id);
+  const { error } = await db.from('factures').delete().eq('id',id).eq('ecole_id',_eid);
   if (window.AuditLog) AuditLog.record('DELETE', 'factures', id, 'Suppression d\'une facture');
   showToast('Facture supprimée.','success');
   toutesLesFactures = [];
@@ -11452,8 +11470,11 @@ async function confirmerResolution() {
   fermerModal('modal-resoudre'); showToast('Incident marqué résolu !','success'); chargerIncidents(); chargerDashboard();
 }
 async function supprimerIncident(id) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerIncident] aucune école active'); return; }
   if (!confirm('Supprimer cet incident ?')) return;
-  await db.from('incidents').delete().eq('id',id);
+  await db.from('incidents').delete().eq('id',id).eq('ecole_id',_eid);
   showToast('Incident supprimé.','success'); chargerIncidents();
 }
 
@@ -11597,8 +11618,11 @@ async function ajouterDocument() {
 }
 
 async function supprimerDocument(id) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerDocument] aucune école active'); return; }
   if (!confirm('Supprimer ce document ?')) return;
-  await db.from('documents').delete().eq('id',id);
+  await db.from('documents').delete().eq('id',id).eq('ecole_id',_eid);
   showToast('Document supprimé.','success'); chargerDocuments();
 }
 
@@ -12067,8 +12091,11 @@ async function changerStatutUser(id, newActif) {
 }
 
 async function supprimerUtilisateur(id, nom) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerUtilisateur] aucune école active'); return; }
   if (!confirm(`Supprimer le compte de "${nom.trim()}" ?\nCette action est irréversible.`)) return;
-  const { error } = await db.from('utilisateurs').delete().eq('id', id);
+  const { error } = await db.from('utilisateurs').delete().eq('id', id).eq('ecole_id',_eid);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   if (window.AuditLog) AuditLog.record('DELETE', 'utilisateurs', id, `Suppression du compte : ${nom}`);
   showToast('Utilisateur supprimé.','success');
@@ -13449,9 +13476,12 @@ async function sauvegarderExamen() {
 
 
 async function supprimerExamen(id, matiere) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerExamen] aucune école active'); return; }
   if (!confirm(`Supprimer l'examen "${matiere}" ?\nLes notes associées (PV) seront aussi supprimées.`)) return;
-  await db.from('notes').delete().eq('periode', 'EXAM-' + id);
-  await db.from('examens').delete().eq('id', id);
+  await db.from('notes').delete().eq('periode', 'EXAM-' + id).eq('ecole_id',_eid);
+  await db.from('examens').delete().eq('id', id).eq('ecole_id',_eid);
   showToast('Examen supprimé.', 'success');
   invalidateCache('examens'); chargerExamens();
 }
@@ -13926,8 +13956,11 @@ async function sauvegarderEnseignant() {
 }
 
 async function supprimerEnseignant(id) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerEnseignant] aucune école active'); return; }
   if (!confirm('Supprimer cet enseignant ?')) return;
-  const { error } = await db.from('enseignants').delete().eq('id', id);
+  const { error } = await db.from('enseignants').delete().eq('id', id).eq('ecole_id',_eid);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   if (window.AuditLog) AuditLog.record('DELETE', 'enseignants', id, 'Suppression d\'un enseignant');
   showToast('Enseignant supprimé.','success');
@@ -14037,8 +14070,11 @@ async function sauvegarderMatiere() {
 }
 
 async function supprimerMatiere(id) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerMatiere] aucune école active'); return; }
   if (!confirm('Supprimer cette matière ?')) return;
-  const { error } = await db.from('matieres').delete().eq('id', id);
+  const { error } = await db.from('matieres').delete().eq('id', id).eq('ecole_id',_eid);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   showToast('Matière supprimée.','success');
   invalidateCache('matieres'); chargerMatieres();
@@ -15889,8 +15925,11 @@ function ouvrirModifierLivre(id) {
 
 
 async function supprimerLivre(id) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerLivre] aucune école active'); return; }
   if (!confirm('Supprimer cet ouvrage du catalogue ?')) return;
-  await db.from('livres').delete().eq('id',id);
+  await db.from('livres').delete().eq('id',id).eq('ecole_id',_eid);
   showToast('Ouvrage supprimé.','success');
   chargerBibliotheque();
 }
@@ -16611,8 +16650,11 @@ async function creerClasse() {
 }
 
 async function supprimerClasse(id) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerClasse] aucune école active'); return; }
   if (!confirm('Supprimer cette classe ?')) return;
-  const { data, error } = await db.from('classes').delete().eq('id',id).select();
+  const { data, error } = await db.from('classes').delete().eq('id',id).eq('ecole_id',_eid).select();
   if (error) {
     console.error('Erreur suppression classe:', error);
     showToast('Erreur : '+(error.message||'suppression impossible'),'error');
@@ -16755,8 +16797,11 @@ function editerMatiereProgramme(id, classeId) {
 }
 
 async function supprimerMatiereProgamme(id, classeId) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerMatiereProgamme] aucune école active'); return; }
   if (!confirm('Supprimer cette matière du programme ?')) return;
-  await db.from('programmes').delete().eq('id',id);
+  await db.from('programmes').delete().eq('id',id).eq('ecole_id',_eid);
   document.getElementById('filter-prog-classe').value = classeId;
   showToast('Matière supprimée.','success'); chargerProgramme();
 }
@@ -16837,8 +16882,11 @@ async function ajouterPeriode() {
 }
 
 async function supprimerPeriode(id) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerPeriode] aucune école active'); return; }
   if (!confirm('Supprimer cette période ?')) return;
-  await db.from('periodes_scolaires').delete().eq('id',id);
+  await db.from('periodes_scolaires').delete().eq('id',id).eq('ecole_id',_eid);
   showToast('Période supprimée.','success'); chargerCalendrierScolaire();
 }
 
@@ -17146,8 +17194,11 @@ async function enregistrerTransaction() {
 
 
 async function supprimerTransaction(id) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerTransaction] aucune école active'); return; }
   if (!confirm('Supprimer cette opération ?')) return;
-  await db.from('transactions_caisse').delete().eq('id',id);
+  await db.from('transactions_caisse').delete().eq('id',id).eq('ecole_id',_eid);
   showToast('Opération supprimée.','success'); chargerCaisse();
 }
 
@@ -17993,8 +18044,11 @@ function ouvrirModifierPersonnel(id) {
 
 
 async function supprimerPersonnel(id) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerPersonnel] aucune école active'); return; }
   if (!confirm('Supprimer cet agent ?')) return;
-  await db.from('personnel').delete().eq('id',id);
+  await db.from('personnel').delete().eq('id',id).eq('ecole_id',_eid);
   showToast('Agent supprimé.','success'); chargerRH();
 }
 
@@ -19566,9 +19620,12 @@ async function testerBrevo() {
 }
 
 async function supprimerRole(id, nom) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerRole] aucune école active'); return; }
   if (!confirm(`Supprimer le rôle "${nom}" ? Cette action est irréversible.`)) return;
   if (id.startsWith('local-')) { showToast('Rôle local — non supprimable', 'info'); return; }
-  const { error } = await db.from('roles').delete().eq('id', id);
+  const { error } = await db.from('roles').delete().eq('id', id).eq('ecole_id',_eid);
   if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
   showToast(`🗑️ Rôle "${nom}" supprimé.`, 'success');
   chargerRoles();
@@ -20040,8 +20097,11 @@ function getPortailEtudiantId() {
 }
 
 async function supprimerNotePortail(noteId) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerNotePortail] aucune école active'); return; }
   if (!confirm('Supprimer cette note ?')) return;
-  const { error } = await db.from('notes').delete().eq('id', noteId);
+  const { error } = await db.from('notes').delete().eq('id', noteId).eq('ecole_id',_eid);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   if (window.AuditLog) AuditLog.record('DELETE', 'notes', noteId, 'Suppression d\'une note (portail étudiant)');
   showToast('🗑️ Note supprimée.','success');
@@ -20050,8 +20110,11 @@ async function supprimerNotePortail(noteId) {
 }
 
 async function supprimerAbsencePortail(absId) {
+  // ─── F-009 (2026-05-14) : garde stricte ecole_id ───
+  const _eid = currentEcoleId || currentUserEcoleId;
+  if (!_eid) { console.error('[supprimerAbsencePortail] aucune école active'); return; }
   if (!confirm('Supprimer cette absence ?')) return;
-  const { error } = await db.from('absences').delete().eq('id', absId);
+  const { error } = await db.from('absences').delete().eq('id', absId).eq('ecole_id',_eid);
   if (error) { showToast('Erreur : '+error.message,'error'); return; }
   if (window.AuditLog) AuditLog.record('DELETE', 'absences', absId, 'Suppression d\'une absence (portail étudiant)');
   showToast('🗑️ Absence supprimée.','success');
