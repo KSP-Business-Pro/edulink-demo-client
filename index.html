@@ -2,19 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<!-- (P1.8) Content Security Policy : bloque les scripts externes non autorisés (filet anti-XSS) -->
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.firebaseio.com https://*.googleapis.com https://www.gstatic.com https://js-de.sentry-cdn.com https://*.sentry-cdn.com https://browser.sentry-cdn.com;
-  style-src  'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
-  font-src   'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com;
-  img-src    'self' data: blob: https: ;
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.brevo.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://quickchart.io https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.sentry-cdn.com https://browser.sentry-cdn.com;
-  frame-src  'self' https://app.brevo.com;
-  object-src 'none';
-  base-uri   'self';
-  form-action 'self';
-">
+<!-- (P1.8) Content Security Policy : géré via vercel.json headers (migré le 2026-05-16) -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EduLink — Back-office</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
