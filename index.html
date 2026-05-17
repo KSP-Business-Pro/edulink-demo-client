@@ -25244,9 +25244,25 @@ async function confirmerImportEnseignants() {
       if (!['M','F','MASCULIN','FÉMININ','FEMININ','HOMME','FEMME'].includes(norm)) return `valeur invalide "${v}" (attendu : M ou F)`;
       return null;
     }},
-    { champ: 'date_naissance', label: 'Date naissance', regle: 'date' },
-    { champ: 'date_embauche', label: 'Date embauche', regle: 'date' },
-    { champ: 'statut', label: 'Statut', regle: 'in:actif,inactif' },
+    { champ: 'date_naissance', label: 'Date naissance', regle: (v) => {
+      if (!v) return null;
+      const s = String(v).trim();
+      // Accepte JJ/MM/AAAA et YYYY-MM-DD
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(s) || /^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+      return `date invalide (format attendu JJ/MM/AAAA) : "${s}"`;
+    }},
+    { champ: 'date_embauche', label: 'Date embauche', regle: (v) => {
+      if (!v) return null;
+      const s = String(v).trim();
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(s) || /^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+      return `date invalide (format attendu JJ/MM/AAAA) : "${s}"`;
+    }},
+    { champ: 'statut', label: 'Statut', regle: (v) => {
+      if (!v) return null;
+      const valides = ['Permanent','Vacataire','Visiteur'];
+      if (!valides.includes(String(v).trim())) return `valeur invalide "${v}" (attendu : ${valides.join(' / ')})`;
+      return null;
+    }},
   ];
   const r = await ImportValidator.confirmerAvecRapport(_enseignantsAImporter, reglesEns, '👨‍🏫 Rapport d\'import — Enseignants');
   if (!r.ok) return;
