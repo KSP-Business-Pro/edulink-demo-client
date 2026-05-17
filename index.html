@@ -14294,12 +14294,16 @@ function pdfTypeEvalLabel(t) {
 }
 
 async function telechargerBulletinPDF() {
-  const JsPDF = getJsPDF();
-  if (!JsPDF) { showToast('jsPDF non chargé — réessayez dans quelques secondes', 'error'); return; }
-
   const etudiantId = document.getElementById('select-bulletin-etudiant')?.value;
   const periode    = document.getElementById('select-bulletin-periode')?.value;
   if (!etudiantId) { showToast('Sélectionnez un étudiant', 'error'); return; }
+  return _genererBulletinPDFCore(etudiantId, periode);
+}
+
+// ─── BULLETIN-V2 (2026-05-17) : fonction core partagée backoffice + portail ───
+async function _genererBulletinPDFCore(etudiantId, periode) {
+  const JsPDF = getJsPDF();
+  if (!JsPDF) { showToast('jsPDF non chargé — réessayez dans quelques secondes', 'error'); return; }
 
   showToast('Génération du PDF...', 'info');
 
@@ -20316,32 +20320,14 @@ async function supprimerTousMessagesPortail() {
   chargerPortailEtudiant(getPortailEtudiantId());
 }
 
-function genererBulletinPortail() {
-  const nom  = document.getElementById('portail-nom-etudiant')?.textContent||'Étudiant';
-  const info = document.getElementById('portail-info-etudiant')?.textContent||'';
-  const moy  = document.getElementById('portail-moy-gen')?.textContent||'—';
-  const rang = document.getElementById('portail-rang')?.textContent||'—';
-  const abs  = document.getElementById('portail-absences')?.textContent||'0';
-
-  if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined') {
-    showToast('📄 Bulletin en cours de génération...','info');
-    setTimeout(()=>showToast('✅ Bulletin généré et prêt !','success'),1200);
-    return;
-  }
-  const { jsPDF } = window.jspdf || window;
-  const doc = new jsPDF();
-  doc.setFontSize(18); doc.setTextColor(30,58,95);
-  doc.text('BULLETIN SCOLAIRE', 105, 20, {align:'center'});
-  doc.setFontSize(12); doc.setTextColor(0,0,0);
-  doc.text(`Élève : ${nom}`, 20, 40);
-  doc.text(info, 20, 50);
-  doc.text(`Moyenne générale : ${moy}/20`, 20, 65);
-  doc.text(`Rang : ${rang}`, 20, 75);
-  doc.text(`Absences : ${abs}`, 20, 85);
-  doc.setFontSize(10); doc.setTextColor(100,100,100);
-  doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} — EduLink`, 105, 285, {align:'center'});
-  doc.save(`Bulletin-${nom.replace(/ /g,'-')}.pdf`);
-  showToast('📄 Bulletin PDF téléchargé !','success');
+// ─── BULLETIN-V2 (2026-05-17) : portail étudiant délègue au générateur unifié ───
+async function genererBulletinPortail() {
+  const etudiantId = getPortailEtudiantId();
+  if (!etudiantId) { showToast('Sélectionnez un étudiant', 'error'); return; }
+  // Période par défaut : S1 (en attendant un sélecteur dédié côté portail).
+  // On peut prioriser le select 'select-bulletin-periode' s'il existe ailleurs sur la page.
+  const periode = document.getElementById('select-bulletin-periode')?.value || 'S1';
+  return _genererBulletinPDFCore(etudiantId, periode);
 }
 
 /* ══════════════════════════════════════════════════════════════════
