@@ -2172,6 +2172,22 @@ function labelPeriodePDF(p) {
   return p;
 }
 
+// ── BULLETIN-V2 (2026-05-17) : libellés types évaluation côté PDF portail ──
+function pdfTypeEvalLabelPortail(t) {
+  const map = {
+    interrogation:'Interro', devoir_surveille:'DS', partiel:'Partiel',
+    examen_final:'Examen', projet:'Projet', expose:'Expose', tp:'TP', rattrapage:'Rattrap.'
+  };
+  return map[t] || 'DS';
+}
+function pdfAppreciationPortail(moy) {
+  if (moy >= 16) return "Excellent semestre. Felicitations pour ce travail remarquable. Continuez sur cette voie d'excellence.";
+  if (moy >= 14) return "Tres bon semestre. L'eleve fait preuve de serieux et de constance. Encouragements.";
+  if (moy >= 12) return "Bon semestre dans l'ensemble. Quelques efforts a fournir pour viser la mention superieure.";
+  if (moy >= 10) return "Semestre passable. L'eleve doit redoubler d'efforts pour consolider ses acquis.";
+  return "Semestre insuffisant. Un soutien pedagogique est vivement recommande pour combler les lacunes.";
+}
+
 async function telechargerBulletinPDFPortail(periode) {
   const JsPDF = getJsPDFPortail();
   if (!JsPDF) { showToast('jsPDF non chargé — réessayez', 'error'); return; }
@@ -2182,12 +2198,69 @@ async function telechargerBulletinPDFPortail(periode) {
   const notes = periode ? toutesNotes.filter(n => n.periode === periode) : toutesNotes;
   if (!notes.length) { showToast('Aucune note pour cette période', 'error'); return; }
 
+  // ─── BULLETIN-V2 : enrichissement données ───
+  // Absences sur la période
+  const periodeRanges = {
+    S1:['2025-09-01','2026-01-31'], S2:['2026-02-01','2026-06-30'],
+    T1:['2025-09-01','2025-12-15'], T2:['2025-12-16','2026-03-31'], T3:['2026-04-01','2026-06-30']
+  };
+  const range = periodeRanges[periode] || ['2000-01-01','2099-12-31'];
+  const { data: abs } = await db.from('absences')
+    .select('statut,date_absence')
+    .eq('etudiant_id', currentEtudiant.id)
+    .gte('date_absence', range[0])
+    .lte('date_absence', range[1]);
+  const stats = { absent:0, retard:0, excuse:0 };
+  (abs||[]).forEach(a => { stats[a.statut] = (stats[a.statut]||0) + 1; });
+
+  // Rang
+  let rang = '-';
+  if (currentEtudiant?.filiere && currentEtudiant?.niveau && currentEtudiant?.ecole_id) {
+    const { data: classmates } = await db.from('etudiants')
+      .select('id')
+      .eq('ecole_id', currentEtudiant.ecole_id)
+      .eq('filiere', currentEtudiant.filiere)
+      .eq('niveau', currentEtudiant.niveau);
+    if (classmates?.length) {
+      const ids = classmates.map(c => c.id);
+      const { data: allNotes } = await db.from('notes')
+        .select('etudiant_id,note,coefficient')
+        .in('etudiant_id', ids)
+        .eq('periode', periode||'S1');
+      const moyParEtu = {};
+      (allNotes||[]).forEach(n => {
+        if (!moyParEtu[n.etudiant_id]) moyParEtu[n.etudiant_id] = { pts:0, coef:0 };
+        moyParEtu[n.etudiant_id].pts += n.note * (n.coefficient||1);
+        moyParEtu[n.etudiant_id].coef += (n.coefficient||1);
+      });
+      const classements = Object.entries(moyParEtu)
+        .map(([id,v]) => ({ id, moy: v.coef ? v.pts/v.coef : 0 }))
+        .sort((a,b) => b.moy - a.moy);
+      const idx = classements.findIndex(c => c.id === currentEtudiant.id);
+      const n  = ids.length;
+      if (idx === 0) rang = '1er/' + n;
+      else if (idx > 0) rang = (idx + 1) + 'e/' + n;
+    }
+  }
+
+  // Calculs
   let totalPts = 0, totalCoeff = 0;
   notes.forEach(n => { totalPts += n.note*(n.coefficient||1); totalCoeff += (n.coefficient||1); });
   const moy = totalCoeff > 0 ? totalPts/totalCoeff : 0;
 
-  const NAVY  = [15, 110, 86];   // teal portail
+  // Regroupement par matière pour sous-totaux
+  const parMatiere = {};
+  notes.forEach(n => {
+    if (!parMatiere[n.matiere]) parMatiere[n.matiere] = { notes:[], pts:0, coef:0 };
+    parMatiere[n.matiere].notes.push(n);
+    parMatiere[n.matiere].pts += n.note * (n.coefficient||1);
+    parMatiere[n.matiere].coef += (n.coefficient||1);
+  });
+
+  // Palette teal portail
+  const NAVY  = [15, 110, 86];    // teal portail
   const NAVY2 = [30, 58, 95];
+  const LIGHT = [225, 245, 238];
   const GREEN = [5, 150, 105];
   const RED   = [220, 38, 38];
   const AMBER = [217, 119, 6];
@@ -2227,62 +2300,105 @@ async function telechargerBulletinPDFPortail(periode) {
 
   let y = 48;
 
-  // Bloc étudiant
-  doc.setFillColor(225, 245, 238);
-  doc.roundedRect(14, y, pw-28, 28, 3, 3, 'F');
+  // Bloc étudiant — agrandi pour accueillir période et rang
+  doc.setFillColor(...LIGHT);
+  doc.roundedRect(14, y, pw-28, 36, 3, 3, 'F');
   doc.setDrawColor(...NAVY); doc.setLineWidth(0.4);
-  doc.roundedRect(14, y, pw-28, 28, 3, 3, 'S');
+  doc.roundedRect(14, y, pw-28, 36, 3, 3, 'S');
 
   doc.setTextColor(...NAVY2); doc.setFontSize(13); doc.setFont('helvetica','bold');
   doc.text(pdfSafePortail(currentEtudiant.nom+' '+currentEtudiant.prenom), 22, y+9);
   doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...GRAY);
   doc.text('Matricule : '+(currentEtudiant.matricule||'-'), 22, y+16);
-  doc.text('Filiere : '+(currentEtudiant.filiere||'-')+'  |  Niveau : '+(currentEtudiant.niveau||'-'), 22, y+22);
+  doc.text(pdfSafePortail('Filiere : '+(currentEtudiant.filiere||'-')+'  |  Niveau : '+(currentEtudiant.niveau||'-')), 22, y+22);
+  doc.text('Periode : '+labelPeriodePDF(periode||'')+'  |  Rang : '+rang, 22, y+28);
 
-  // Moyenne
+  // Moyenne — carte plus haute pour intégrer mention
   doc.setFillColor(...(moy>=10?GREEN:RED));
-  doc.roundedRect(pw-55, y+4, 41, 20, 3, 3, 'F');
-  doc.setTextColor(255,255,255); doc.setFontSize(17); doc.setFont('helvetica','bold');
-  doc.text(moy.toFixed(2)+'/20', pw-34, y+15, { align:'center' });
+  doc.roundedRect(pw-55, y+4, 41, 28, 3, 3, 'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(20); doc.setFont('helvetica','bold');
+  doc.text(moy.toFixed(2), pw-34, y+16, { align:'center' });
   doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.text(mentionLabel(moy), pw-34, y+21, { align:'center' });
+  doc.text('/ 20', pw-34, y+21, { align:'center' });
+  doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text(mentionLabel(moy).toUpperCase(), pw-34, y+28, { align:'center' });
 
-  y += 34;
+  y += 42;
 
   doc.setTextColor(...NAVY); doc.setFontSize(10); doc.setFont('helvetica','bold');
-  doc.text('Releve de notes - '+labelPeriodePDF(periode||''), 14, y); y += 5;
+  doc.text('Releve de notes - '+labelPeriodePDF(periode||''), 14, y); y += 4;
 
-  const rows = notes.map(n => [
-    n.matiere,
-    n.note+'/20',
-    n.coefficient||1,
-    (n.note*(n.coefficient||1)).toFixed(2),
-    mentionLabel(n.note)
-  ]);
+  // Tableau notes — regroupé par matière avec sous-totaux
+  const rows = [];
+  Object.keys(parMatiere).sort().forEach(matiere => {
+    const grp = parMatiere[matiere];
+    rows.push([{ content: pdfSafePortail(matiere.toUpperCase()), colSpan: 5, styles: { fontStyle:'bold', fillColor: LIGHT, textColor: NAVY2, fontSize: 9 } }]);
+    grp.notes.forEach(n => {
+      rows.push([
+        '   ' + pdfSafePortail(n.commentaire || pdfTypeEvalLabelPortail(n.type_evaluation)),
+        pdfTypeEvalLabelPortail(n.type_evaluation),
+        n.note + '/20',
+        n.coefficient || 1,
+        (n.note*(n.coefficient||1)).toFixed(2)
+      ]);
+    });
+    const moyMat = grp.coef ? (grp.pts/grp.coef) : 0;
+    rows.push([
+      { content: pdfSafePortail('Sous-total ' + matiere), colSpan: 2, styles: { fontStyle:'italic', textColor: NAVY2 } },
+      { content: moyMat.toFixed(2)+'/20', styles: { fontStyle:'bold', textColor: mentionColor(moyMat) } },
+      { content: grp.coef, styles: { fontStyle:'bold' } },
+      { content: grp.pts.toFixed(2), styles: { fontStyle:'bold' } }
+    ]);
+  });
   rows.push([
-    'MOYENNE GÉNÉRALE',
-    { content:moy.toFixed(2)+'/20', styles:{ fontStyle:'bold', textColor:mentionColor(moy), fontSize:11 } },
-    totalCoeff,
-    totalPts.toFixed(2),
-    { content:mentionLabel(moy), styles:{ fontStyle:'bold', textColor:mentionColor(moy) } }
+    { content:'MOYENNE GENERALE', colSpan:2, styles:{ fontStyle:'bold', fillColor: LIGHT, textColor: NAVY2, fontSize:10 } },
+    { content:moy.toFixed(2)+'/20', styles:{ fontStyle:'bold', fillColor: LIGHT, textColor: mentionColor(moy), fontSize:11 } },
+    { content:totalCoeff, styles:{ fontStyle:'bold', fillColor: LIGHT } },
+    { content:totalPts.toFixed(2), styles:{ fontStyle:'bold', fillColor: LIGHT } }
   ]);
 
   doc.autoTable({
     startY: y,
-    head: [['Matière','Note /20','Coeff.','Points','Mention']],
+    head: [['Epreuve / Matiere','Type','Note /20','Coeff.','Points']],
     body: rows,
     theme: 'grid',
     headStyles: { fillColor:NAVY, textColor:[255,255,255], fontSize:9, fontStyle:'bold', halign:'center' },
-    columnStyles: { 0:{halign:'left',cellWidth:68}, 1:{halign:'center'}, 2:{halign:'center'}, 3:{halign:'center'} },
-    bodyStyles: { fontSize:9, textColor:[55,65,81] },
-    alternateRowStyles: { fillColor:[225,245,238] },
-    didParseCell: (d) => { if(d.row.index===rows.length-1){ d.cell.styles.fillColor=[225,245,238]; d.cell.styles.fontStyle='bold'; } },
+    columnStyles: {
+      0:{ halign:'left', cellWidth:80 },
+      1:{ halign:'center', cellWidth:25 },
+      2:{ halign:'center', cellWidth:25 },
+      3:{ halign:'center', cellWidth:20 },
+      4:{ halign:'center' }
+    },
+    bodyStyles: { fontSize:8.5, textColor:[55,65,81] },
     margin: { left:14, right:14 }
   });
 
-  y = doc.lastAutoTable.finalY + 15;
+  y = doc.lastAutoTable.finalY + 8;
 
-  // Barre progression visuelle
+  // Bloc Assiduité
+  if (y > 230) { doc.addPage(); y = 20; }
+  doc.setFillColor(...LIGHT);
+  doc.roundedRect(14, y, pw-28, 14, 2, 2, 'F');
+  doc.setTextColor(...NAVY2); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('ASSIDUITE', 18, y+5);
+  doc.setFont('helvetica','normal'); doc.setTextColor(...GRAY); doc.setFontSize(9);
+  doc.text(`${stats.absent||0} absence(s) · ${stats.retard||0} retard(s) · ${stats.excuse||0} absence(s) excusee(s)`, 18, y+11);
+  y += 18;
+
+  // Bloc Appréciation pédagogique
+  if (y > 235) { doc.addPage(); y = 20; }
+  doc.setFillColor(...LIGHT);
+  doc.roundedRect(14, y, pw-28, 22, 2, 2, 'F');
+  doc.setTextColor(...NAVY2); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('APPRECIATION PEDAGOGIQUE', 18, y+5);
+  doc.setFont('helvetica','italic'); doc.setTextColor(...GRAY); doc.setFontSize(9);
+  const apprLines = doc.splitTextToSize(pdfSafePortail(pdfAppreciationPortail(moy)), pw-36);
+  doc.text(apprLines, 18, y+11);
+  y += 26;
+
+  // Barre progression visuelle (signature visuelle du portail famille)
+  if (y > 250) { doc.addPage(); y = 20; }
   const pct = Math.min(100, moy/20*100);
   doc.setFillColor(229,231,235);
   doc.roundedRect(14, y, pw-28, 6, 3, 3, 'F');
@@ -2290,11 +2406,11 @@ async function telechargerBulletinPDFPortail(periode) {
   doc.roundedRect(14, y, (pw-28)*pct/100, 6, 3, 3, 'F');
   doc.setFontSize(8); doc.setTextColor(...GRAY);
   doc.text('Progression : '+pct.toFixed(0)+'%', pw/2, y+11, { align:'center' });
-  y += 20;
+  y += 18;
 
   // Signatures
-  if (y > 240) { doc.addPage(); y = 20; }
-  ['Direction','Enseignant(e) référent(e)','Parent / Tuteur'].forEach((s,i) => {
+  if (y > 250) { doc.addPage(); y = 20; }
+  ['Direction','Enseignant(e) referent(e)','Parent / Tuteur'].forEach((s,i) => {
     const sx = 14+(pw-28)/3*i;
     doc.setDrawColor(200,200,200); doc.line(sx, y+16, sx+53, y+16);
     doc.setFontSize(8); doc.setTextColor(...GRAY);
@@ -2307,7 +2423,7 @@ async function telechargerBulletinPDFPortail(periode) {
   doc.rect(0, ph-12, pw, 12, 'F');
   doc.setFontSize(7.5); doc.setTextColor(...GRAY);
   doc.text('Bulletin genere via EduLink - Portail Famille', 14, ph-4);
-  doc.text('Page 1', pw-14, ph-4, { align:'right' });
+  doc.text(`Page ${doc.internal.getCurrentPageInfo().pageNumber}`, pw-14, ph-4, { align:'right' });
 
   const filename = `Bulletin_${currentEtudiant.nom}_${currentEtudiant.prenom}_${periode||'all'}.pdf`.replace(/\s+/g,'_');
   doc.save(filename);
