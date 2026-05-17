@@ -24841,8 +24841,16 @@ const ImportValidator = {
           return;
         }
         if (!valStr) return; // champs optionnels vides = OK
-        if (r.regle === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valStr)) {
-          erreursLigne.push({ champ: r.label || r.champ, message: `email invalide : "${valStr}"` });
+        if (r.regle === 'email') {
+          // Nettoyer caractères invisibles (BOM, ZWSP, NBSP, guillemets parasites)
+          const clean = valStr
+            .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')   // ZWSP, BOM, NBSP
+            .replace(/^["'<\s]+|[">'\s]+$/g, '')            // guillemets/chevrons/espaces aux bords
+            .trim();
+          // Regex RFC-friendly : local-part + @ + domaine + . + TLD (≥2 lettres)
+          if (!/^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/.test(clean)) {
+            erreursLigne.push({ champ: r.label || r.champ, message: `email invalide : "${valStr}"` });
+          }
         } else if (r.regle === 'telephone' && !/^[\d\s+()-]{6,}$/.test(valStr)) {
           erreursLigne.push({ champ: r.label || r.champ, message: `téléphone invalide : "${valStr}"` });
         } else if (r.regle === 'date' && !/^\d{4}-\d{2}-\d{2}/.test(valStr)) {
