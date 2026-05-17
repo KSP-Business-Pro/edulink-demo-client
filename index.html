@@ -199,6 +199,15 @@ tr:hover td { background:#fafafa; }
 .gray   { background:#f3f4f6; color:#6b7280; }
 .teal   { background:#ccfbf1; color:#0d9488; }
 .pink   { background:#fce7f3; color:#be185d; }
+/* NOTES-01 (2026-05-17) : badges type d'évaluation */
+.badge.interro { background:#e0e7ff; color:#3730a3; }
+.badge.ds      { background:#fef3c7; color:#92400e; }
+.badge.partiel { background:#ede9fe; color:#5b21b6; }
+.badge.examen  { background:#fce7f3; color:#9d174d; }
+.badge.projet  { background:#cffafe; color:#155e75; }
+.badge.expose  { background:#fee2e2; color:#991b1b; }
+.badge.tp      { background:#d1fae5; color:#065f46; }
+.badge.rattrap { background:#fde68a; color:#78350f; }
 
 /* ── Buttons ── */
 button { background:#c97c1a; color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; font-family:'Poppins',sans-serif; transition:all .15s; }
@@ -2651,8 +2660,8 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <select id="filter-notes-matiere" onchange="chargerNotes()"><option value="">Toutes les matières</option></select>
     </div>
     <table>
-      <tr><th>Étudiant</th><th>Matière</th><th>Note /20</th><th>Coefficient</th><th>Période</th><th>Appréciation</th><th>Actions</th></tr>
-      <tbody id="tbody-notes"><tr><td colspan="7" class="loading">Chargement...</td></tr></tbody>
+      <tr><th>Étudiant</th><th>Matière</th><th>Type</th><th>Note /20</th><th>Coefficient</th><th>Période</th><th>Appréciation</th><th>Actions</th></tr>
+      <tbody id="tbody-notes"><tr><td colspan="8" class="loading">Chargement...</td></tr></tbody>
     </table>
   </div>
   <div id="tab-bulletins" style="display:none">
@@ -6390,6 +6399,18 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <div class="form-group"><label>Matière *</label><input type="text" id="input-note-matiere" placeholder="Ex: Algorithmique"></div>
       <div class="form-group"><label>Période *</label>
         <select id="input-note-periode"><option value="S1">Semestre 1</option><option value="S2">Semestre 2</option><option value="T1">Trimestre 1</option><option value="T2">Trimestre 2</option><option value="T3">Trimestre 3</option></select>
+      </div>
+      <div class="form-group"><label>Type d'évaluation *</label>
+        <select id="input-note-type" onchange="autoCoeffNote(this.value)">
+          <option value="devoir_surveille" data-coeff="2">Devoir surveillé</option>
+          <option value="interrogation" data-coeff="1">Interrogation</option>
+          <option value="partiel" data-coeff="3">Partiel</option>
+          <option value="examen_final" data-coeff="4">Examen final</option>
+          <option value="projet" data-coeff="2">Projet</option>
+          <option value="expose" data-coeff="1">Exposé</option>
+          <option value="tp" data-coeff="1">TP</option>
+          <option value="rattrapage" data-coeff="4">Rattrapage</option>
+        </select>
       </div>
       <div class="form-group"><label>Note /20 *</label><input type="number" id="input-note-valeur" min="0" max="20" step="0.25" placeholder="Ex: 14.5"></div>
       <div class="form-group"><label>Coefficient</label><input type="number" id="input-note-coeff" min="1" max="10" value="2"></div>
@@ -10355,11 +10376,35 @@ async function toggleNotifParent(id,newVal){
 }
 
 // ══ NOTES & BULLETINS ════════════════════════
+// ─── NOTES-01 (2026-05-17) : helpers type d'évaluation ───
+const TYPE_EVAL_META = {
+  interrogation:    { label:'Interrogation',    short:'Interro',   coeff:1, badge:'interro'  },
+  devoir_surveille: { label:'Devoir surveillé', short:'DS',        coeff:2, badge:'ds'       },
+  partiel:          { label:'Partiel',          short:'Partiel',   coeff:3, badge:'partiel'  },
+  examen_final:     { label:'Examen final',     short:'Examen',    coeff:4, badge:'examen'   },
+  projet:           { label:'Projet',           short:'Projet',    coeff:2, badge:'projet'   },
+  expose:           { label:'Exposé',           short:'Exposé',    coeff:1, badge:'expose'   },
+  tp:               { label:'TP',               short:'TP',        coeff:1, badge:'tp'       },
+  rattrapage:       { label:'Rattrapage',       short:'Rattrap.',  coeff:4, badge:'rattrap'  },
+};
+function typeEvalLabel(t){ return (TYPE_EVAL_META[t]||{label:'—'}).label; }
+function typeEvalBadge(t){
+  const m = TYPE_EVAL_META[t]; if (!m) return '';
+  return `<span class="badge ${m.badge}" title="${m.label}">${m.short}</span>`;
+}
+function autoCoeffNote(typeVal){
+  // Met à jour le coefficient automatiquement quand on change le type
+  // (sauf si l'utilisateur l'a déjà modifié manuellement — détection : champ != défaut précédent)
+  const inp = document.getElementById('input-note-coeff');
+  if (!inp) return;
+  const meta = TYPE_EVAL_META[typeVal];
+  if (meta) inp.value = meta.coeff;
+}
 async function chargerNotes() {
   // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
   const _eid = currentEcoleId || currentUserEcoleId;
   if (!_eid) { console.error('[chargerNotes] aucune école identifiée'); return; }
-  document.getElementById('tbody-notes').innerHTML = '<tr><td colspan="7" class="loading">Chargement...</td></tr>';
+  document.getElementById('tbody-notes').innerHTML = '<tr><td colspan="8" class="loading">Chargement...</td></tr>';
   let q = db.from('notes').select('*, etudiants(nom,prenom,classe_id)').order('created_at',{ascending:false});
   q = q.eq('ecole_id', _eid)
   const fp=document.getElementById('filter-notes-periode')?.value;
@@ -10395,15 +10440,16 @@ async function chargerNotes() {
         return`<tr>
         <td>${n.etudiants?n.etudiants.nom+' '+n.etudiants.prenom:'N/A'}</td>
         <td>${n.matiere}</td>
+        <td>${typeEvalBadge(n.type_evaluation)}</td>
         <td><span class="note-badge ${a.cls}">${n.note}/20</span></td>
         <td>${n.coefficient||1}</td>
         <td><span class="badge ${periodeBadgeCls}">${periodeLabel}</span>${warnIcon}</td>
         <td><span class="badge ${a.cls}">${a.label}</span></td>
         <td style="display:flex;gap:4px">
-          <button class="btn-sm btn-blue" data-action="edit-note" data-id="${n.id}" data-etu="${n.etudiant_id}" data-mat="${n.matiere}" data-note="${n.note}" data-coeff="${n.coefficient||1}" data-per="${n.periode}" data-com="${(n.commentaire||'').replace(/'/g,'&apos;')}">✏️</button>
+          <button class="btn-sm btn-blue" data-action="edit-note" data-id="${n.id}" data-etu="${n.etudiant_id}" data-mat="${n.matiere}" data-note="${n.note}" data-coeff="${n.coefficient||1}" data-per="${n.periode}" data-com="${(n.commentaire||'').replace(/'/g,'&apos;')}" data-type="${n.type_evaluation||'devoir_surveille'}">✏️</button>
           <button class="btn-sm btn-red" data-action="del-note" data-id="${n.id}">✕</button>
         </td></tr>`;}).join('')
-    : '<tr><td colspan="7" class="loading">Aucune note.</td></tr>';
+    : '<tr><td colspan="8" class="loading">Aucune note.</td></tr>';
 }
 async function filtrerNotesParClasse(){
   // ─── F-001 (2026-05-12) : garde stricte ecole_id ───
@@ -10428,12 +10474,13 @@ async function peuplerFiltresNotes(){
   const se=document.getElementById('filter-notes-etudiant');
   if(se)se.innerHTML='<option value="">Tous les étudiants</option>'+tousLesEtudiants.map(e=>`<option value="${e.id}">${esc(e.nom)} ${esc(e.prenom)}</option>`).join('');
 }
-function ouvrirModifierNote(id,etudiantId,matiere,note,coeff,periode,commentaire){
+function ouvrirModifierNote(id,etudiantId,matiere,note,coeff,periode,commentaire,typeEval){
   document.getElementById('input-note-etudiant').value=etudiantId;
   document.getElementById('input-note-matiere').value=matiere;
   document.getElementById('input-note-valeur').value=note;
   document.getElementById('input-note-coeff').value=coeff;
   document.getElementById('input-note-periode').value=periode;
+  const it=document.getElementById('input-note-type');if(it)it.value=typeEval||'devoir_surveille';
   const ic=document.getElementById('input-note-commentaire');if(ic)ic.value=commentaire.replace(/&apos;/g,"'");
   const modal=document.getElementById('modal-note');if(modal)modal.dataset.editId=id;
   const h3=document.querySelector('#modal-note h3');if(h3)h3.textContent='✏️ Modifier la note';
@@ -10449,7 +10496,7 @@ async function enregistrerOuModifierNote(){
   const note=parseFloat(document.getElementById('input-note-valeur').value);
   if(!matiere||isNaN(note)){showToast('Remplissez matière et note.','error');return;}
   if(note<0||note>20){showToast('Note entre 0 et 20.','error');return;}
-  const payload={matiere,note,coefficient:parseInt(document.getElementById('input-note-coeff').value)||2,periode:document.getElementById('input-note-periode').value,commentaire:document.getElementById('input-note-commentaire')?.value.trim()||''};
+  const payload={matiere,note,coefficient:parseInt(document.getElementById('input-note-coeff').value)||2,periode:document.getElementById('input-note-periode').value,commentaire:document.getElementById('input-note-commentaire')?.value.trim()||'',type_evaluation:document.getElementById('input-note-type')?.value||'devoir_surveille'};
   let error;
   if(editId){({error}=await db.from('notes').update(payload).eq('id',editId).eq('ecole_id', _eid));}
   else{({error}=await db.from('notes').insert([{...payload,ecole_id:currentEcoleId,etudiant_id:document.getElementById('input-note-etudiant').value}]));}
@@ -10459,6 +10506,7 @@ async function enregistrerOuModifierNote(){
   const h3=document.querySelector('#modal-note h3');if(h3)h3.textContent='📝 Saisir une note';
   ['input-note-matiere','input-note-valeur','input-note-commentaire'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('input-note-coeff').value='2';
+  const _resetType = document.getElementById('input-note-type'); if (_resetType) _resetType.value = 'devoir_surveille';
   showToast(editId?'✅ Note modifiée !':'Note enregistrée !','success');
   invalidateData('notes');
   chargerNotes();chargerDashboard();
@@ -10621,9 +10669,9 @@ async function chargerBulletin() {
       <div class="bstat"><div class="val">${notes.length}</div><div class="lbl">Matières évaluées</div></div>
       <div class="bstat"><div class="val"><span class="badge ${app.cls}">${app.label}</span></div><div class="lbl">Mention</div></div>
     </div>
-    <table><tr><th>Matière</th><th>Note /20</th><th>Coefficient</th><th>Points</th><th>Appréciation</th></tr>
-    ${notes.map(n=>{const a=getApp(n.note);return`<tr><td>${n.matiere}</td><td><strong>${n.note}/20</strong></td><td>${n.coefficient||1}</td><td>${(n.note*(n.coefficient||1)).toFixed(2)}</td><td><span class="badge ${a.cls}">${a.label}</span></td></tr>`;}).join('')}
-    <tr style="background:#f9fafb;font-weight:700"><td>MOYENNE GÉNÉRALE</td><td><strong style="color:#1e3a5f;font-size:15px">${moy.toFixed(2)}/20</strong></td><td>${totalCoeff}</td><td>${totalPts.toFixed(2)}</td><td><span class="badge ${app.cls}">${app.label}</span></td></tr>
+    <table><tr><th>Matière</th><th>Type</th><th>Note /20</th><th>Coefficient</th><th>Points</th><th>Appréciation</th></tr>
+    ${notes.map(n=>{const a=getApp(n.note);return`<tr><td>${n.matiere}</td><td>${typeEvalBadge(n.type_evaluation)}</td><td><strong>${n.note}/20</strong></td><td>${n.coefficient||1}</td><td>${(n.note*(n.coefficient||1)).toFixed(2)}</td><td><span class="badge ${a.cls}">${a.label}</span></td></tr>`;}).join('')}
+    <tr style="background:#f9fafb;font-weight:700"><td colspan="2">MOYENNE GÉNÉRALE</td><td><strong style="color:#1e3a5f;font-size:15px">${moy.toFixed(2)}/20</strong></td><td>${totalCoeff}</td><td>${totalPts.toFixed(2)}</td><td><span class="badge ${app.cls}">${app.label}</span></td></tr>
     </table></div>`;
 }
 function imprimerBulletin() {
@@ -26135,7 +26183,7 @@ document.addEventListener('click', function(e) {
     case 'edit-user':          ouvrirModifierUser(id); break;
     case 'edit-transaction':   ouvrirModifierTransaction(id); break;
     case 'edit-personnel':     ouvrirModifierPersonnel(id); break;
-    case 'edit-note':          ouvrirModifierNote(id,btn.dataset.etu,btn.dataset.mat,btn.dataset.note,btn.dataset.coeff,btn.dataset.per,btn.dataset.com); break;
+    case 'edit-note':          ouvrirModifierNote(id,btn.dataset.etu,btn.dataset.mat,btn.dataset.note,btn.dataset.coeff,btn.dataset.per,btn.dataset.com,btn.dataset.type); break;
     case 'edit-livre':         ouvrirModifierLivre(id); break;
     case 'edit-absence':       ouvrirModifierAbsence(id,btn.dataset.etu,btn.dataset.mat,btn.dataset.date,btn.dataset.statut,btn.dataset.just); break;
     case 'edit-livre-bib':     if(typeof ouvrirModificationLivreBibNum!=='undefined') ouvrirModificationLivreBibNum(id); break;
