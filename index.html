@@ -3935,7 +3935,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
           </div>
 
           <div class="section-label" style="margin-top:1.5rem">Logo de l'établissement</div>
-          <div class="logo-upload-area" onclick="document.getElementById('logo-input').click()">
+          <div class="logo-upload-area" data-action="trigger-logo-input">
             <div id="logo-preview" style="font-size:48px;margin-bottom:.5rem">🏫</div>
             <div class="lu-txt">Cliquez pour choisir un logo</div>
             <div class="lu-sub">PNG, JPG ou SVG · Max 2 MB · Recommandé : 256×256px</div>
@@ -4066,7 +4066,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
               <div class="integ-nom">Mobile Money (MTN / Moov Bénin)</div>
               <div class="integ-desc">Paiement des frais de scolarité en ligne — contactez votre opérateur pour l'API</div>
             </div>
-            <button class="btn-sm btn-secondary" onclick="showToast('💳 Contactez MTN Bénin ou Moov Africa pour activer l\'API MoMo sur votre compte marchand','info')">ℹ️ Infos</button>
+            <button class="btn-sm btn-secondary" data-action="info-momo">ℹ️ Infos</button>
           </div>
 
           <!-- Google Drive -->
@@ -4106,7 +4106,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
             <div style="display:flex;gap:8px;margin-top:.75rem">
               <button data-action="sauvegarder-config-brevo">💾 Sauvegarder</button>
               <button class="btn-secondary" data-action="tester-brevo">🧪 Tester</button>
-              <button class="btn-secondary" onclick="document.getElementById('config-brevo-panel').style.display='none'">Annuler</button>
+              <button class="btn-secondary" data-action="fermer-brevo-panel">Annuler</button>
             </div>
           </div>
 
@@ -4613,7 +4613,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
           <a href="#" data-action="show-page" data-page="parametres-avances" style="color:#b45309;font-weight:600;text-decoration:underline;font-size:12.5px">→ Paramètres Avancés → Intégrations → Brevo</a>
         </div>
       </div>
-      <button onclick="document.getElementById('sms-dmarc-banner').style.display='none'" style="background:none;border:none;font-size:16px;cursor:pointer;color:#92400e;padding:0;flex-shrink:0">✕</button>
+      <button data-action="fermer-dmarc-banner" style="background:none;border:none;font-size:16px;cursor:pointer;color:#92400e;padding:0;flex-shrink:0">✕</button>
     </div>
   </div>
 
@@ -5321,7 +5321,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
         <div style="background:#fff;padding:7px 10px;border-radius:7px;border:1px solid #e5e7eb;font-size:12px;font-weight:600;color:#1e3a5f;display:flex;align-items:center;justify-content:space-between;gap:8px">
           <span id="portail-url" style="word-break:break-all;flex:1">—</span>
           <button class="btn-sm btn-blue" data-action="copier-lien-portail" style="padding:3px 10px;font-size:11px;flex-shrink:0">Copier</button>
-          <button class="btn-sm btn-secondary" onclick="window.open(document.getElementById('portail-url').textContent,'_blank')" style="padding:3px 10px;font-size:11px;flex-shrink:0">Ouvrir ↗</button>
+          <button class="btn-sm btn-secondary" data-action="ouvrir-portail-url" style="padding:3px 10px;font-size:11px;flex-shrink:0">Ouvrir ↗</button>
         </div>
       </div>
     </div>
@@ -6381,7 +6381,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
       <strong>Colonnes :</strong> <code style="font-size:11px">nom · prenom · email · telephone · specialite · grade · heures_semaine · matieres (séparées par ;) · statut</code><br><br>
       <a href="#" data-action="telecharger-modele-ens" style="font-weight:700;color:#1d4ed8;text-decoration:underline">⬇️ Télécharger le modèle Excel</a>
     </div>
-    <div id="ens-drop-zone" onclick="document.getElementById('input-import-ens-file').click()"
+    <div id="ens-drop-zone" data-action="trigger-ens-import"
          ondragover="event.preventDefault();this.style.borderColor='#1d4ed8'"
          ondragleave="this.style.borderColor='#e5e7eb'"
          ondrop="gererDropExcelEns(event)"
@@ -6726,7 +6726,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 <div class="modal-overlay" id="modal-document">
   <div class="modal">
     <h3>📄 Ajouter un document</h3>
-    <div class="upload-drop" onclick="document.getElementById('input-doc-file').click()">
+    <div class="upload-drop" data-action="trigger-doc-upload">
       <div class="ud-ico">📁</div>
       <div class="ud-txt">Cliquer pour choisir un fichier</div>
       <div class="ud-sub">PDF, DOCX, XLSX, JPG, PNG — max 10 Mo</div>
@@ -6992,7 +6992,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
 
     <div class="modal-footer">
       <button class="btn-secondary" data-action="fermer-modal" data-modal="modal-fiche-enseignant">Fermer</button>
-      <button class="btn-blue" id="btn-edit-ens" onclick="">✏️ Modifier</button>
+      <button class="btn-blue" id="btn-edit-ens" data-action="edit-ens-actif">✏️ Modifier</button>
     </div>
   </div>
 </div>
@@ -7419,7 +7419,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div style="font-size:11px;opacity:.75">Accès rapide depuis votre écran d'accueil</div>
   </div>
   <button class="pb-btn" id="pwa-install-btn">Installer</button>
-  <span class="pb-close" onclick="document.getElementById('pwa-banner').classList.remove('show')">✕</span>
+  <span class="pb-close" data-action="fermer-pwa-banner">✕</span>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -15126,7 +15126,7 @@ function afficherThemes() {
   const grid = document.getElementById('brand-themes-grid');
   if (!grid || !tousThemes.length) return;
   grid.innerHTML = tousThemes.map(t => `
-    <div class="theme-pill" onclick="appliquerTheme(${JSON.stringify(t).replace(/"/g,'&quot;')})"
+    <div class="theme-pill" data-action="appliquer-theme" data-theme-json="${JSON.stringify(t).replace(/"/g,'&quot;').replace(/'/g,'&#39;')}"
          title="${t.description || t.nom}">
       <div class="tp-bar" style="background:linear-gradient(90deg,${t.couleur_primaire},${t.couleur_secondaire})"></div>
       <div style="width:12px;height:12px;border-radius:50%;background:${t.couleur_accent};margin:0 auto 3px"></div>
@@ -19912,7 +19912,7 @@ function renderThemeGrid() {
   const grid = document.getElementById('theme-grid');
   if (!grid) return;
   grid.innerHTML = (typeof THEMES_COLORS !== 'undefined' ? THEMES_COLORS : []).map((t,i)=>`
-    <div class="theme-swatch ${i===0?'selected':''}" style="background:${t.color}" title="${t.nom}" onclick="selectionnerTheme(this,'${t.color}')"></div>
+    <div class="theme-swatch ${i===0?'selected':''}" style="background:${t.color}" title="${t.nom}" data-action="selectionner-theme" data-color="${t.color}"></div>
   `).join('');
 }
 
@@ -20313,7 +20313,7 @@ async function chargerPortailEtudiant(id) {
         const taille = d.taille ? (d.taille > 1048576 ? (d.taille/1048576).toFixed(1)+' MB' : Math.round(d.taille/1024)+' KB') : '';
         return `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:.85rem;cursor:pointer;transition:all .15s"
           onmouseenter="this.style.borderColor='#1e3a5f'" onmouseleave="this.style.borderColor='#e5e7eb'"
-          onclick="${d.url ? `window.open('${d.url}','_blank')` : `showToast('📂 ${d.nom} — Pas de lien disponible','info')`}">
+          data-action="ouvrir-document-portail" data-url="${d.url||''}" data-nom="${(d.nom||'').replace(/"/g,'&quot;')}">
           <div style="font-size:24px;margin-bottom:.4rem">${ico}</div>
           <div style="font-size:12.5px;font-weight:700;color:#111827;margin-bottom:2px">${d.nom||'—'}</div>
           <div style="font-size:11px;color:#9ca3af">${ext.toUpperCase()||'Fichier'}${taille?' · '+taille:''}</div>
@@ -21261,7 +21261,7 @@ async function chargerHistoriqueMessagesTab() {
 function renderSMSTemplates() {
   const grid = document.getElementById('sms-templates-grid');
   if (!grid) return;
-  grid.innerHTML = SMS_TEMPLATES.map(t=>`<div class="sms-template-card" onclick="utiliserTemplate(this.dataset.msg)" data-msg="${t.msg.replace(/"/g,'&quot;')}">
+  grid.innerHTML = SMS_TEMPLATES.map(t=>`<div class="sms-template-card" data-action="utiliser-sms-template" data-msg="${t.msg.replace(/"/g,'&quot;')}">
     <div class="st-ico">${t.ico}</div>
     <div class="st-nom">${t.nom}</div>
     <div class="st-preview">${t.preview}</div>
@@ -21331,7 +21331,7 @@ function ajouterDestinataire() {
     const span  = document.createElement('span');
     span.className = 'badge green';
     span.style.cssText = 'display:inline-flex;align-items:center;gap:4px';
-    span.innerHTML = `${label}<button onclick="retirerDestinataire('${val}',this.parentElement)" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0;color:#059669">×</button>`;
+    span.innerHTML = `${label}<button data-action="retirer-destinataire" data-val="${val.replace(/"/g,'&quot;')}" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0;color:#059669">×</button>`;
     tags.appendChild(span);
   }
   sel.value = '';
@@ -22380,7 +22380,7 @@ function renderExecAlertes() {
     <span style="font-size:20px">${a.ico}</span>
     <div><div style="font-size:13px;font-weight:700;color:${a.type==="danger"?"#dc2626":a.type==="warning"?"#d97706":"#1d4ed8"}">${esc(a.titre)}</div>
     <div style="font-size:12px;color:#6b7280;margin-top:2px">${esc(a.detail)}</div></div>
-    <button class="btn-sm btn-secondary" style="margin-left:auto;flex-shrink:0" onclick="${a.action}">Voir</button>
+    <button class="btn-sm btn-secondary" data-action="exec-alerte-voir" data-raw="${esc(a.action)}" style="margin-left:auto;flex-shrink:0">Voir</button>
   </div>`).join("");
 }
 
@@ -22753,7 +22753,7 @@ function renderExecRapports() {
     <div class="eri-ico" style="background:${r.bg}">${r.ico}</div>
     <div class="eri-body"><div class="eri-titre">${r.titre}</div><div class="eri-desc">${r.desc}</div></div>
     <div class="eri-date">${new Date().toLocaleDateString("fr-FR")}</div>
-    <button class="btn-sm btn-secondary" onclick="${r.action}">📥</button>
+    <button class="btn-sm btn-secondary" data-action="exec-rapport-dl" data-raw="${esc(r.action)}">📥</button>
   </div>`).join("");
 }
 
@@ -23876,7 +23876,7 @@ function previsualiserSitePublic() {
   <footer>© ${new Date().getFullYear()} ${esc(nom)} · Site propulsé par EduLink</footer>
   <button type="button" class="back-top" id="backTop" title="Retour en haut" data-action="scroll-top">↑</button>
   <!-- Modal Inscription -->
-  <div class="modal-bg" id="modalInscr" onclick="if(event.target===this)ppCloseModal()">
+  <div class="modal-bg" id="modalInscr" data-action="modal-bg-inscr">
     <div class="modal-box">
       <div class="modal-head">
         <h3>📝 Demande d'inscription</h3>
@@ -24517,7 +24517,7 @@ async function chargerConversations() {
     const colors = ['#1e3a5f','#059669','#d97706','#7c3aed','#dc2626','#1d4ed8'];
 
     list.innerHTML = utilisateurs.map((u,i) => `
-      <div class="chat-conv-item" onclick="ouvrirChat('${u.id}','${(u.prenom||'')+' '+(u.nom||'')}'.trim()','${colors[i%colors.length]}')">
+      <div class="chat-conv-item" data-action="ouvrir-chat" data-id="${u.id}" data-nom="${((u.prenom||'')+' '+(u.nom||'')).trim().replace(/"/g,'&quot;')}" data-color="${colors[i%colors.length]}">
         <div class="cci-ava" style="background:${colors[i%colors.length]}">${(u.nom||'?')[0].toUpperCase()}</div>
         <div class="cci-body">
           <div class="cci-name">${u.prenom||''} ${u.nom||''}</div>
@@ -26028,11 +26028,11 @@ function telechargerModeleEnseignantsExcel() {
 <div class="offline-banner" id="offline-banner">
   📡 Mode hors-ligne — Les modifications seront synchronisées dès la reconnexion
   <span class="sync-badge" data-action="forcer-sync">🔄 Synchroniser</span>
-  <span style="cursor:pointer;opacity:.7" onclick="document.getElementById('offline-banner').classList.remove('show')">✕</span>
+  <span style="cursor:pointer;opacity:.7" data-action="fermer-offline-banner">✕</span>
 </div>
 
 <!-- ══ RECHERCHE GLOBALE ══ -->
-<div class="search-global-wrap" id="search-global-wrap" onclick="if(event.target===this)fermerRecherche()">
+<div class="search-global-wrap" id="search-global-wrap" data-action="search-global-bg">
   <div class="search-global-box">
     <div class="search-global-input-wrap">
       <span class="search-global-icon">🔍</span>
@@ -26699,6 +26699,28 @@ document.addEventListener('click', function(e) {
     case 'pp-del-actu':        if(typeof ppSupprimerActualite!=='undefined') ppSupprimerActualite(id); break;
     case 'pp-edit-actu':       if(typeof ppEditerActualite!=='undefined') ppEditerActualite(id); break;
     case 'pp-del-photo':       if(typeof ppSupprimerPhoto!=='undefined') ppSupprimerPhoto(id); break;
+    // ── EXPERT-03 (2026-05-18) : migrations onclick → data-action ──
+    case 'trigger-logo-input':      { const i=document.getElementById('logo-input'); if(i) i.click(); break; }
+    case 'info-momo':               showToast('💳 Contactez MTN Bénin ou Moov Africa pour activer l\'API MoMo sur votre compte marchand','info'); break;
+    case 'fermer-brevo-panel':      { const p=document.getElementById('config-brevo-panel'); if(p) p.style.display='none'; break; }
+    case 'fermer-dmarc-banner':     { const b=document.getElementById('sms-dmarc-banner'); if(b) b.style.display='none'; break; }
+    case 'ouvrir-portail-url':      { const u=document.getElementById('portail-url'); if(u&&u.textContent) window.open(u.textContent,'_blank'); break; }
+    case 'trigger-ens-import':      { const i=document.getElementById('input-import-ens-file'); if(i) i.click(); break; }
+    case 'trigger-doc-upload':      { const i=document.getElementById('input-doc-file'); if(i) i.click(); break; }
+    case 'edit-ens-actif':          { const id2=document.getElementById('ens-detail-id')?.textContent; if(id2) editerEnseignant(id2); break; }
+    case 'fermer-pwa-banner':       document.getElementById('pwa-banner')?.classList.remove('show'); break;
+    case 'modal-bg-inscr':          if(e.target===btn && typeof ppCloseModal==='function') ppCloseModal(); break;
+    case 'fermer-offline-banner':   document.getElementById('offline-banner')?.classList.remove('show'); break;
+    case 'search-global-bg':        if(e.target===btn && typeof fermerRecherche==='function') fermerRecherche(); break;
+    case 'appliquer-theme':         { try{ const t=JSON.parse(btn.dataset.themeJson||'{}'); if(typeof appliquerTheme==='function') appliquerTheme(t); }catch(ex){} break; }
+    case 'selectionner-theme':      if(typeof selectionnerTheme==='function') selectionnerTheme(btn, btn.dataset.color||''); break;
+    case 'ouvrir-document-portail': { const du=btn.dataset.url; if(du) window.open(du,'_blank'); else showToast('📂 '+(btn.dataset.nom||'Fichier')+' — Pas de lien disponible','info'); break; }
+    case 'utiliser-sms-template':   if(typeof utiliserTemplate==='function') utiliserTemplate(btn.dataset.msg||''); break;
+    case 'retirer-destinataire':    if(typeof retirerDestinataire==='function') retirerDestinataire(val, btn.parentElement); break;
+    case 'exec-alerte-voir':        { const raw=btn.dataset.raw||''; if(/^showPage\('[a-z0-9-]+'\)$/.test(raw)) { eval(raw); } break; }
+    case 'exec-rapport-dl':         { const raw=btn.dataset.raw||''; if(/^[a-zA-Z_][a-zA-Z0-9_]*\(\)$/.test(raw)) { eval(raw); } break; }
+    case 'ouvrir-chat':             if(typeof ouvrirChat==='function') ouvrirChat(id, btn.dataset.nom||'', btn.dataset.color||'#1e3a5f'); break;
+    // ── fin EXPERT-03 ──
     case 'pp-voir-inscription':if(typeof ppVoirInscription!=='undefined') ppVoirInscription(id); break;
     // ── Prospects (landing edulink.bj) ──
     case 'prospects-voir':              if(typeof prospectVoir!=='undefined') prospectVoir(id); break;
