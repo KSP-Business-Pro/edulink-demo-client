@@ -2550,6 +2550,26 @@ button:hover { background:#a86615; transform:translateY(-1px); }
     <div class="card"><div class="i">💳</div><div class="n" style="color:#c97c1a" id="stat-impayés">…</div><div class="l">Factures impayées</div></div>
     <div class="card"><div class="i">⚠️</div><div class="n" style="color:#7c3aed" id="stat-incidents">…</div><div class="l">Incidents ouverts</div></div>
   </div>
+  <!-- UX-02 (2026-05-18) : Onboarding checklist -->
+  <div id="onboarding-checklist" style="display:none;background:linear-gradient(135deg,#f0fdf4 0%,#eff6ff 100%);border:1.5px solid #86efac;border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1.25rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#1e3a5f">🚀 Démarrage de votre établissement</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px">Complétez ces étapes pour tirer le meilleur d'EduLink</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <div id="onboarding-progress-text" style="font-size:12px;font-weight:600;color:#059669">0 / 5 complétées</div>
+        <button data-action="onboarding-ignorer" style="background:none;border:none;cursor:pointer;font-size:11px;color:#9ca3af;text-decoration:underline;padding:0">Ignorer</button>
+      </div>
+    </div>
+    <div style="background:#e5e7eb;border-radius:99px;height:5px;margin-bottom:1rem;overflow:hidden">
+      <div id="onboarding-progress-bar" style="height:100%;border-radius:99px;background:linear-gradient(90deg,#059669,#0f766e);width:0%;transition:width .4s ease"></div>
+    </div>
+    <div id="onboarding-steps" style="display:flex;flex-direction:column;gap:.5rem">
+      <!-- rempli dynamiquement par renderOnboardingChecklist() -->
+    </div>
+  </div>
+
   <div class="dash-grid" style="margin-bottom:1rem">
     <div class="dash-block">
       <div class="block-title">Répartition par filière</div>
@@ -10039,6 +10059,157 @@ function ouvrirModalCreerPremierEtablissement() {
   if (sub) sub.textContent = 'Premier établissement = établissement principal (siège du réseau).';
 }
 
+// ═══════════════════════════════════════════════════════════════
+// UX-02 (2026-05-18) : Onboarding Checklist — Démarrage établissement
+// Détection auto via Supabase. Persistance localStorage par ecole_id.
+// 5 étapes : infos école, logo/couleurs, classe, enseignant, étudiant.
+// ═══════════════════════════════════════════════════════════════
+
+const ONBOARDING_STEPS = [
+  {
+    id: 'infos',
+    ico: '🏫',
+    label: 'Informations de l\'école',
+    desc: 'Nom, ville, téléphone, email renseignés',
+    page: 'parametres',
+    cta: 'Compléter',
+  },
+  {
+    id: 'branding',
+    ico: '🎨',
+    label: 'Logo & couleurs',
+    desc: 'Logo uploadé et palette de couleurs définie',
+    page: 'parametres',
+    cta: 'Personnaliser',
+  },
+  {
+    id: 'classe',
+    ico: '📚',
+    label: 'Première classe créée',
+    desc: 'Au moins une classe ou filière configurée',
+    page: 'classes',
+    cta: 'Créer une classe',
+  },
+  {
+    id: 'enseignant',
+    ico: '👨‍🏫',
+    label: 'Premier enseignant ajouté',
+    desc: 'Au moins un enseignant dans l\'établissement',
+    page: 'enseignants',
+    cta: 'Ajouter un enseignant',
+  },
+  {
+    id: 'etudiant',
+    ico: '🎓',
+    label: 'Premier étudiant inscrit',
+    desc: 'Au moins un étudiant enregistré',
+    page: 'etudiants',
+    cta: 'Inscrire un étudiant',
+  },
+];
+
+// Clé localStorage par école (persiste l'état "ignoré" + étapes manuellement forcées)
+function _onboardingKey() {
+  return `edulink_onboarding_${currentEcoleId || 'default'}`;
+}
+
+function _onboardingGetState() {
+  try {
+    const raw = localStorage.getItem(_onboardingKey());
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function _onboardingSetState(patch) {
+  try {
+    const state = { ..._onboardingGetState(), ...patch };
+    localStorage.setItem(_onboardingKey(), JSON.stringify(state));
+  } catch(e) { /* quota localStorage dépassé, on ignore */ }
+}
+
+// Détection auto : interroge Supabase en parallèle
+async function onboardingDetecterEtapes() {
+  const eid = currentEcoleId;
+  if (!eid) return {};
+
+  const ecole = (tousLesEcoles || []).find(e => e.id === eid) || {};
+
+  // 5 requêtes en parallèle (COUNT uniquement = très léger)
+  const [resClasses, resEns, resEtu] = await Promise.all([
+    db.from('classes').select('id', { count: 'exact', head: true }).eq('ecole_id', eid),
+    db.from('enseignants').select('id', { count: 'exact', head: true }).eq('ecole_id', eid),
+    db.from('etudiants').select('id', { count: 'exact', head: true }).eq('ecole_id', eid),
+  ]);
+
+  return {
+    infos:      !!(ecole.nom && ecole.ville && (ecole.telephone || ecole.email)),
+    branding:   !!(ecole.logo_url || ecole.couleur_primaire),
+    classe:     (resClasses.count || 0) > 0,
+    enseignant: (resEns.count || 0) > 0,
+    etudiant:   (resEtu.count || 0) > 0,
+  };
+}
+
+async function chargerOnboarding() {
+  const bloc = document.getElementById('onboarding-checklist');
+  if (!bloc) return;
+
+  // Si l'utilisateur a ignoré la checklist pour cette école, on ne l'affiche pas
+  const state = _onboardingGetState();
+  if (state.ignore) { bloc.style.display = 'none'; return; }
+
+  const done = await onboardingDetecterEtapes();
+  const nbDone = ONBOARDING_STEPS.filter(s => done[s.id]).length;
+
+  // Toutes les étapes complètes → disparaît définitivement
+  if (nbDone === ONBOARDING_STEPS.length) {
+    _onboardingSetState({ ignore: true });
+    bloc.style.display = 'none';
+    return;
+  }
+
+  renderOnboardingChecklist(done, nbDone);
+  bloc.style.display = 'block';
+}
+
+function renderOnboardingChecklist(done, nbDone) {
+  const stepsEl = document.getElementById('onboarding-steps');
+  const barEl   = document.getElementById('onboarding-progress-bar');
+  const txtEl   = document.getElementById('onboarding-progress-text');
+  if (!stepsEl) return;
+
+  const pct = Math.round((nbDone / ONBOARDING_STEPS.length) * 100);
+  if (barEl) barEl.style.width = pct + '%';
+  if (txtEl) {
+    txtEl.textContent = `${nbDone} / ${ONBOARDING_STEPS.length} complétées`;
+    txtEl.style.color = nbDone >= 3 ? '#059669' : '#d97706';
+  }
+
+  stepsEl.innerHTML = ONBOARDING_STEPS.map(s => {
+    const ok = done[s.id];
+    return `<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .85rem;border-radius:10px;background:${ok ? 'rgba(5,150,105,.07)' : '#fff'};border:1px solid ${ok ? '#86efac' : '#e5e7eb'};transition:all .2s">
+      <div style="width:28px;height:28px;border-radius:50%;background:${ok ? '#059669' : '#e5e7eb'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">
+        ${ok ? '✓' : s.ico}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:${ok ? '#059669' : '#374151'};${ok ? 'text-decoration:line-through;opacity:.7' : ''}">${s.label}</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:1px">${s.desc}</div>
+      </div>
+      ${!ok ? `<button class="btn-sm btn-blue" data-action="onboarding-goto" data-page="${s.page}" style="flex-shrink:0;font-size:11px">${s.cta} →</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function onboardingIgnorer() {
+  _onboardingSetState({ ignore: true });
+  const bloc = document.getElementById('onboarding-checklist');
+  if (bloc) {
+    bloc.style.transition = 'opacity .3s';
+    bloc.style.opacity = '0';
+    setTimeout(() => { bloc.style.display = 'none'; bloc.style.opacity = ''; }, 300);
+  }
+}
+
 async function chargerDashboard() {
   // Si aucune école n'existe, on n'interroge pas Supabase et on affiche l'écran d'accueil
   if (!tousLesEcoles || tousLesEcoles.length === 0) {
@@ -10089,6 +10260,8 @@ async function chargerDashboard() {
   const sub = document.getElementById('dash-subtitle');
   if (ecole && sub) sub.textContent = 'Vue générale — ' + ecole.nom;
   setTimeout(chargerDashboardCharts, 200);
+  // UX-02 : charger la checklist onboarding (non bloquant)
+  chargerOnboarding().catch(e => console.warn('[onboarding]', e));
 }
 
 // ══ ÉTUDIANTS ════════════════════════════════
@@ -26699,6 +26872,9 @@ document.addEventListener('click', function(e) {
     case 'pp-del-actu':        if(typeof ppSupprimerActualite!=='undefined') ppSupprimerActualite(id); break;
     case 'pp-edit-actu':       if(typeof ppEditerActualite!=='undefined') ppEditerActualite(id); break;
     case 'pp-del-photo':       if(typeof ppSupprimerPhoto!=='undefined') ppSupprimerPhoto(id); break;
+    // ── UX-02 : Onboarding checklist ──
+    case 'onboarding-ignorer': onboardingIgnorer(); break;
+    case 'onboarding-goto':    if(typeof showPage==='function') showPage(btn.dataset.page||'parametres'); break;
     // ── EXPERT-03 (2026-05-18) : migrations onclick → data-action ──
     case 'trigger-logo-input':      { const i=document.getElementById('logo-input'); if(i) i.click(); break; }
     case 'info-momo':               showToast('💳 Contactez MTN Bénin ou Moov Africa pour activer l\'API MoMo sur votre compte marchand','info'); break;
