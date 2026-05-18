@@ -1656,6 +1656,7 @@ async function envoyerMessage() {
 const EDGE_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/bright-handler';
 const SUPABASE_ANON = 'sb_publishable_qRSHSH88vHxJ9pfXJMHksQ_iVawwupX';
 let otpTimer = null;
+let otpExpiresAt = 0; // OTP-TIMER-UI (2026-05-18) : timestamp absolu d'expiration (ms)
 let otpTelephone = '';
 let otpEtudiantTrouve = null; // P2.9 : stocke l'étudiant trouvé à l'étape 1
 
@@ -1735,6 +1736,7 @@ async function envoyerOTP() {
   document.getElementById('otp-step2').style.display = 'block';
   document.getElementById('otp-phone-display').textContent = tel;
   document.getElementById('d0').focus();
+  otpExpiresAt = Date.now() + 5 * 60 * 1000; // OTP-TIMER-UI : référence temporelle absolue
   lancerCompteur();
   // Le hint démo 123456 n'est plus pertinent — vrai SMS envoyé
 }
@@ -1882,14 +1884,23 @@ async function connecterParTelephone(tel) {
 
 
 function lancerCompteur() {
-  let secs = 300;
+  // OTP-TIMER-UI (2026-05-18) : calcul depuis otpExpiresAt (timestamp absolu)
+  // → synchronisé avec l'expiration réelle serveur, résistant au drift setInterval
+  // → si retour arrière / re-appel, le temps restant est correct (pas de reset à 5:00)
   clearInterval(otpTimer);
   otpTimer = setInterval(() => {
-    secs--;
-    const m = Math.floor(secs/60), s = secs%60;
+    const secs = Math.max(0, Math.round((otpExpiresAt - Date.now()) / 1000));
+    const m = Math.floor(secs / 60), s = secs % 60;
     const el = document.getElementById('otp-countdown');
-    if (el) el.textContent = m + ':' + String(s).padStart(2,'0');
-    if (secs <= 0) { clearInterval(otpTimer); if(el) el.textContent = 'Expiré'; }
+    if (el) {
+      el.textContent = m + ':' + String(s).padStart(2, '0');
+      // Passer en rouge dans les 60 dernières secondes
+      el.style.color = secs <= 60 ? '#dc2626' : '';
+    }
+    if (secs <= 0) {
+      clearInterval(otpTimer);
+      if (el) { el.textContent = 'Expiré'; el.style.color = '#dc2626'; }
+    }
   }, 1000);
 }
 
