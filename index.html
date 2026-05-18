@@ -2485,6 +2485,7 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   <a data-action="show-page" data-page="pwa-avancee" id="nav-pwa-avancee"><span class="ico">📱</span> PWA Avancée</a>
   <a data-action="show-page" data-page="exec-dashboard" id="nav-exec-dashboard"><span class="ico">📊</span> Dashboard Directeur</a>
   <a data-action="show-page" data-page="portail-public" id="nav-portail-public"><span class="ico">🌎</span> Portail Public</a>
+  <a data-action="show-page" data-page="prospects" id="nav-prospects"><span class="ico">🎯</span> Prospects <span id="badge-prospects" style="margin-left:auto;background:#0f766e;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;display:none"></span></a>
   <a data-action="show-page" data-page="parametres" id="nav-parametres"><span class="ico">⚙️</span> Paramètres</a>
 
   <div class="nav-bottom">
@@ -5147,9 +5148,91 @@ button:hover { background:#a86615; transform:translateY(-1px); }
   </div>
 </div>
 
-<div class="page" id="page-parametres">
+<!-- ═══════════════════════════════════════
+     PROSPECTS — Vue back-office des leads landing edulink.bj
+     Source : table public.prospects_diagnostic
+     Accès  : admin / directeur uniquement
+     Ajouté : 2026-05-18
+═══════════════════════════════════════ -->
+<div class="page" id="page-prospects">
   <div class="top">
-    <div><h2>⚙️ Paramètres</h2><p class="page-subtitle">Configuration de l'établissement et préférences personnelles</p></div>
+    <div>
+      <h2>🎯 Prospects</h2>
+      <p class="page-subtitle">Leads commerciaux issus de la landing edulink.bj — demandes de diagnostic gratuit</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn-secondary" data-action="prospects-refresh">🔄 Actualiser</button>
+      <button class="btn-secondary" data-action="prospects-export-csv">📥 Export CSV</button>
+    </div>
+  </div>
+
+  <!-- KPIs par statut (cohérence visuelle navy/teal) -->
+  <div class="portail-pub-hero" style="background:linear-gradient(135deg,#1e3a5f 0%,#0f766e 100%)">
+    <div>
+      <h2>🎯 Pipeline commercial</h2>
+      <p>Suivi des demandes entrantes — du contact initial à la signature</p>
+    </div>
+    <div class="portail-pub-kpis">
+      <div class="pp-kpi"><div class="ppk-val" id="kpi-prosp-total">0</div><div class="ppk-lbl">Total</div></div>
+      <div class="pp-kpi"><div class="ppk-val" id="kpi-prosp-nouveau">0</div><div class="ppk-lbl">Nouveaux</div></div>
+      <div class="pp-kpi"><div class="ppk-val" id="kpi-prosp-encours">0</div><div class="ppk-lbl">En cours</div></div>
+      <div class="pp-kpi"><div class="ppk-val" id="kpi-prosp-signe">0</div><div class="ppk-lbl">Signés</div></div>
+    </div>
+  </div>
+
+  <!-- Barre de filtres -->
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
+    <input type="text" id="prosp-recherche" placeholder="🔍 Rechercher nom, école, email, téléphone..." style="flex:1;min-width:220px;padding:.55rem .75rem;border:1px solid #e5e7eb;border-radius:8px;font-size:13px">
+    <select id="prosp-filtre-statut" style="padding:.55rem .75rem;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;background:#fff">
+      <option value="">Tous statuts</option>
+      <option value="nouveau">🆕 Nouveau</option>
+      <option value="contacte">📞 Contacté</option>
+      <option value="rdv_pris">📅 RDV pris</option>
+      <option value="diagnostic_fait">🩺 Diagnostic fait</option>
+      <option value="signe">✅ Signé</option>
+      <option value="refuse">❌ Refusé</option>
+    </select>
+    <button class="btn-secondary" data-action="prospects-reset-filtres" style="padding:.55rem .85rem">Réinitialiser</button>
+    <span id="prosp-nb-resultats" style="margin-left:auto;font-size:12px;color:#6b7280">—</span>
+  </div>
+
+  <!-- Tableau prospects -->
+  <div style="margin-top:1rem;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th style="cursor:pointer" data-action="prospects-trier" data-col="created_at">Reçu ▾</th>
+          <th>Prospect</th>
+          <th>École</th>
+          <th>Effectif</th>
+          <th>Contact</th>
+          <th>Statut</th>
+          <th>Suivi</th>
+          <th style="text-align:right">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="prospects-tbody">
+        <tr><td colspan="8" style="text-align:center;padding:2rem;color:#9ca3af;font-size:13px">Chargement…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ─── Modale détail prospect ─── -->
+<div class="modal-overlay" id="modal-prospect">
+  <div class="modal modal-lg">
+    <h3 id="prosp-modal-titre">Détail prospect</h3>
+    <div id="prosp-modal-body">
+      <!-- rempli dynamiquement par prospectVoir() -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-action="fermer-modal" data-modal="modal-prospect">Fermer</button>
+      <button class="btn-blue" data-action="prospects-sauver-suivi">💾 Enregistrer le suivi</button>
+    </div>
+  </div>
+</div>
+
+
     <div class="top-actions">
       <button class="btn-secondary" data-action="vider-champs-parametres">🗑️ Vider les champs</button>
       <button class="btn-secondary" data-action="param-exporter-config">📦 Exporter config</button>
@@ -9132,8 +9215,8 @@ const exporterExamensCSV       = exporterExamensExcel;
 
 // Permissions par rôle
 const ROLE_PERMISSIONS = {
-  admin:      ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','documents','certificats','rapports','analytics','messages','rh','bibliotheque','bibliotheque-num','portail-etudiant','parametres-avances','assistant-ia','sms-parents','pwa-avancee','exec-dashboard','portail-public','parametres','utilisateurs','calendrier','portail-ens'],
-  directeur:  ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','documents','certificats','rapports','analytics','messages','rh','bibliotheque','bibliotheque-num','reseau','portail-etudiant','dashboard-reseau','parametres-avances','assistant-ia','sms-parents','pwa-avancee','exec-dashboard','portail-public','parametres','utilisateurs','calendrier','portail-ens'],
+  admin:      ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','documents','certificats','rapports','analytics','messages','rh','bibliotheque','bibliotheque-num','portail-etudiant','parametres-avances','assistant-ia','sms-parents','pwa-avancee','exec-dashboard','portail-public','prospects','parametres','utilisateurs','calendrier','portail-ens'],
+  directeur:  ['dashboard','etudiants','notes','presences','paiements','emploi','examens','enseignants','classes','comptabilite','discipline','documents','certificats','rapports','analytics','messages','rh','bibliotheque','bibliotheque-num','reseau','portail-etudiant','dashboard-reseau','parametres-avances','assistant-ia','sms-parents','pwa-avancee','exec-dashboard','portail-public','prospects','parametres','utilisateurs','calendrier','portail-ens'],
   enseignant: ['dashboard','etudiants','notes','presences','emploi','examens','messages','assistant-ia','portail-etudiant','portail-ens'],
   comptable:  ['dashboard','paiements','comptabilite','rapports','messages','etudiants'],
   secretaire: ['dashboard','etudiants','documents','certificats','messages','classes'],
@@ -9343,6 +9426,7 @@ function showPage(p) {
     'pwa-avancee':       chargerPWAAvancee,
     'exec-dashboard':    chargerExecDashboard,
     'portail-public':    chargerPortailPublic,
+    'prospects':         chargerProspects,
   };
   if (p === 'certificats') { chargerBranding(); }
   if (loaders[p]) loaders[p]();
@@ -22865,7 +22949,354 @@ async function ppChargerActualites() {
   return res.data || [];
 }
 
-async function chargerPortailPublic() {
+// ═══════════════════════════════════════════════════════════════
+// PROSPECTS — Gestion des leads landing edulink.bj
+// Table   : public.prospects_diagnostic
+// Accès   : admin / directeur (RLS côté Supabase : prospects_admin_all)
+// Ajouté  : 2026-05-18
+// ═══════════════════════════════════════════════════════════════
+
+const PROSPECTS_STATUTS = {
+  nouveau:         { lbl: "🆕 Nouveau",          cls: "amber" },
+  contacte:        { lbl: "📞 Contacté",         cls: "blue"  },
+  rdv_pris:        { lbl: "📅 RDV pris",         cls: "blue"  },
+  diagnostic_fait: { lbl: "🩺 Diagnostic fait",  cls: "purple"},
+  signe:           { lbl: "✅ Signé",            cls: "green" },
+  refuse:          { lbl: "❌ Refusé",           cls: "red"   },
+};
+
+let _prospectsState = {
+  data:      [],      // tous les prospects chargés
+  filtres:   { recherche: "", statut: "" },
+  tri:       { col: "created_at", asc: false },
+  selected:  null,    // prospect ouvert dans la modale
+};
+
+// Charge tous les prospects (admin/directeur uniquement, RLS gère le reste)
+async function chargerProspectsData() {
+  let res = await db.from("prospects_diagnostic")
+    .select("id,nom,fonction,ecole_nom,effectif,creneau,telephone,email,message,statut,notes_internes,rappele_par,rappele_at,source,created_at")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (res.error && /column .* does not exist/i.test(res.error.message)) {
+    res = await db.from("prospects_diagnostic").select("*").order("created_at", { ascending: false }).limit(500);
+  }
+  if (res.error) {
+    console.warn("[Prospects] chargement:", res.error.message);
+    showToast("Erreur chargement prospects : " + res.error.message, "error");
+    return [];
+  }
+  return res.data || [];
+}
+
+async function chargerProspects() {
+  // Garde : réservé admin / directeur
+  if (currentRole !== "admin" && currentRole !== "directeur") {
+    const tbody = document.getElementById("prospects-tbody");
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#dc2626;font-size:13px">⛔ Accès réservé aux comptes admin et directeur.</td></tr>';
+    return;
+  }
+
+  // Brancher listeners de filtres (une seule fois)
+  const inp = document.getElementById("prosp-recherche");
+  if (inp && !inp._bound) {
+    inp._bound = true;
+    inp.addEventListener("input", () => {
+      _prospectsState.filtres.recherche = inp.value.trim().toLowerCase();
+      renderProspects();
+    });
+  }
+  const sel = document.getElementById("prosp-filtre-statut");
+  if (sel && !sel._bound) {
+    sel._bound = true;
+    sel.addEventListener("change", () => {
+      _prospectsState.filtres.statut = sel.value;
+      renderProspects();
+    });
+  }
+
+  _prospectsState.data = await chargerProspectsData();
+  renderProspects();
+  prospectsMajBadgeNav();
+}
+
+function prospectsFiltrerEtTrier() {
+  const { recherche, statut } = _prospectsState.filtres;
+  const { col, asc } = _prospectsState.tri;
+  let out = _prospectsState.data.filter(p => {
+    if (statut && (p.statut || "nouveau") !== statut) return false;
+    if (recherche) {
+      const hay = [p.nom, p.ecole_nom, p.email, p.telephone, p.fonction, p.message]
+        .filter(Boolean).join(" ").toLowerCase();
+      if (!hay.includes(recherche)) return false;
+    }
+    return true;
+  });
+  out.sort((a, b) => {
+    const va = a[col] || "", vb = b[col] || "";
+    if (va < vb) return asc ? -1 : 1;
+    if (va > vb) return asc ?  1 : -1;
+    return 0;
+  });
+  return out;
+}
+
+function renderProspects() {
+  const tbody = document.getElementById("prospects-tbody");
+  if (!tbody) return;
+
+  // KPIs (sur les données complètes, pas les filtrées)
+  const all = _prospectsState.data;
+  const compte = { nouveau:0, contacte:0, rdv_pris:0, diagnostic_fait:0, signe:0, refuse:0 };
+  all.forEach(p => { const s = p.statut || "nouveau"; compte[s] = (compte[s]||0) + 1; });
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setText("kpi-prosp-total",   all.length);
+  setText("kpi-prosp-nouveau", compte.nouveau);
+  setText("kpi-prosp-encours", compte.contacte + compte.rdv_pris + compte.diagnostic_fait);
+  setText("kpi-prosp-signe",   compte.signe);
+
+  // Tableau (sur les données filtrées + triées)
+  const rows = prospectsFiltrerEtTrier();
+  const nbEl = document.getElementById("prosp-nb-resultats");
+  if (nbEl) nbEl.textContent = rows.length + " résultat" + (rows.length>1?"s":"");
+
+  if (!rows.length) {
+    const vide = all.length === 0
+      ? 'Aucun prospect reçu pour le moment.<br><span style="font-size:11px">Les demandes apparaîtront ici dès qu\'un visiteur soumettra le formulaire sur edulink.bj.</span>'
+      : 'Aucun prospect ne correspond aux filtres actuels.';
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#9ca3af;font-size:13px">${vide}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(p => {
+    const statut    = p.statut || "nouveau";
+    const meta      = PROSPECTS_STATUTS[statut] || { lbl: statut, cls: "blue" };
+    const date      = p.created_at ? new Date(p.created_at).toLocaleDateString("fr-FR", { day:"2-digit", month:"2-digit", year:"2-digit" }) : "—";
+    const suivi     = p.rappele_at ? new Date(p.rappele_at).toLocaleDateString("fr-FR") : (p.notes_internes ? "📝 Notes" : "—");
+    const telRaw    = (p.telephone || "").replace(/\s+/g,"");
+    const telLink   = telRaw ? `<a href="tel:${esc(telRaw)}" class="btn-sm btn-green" title="Appeler" style="text-decoration:none">📞</a>` : "";
+    const mailLink  = p.email ? `<a href="mailto:${esc(p.email)}" class="btn-sm btn-blue" title="Envoyer un email" style="text-decoration:none">✉️</a>` : "";
+    return `<tr>
+      <td style="white-space:nowrap;font-size:12px;color:#6b7280">${date}</td>
+      <td><strong>${esc(p.nom||"—")}</strong><div style="font-size:11px;color:#6b7280">${esc(p.fonction||"")}</div></td>
+      <td>${esc(p.ecole_nom||"—")}</td>
+      <td><span class="badge gray" style="font-size:10px">${esc(p.effectif||"—")}</span></td>
+      <td style="font-size:12px">
+        <div>${esc(p.telephone||"—")}</div>
+        <div style="color:#6b7280">${esc(p.email||"—")}</div>
+      </td>
+      <td><span class="badge ${meta.cls}">${meta.lbl}</span></td>
+      <td style="font-size:11px;color:#6b7280">${esc(suivi)}</td>
+      <td style="text-align:right;white-space:nowrap">
+        ${telLink}
+        ${mailLink}
+        <button class="btn-sm btn-blue" data-action="prospects-voir" data-id="${p.id}" title="Voir détail">👁️</button>
+        ${statut === "nouveau" ? `<button class="btn-sm btn-green" data-action="prospects-marquer-contacte" data-id="${p.id}" title="Marquer contacté">✓</button>` : ""}
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+// Badge de comptage des "nouveau" sur l'item sidebar
+function prospectsMajBadgeNav() {
+  const badge = document.getElementById("badge-prospects");
+  if (!badge) return;
+  const nb = (_prospectsState.data || []).filter(p => (p.statut || "nouveau") === "nouveau").length;
+  if (nb > 0) {
+    badge.textContent = nb;
+    badge.style.display = "inline-block";
+  } else {
+    badge.style.display = "none";
+  }
+}
+
+// Tri par colonne (toggle asc/desc)
+function prospectsTrier(col) {
+  if (_prospectsState.tri.col === col) {
+    _prospectsState.tri.asc = !_prospectsState.tri.asc;
+  } else {
+    _prospectsState.tri.col = col;
+    _prospectsState.tri.asc = false;
+  }
+  renderProspects();
+}
+
+// Reset filtres
+function prospectsResetFiltres() {
+  _prospectsState.filtres = { recherche: "", statut: "" };
+  const inp = document.getElementById("prosp-recherche"); if (inp) inp.value = "";
+  const sel = document.getElementById("prosp-filtre-statut"); if (sel) sel.value = "";
+  renderProspects();
+}
+
+// Ouvre la modale détail
+function prospectVoir(id) {
+  const p = (_prospectsState.data || []).find(x => String(x.id) === String(id));
+  if (!p) { showToast("Prospect introuvable", "error"); return; }
+  _prospectsState.selected = p;
+
+  const titre = document.getElementById("prosp-modal-titre");
+  if (titre) titre.textContent = `🎯 ${p.nom || "Prospect"} — ${p.ecole_nom || ""}`;
+
+  const dateRecu = p.created_at ? new Date(p.created_at).toLocaleString("fr-FR") : "—";
+  const dateRappel = p.rappele_at ? new Date(p.rappele_at).toISOString().slice(0,16) : "";
+  const statut = p.statut || "nouveau";
+
+  const optionsStatut = Object.entries(PROSPECTS_STATUTS).map(([k, m]) =>
+    `<option value="${k}"${k===statut?" selected":""}>${m.lbl}</option>`
+  ).join("");
+
+  const body = document.getElementById("prosp-modal-body");
+  if (!body) return;
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div>
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Identité</div>
+        <div style="font-size:14px;font-weight:600;margin-top:.25rem">${esc(p.nom||"—")}</div>
+        <div style="font-size:12px;color:#6b7280">${esc(p.fonction||"—")}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">École</div>
+        <div style="font-size:14px;font-weight:600;margin-top:.25rem">${esc(p.ecole_nom||"—")}</div>
+        <div style="font-size:12px;color:#6b7280">Effectif : ${esc(p.effectif||"—")}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Téléphone</div>
+        <div style="font-size:14px;margin-top:.25rem">
+          ${p.telephone ? `<a href="tel:${esc(p.telephone.replace(/\s+/g,''))}" style="color:#1e3a5f;text-decoration:none;font-weight:600">${esc(p.telephone)}</a>` : "—"}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Email</div>
+        <div style="font-size:14px;margin-top:.25rem">
+          ${p.email ? `<a href="mailto:${esc(p.email)}" style="color:#1e3a5f;text-decoration:none;font-weight:600">${esc(p.email)}</a>` : "—"}
+        </div>
+      </div>
+      <div style="grid-column:1/-1">
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Créneau souhaité</div>
+        <div style="font-size:13px;margin-top:.25rem">${esc(p.creneau||"Non précisé")}</div>
+      </div>
+      <div style="grid-column:1/-1">
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Message du prospect</div>
+        <div style="font-size:13px;margin-top:.25rem;padding:.75rem;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;white-space:pre-wrap">${esc(p.message||"(aucun message)")}</div>
+      </div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:1rem 0">
+
+    <div style="font-size:12px;color:#6b7280;margin-bottom:.75rem">
+      Reçu le ${dateRecu} · Source : ${esc(p.source||"—")}
+    </div>
+
+    <div class="form-group">
+      <label style="font-weight:600">Statut</label>
+      <select id="prosp-edit-statut" style="width:100%;padding:.55rem .75rem;border:1px solid #e5e7eb;border-radius:8px;font-size:13px">
+        ${optionsStatut}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label style="font-weight:600">Notes internes <span style="font-weight:400;color:#6b7280;font-size:11px">(visibles uniquement par l'équipe commerciale)</span></label>
+      <textarea id="prosp-edit-notes" rows="4" placeholder="Ex : Très intéressé, attend retour du conseil d'administration, rappeler après le 25/05…" style="width:100%;padding:.55rem .75rem;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit">${esc(p.notes_internes||"")}</textarea>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group">
+        <label style="font-weight:600">Date de rappel prévue</label>
+        <input type="datetime-local" id="prosp-edit-rappele-at" value="${dateRappel}" style="width:100%;padding:.55rem .75rem;border:1px solid #e5e7eb;border-radius:8px;font-size:13px">
+      </div>
+      <div class="form-group">
+        <label style="font-weight:600">Rappelé par (UUID)</label>
+        <input type="text" id="prosp-edit-rappele-par" value="${esc(p.rappele_par||"")}" placeholder="UUID utilisateur — laissez vide pour vous-même" style="width:100%;padding:.55rem .75rem;border:1px solid #e5e7eb;border-radius:8px;font-size:13px">
+      </div>
+    </div>
+  `;
+
+  document.getElementById("modal-prospect").classList.add("open");
+}
+
+// Sauvegarde du suivi depuis la modale
+async function prospectsSauverSuivi() {
+  const p = _prospectsState.selected;
+  if (!p) { showToast("Aucun prospect sélectionné", "error"); return; }
+
+  const statut    = document.getElementById("prosp-edit-statut")?.value || p.statut;
+  const notes     = document.getElementById("prosp-edit-notes")?.value || null;
+  const rappeleAt = document.getElementById("prosp-edit-rappele-at")?.value || null;
+  let   rappelePar = document.getElementById("prosp-edit-rappele-par")?.value?.trim() || null;
+
+  // Validation UUID basique si rempli
+  if (rappelePar && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rappelePar)) {
+    showToast("⚠️ UUID 'rappelé par' invalide (format attendu : xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)", "error");
+    return;
+  }
+
+  const patch = {
+    statut,
+    notes_internes: notes || null,
+    rappele_at:     rappeleAt ? new Date(rappeleAt).toISOString() : null,
+    rappele_par:    rappelePar,
+  };
+
+  const { error } = await db.from("prospects_diagnostic").update(patch).eq("id", p.id);
+  if (error) { showToast("❌ " + error.message, "error"); return; }
+
+  showToast("✅ Suivi enregistré", "success");
+  invalidateData && invalidateData("prospects_diagnostic");
+  document.getElementById("modal-prospect").classList.remove("open");
+  _prospectsState.selected = null;
+  _prospectsState.data = await chargerProspectsData();
+  renderProspects();
+  prospectsMajBadgeNav();
+}
+
+// Action rapide : marquer comme contacté (un clic depuis le tableau)
+async function prospectsMarquerContacte(id) {
+  const p = (_prospectsState.data || []).find(x => String(x.id) === String(id));
+  if (!p) return;
+  const { error } = await db.from("prospects_diagnostic")
+    .update({ statut: "contacte", rappele_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) { showToast("❌ " + error.message, "error"); return; }
+  showToast("✅ Marqué comme contacté", "success");
+  invalidateData && invalidateData("prospects_diagnostic");
+  _prospectsState.data = await chargerProspectsData();
+  renderProspects();
+  prospectsMajBadgeNav();
+}
+
+// Export CSV des prospects filtrés
+function prospectsExportCSV() {
+  const rows = prospectsFiltrerEtTrier();
+  if (!rows.length) { showToast("Rien à exporter", "info"); return; }
+  const cols = ["created_at","nom","fonction","ecole_nom","effectif","telephone","email","statut","creneau","message","notes_internes","rappele_at","source"];
+  const csvEsc = v => {
+    const s = (v == null) ? "" : String(v);
+    return /[",\n;]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+  };
+  const csv = [
+    cols.join(";"),
+    ...rows.map(r => cols.map(c => csvEsc(r[c])).join(";"))
+  ].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }); // BOM pour Excel
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `prospects-edulink-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  showToast(`📥 Export CSV (${rows.length} lignes)`, "success");
+}
+
+// Refresh manuel
+async function prospectsRefresh() {
+  _prospectsState.data = await chargerProspectsData();
+  renderProspects();
+  prospectsMajBadgeNav();
+  showToast("🔄 Liste actualisée", "success");
+}
+
+
   if (!currentEcoleId) {
     const visEl = document.getElementById("pp-visiteurs");
     if (visEl) visEl.textContent = "—";
@@ -26249,6 +26680,14 @@ document.addEventListener('click', function(e) {
     case 'pp-edit-actu':       if(typeof ppEditerActualite!=='undefined') ppEditerActualite(id); break;
     case 'pp-del-photo':       if(typeof ppSupprimerPhoto!=='undefined') ppSupprimerPhoto(id); break;
     case 'pp-voir-inscription':if(typeof ppVoirInscription!=='undefined') ppVoirInscription(id); break;
+    // ── Prospects (landing edulink.bj) ──
+    case 'prospects-voir':              if(typeof prospectVoir!=='undefined') prospectVoir(id); break;
+    case 'prospects-marquer-contacte':  if(typeof prospectsMarquerContacte!=='undefined') prospectsMarquerContacte(id); break;
+    case 'prospects-sauver-suivi':      if(typeof prospectsSauverSuivi!=='undefined') prospectsSauverSuivi(); break;
+    case 'prospects-refresh':           if(typeof prospectsRefresh!=='undefined') prospectsRefresh(); break;
+    case 'prospects-export-csv':        if(typeof prospectsExportCSV!=='undefined') prospectsExportCSV(); break;
+    case 'prospects-reset-filtres':     if(typeof prospectsResetFiltres!=='undefined') prospectsResetFiltres(); break;
+    case 'prospects-trier':             if(typeof prospectsTrier!=='undefined') prospectsTrier(btn.dataset.col); break;
     // ── Statuts ──
     case 'statut-user':        changerStatutUser(id, val==='true'); break;
     case 'statut-examen':      changerStatutExamen(id, val); break;
