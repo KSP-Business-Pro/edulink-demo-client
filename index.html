@@ -48,8 +48,9 @@
         'ResizeObserver loop completed with undelivered notifications',
         'Non-Error promise rejection captured',
         /chrome-extension:\/\//,/moz-extension:\/\//,/safari-extension:\/\//,
-        // Ignorer l'erreur de récursion invalidateData connue
-        'Maximum call stack size exceeded',
+        // EXPERT-01 (2026-05-18) : erreur de récursion corrigée dans refreshActiveConsumers.
+        // Ne plus masquer pour détecter toute régression.
+        // 'Maximum call stack size exceeded' — supprimé
       ],
       denyUrls: [
         /chrome-extension:\/\//,/moz-extension:\/\//,/safari-extension:\/\//,
@@ -7753,31 +7754,37 @@ const DATA_CONSUMERS = {
   actualites:           ["portail-public"],
 };
 
+// EXPERT-01 (2026-05-18) : verrou anti-double-appel par table + defer setTimeout(0)
+const _refreshPending = {};
 function refreshActiveConsumers(table) {
   const consumers = DATA_CONSUMERS[table] || [];
-  if (!consumers.includes(currentPage)) return; // page inactive → pas de refresh
-  // Recharger le loader de la page courante
-  const loaders = {
-    notes:           () => { chargerNotes && chargerNotes(); },
-    presences:       () => { chargerAbsences && chargerAbsences(); },
-    paiements:       () => { chargerPaiements && chargerPaiements(); },
-    messages:        () => { chargerMessages && chargerMessages(); },
-    etudiants:       () => { chargerEtudiants && chargerEtudiants(); },
-    examens:         () => { chargerExamens && chargerExamens(); },
-    discipline:      () => { chargerIncidents && chargerIncidents(); },
-    comptabilite:    () => { chargerComptabilite && chargerComptabilite(); },
-    certificats:     () => { chargerCertificats && chargerCertificats(); },
-    documents:       () => { chargerDocuments && chargerDocuments(); },
-    rapports:        () => { afficherRapport && afficherRapport("effectifs"); },
-    analytics:       () => { chargerAnalytics && chargerAnalytics(); },
-    dashboard:       () => { chargerDashboard && chargerDashboard(); },
-    "portail-etudiant": () => { chargerPortailEtudiant && chargerPortailEtudiant(getPortailEtudiantId()); },
-    "sms-parents":   () => { chargerSMSParents && chargerSMSParents(); },
-    "pwa-avancee":   () => { chargerPWAAvancee && chargerPWAAvancee(); },
-    "exec-dashboard": () => { chargerExecDashboard && chargerExecDashboard(); },
-    "portail-public": () => { chargerPortailPublic && chargerPortailPublic(); },
-  };
-  if (loaders[currentPage]) loaders[currentPage]();
+  if (!consumers.includes(currentPage)) return;
+  if (_refreshPending[table]) return; // verrou : refresh deja planifie pour cette table
+  _refreshPending[table] = true;
+  setTimeout(() => {
+    delete _refreshPending[table];
+    const loaders = {
+      notes:              () => { chargerNotes && chargerNotes(); },
+      presences:          () => { chargerAbsences && chargerAbsences(); },
+      paiements:          () => { chargerPaiements && chargerPaiements(); },
+      messages:           () => { chargerMessages && chargerMessages(); },
+      etudiants:          () => { chargerEtudiants && chargerEtudiants(); },
+      examens:            () => { chargerExamens && chargerExamens(); },
+      discipline:         () => { chargerIncidents && chargerIncidents(); },
+      comptabilite:       () => { chargerComptabilite && chargerComptabilite(); },
+      certificats:        () => { chargerCertificats && chargerCertificats(); },
+      documents:          () => { chargerDocuments && chargerDocuments(); },
+      rapports:           () => { afficherRapport && afficherRapport("effectifs"); },
+      analytics:          () => { chargerAnalytics && chargerAnalytics(); },
+      dashboard:          () => { chargerDashboard && chargerDashboard(); },
+      "portail-etudiant": () => { chargerPortailEtudiant && chargerPortailEtudiant(getPortailEtudiantId()); },
+      "sms-parents":      () => { chargerSMSParents && chargerSMSParents(); },
+      "pwa-avancee":      () => { chargerPWAAvancee && chargerPWAAvancee(); },
+      "exec-dashboard":   () => { chargerExecDashboard && chargerExecDashboard(); },
+      "portail-public":   () => { chargerPortailPublic && chargerPortailPublic(); },
+    };
+    if (loaders[currentPage]) loaders[currentPage]();
+  }, 0);
 }
 
 // ── Helper CSV global ────────────────────────────────────────────────────
