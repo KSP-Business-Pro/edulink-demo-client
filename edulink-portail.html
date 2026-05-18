@@ -1683,10 +1683,17 @@ async function envoyerOTP() {
   btn.disabled = true; btn.textContent = 'Recherche en cours...';
 
   // Rechercher l'étudiant par téléphone parent
+  // ─── RLS-01 (2026-05-18) : utilise RPC SECURITY DEFINER au lieu de SELECT direct ───
+  //     L'ancienne policy etudiants_anon_phone_lookup permettait à anon de scanner
+  //     toute la table. La RPC ne retourne que la ligne matchante.
   try {
-    const { data: liste } = await db.from('etudiants')
-      .select('id, nom, prenom, matricule, email_parent, email_auth, ecole_id, telephone_parent, auth_id')
-      .or(`telephone_parent.eq.${tel},telephone_parent.eq.${tel8},telephone_parent.eq.${phone}`);
+    const { data: liste, error: rpcErr } = await db.rpc('lookup_etudiant_for_otp', { p_telephone: tel });
+    if (rpcErr) {
+      console.error('[OTP] Erreur RPC lookup:', rpcErr);
+      showOTPError(1, 'Erreur de connexion. Réessayez.');
+      btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
+      return;
+    }
     if (!liste || liste.length === 0) {
       showOTPError(1, 'Aucun enfant lié à ce numéro. Vérifiez ou contactez l\'administration.');
       btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
