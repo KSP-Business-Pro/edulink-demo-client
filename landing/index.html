@@ -1,1618 +1,1382 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EduLink — La gestion scolaire pensée au Bénin, pour le Bénin</title>
-<meta name="description" content="EduLink est la plateforme de gestion scolaire conçue au Bénin pour les universités privées. Bulletins en un clic, portail famille, Mobile Money intégré. Diagnostic gratuit.">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EduLink — Gestion scolaire moderne pour les écoles du Bénin</title>
+<meta name="description" content="EduLink est la plateforme tout-en-un de gestion scolaire pensée pour les écoles, lycées et universités du Bénin. Notes, présences, paiements, communication parents — un seul outil, en français.">
+<meta name="theme-color" content="#1a1f3a">
 
-<meta property="og:title" content="EduLink — Gestion scolaire pour universités privées du Bénin">
-<meta property="og:description" content="Bulletins en un clic, portail famille, Mobile Money intégré. Conçu au Bénin, pour le Bénin.">
+<!-- OG / Twitter -->
+<meta property="og:title" content="EduLink — Gestion scolaire moderne pour les écoles du Bénin">
+<meta property="og:description" content="La plateforme tout-en-un pour digitaliser votre école : notes, présences, paiements, communication parents.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://edulink.bj">
+<meta property="og:locale" content="fr_BJ">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
-  :root {
-    --teal:        #0f6e56;
-    --teal-deep:   #084d3b;
-    --teal-light:  #e6f3ee;
-    --navy:        #1e3a5f;
-    --navy-deep:   #0f1f37;
-    --gold:        #c97c1a;
-    --gold-light:  #f7e9d3;
-    --ink:         #1a1a1a;
-    --ink-soft:    #4a4a4a;
-    --paper:       #fbf9f4;
-    --paper-warm:  #f5efe1;
-    --line:        #d4cfc0;
-    --max:         1240px;
-  }
+/* =========================================================================
+   EduLink — Design system
+   Palette : terre brûlée + sable + indigo profond + crème
+   Typo    : Crimson Pro (éditorial) + Manrope (interface)
+   ========================================================================= */
+:root {
+  --bg:        #faf6f0;
+  --bg-alt:    #f0e9dc;
+  --ink:       #1a1f3a;
+  --ink-soft:  #4a5070;
+  --ink-mute:  #7a7e94;
+  --accent:    #c75d2c;
+  --accent-d:  #a8431d;
+  --gold:      #c8a060;
+  --line:      #d9cfbf;
+  --line-soft: #e8e0cf;
+  --ok:        #2d6a4f;
 
-  *, *::before, *::after { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    margin: 0;
-    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-    color: var(--ink);
-    background: var(--paper);
-    line-height: 1.55;
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-  }
-  h1, h2, h3, h4 {
-    font-family: 'Fraunces', 'Times New Roman', serif;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-    margin: 0;
-    color: var(--navy-deep);
-  }
-  p { margin: 0; }
-  a { color: var(--teal); text-decoration: none; }
-  img { max-width: 100%; height: auto; display: block; }
+  --r-sm: 4px;
+  --r-md: 10px;
+  --r-lg: 18px;
 
-  .container {
-    max-width: var(--max);
-    margin: 0 auto;
-    padding: 0 24px;
-  }
+  --t: cubic-bezier(.2,.7,.2,1);
+}
 
-  /* ═══ BANDEAU UTILITAIRE EN HAUT ═══ */
-  .utility-bar {
-    background: var(--navy-deep);
-    color: rgba(255,255,255,0.9);
-    font-size: 13px;
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-  }
-  .utility-bar .container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  .utility-left { display: flex; align-items: center; gap: 16px; }
-  .utility-left strong { color: var(--gold); font-weight: 600; }
-  .utility-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .utility-btn {
-    background: rgba(255,255,255,0.08);
-    color: white;
-    padding: 6px 14px;
-    border-radius: 100px;
-    font-size: 12.5px;
-    font-weight: 500;
-    border: 1px solid rgba(255,255,255,0.15);
-    transition: all .2s ease;
-  }
-  .utility-btn:hover {
-    background: rgba(255,255,255,0.18);
-    transform: translateY(-1px);
-  }
-  .utility-btn.parent { background: rgba(15,110,86,0.55); border-color: rgba(15,110,86,0.7); }
-  .utility-btn.admin  { background: rgba(30,58,95,0.55); border-color: rgba(255,255,255,0.2); }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
 
-  /* ═══ HEADER NAV ═══ */
-  .header {
-    padding: 22px 0;
-    border-bottom: 1px solid var(--line);
-    background: var(--paper);
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    backdrop-filter: blur(8px);
-    background: rgba(251,249,244,0.92);
-  }
-  .header .container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-family: 'Fraunces', serif;
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--navy-deep);
-  }
-  .logo-mark {
-    width: 36px; height: 36px;
-    background: var(--navy-deep);
-    border-radius: 9px;
-    display: grid;
-    place-items: center;
-    color: var(--gold);
-    font-family: 'Fraunces', serif;
-    font-size: 18px;
-    font-weight: 700;
-    box-shadow: 0 2px 12px rgba(15,31,55,0.18);
-  }
-  .nav-links { display: flex; gap: 32px; align-items: center; }
-  .nav-links a {
-    color: var(--ink-soft);
-    font-size: 14.5px;
-    font-weight: 500;
-    transition: color .2s;
-  }
-  .nav-links a:hover { color: var(--teal); }
-  .nav-cta {
-    background: var(--navy-deep);
-    color: white;
-    padding: 10px 22px;
-    border-radius: 100px;
-    font-weight: 500;
-    font-size: 14px;
-    transition: all .2s ease;
-    border: 0;
-    cursor: pointer;
-  }
-  .nav-cta:hover {
-    background: var(--teal);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 24px rgba(15,110,86,0.3);
-  }
-  .hamburger { display: none; background: none; border: 0; font-size: 24px; cursor: pointer; }
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
 
-  /* ═══ HERO ═══ */
-  .hero {
-    padding: 70px 0 90px;
-    position: relative;
-    overflow: hidden;
-  }
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: -200px;
-    right: -200px;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(15,110,86,0.08) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .hero-grid {
-    display: grid;
-    grid-template-columns: 1.05fr 1fr;
-    gap: 60px;
-    align-items: center;
-    position: relative;
-  }
-  .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--teal-light);
-    color: var(--teal-deep);
-    padding: 7px 14px;
-    border-radius: 100px;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 22px;
-  }
-  .hero-badge::before {
-    content: '';
-    width: 6px; height: 6px;
-    background: var(--teal);
-    border-radius: 50%;
-    box-shadow: 0 0 0 4px rgba(15,110,86,0.2);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse { 50% { box-shadow: 0 0 0 7px rgba(15,110,86,0.05); } }
+.serif { font-family: 'Crimson Pro', serif; font-weight: 500; letter-spacing: -.01em; }
 
-  .hero h1 {
-    font-size: clamp(36px, 5vw, 60px);
-    margin-bottom: 22px;
-    color: var(--navy-deep);
-  }
-  .hero h1 em {
-    font-style: italic;
-    color: var(--teal);
-    font-weight: 500;
-  }
-  .hero-tag {
-    font-size: clamp(15px, 1.4vw, 18px);
-    color: var(--ink-soft);
-    margin-bottom: 32px;
-    max-width: 540px;
-  }
-  .hero-cta-row {
-    display: flex;
-    gap: 14px;
-    flex-wrap: wrap;
-    margin-bottom: 36px;
-  }
-  .btn-primary {
-    background: var(--navy-deep);
-    color: white;
-    padding: 16px 30px;
-    border-radius: 100px;
-    font-weight: 600;
-    font-size: 15px;
-    border: 0;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    transition: all .25s ease;
-    box-shadow: 0 4px 18px rgba(15,31,55,0.18);
-  }
-  .btn-primary:hover {
-    background: var(--teal);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 28px rgba(15,110,86,0.32);
-  }
-  .btn-primary svg { width: 14px; height: 14px; transition: transform .25s; }
-  .btn-primary:hover svg { transform: translateX(3px); }
+.container { max-width: 1180px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 2; }
 
-  .btn-secondary {
-    background: transparent;
-    color: var(--navy-deep);
-    padding: 16px 28px;
-    border-radius: 100px;
-    font-weight: 600;
-    font-size: 15px;
-    border: 1px solid var(--navy-deep);
-    cursor: pointer;
-    transition: all .2s ease;
-  }
-  .btn-secondary:hover {
-    background: var(--navy-deep);
-    color: white;
-  }
+/* ---------- NAV ---------- */
+nav.main {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(250,246,240,.85);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 0;
+}
+.logo {
+  font-family: 'Crimson Pro', serif;
+  font-size: 26px; font-weight: 600; letter-spacing: -.02em;
+  color: var(--ink);
+  text-decoration: none;
+  display: flex; align-items: center; gap: 8px;
+}
+.logo-mark {
+  width: 28px; height: 28px;
+  background: var(--ink);
+  color: var(--bg);
+  display: grid; place-items: center;
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 18px;
+  border-radius: 4px;
+}
+.nav-links { display: flex; gap: 32px; align-items: center; }
+.nav-links a {
+  color: var(--ink-soft); text-decoration: none;
+  font-size: 14px; font-weight: 500;
+  transition: color .2s var(--t);
+}
+.nav-links a:hover { color: var(--accent); }
+.nav-cta {
+  background: var(--ink); color: var(--bg) !important;
+  padding: 10px 18px; border-radius: var(--r-md);
+  font-weight: 600;
+  transition: background .2s var(--t);
+}
+.nav-cta:hover { background: var(--accent) !important; }
 
-  .hero-meta {
-    display: flex;
-    gap: 24px;
-    font-size: 13px;
-    color: var(--ink-soft);
-    flex-wrap: wrap;
-  }
-  .hero-meta-item { display: flex; align-items: center; gap: 6px; }
-  .hero-meta-item strong { color: var(--navy-deep); font-weight: 700; }
+@media (max-width: 760px) {
+  .nav-links a:not(.nav-cta) { display: none; }
+}
 
-  /* ═══ MOCKUP INTERACTIF ═══ */
-  .mockup-frame {
-    position: relative;
-    background: linear-gradient(140deg, var(--navy-deep) 0%, var(--teal-deep) 100%);
-    padding: 20px;
-    border-radius: 18px;
-    box-shadow: 0 30px 80px rgba(15,31,55,0.25), 0 12px 30px rgba(15,31,55,0.12);
-    cursor: pointer;
-    transition: transform .3s ease;
-  }
-  .mockup-frame:hover { transform: translateY(-4px); }
-  .mockup-frame::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 18px;
-    border: 1px solid rgba(255,255,255,0.1);
-    pointer-events: none;
-  }
-  .mockup-screen {
-    background: white;
-    border-radius: 10px;
-    overflow: hidden;
-    min-height: 380px;
-    position: relative;
-  }
-  .mockup-bar {
-    background: var(--paper-warm);
-    padding: 9px 14px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    border-bottom: 1px solid var(--line);
-  }
-  .mockup-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(0,0,0,0.15); }
-  .mockup-dot:nth-child(1) { background: #ed6a5e; }
-  .mockup-dot:nth-child(2) { background: #f5bf4f; }
-  .mockup-dot:nth-child(3) { background: #61c554; }
-  .mockup-url {
-    margin-left: 12px;
-    font-size: 11px;
-    color: var(--ink-soft);
-    font-family: ui-monospace, monospace;
-  }
-  .mockup-body { padding: 22px; }
-  .mockup-header-info {
-    background: linear-gradient(135deg, var(--teal) 0%, var(--navy-deep) 100%);
-    color: white;
-    padding: 16px 18px;
-    border-radius: 10px;
-    margin-bottom: 18px;
-  }
-  .mockup-header-info h4 {
-    color: white;
-    font-size: 14px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-weight: 700;
-    margin-bottom: 4px;
-    letter-spacing: 0;
-  }
-  .mockup-header-info p { font-size: 11.5px; opacity: 0.85; }
-  .mockup-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-  .mockup-stat {
-    background: var(--paper);
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    text-align: center;
-  }
-  .mockup-stat-val {
-    font-family: 'Fraunces', serif;
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--teal-deep);
-    line-height: 1;
-  }
-  .mockup-stat-lab {
-    font-size: 10px;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-top: 3px;
-  }
-  .mockup-table-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 9px 0;
-    border-bottom: 1px solid var(--paper-warm);
-    font-size: 12px;
-  }
-  .mockup-table-row:last-child { border-bottom: 0; }
-  .mockup-tag {
-    background: var(--gold-light);
-    color: var(--gold);
-    padding: 2px 9px;
-    border-radius: 100px;
-    font-size: 10.5px;
-    font-weight: 600;
-  }
-  .mockup-grade { font-weight: 700; color: var(--teal-deep); font-size: 13px; }
-  .mockup-play-overlay {
-    position: absolute;
-    inset: 20px;
-    border-radius: 18px;
-    background: rgba(15,31,55,0.05);
-    display: grid;
-    place-items: center;
-    opacity: 0;
-    transition: opacity .3s ease;
-    pointer-events: none;
-  }
-  .mockup-frame:hover .mockup-play-overlay { opacity: 1; }
-  .mockup-play-btn {
-    width: 80px; height: 80px;
-    border-radius: 50%;
-    background: white;
-    display: grid;
-    place-items: center;
-    box-shadow: 0 12px 36px rgba(0,0,0,0.25);
-    transition: transform .25s ease;
-  }
-  .mockup-frame:hover .mockup-play-btn { transform: scale(1.08); }
-  .mockup-play-btn::before {
-    content: '';
-    width: 0; height: 0;
-    border-left: 22px solid var(--teal-deep);
-    border-top: 14px solid transparent;
-    border-bottom: 14px solid transparent;
-    margin-left: 5px;
-  }
-  .mockup-caption {
-    position: absolute;
-    bottom: -38px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--paper-warm);
-    color: var(--ink-soft);
-    padding: 7px 16px;
-    border-radius: 100px;
-    font-size: 12.5px;
-    font-weight: 500;
-    border: 1px solid var(--line);
-    white-space: nowrap;
-  }
+/* ---------- HERO ---------- */
+.hero { padding: 100px 0 80px; position: relative; }
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .15em;
+  color: var(--accent);
+  margin-bottom: 28px;
+}
+.hero-eyebrow::before {
+  content: ''; width: 28px; height: 1px; background: var(--accent);
+}
+.hero h1 {
+  font-family: 'Crimson Pro', serif;
+  font-weight: 500;
+  font-size: clamp(38px, 6.5vw, 76px);
+  line-height: 1.02;
+  letter-spacing: -.025em;
+  margin: 0 0 32px;
+  max-width: 14ch;
+}
+.hero h1 em {
+  font-style: italic;
+  color: var(--accent);
+  font-weight: 400;
+}
+.hero-sub {
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 56ch;
+  margin: 0 0 40px;
+}
+.hero-cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 16px 28px;
+  border-radius: var(--r-md);
+  font-family: 'Manrope', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all .2s var(--t);
+}
+.btn-primary {
+  background: var(--ink); color: var(--bg);
+}
+.btn-primary:hover { background: var(--accent); transform: translateY(-1px); }
+.btn-ghost {
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--ink);
+}
+.btn-ghost:hover { background: var(--ink); color: var(--bg); }
+.btn .arrow { transition: transform .2s var(--t); }
+.btn:hover .arrow { transform: translateX(4px); }
 
-  /* ═══ SECTION : 3 PROMESSES ═══ */
-  section.promesses {
-    padding: 100px 0 80px;
-    background: var(--paper-warm);
-    position: relative;
-  }
-  .section-eyebrow {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--teal);
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    margin-bottom: 14px;
-    display: block;
-  }
-  .section-title {
-    font-size: clamp(28px, 3.5vw, 44px);
-    margin-bottom: 18px;
-    max-width: 700px;
-  }
-  .section-intro {
-    font-size: 17px;
-    color: var(--ink-soft);
-    max-width: 620px;
-    margin-bottom: 56px;
-  }
-  .promesses-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-  }
-  .promesse {
-    background: white;
-    padding: 36px 28px;
-    border-radius: 14px;
-    border: 1px solid var(--line);
-    transition: all .3s ease;
-    position: relative;
-  }
-  .promesse:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 18px 50px rgba(15,31,55,0.12);
-    border-color: var(--teal);
-  }
-  .promesse-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 12px;
-    background: var(--teal-light);
-    display: grid;
-    place-items: center;
-    margin-bottom: 22px;
-    font-size: 26px;
-  }
-  .promesse h3 {
-    font-size: 22px;
-    margin-bottom: 12px;
-  }
-  .promesse p {
-    color: var(--ink-soft);
-    font-size: 15px;
-    line-height: 1.6;
-  }
-  .promesse-stat {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-top: 24px;
-    padding-top: 22px;
-    border-top: 1px solid var(--paper-warm);
-  }
-  .promesse-stat-big {
-    font-family: 'Fraunces', serif;
-    font-size: 36px;
-    font-weight: 700;
-    color: var(--teal-deep);
-    line-height: 1;
-  }
-  .promesse-stat-lab {
-    font-size: 13px;
-    color: var(--ink-soft);
-    font-weight: 500;
-  }
+.hero-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 60px; align-items: center; }
+.hero-art {
+  position: relative;
+  aspect-ratio: 4/5;
+  background: var(--bg-alt);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: 0 30px 80px -30px rgba(26,31,58,.25);
+}
+.hero-art svg { width: 100%; height: 100%; display: block; }
+.hero-art .badge {
+  position: absolute;
+  background: var(--bg); color: var(--ink);
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+  font-size: 13px; font-weight: 600;
+  box-shadow: 0 8px 24px -8px rgba(26,31,58,.2);
+  display: flex; align-items: center; gap: 10px;
+}
+.hero-art .badge.b1 { top: 8%; left: -16px; }
+.hero-art .badge.b2 { bottom: 14%; right: -18px; }
+.hero-art .badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
 
-  /* ═══ SECTION : FONCTIONNALITÉS ═══ */
-  section.features {
-    padding: 100px 0;
-    background: var(--paper);
-  }
-  .features-list {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 50px;
-    margin-top: 50px;
-  }
-  .feature {
-    display: flex;
-    gap: 18px;
-    align-items: flex-start;
-  }
-  .feature-num {
-    font-family: 'Fraunces', serif;
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--gold);
-    line-height: 1;
-    min-width: 50px;
-  }
-  .feature-content h4 {
-    font-size: 19px;
-    margin-bottom: 8px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-weight: 700;
-    color: var(--navy-deep);
-  }
-  .feature-content p {
-    color: var(--ink-soft);
-    font-size: 15px;
-    line-height: 1.6;
-  }
+@media (max-width: 960px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .hero-art { max-width: 420px; margin: 0 auto; }
+}
 
-  /* ═══ SECTION : TARIFICATION ═══ */
-  section.pricing {
-    padding: 100px 0;
-    background: var(--navy-deep);
-    color: white;
-    position: relative;
-    overflow: hidden;
-  }
-  section.pricing::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at top right, rgba(15,110,86,0.2), transparent 50%);
-    pointer-events: none;
-  }
-  section.pricing .section-eyebrow { color: var(--gold); }
-  section.pricing .section-title { color: white; }
-  section.pricing .section-intro { color: rgba(255,255,255,0.7); }
-  .pricing-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
-    position: relative;
-  }
-  .pricing-card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 14px;
-    padding: 28px 22px;
-    transition: all .3s ease;
-    position: relative;
-  }
-  .pricing-card:hover {
-    background: rgba(255,255,255,0.07);
-    transform: translateY(-3px);
-    border-color: var(--teal);
-  }
-  .pricing-card.featured {
-    background: var(--teal-deep);
-    border-color: var(--teal);
-    transform: translateY(-8px);
-    box-shadow: 0 25px 60px rgba(15,110,86,0.4);
-  }
-  .pricing-card.featured:hover { transform: translateY(-12px); }
-  .pricing-card.featured::before {
-    content: 'PLUS POPULAIRE';
-    position: absolute;
-    top: -12px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--gold);
-    color: var(--navy-deep);
-    padding: 5px 14px;
-    border-radius: 100px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-  }
-  .pricing-name {
-    font-family: 'Fraunces', serif;
-    font-size: 22px;
-    font-weight: 600;
-    color: white;
-    margin-bottom: 8px;
-  }
-  .pricing-students {
-    font-size: 12.5px;
-    color: rgba(255,255,255,0.55);
-    margin-bottom: 22px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-  .pricing-amount {
-    margin-bottom: 6px;
-  }
-  .pricing-amount strong {
-    font-family: 'Fraunces', serif;
-    font-size: 38px;
-    font-weight: 700;
-    color: white;
-    letter-spacing: -0.02em;
-  }
-  .pricing-amount span {
-    font-size: 13px;
-    color: rgba(255,255,255,0.5);
-    margin-left: 4px;
-  }
-  .pricing-monthly {
-    font-size: 13px;
-    color: rgba(255,255,255,0.6);
-    margin-bottom: 22px;
-  }
-  .pricing-card ul {
-    list-style: none;
-    padding: 0;
-    margin: 22px 0;
-  }
-  .pricing-card li {
-    font-size: 13.5px;
-    padding: 7px 0;
-    color: rgba(255,255,255,0.8);
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  .pricing-card li::before {
-    content: '✓';
-    color: var(--gold);
-    font-weight: 700;
-  }
-  .pricing-cta {
-    width: 100%;
-    background: rgba(255,255,255,0.1);
-    color: white;
-    border: 1px solid rgba(255,255,255,0.2);
-    padding: 12px;
-    border-radius: 100px;
-    font-weight: 600;
-    font-size: 13.5px;
-    cursor: pointer;
-    transition: all .2s ease;
-  }
-  .pricing-cta:hover {
-    background: white;
-    color: var(--navy-deep);
-  }
-  .pricing-card.featured .pricing-cta {
-    background: var(--gold);
-    color: var(--navy-deep);
-    border: 0;
-  }
-  .pricing-card.featured .pricing-cta:hover {
-    background: white;
-  }
-  .pricing-note {
-    margin-top: 36px;
-    text-align: center;
-    font-size: 14px;
-    color: rgba(255,255,255,0.6);
-  }
-  .pricing-note a { color: var(--gold); }
+/* ---------- STATS ---------- */
+.stats {
+  background: var(--ink);
+  color: var(--bg);
+  padding: 50px 0;
+  margin-top: 40px;
+  position: relative;
+}
+.stats-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 40px;
+}
+.stat-item { text-align: left; }
+.stat-num {
+  font-family: 'Crimson Pro', serif;
+  font-size: 48px;
+  font-weight: 500;
+  line-height: 1;
+  margin-bottom: 8px;
+  color: var(--gold);
+}
+.stat-lbl { font-size: 13px; color: rgba(250,246,240,.7); letter-spacing: .04em; }
+@media (max-width: 720px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 30px 20px; }
+  .stat-num { font-size: 36px; }
+}
 
-  /* ═══ SECTION : FORMULAIRE DIAGNOSTIC ═══ */
-  section.diagnostic {
-    padding: 100px 0;
-    background: var(--paper-warm);
-    position: relative;
-  }
-  .diagnostic-wrap {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 70px;
-    align-items: start;
-  }
-  .diagnostic-info h2 {
-    font-size: clamp(28px, 3.5vw, 42px);
-    margin-bottom: 22px;
-  }
-  .diagnostic-info p {
-    font-size: 16px;
-    color: var(--ink-soft);
-    margin-bottom: 26px;
-    line-height: 1.7;
-  }
-  .diagnostic-steps {
-    list-style: none;
-    padding: 0;
-    margin: 30px 0 0 0;
-  }
-  .diagnostic-steps li {
-    display: flex;
-    gap: 14px;
-    padding: 16px 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .diagnostic-steps li:last-child { border-bottom: 0; }
-  .step-num {
-    width: 32px;
-    height: 32px;
-    background: var(--teal);
-    color: white;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    font-weight: 700;
-    font-size: 13px;
-    flex-shrink: 0;
-  }
-  .step-content strong {
-    display: block;
-    font-weight: 700;
-    color: var(--navy-deep);
-    margin-bottom: 3px;
-    font-size: 15px;
-  }
-  .step-content span {
-    color: var(--ink-soft);
-    font-size: 14px;
-  }
+/* ---------- SECTIONS ---------- */
+section.block { padding: 100px 0; position: relative; }
+.section-label {
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .15em;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: 'Crimson Pro', serif;
+  font-weight: 500;
+  font-size: clamp(30px, 4.5vw, 52px);
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  margin: 0 0 24px;
+  max-width: 22ch;
+}
+.section-title em { font-style: italic; color: var(--accent); font-weight: 400; }
+.section-lead {
+  font-size: 18px; color: var(--ink-soft);
+  max-width: 58ch;
+  margin: 0 0 60px;
+}
 
-  /* Form */
-  .form-card {
-    background: white;
-    padding: 38px;
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(15,31,55,0.1);
-    border: 1px solid var(--line);
-  }
-  .form-card h3 {
-    font-size: 24px;
-    margin-bottom: 6px;
-  }
-  .form-card .form-sub {
-    font-size: 14px;
-    color: var(--ink-soft);
-    margin-bottom: 28px;
-  }
-  .form-group {
-    margin-bottom: 18px;
-  }
-  .form-group label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--navy-deep);
-    margin-bottom: 6px;
-  }
-  .form-group label .req { color: var(--gold); }
-  .form-group input,
-  .form-group select,
-  .form-group textarea {
-    width: 100%;
-    padding: 12px 14px;
-    border: 1px solid var(--line);
-    border-radius: 9px;
-    font-family: inherit;
-    font-size: 14.5px;
-    background: var(--paper);
-    color: var(--ink);
-    transition: all .15s ease;
-  }
-  .form-group input:focus,
-  .form-group select:focus,
-  .form-group textarea:focus {
-    outline: 0;
-    border-color: var(--teal);
-    background: white;
-    box-shadow: 0 0 0 3px rgba(15,110,86,0.12);
-  }
-  .form-group textarea { resize: vertical; min-height: 80px; }
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-  .form-submit {
-    width: 100%;
-    background: var(--navy-deep);
-    color: white;
-    padding: 16px;
-    border: 0;
-    border-radius: 100px;
-    font-weight: 700;
-    font-size: 15px;
-    cursor: pointer;
-    transition: all .25s ease;
-    margin-top: 10px;
-    box-shadow: 0 4px 18px rgba(15,31,55,0.18);
-  }
-  .form-submit:hover:not(:disabled) {
-    background: var(--teal);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 28px rgba(15,110,86,0.3);
-  }
-  .form-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-  .form-trust {
-    margin-top: 18px;
-    text-align: center;
-    font-size: 12px;
-    color: var(--ink-soft);
-  }
-  .form-trust strong { color: var(--navy-deep); }
-  .form-message {
-    margin-top: 16px;
-    padding: 14px;
-    border-radius: 8px;
-    font-size: 14px;
-    display: none;
-  }
-  .form-message.success {
-    display: block;
-    background: var(--teal-light);
-    color: var(--teal-deep);
-    border: 1px solid var(--teal);
-  }
-  .form-message.error {
-    display: block;
-    background: #fee;
-    color: #c0392b;
-    border: 1px solid #e74c3c;
-  }
+/* ---------- DOULEURS ---------- */
+.pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
+.pain-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 32px 28px;
+  transition: all .3s var(--t);
+}
+.pain-card:hover { border-color: var(--accent); transform: translateY(-4px); }
+.pain-quote {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1.35;
+  margin: 0 0 24px;
+  color: var(--ink);
+}
+.pain-quote::before { content: '« '; color: var(--accent); }
+.pain-quote::after { content: ' »'; color: var(--accent); }
+.pain-source {
+  font-size: 13px; color: var(--ink-mute);
+  border-top: 1px solid var(--line-soft);
+  padding-top: 14px;
+}
+@media (max-width: 880px) { .pain-grid { grid-template-columns: 1fr; } }
 
-  /* ═══ FAQ ═══ */
-  section.faq {
-    padding: 100px 0;
-    background: var(--paper);
-  }
-  .faq-list {
-    max-width: 800px;
-    margin: 40px auto 0;
-  }
-  .faq-item {
-    border-bottom: 1px solid var(--line);
-    padding: 24px 0;
-  }
-  .faq-q {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-weight: 700;
-    font-size: 17px;
-    color: var(--navy-deep);
-    cursor: pointer;
-    list-style: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-  }
-  .faq-q::-webkit-details-marker { display: none; }
-  .faq-q::after {
-    content: '+';
-    font-size: 28px;
-    color: var(--teal);
-    font-weight: 300;
-    transition: transform .25s ease;
-    font-family: 'Fraunces', serif;
-  }
-  details[open] .faq-q::after { transform: rotate(45deg); }
-  .faq-a {
-    padding-top: 14px;
-    color: var(--ink-soft);
-    font-size: 15.5px;
-    line-height: 1.7;
-  }
+/* ---------- FEATURES ---------- */
+.feat-block { background: var(--bg-alt); }
+.feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--line); }
+.feat-cell {
+  background: var(--bg);
+  padding: 36px 32px;
+  display: flex; flex-direction: column;
+  min-height: 240px;
+}
+.feat-num {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.feat-name {
+  font-family: 'Crimson Pro', serif;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -.01em;
+  margin: 0 0 12px;
+}
+.feat-desc { font-size: 14.5px; line-height: 1.55; color: var(--ink-soft); margin: 0; }
+@media (max-width: 880px) { .feat-grid { grid-template-columns: 1fr; } }
 
-  /* ═══ FOOTER ═══ */
-  footer {
-    background: var(--navy-deep);
-    color: rgba(255,255,255,0.7);
-    padding: 70px 0 30px;
-  }
-  .footer-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr;
-    gap: 50px;
-    margin-bottom: 50px;
-  }
-  .footer-brand .logo {
-    color: white;
-    margin-bottom: 16px;
-  }
-  .footer-brand p {
-    font-size: 14px;
-    line-height: 1.6;
-    max-width: 320px;
-  }
-  .footer-col h5 {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    color: white;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 18px;
-  }
-  .footer-col ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-  .footer-col li {
-    margin-bottom: 10px;
-  }
-  .footer-col a {
-    color: rgba(255,255,255,0.65);
-    font-size: 14px;
-    transition: color .2s;
-  }
-  .footer-col a:hover {
-    color: var(--gold);
-  }
-  .footer-bottom {
-    padding-top: 30px;
-    border-top: 1px solid rgba(255,255,255,0.12);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 16px;
-    font-size: 13px;
-  }
-  .footer-bottom .made {
-    color: var(--gold);
-    font-weight: 600;
-  }
+/* ---------- PLANS ---------- */
+.plans-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+}
+.plan {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 40px 32px;
+  display: flex; flex-direction: column;
+  transition: all .3s var(--t);
+  position: relative;
+}
+.plan:hover { transform: translateY(-6px); box-shadow: 0 30px 60px -30px rgba(26,31,58,.2); }
+.plan.featured {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+.plan.featured .plan-name,
+.plan.featured .plan-tag { color: var(--bg); }
+.plan.featured .plan-desc { color: rgba(250,246,240,.75); }
+.plan.featured .plan-feat { color: rgba(250,246,240,.9); }
+.plan.featured .plan-feat::before { background: var(--gold); }
+.plan-badge {
+  position: absolute; top: 24px; right: 24px;
+  background: var(--gold); color: var(--ink);
+  font-size: 11px; font-weight: 700;
+  padding: 4px 10px; border-radius: 99px;
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.plan-tag {
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .12em;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.plan-name {
+  font-family: 'Crimson Pro', serif;
+  font-weight: 500;
+  font-size: 32px;
+  letter-spacing: -.015em;
+  margin: 0 0 8px;
+}
+.plan-desc { font-size: 14.5px; color: var(--ink-soft); margin: 0 0 28px; min-height: 3em; }
+.plan-price-line {
+  font-size: 13px; color: var(--ink-mute);
+  padding: 14px 0;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: 28px;
+  font-style: italic;
+}
+.plan.featured .plan-price-line { border-color: rgba(250,246,240,.15); color: rgba(250,246,240,.6); }
+.plan-feats { list-style: none; padding: 0; margin: 0 0 32px; flex: 1; }
+.plan-feat {
+  position: relative;
+  padding: 8px 0 8px 28px;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.plan-feat::before {
+  content: ''; position: absolute; left: 0; top: 14px;
+  width: 14px; height: 2px; background: var(--accent);
+}
+.plan-cta {
+  display: block; text-align: center;
+  padding: 14px;
+  border: 1px solid var(--ink);
+  border-radius: var(--r-md);
+  text-decoration: none;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all .2s var(--t);
+}
+.plan-cta:hover { background: var(--ink); color: var(--bg); }
+.plan.featured .plan-cta {
+  background: var(--gold); border-color: var(--gold); color: var(--ink);
+}
+.plan.featured .plan-cta:hover { background: var(--bg); border-color: var(--bg); }
 
-  /* ═══ MODALE VIDÉO ═══ */
-  .video-modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(15,31,55,0.92);
-    z-index: 100;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    backdrop-filter: blur(10px);
-  }
-  .video-modal.open { display: flex; }
-  .video-modal-content {
-    position: relative;
-    width: 100%;
-    max-width: 980px;
-    background: black;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
-  }
-  .video-modal iframe {
-    width: 100%;
-    aspect-ratio: 16/9;
-    border: 0;
-    display: block;
-  }
-  .video-modal-close {
-    position: absolute;
-    top: -50px;
-    right: 0;
-    background: transparent;
-    border: 0;
-    color: white;
-    font-size: 32px;
-    cursor: pointer;
-    padding: 8px 14px;
-    line-height: 1;
-  }
+@media (max-width: 980px) { .plans-grid { grid-template-columns: 1fr; max-width: 480px; margin: 0 auto; } }
 
-  /* ═══ RESPONSIVE ═══ */
-  @media (max-width: 980px) {
-    .hero-grid { grid-template-columns: 1fr; gap: 50px; }
-    .promesses-grid { grid-template-columns: 1fr; }
-    .features-list { grid-template-columns: 1fr; gap: 30px; }
-    .pricing-grid { grid-template-columns: repeat(2, 1fr); }
-    .pricing-card.featured { transform: none; }
-    .diagnostic-wrap { grid-template-columns: 1fr; gap: 40px; }
-    .footer-grid { grid-template-columns: 1fr 1fr; gap: 36px; }
-    .nav-links { display: none; }
-    .hamburger { display: block; }
-    .form-row { grid-template-columns: 1fr; }
-    .utility-bar .container { justify-content: center; text-align: center; }
-    .utility-left { flex-direction: column; gap: 4px; }
-  }
-  @media (max-width: 580px) {
-    .pricing-grid { grid-template-columns: 1fr; }
-    .footer-grid { grid-template-columns: 1fr; }
-    .hero { padding: 50px 0 70px; }
-  }
+/* ---------- FAQ ---------- */
+.faq-block { background: var(--bg-alt); }
+.faq-list { max-width: 820px; }
+.faq-item {
+  border-top: 1px solid var(--line);
+  padding: 4px 0;
+}
+.faq-item:last-child { border-bottom: 1px solid var(--line); }
+.faq-q {
+  display: flex; justify-content: space-between; align-items: center;
+  width: 100%;
+  padding: 24px 0;
+  background: none; border: none;
+  text-align: left;
+  font-family: 'Crimson Pro', serif;
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 1.3;
+  color: var(--ink);
+  cursor: pointer;
+  letter-spacing: -.01em;
+}
+.faq-q:hover { color: var(--accent); }
+.faq-icon {
+  font-family: 'Manrope', sans-serif;
+  font-weight: 300; font-size: 28px;
+  color: var(--accent);
+  transition: transform .3s var(--t);
+  flex-shrink: 0;
+  margin-left: 24px;
+}
+.faq-item.open .faq-icon { transform: rotate(45deg); }
+.faq-a {
+  max-height: 0; overflow: hidden;
+  transition: max-height .35s var(--t);
+}
+.faq-a-inner {
+  padding: 0 0 28px;
+  font-size: 16px; line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 70ch;
+}
+
+/* ---------- DIAGNOSTIC FORM ---------- */
+.diag-block { background: var(--ink); color: var(--bg); }
+.diag-block .section-label { color: var(--gold); }
+.diag-block .section-title { color: var(--bg); }
+.diag-block .section-title em { color: var(--gold); }
+.diag-block .section-lead { color: rgba(250,246,240,.75); }
+
+.diag-form {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px;
+  background: rgba(250,246,240,.04);
+  border: 1px solid rgba(250,246,240,.12);
+  border-radius: var(--r-lg);
+  padding: 40px;
+}
+.diag-field { display: flex; flex-direction: column; }
+.diag-field.full { grid-column: 1 / -1; }
+.diag-field label {
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.diag-field label .req { color: var(--accent); }
+.diag-field input,
+.diag-field select,
+.diag-field textarea {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(250,246,240,.25);
+  padding: 12px 0;
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  color: var(--bg);
+  outline: none;
+  transition: border-color .2s var(--t);
+}
+.diag-field input::placeholder,
+.diag-field textarea::placeholder { color: rgba(250,246,240,.4); }
+.diag-field input:focus,
+.diag-field select:focus,
+.diag-field textarea:focus { border-bottom-color: var(--gold); }
+.diag-field input.field-error,
+.diag-field select.field-error,
+.diag-field textarea.field-error { border-bottom-color: var(--accent); }
+.diag-field select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c8a060' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0 center;
+  background-size: 12px;
+  padding-right: 24px;
+  cursor: pointer;
+}
+.diag-field select option { background: var(--ink); color: var(--bg); }
+.diag-field textarea { resize: vertical; min-height: 90px; }
+
+.diag-checkbox-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 18px;
+  margin-top: 8px;
+}
+.diag-check {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px;
+  color: rgba(250,246,240,.9);
+  cursor: pointer;
+  padding: 6px 0;
+}
+.diag-check input { appearance: none; width: 16px; height: 16px; border: 1px solid rgba(250,246,240,.4); border-radius: 3px; background: transparent; cursor: pointer; position: relative; flex-shrink: 0; }
+.diag-check input:checked { background: var(--gold); border-color: var(--gold); }
+.diag-check input:checked::after { content: '✓'; color: var(--ink); font-weight: 700; position: absolute; top: -3px; left: 2px; font-size: 13px; }
+
+.diag-submit {
+  background: var(--accent); color: var(--bg);
+  border: none;
+  padding: 18px 32px;
+  border-radius: var(--r-md);
+  font-family: 'Manrope', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  letter-spacing: .02em;
+  transition: all .2s var(--t);
+  display: inline-flex; align-items: center; gap: 12px;
+  justify-self: start;
+}
+.diag-submit:hover { background: var(--gold); color: var(--ink); }
+.diag-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+.diag-note {
+  font-size: 13px; color: rgba(250,246,240,.55);
+  grid-column: 1 / -1;
+  margin-top: 8px;
+}
+
+.diag-feedback {
+  grid-column: 1/-1;
+  padding: 18px 22px;
+  border-radius: var(--r-md);
+  font-size: 14.5px;
+  display: none;
+  line-height: 1.5;
+}
+.diag-feedback.ok { background: rgba(45,106,79,.15); border: 1px solid var(--ok); color: #95d5b2; }
+.diag-feedback.err { background: rgba(199,93,44,.15); border: 1px solid var(--accent); color: #f4a583; }
+.diag-feedback.show { display: block; }
+.diag-feedback a { color: var(--gold); text-decoration: underline; margin-left: 6px; }
+
+@media (max-width: 720px) {
+  .diag-form { grid-template-columns: 1fr; padding: 28px 22px; }
+  .diag-checkbox-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- FOOTER ---------- */
+footer.main {
+  background: var(--bg-alt);
+  padding: 60px 0 30px;
+  border-top: 1px solid var(--line);
+}
+.footer-grid {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px;
+  margin-bottom: 50px;
+}
+.footer-brand .logo { margin-bottom: 16px; }
+.footer-tagline { font-size: 14px; color: var(--ink-soft); max-width: 32ch; }
+.footer-col h4 {
+  font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .12em;
+  color: var(--ink);
+  margin: 0 0 16px;
+}
+.footer-col a {
+  display: block;
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 5px 0;
+  transition: color .2s var(--t);
+}
+.footer-col a:hover { color: var(--accent); }
+.footer-bottom {
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 14px;
+  font-size: 13px; color: var(--ink-mute);
+}
+@media (max-width: 720px) {
+  .footer-grid { grid-template-columns: 1fr 1fr; gap: 30px; }
+  .footer-brand { grid-column: 1 / -1; }
+}
+
+/* ---------- Reveal au scroll ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal { opacity: 0; transform: translateY(20px); transition: all .7s var(--t); }
+  .reveal.in { opacity: 1; transform: none; }
+}
 </style>
 </head>
 <body>
 
-<!-- ═══ BANDEAU UTILITAIRE TOUS PUBLICS (Option 3) ═══ -->
-<div class="utility-bar">
-  <div class="container">
-    <div class="utility-left">
-      <span>📞 +229 XX XX XX XX</span>
-      <span>📧 contact@edulink.bj</span>
+<!-- ============ NAV ============ -->
+<nav class="main">
+  <div class="container nav-inner">
+    <a href="#" class="logo">
+      <span class="logo-mark">e</span>
+      EduLink
+    </a>
+    <div class="nav-links">
+      <a href="#solutions">Solutions</a>
+      <a href="#offres">Offres</a>
+      <a href="#faq">FAQ</a>
+      <a href="#diagnostic" class="nav-cta">Diagnostic gratuit</a>
     </div>
-    <div class="utility-actions">
-      <span style="color: rgba(255,255,255,0.55); margin-right: 4px; font-size: 12px;">Vous êtes&nbsp;:</span>
-      <a href="https://portail.edulink.bj" class="utility-btn parent">🎓 Parent / Étudiant</a>
-      <a href="https://app.edulink.bj" class="utility-btn admin">🏫 Administrateur école</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-eyebrow">Pensé au Bénin · Pour les écoles béninoises</div>
+        <h1>La gestion scolaire qui <em>respecte</em> votre quotidien.</h1>
+        <p class="hero-sub">
+          Notes, présences, paiements, communication parents. Un seul outil, en français,
+          accessible depuis n'importe quel téléphone. Conçu pour les réalités des écoles,
+          lycées et universités du Bénin — pas pour celles de Paris ou de Silicon Valley.
+        </p>
+        <div class="hero-cta-row">
+          <a href="#diagnostic" class="btn btn-primary">
+            Diagnostic gratuit en 3 minutes
+            <span class="arrow">→</span>
+          </a>
+          <a href="#solutions" class="btn btn-ghost">Voir les solutions</a>
+        </div>
+      </div>
+
+      <div class="hero-art">
+        <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#1a1f3a"/>
+              <stop offset="1" stop-color="#c75d2c"/>
+            </linearGradient>
+            <pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="1" fill="#1a1f3a" opacity=".15"/>
+            </pattern>
+          </defs>
+          <rect width="400" height="500" fill="url(#dots)"/>
+          <rect x="40" y="80" width="280" height="340" rx="14" fill="#1a1f3a"/>
+          <rect x="60" y="110" width="240" height="36" rx="4" fill="#faf6f0" opacity=".95"/>
+          <text x="76" y="133" font-family="Crimson Pro,serif" font-style="italic" font-size="14" fill="#1a1f3a">Bulletin · T2 2025-2026</text>
+          <rect x="60" y="158" width="240" height="2" fill="#c8a060" opacity=".5"/>
+          <g font-family="Manrope,sans-serif" font-size="11" fill="#faf6f0">
+            <text x="60" y="190">Mathématiques</text>     <text x="290" y="190" text-anchor="end" fill="#c8a060">16.5</text>
+            <text x="60" y="218">Français</text>           <text x="290" y="218" text-anchor="end" fill="#c8a060">14.0</text>
+            <text x="60" y="246">Anglais</text>            <text x="290" y="246" text-anchor="end" fill="#c8a060">15.2</text>
+            <text x="60" y="274">SVT</text>                <text x="290" y="274" text-anchor="end" fill="#c8a060">13.8</text>
+            <text x="60" y="302">Histoire-Géo</text>       <text x="290" y="302" text-anchor="end" fill="#c8a060">14.5</text>
+            <text x="60" y="330">Philosophie</text>        <text x="290" y="330" text-anchor="end" fill="#c8a060">12.0</text>
+          </g>
+          <rect x="60" y="350" width="240" height="2" fill="#c8a060" opacity=".5"/>
+          <text x="60" y="380" font-family="Crimson Pro,serif" font-size="13" font-style="italic" fill="#c8a060">Moyenne générale</text>
+          <text x="290" y="380" text-anchor="end" font-family="Crimson Pro,serif" font-size="22" fill="#faf6f0">14.33</text>
+          <rect x="200" y="380" width="160" height="60" rx="8" fill="#c75d2c" opacity=".95"/>
+          <text x="280" y="416" text-anchor="middle" font-family="Manrope,sans-serif" font-size="11" font-weight="700" fill="#faf6f0">SMS PARENT ENVOYÉ ✓</text>
+        </svg>
+
+        <div class="badge b1">
+          <span class="dot"></span>
+          Notes saisies · 12 min
+        </div>
+        <div class="badge b2">
+          <span class="dot"></span>
+          192 SMS envoyés
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ STATS ============ -->
+<div class="stats">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-num">8</div>
+        <div class="stat-lbl">Modules intégrés</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">0</div>
+        <div class="stat-lbl">Installation locale requise</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">100%</div>
+        <div class="stat-lbl">En français</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">24/7</div>
+        <div class="stat-lbl">Accès parents par SMS</div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ═══ HEADER ═══ -->
-<header class="header">
+<!-- ============ DOULEURS ============ -->
+<section class="block" id="solutions">
   <div class="container">
-    <a href="/" class="logo">
-      <span class="logo-mark">E</span>
-      <span>EduLink</span>
-    </a>
-    <nav class="nav-links">
-      <a href="#promesses">La promesse</a>
-      <a href="#features">Fonctionnalités</a>
-      <a href="#pricing">Tarifs</a>
-      <a href="#faq">Questions</a>
-      <button class="nav-cta" onclick="scrollToDiagnostic()">Diagnostic gratuit</button>
-    </nav>
-    <button class="hamburger" aria-label="Menu">☰</button>
-  </div>
-</header>
-
-<!-- ═══ HERO ═══ -->
-<section class="hero">
-  <div class="container hero-grid">
-    <div>
-      <div class="hero-badge">Conçu au Bénin, pour le Bénin</div>
-      <h1>
-        La gestion scolaire <em>repensée</em> pour les universités privées
-      </h1>
-      <p class="hero-tag">
-        Bulletins en 30 secondes, portail famille, Mobile Money intégré, communication parents automatisée. EduLink remplace vos Excel et vos groupes WhatsApp désorganisés par une plateforme unifiée — moderne, sécurisée, africaine.
+    <div class="reveal">
+      <div class="section-label">Ce que nous entendons</div>
+      <h2 class="section-title">Les écoles du Bénin <em>méritent</em> mieux que des tableurs Excel.</h2>
+      <p class="section-lead">
+        Pendant trois mois nous avons écouté directeurs, surveillants, comptables et parents.
+        Voici les trois douleurs qui reviennent à chaque conversation.
       </p>
-      <div class="hero-cta-row">
-        <button class="btn-primary" onclick="scrollToDiagnostic()">
-          Diagnostic gratuit
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M5 12h14M13 5l7 7-7 7"/>
-          </svg>
+    </div>
+
+    <div class="pain-grid">
+      <div class="pain-card reveal">
+        <p class="pain-quote">Je passe mes dimanches à recopier les notes des cahiers dans Excel pour préparer les bulletins.</p>
+        <div class="pain-source">— Surveillant général, lycée privé, Cotonou</div>
+      </div>
+      <div class="pain-card reveal">
+        <p class="pain-quote">Les parents nous appellent toute la journée pour savoir si leur enfant était présent. C'est le standard qui sature.</p>
+        <div class="pain-source">— Directrice, école primaire, Calavi</div>
+      </div>
+      <div class="pain-card reveal">
+        <p class="pain-quote">Pour relancer les impayés, on imprime des courriers que les enfants ne donnent jamais à leurs parents.</p>
+        <div class="pain-source">— Comptable, complexe scolaire, Porto-Novo</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section class="block feat-block">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Solutions</div>
+      <h2 class="section-title">Huit modules. <em>Une</em> seule plateforme.</h2>
+      <p class="section-lead">
+        Chaque module a été co-construit avec des écoles partenaires. Pas de fonctionnalité gadget,
+        pas d'option mystérieuse à 20 €/mois. Juste ce dont vous avez besoin, et qui marche.
+      </p>
+    </div>
+
+    <div class="feat-grid reveal">
+      <div class="feat-cell">
+        <div class="feat-num">01 / Notes</div>
+        <h3 class="feat-name">Bulletins automatisés</h3>
+        <p class="feat-desc">Saisie en quelques minutes, calcul automatique des moyennes, génération PDF par classe ou par trimestre. Compatible avec les barèmes béninois.</p>
+      </div>
+      <div class="feat-cell">
+        <div class="feat-num">02 / Présences</div>
+        <h3 class="feat-name">Absences & retards</h3>
+        <p class="feat-desc">Pointage rapide depuis téléphone ou ordinateur. Notification automatique des parents par SMS dès qu'un enfant est marqué absent.</p>
+      </div>
+      <div class="feat-cell">
+        <div class="feat-num">03 / Paiements</div>
+        <h3 class="feat-name">Scolarités & relances</h3>
+        <p class="feat-desc">Suivi des paiements par tranches, relances automatiques des impayés, reçus PDF. Compatible Mobile Money et virements bancaires.</p>
+      </div>
+      <div class="feat-cell">
+        <div class="feat-num">04 / Familles</div>
+        <h3 class="feat-name">Portail parents</h3>
+        <p class="feat-desc">Accès par numéro de téléphone et code OTP. Les parents consultent notes, absences, paiements et messages depuis n'importe quel smartphone.</p>
+      </div>
+      <div class="feat-cell">
+        <div class="feat-num">05 / Communication</div>
+        <h3 class="feat-name">SMS & emails groupés</h3>
+        <p class="feat-desc">Envoyez un message à une classe, à un niveau, ou à toute l'école en deux clics. Gabarits prêts pour annonces, convocations, rappels.</p>
+      </div>
+      <div class="feat-cell">
+        <div class="feat-num">06 / Emplois du temps</div>
+        <h3 class="feat-name">Planning visuel</h3>
+        <p class="feat-desc">Création d'EDT en glisser-déposer, détection des conflits, partage automatique avec enseignants et élèves.</p>
+      </div>
+      <div class="feat-cell">
+        <div class="feat-num">07 / Bibliothèque</div>
+        <h3 class="feat-name">Gestion des emprunts</h3>
+        <p class="feat-desc">Inventaire des ouvrages, suivi des emprunts, relances pour les retours en retard. Catalogue accessible aux élèves.</p>
+      </div>
+      <div class="feat-cell">
+        <div class="feat-num">08 / Rapports</div>
+        <h3 class="feat-name">Tableaux de bord</h3>
+        <p class="feat-desc">Taux d'absentéisme, moyennes par classe, recouvrement, statistiques pour direction et conseil d'administration. Export Excel et PDF.</p>
+      </div>
+      <div class="feat-cell" style="background: var(--ink); color: var(--bg); display:flex; align-items:center; justify-content:center; text-align:center; padding: 40px;">
+        <div>
+          <p style="font-family:'Crimson Pro',serif; font-style:italic; font-size:22px; line-height:1.4; margin:0 0 20px; color:var(--gold);">+ d'autres modules en développement avec nos écoles partenaires</p>
+          <a href="#diagnostic" style="color:var(--bg); font-size:14px; font-weight:600; text-decoration:underline;">Proposer un besoin →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OFFRES ============ -->
+<section class="block" id="offres">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Offres</div>
+      <h2 class="section-title">Trois formules. <em>Aucun</em> prix surprise.</h2>
+      <p class="section-lead">
+        Nos tarifs sont construits sur mesure en fonction du nombre d'élèves et des modules retenus.
+        Aucune écriture en petits caractères, aucun coût caché. Demandez un devis : nous revenons vers vous sous 48 heures.
+      </p>
+    </div>
+
+    <div class="plans-grid reveal">
+      <div class="plan">
+        <div class="plan-tag">Pour démarrer</div>
+        <h3 class="plan-name">Découverte</h3>
+        <p class="plan-desc">Idéal pour une école primaire ou un petit collège qui digitalise pour la première fois.</p>
+        <div class="plan-price-line">Tarif sur devis — moins de 200 élèves</div>
+        <ul class="plan-feats">
+          <li class="plan-feat">Notes & bulletins PDF</li>
+          <li class="plan-feat">Présences & absences</li>
+          <li class="plan-feat">Communication SMS</li>
+          <li class="plan-feat">Portail parents</li>
+          <li class="plan-feat">Support par WhatsApp</li>
+        </ul>
+        <a href="#diagnostic" class="plan-cta">Demander un devis</a>
+      </div>
+
+      <div class="plan featured">
+        <span class="plan-badge">Recommandé</span>
+        <div class="plan-tag">Le standard</div>
+        <h3 class="plan-name">École</h3>
+        <p class="plan-desc">L'offre complète pour un établissement organisé qui veut tous ses outils en un seul endroit.</p>
+        <div class="plan-price-line">Tarif sur devis — 200 à 1500 élèves</div>
+        <ul class="plan-feats">
+          <li class="plan-feat">Tous les modules Découverte</li>
+          <li class="plan-feat">Paiements & relances</li>
+          <li class="plan-feat">Emplois du temps</li>
+          <li class="plan-feat">Bibliothèque</li>
+          <li class="plan-feat">Rapports & tableaux de bord</li>
+          <li class="plan-feat">Formation sur site</li>
+          <li class="plan-feat">Support prioritaire</li>
+        </ul>
+        <a href="#diagnostic" class="plan-cta">Demander un devis</a>
+      </div>
+
+      <div class="plan">
+        <div class="plan-tag">Multi-établissements</div>
+        <h3 class="plan-name">Réseau</h3>
+        <p class="plan-desc">Pour les groupes scolaires, réseaux d'écoles ou universités avec plusieurs campus.</p>
+        <div class="plan-price-line">Tarif sur devis — plusieurs entités</div>
+        <ul class="plan-feats">
+          <li class="plan-feat">Tous les modules École</li>
+          <li class="plan-feat">Tableau de bord consolidé</li>
+          <li class="plan-feat">Gestion multi-campus</li>
+          <li class="plan-feat">Rôles & permissions avancés</li>
+          <li class="plan-feat">Export comptable consolidé</li>
+          <li class="plan-feat">Account manager dédié</li>
+          <li class="plan-feat">SLA contractuel</li>
+        </ul>
+        <a href="#diagnostic" class="plan-cta">Demander un devis</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="block faq-block" id="faq">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Questions fréquentes</div>
+      <h2 class="section-title">Ce qu'on nous demande <em>vraiment</em>.</h2>
+    </div>
+
+    <div class="faq-list reveal">
+      <div class="faq-item">
+        <button class="faq-q">
+          <span>Faut-il une bonne connexion internet pour utiliser EduLink ?</span>
+          <span class="faq-icon">+</span>
         </button>
-        <button class="btn-secondary" onclick="openVideo()">▶ Voir la démo · 7 min</button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Une connexion 3G suffit pour le back-office. EduLink est volontairement léger et optimisé pour fonctionner sur les réseaux mobiles béninois. Pour les zones avec coupures fréquentes, certaines opérations critiques (saisie des notes, pointage des présences) peuvent être faites localement puis synchronisées dès que la connexion revient. Les parents reçoivent les informations essentielles par SMS — aucune connexion internet n'est requise de leur côté.
+        </div></div>
       </div>
-      <div class="hero-meta">
-        <div class="hero-meta-item"><strong>15 modules</strong> métier</div>
-        <div class="hero-meta-item"><strong>Mobile Money</strong> MTN & Moov</div>
-        <div class="hero-meta-item"><strong>RGPD</strong> conforme</div>
-      </div>
-    </div>
 
-    <!-- MOCKUP INTERACTIF -->
-    <div class="mockup-frame" onclick="openVideo()" title="Cliquer pour voir la démo">
-      <div class="mockup-screen">
-        <div class="mockup-bar">
-          <span class="mockup-dot"></span>
-          <span class="mockup-dot"></span>
-          <span class="mockup-dot"></span>
-          <span class="mockup-url">app.edulink.bj — Tableau de bord HEMEC</span>
-        </div>
-        <div class="mockup-body">
-          <div class="mockup-header-info">
-            <h4>Haute École de Management — HEMEC</h4>
-            <p>Tableau de bord · Semestre 1</p>
-          </div>
-          <div class="mockup-stats">
-            <div class="mockup-stat">
-              <div class="mockup-stat-val">15</div>
-              <div class="mockup-stat-lab">Étudiants</div>
-            </div>
-            <div class="mockup-stat">
-              <div class="mockup-stat-val">5</div>
-              <div class="mockup-stat-lab">Profs</div>
-            </div>
-            <div class="mockup-stat">
-              <div class="mockup-stat-val">67%</div>
-              <div class="mockup-stat-lab">Recouvré</div>
-            </div>
-          </div>
-          <div class="mockup-table-row">
-            <span>ADOMOU Marcelline</span>
-            <span><span class="mockup-tag">L1 GFC</span> <strong class="mockup-grade">15.00/20</strong></span>
-          </div>
-          <div class="mockup-table-row">
-            <span>VODONOU Justine</span>
-            <span><span class="mockup-tag">M1 AUD</span> <strong class="mockup-grade">15.42/20</strong></span>
-          </div>
-          <div class="mockup-table-row">
-            <span>TOKPONNON Yvette</span>
-            <span><span class="mockup-tag">L2 MKT</span> <strong class="mockup-grade">14.75/20</strong></span>
-          </div>
-          <div class="mockup-table-row">
-            <span>HOUNGNIBO Parfait</span>
-            <span><span class="mockup-tag">L2 MKT</span> <strong class="mockup-grade">11.83/20</strong></span>
-          </div>
-        </div>
-        <div class="mockup-play-overlay">
-          <div class="mockup-play-btn"></div>
-        </div>
+      <div class="faq-item">
+        <button class="faq-q">
+          <span>Les données de notre école restent-elles confidentielles ?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Oui, intégralement. Chaque école dispose de son propre espace cloisonné — aucun directeur d'une autre école ne peut accéder à vos données, même par erreur. Les serveurs sont hébergés chez Supabase (infrastructure européenne certifiée SOC 2). Les sauvegardes sont quotidiennes. Vous restez propriétaire de vos données et pouvez les exporter à tout moment au format Excel ou CSV.
+        </div></div>
       </div>
-      <div class="mockup-caption">▶ Cliquer pour la démo vidéo</div>
+
+      <div class="faq-item">
+        <button class="faq-q">
+          <span>Combien de temps prend l'installation et la mise en route ?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Pour une école de moins de 500 élèves, comptez 5 à 10 jours ouvrés : 1 jour pour le paramétrage initial (classes, matières, coefficients), 2 à 3 jours pour l'import de votre liste d'élèves depuis un fichier Excel, et 1 à 2 demi-journées de formation des équipes administratives. Vous pouvez commencer à utiliser la plateforme dès le premier jour pour les nouvelles saisies.
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">
+          <span>Que se passe-t-il si on veut arrêter EduLink ?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Aucun engagement de durée. Vous pouvez interrompre l'abonnement à la fin de chaque trimestre scolaire. À la résiliation, nous vous fournissons un export complet de toutes vos données (élèves, notes, bulletins, présences, paiements) au format Excel et PDF. Pas de prise en otage, pas de pénalité de sortie.
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">
+          <span>EduLink fonctionne-t-il avec Mobile Money (MTN, Moov) ?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Le module Paiements enregistre les versements par Mobile Money exactement comme un paiement en espèces ou par virement : votre comptable saisit le montant et la référence de la transaction MTN MoMo ou Moov Money, puis la plateforme génère le reçu PDF pour le parent. L'intégration directe avec les API Mobile Money est en cours de développement avec nos écoles partenaires et sera proposée en option courant 2026.
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">
+          <span>Nos enseignants ne sont pas tous à l'aise avec l'informatique. Est-ce un problème ?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Non, c'est précisément la raison pour laquelle nous avons soigné l'interface. EduLink est en français, sans jargon technique, et utilisable depuis n'importe quel téléphone Android ou ordinateur. La formation sur site (incluse dans l'offre École) prend en général une demi-journée. Pour les enseignants qui préfèrent rester sur papier, le surveillant général ou la direction peut faire la saisie centralisée.
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">
+          <span>Pouvons-nous récupérer nos données existantes (Excel, ancien logiciel) ?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Oui. Nous prenons en charge l'import depuis vos fichiers Excel (élèves, classes, parents, historique des notes) lors du paramétrage initial. Si vous utilisez un autre logiciel scolaire et qu'il permet l'export en Excel ou CSV, nous nous occupons de la migration. Cette prestation est incluse pour les offres École et Réseau.
+        </div></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">
+          <span>Y a-t-il un support en cas de problème ?</span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Toutes les offres incluent un support par WhatsApp et email du lundi au samedi, de 8h à 18h. L'offre École ajoute un support prioritaire avec délai de réponse garanti sous 4 heures pendant les heures ouvrées. L'offre Réseau bénéficie d'un account manager dédié joignable directement. Nos équipes sont basées au Bénin et parlent français.
+        </div></div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ═══ 3 PROMESSES ═══ -->
-<section class="promesses" id="promesses">
+<!-- ============ DIAGNOSTIC ============ -->
+<section class="block diag-block" id="diagnostic">
   <div class="container">
-    <span class="section-eyebrow">La promesse EduLink</span>
-    <h2 class="section-title">Trois transformations concrètes pour votre université.</h2>
-    <p class="section-intro">EduLink n'est pas un outil informatique de plus. C'est une refonte complète de la façon dont une école privée gère son administration, communique avec les familles, et sécurise ses recettes.</p>
-
-    <div class="promesses-grid">
-      <div class="promesse">
-        <div class="promesse-icon">⏱️</div>
-        <h3>Du temps libéré</h3>
-        <p>Les tâches qui prenaient des semaines à votre secrétariat — bulletins, relances, exports — prennent désormais quelques minutes. Vos équipes se concentrent sur la qualité pédagogique.</p>
-        <div class="promesse-stat">
-          <span class="promesse-stat-big">−85%</span>
-          <span class="promesse-stat-lab">de temps administratif<br>par semestre</span>
-        </div>
-      </div>
-
-      <div class="promesse">
-        <div class="promesse-icon">👨‍👩‍👧</div>
-        <h3>Des familles alliées</h3>
-        <p>Les parents accèdent en temps réel aux notes, absences, frais de scolarité. Les appels au secrétariat chutent. La confiance dans votre établissement s'installe durablement.</p>
-        <div class="promesse-stat">
-          <span class="promesse-stat-big">−70%</span>
-          <span class="promesse-stat-lab">d'appels parents<br>au secrétariat</span>
-        </div>
-      </div>
-
-      <div class="promesse">
-        <div class="promesse-icon">💰</div>
-        <h3>Des recettes sécurisées</h3>
-        <p>Mobile Money intégré, relances automatiques, suivi des impayés en temps réel. Le recouvrement des frais de scolarité devient prévisible et fluide. Vos recettes augmentent sans effort.</p>
-        <div class="promesse-stat">
-          <span class="promesse-stat-big">+12%</span>
-          <span class="promesse-stat-lab">de recettes<br>annuelles récupérées</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ FONCTIONNALITÉS ═══ -->
-<section class="features" id="features">
-  <div class="container">
-    <span class="section-eyebrow">Tout en un</span>
-    <h2 class="section-title">15 modules pensés pour les universités privées béninoises.</h2>
-    <p class="section-intro">Là où Excel s'arrête, EduLink commence. Une plateforme unifiée pour piloter chaque dimension de votre établissement.</p>
-
-    <div class="features-list">
-      <div class="feature">
-        <div class="feature-num">01</div>
-        <div class="feature-content">
-          <h4>Scolarité & étudiants</h4>
-          <p>Fiches complètes, import Excel de 800 étudiants en 3 minutes, classes & filières, période académique configurable.</p>
-        </div>
-      </div>
-      <div class="feature">
-        <div class="feature-num">02</div>
-        <div class="feature-content">
-          <h4>Notes & bulletins</h4>
-          <p>Saisie rapide par épreuve (interro, DS, examen), coefficients automatiques, bulletins PDF officiels en un clic.</p>
-        </div>
-      </div>
-      <div class="feature">
-        <div class="feature-num">03</div>
-        <div class="feature-content">
-          <h4>Portail famille</h4>
-          <p>Espace dédié parents avec authentification SMS, accès aux notes, absences, frais en temps réel.</p>
-        </div>
-      </div>
-      <div class="feature">
-        <div class="feature-num">04</div>
-        <div class="feature-content">
-          <h4>Finance & Mobile Money</h4>
-          <p>Facturation, encaissements MTN/Moov, relances automatiques, suivi des impayés, reçus PDF générés.</p>
-        </div>
-      </div>
-      <div class="feature">
-        <div class="feature-num">05</div>
-        <div class="feature-content">
-          <h4>Présences & absences</h4>
-          <p>Enregistrement par cours, justifications, notifications parents automatiques en cas d'absence répétée.</p>
-        </div>
-      </div>
-      <div class="feature">
-        <div class="feature-num">06</div>
-        <div class="feature-content">
-          <h4>Examens & emploi du temps</h4>
-          <p>Planification semestre, salles, surveillants. L'emploi du temps est visible par les étudiants et les parents.</p>
-        </div>
-      </div>
-      <div class="feature">
-        <div class="feature-num">07</div>
-        <div class="feature-content">
-          <h4>Communication parents</h4>
-          <p>Email Brevo, SMS Twilio, notifications push, messages ciblés par classe ou filière.</p>
-        </div>
-      </div>
-      <div class="feature">
-        <div class="feature-num">08</div>
-        <div class="feature-content">
-          <h4>Ressources humaines</h4>
-          <p>Enseignants, personnel administratif, congés, planning, fiches de paie simplifiées.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ TARIFICATION ═══ -->
-<section class="pricing" id="pricing">
-  <div class="container">
-    <span class="section-eyebrow">Tarification transparente</span>
-    <h2 class="section-title">Un seul prix, tout inclus. Selon la taille de votre université.</h2>
-    <p class="section-intro">Pas de surfacturation cachée. Pas de prix par module. Une grille annuelle claire, adaptée au marché béninois.</p>
-
-    <div class="pricing-grid">
-      <div class="pricing-card">
-        <div class="pricing-name">Découverte</div>
-        <div class="pricing-students">moins de 50 étudiants</div>
-        <div class="pricing-amount"><strong>600 K</strong><span>FCFA / an</span></div>
-        <div class="pricing-monthly">soit 50 000 FCFA / mois</div>
-        <ul>
-          <li>Tous les 15 modules</li>
-          <li>Portail famille illimité</li>
-          <li>Mobile Money intégré</li>
-          <li>Support email</li>
-          <li>Formation initiale</li>
-        </ul>
-        <button class="pricing-cta" onclick="scrollToDiagnostic()">Commencer</button>
-      </div>
-
-      <div class="pricing-card featured">
-        <div class="pricing-name">Confiance</div>
-        <div class="pricing-students">50 à 200 étudiants</div>
-        <div class="pricing-amount"><strong>1,8 M</strong><span>FCFA / an</span></div>
-        <div class="pricing-monthly">soit 150 000 FCFA / mois</div>
-        <ul>
-          <li>Tout Découverte +</li>
-          <li>Support téléphonique prioritaire</li>
-          <li>Formation équipe sur place</li>
-          <li>Branding personnalisé</li>
-          <li>Rapports mensuels recteur</li>
-        </ul>
-        <button class="pricing-cta" onclick="scrollToDiagnostic()">Demander un diagnostic</button>
-      </div>
-
-      <div class="pricing-card">
-        <div class="pricing-name">Croissance</div>
-        <div class="pricing-students">200 à 500 étudiants</div>
-        <div class="pricing-amount"><strong>3,6 M</strong><span>FCFA / an</span></div>
-        <div class="pricing-monthly">soit 300 000 FCFA / mois</div>
-        <ul>
-          <li>Tout Confiance +</li>
-          <li>Account manager dédié</li>
-          <li>Intégrations sur mesure</li>
-          <li>Multi-sites (limité)</li>
-          <li>SLA garanti</li>
-        </ul>
-        <button class="pricing-cta" onclick="scrollToDiagnostic()">Commencer</button>
-      </div>
-
-      <div class="pricing-card">
-        <div class="pricing-name">Premium</div>
-        <div class="pricing-students">500 à 1 000 étudiants</div>
-        <div class="pricing-amount"><strong>6 M</strong><span>FCFA / an</span></div>
-        <div class="pricing-monthly">soit 500 000 FCFA / mois</div>
-        <ul>
-          <li>Tout Croissance +</li>
-          <li>Multi-campus illimités</li>
-          <li>Onboarding 7 jours</li>
-          <li>Tableau direction avancé</li>
-          <li>Backup quotidien dédié</li>
-        </ul>
-        <button class="pricing-cta" onclick="scrollToDiagnostic()">Commencer</button>
-      </div>
+    <div class="reveal">
+      <div class="section-label">Diagnostic gratuit</div>
+      <h2 class="section-title">Trois minutes pour <em>voir clair</em>.</h2>
+      <p class="section-lead">
+        Répondez à quelques questions sur votre école. Nous revenons vers vous sous 48 heures avec
+        un diagnostic personnalisé, une estimation chiffrée et une démonstration en visio si vous le souhaitez.
+        Aucune obligation, aucun appel commercial agressif. Promesse béninoise.
+      </p>
     </div>
 
-    <div class="pricing-note">
-      Plus de 1 000 étudiants ou groupe multi-campus ? <a href="#diagnostic">Demandez un devis sur mesure →</a>
-    </div>
-  </div>
-</section>
+    <form class="diag-form reveal" id="diagForm" novalidate>
 
-<!-- ═══ FORMULAIRE DIAGNOSTIC ═══ -->
-<section class="diagnostic" id="diagnostic">
-  <div class="container diagnostic-wrap">
-
-    <div class="diagnostic-info">
-      <span class="section-eyebrow">Diagnostic gratuit</span>
-      <h2>60 minutes pour savoir si EduLink est fait pour votre université.</h2>
-      <p>Pas un commercial qui essaie de vendre. Un échange technique sur place, où nous regardons ensemble vos processus actuels et identifions les vraies opportunités d'amélioration.</p>
-      <p style="font-size: 15px;">À l'issue du diagnostic, vous repartez avec un <strong>rapport écrit</strong>, que vous décidiez de poursuivre ou non avec EduLink.</p>
-
-      <ol class="diagnostic-steps">
-        <li>
-          <div class="step-num">1</div>
-          <div class="step-content">
-            <strong>Vous remplissez ce formulaire</strong>
-            <span>2 minutes — nous vous rappelons sous 24 heures</span>
-          </div>
-        </li>
-        <li>
-          <div class="step-num">2</div>
-          <div class="step-content">
-            <strong>Rendez-vous chez vous, 60 minutes</strong>
-            <span>Cotonou, Calavi, Porto-Novo, Parakou — sur tout le territoire béninois</span>
-          </div>
-        </li>
-        <li>
-          <div class="step-num">3</div>
-          <div class="step-content">
-            <strong>Rapport personnalisé sous 7 jours</strong>
-            <span>Vos points de douleur, opportunités, et si EduLink y répond — ou pas</span>
-          </div>
-        </li>
-        <li>
-          <div class="step-num">4</div>
-          <div class="step-content">
-            <strong>Vous décidez librement</strong>
-            <span>Aucune pression. Aucune obligation. Le rapport vous appartient.</span>
-          </div>
-        </li>
-      </ol>
-    </div>
-
-    <form class="form-card" id="diagnostic-form" onsubmit="handleSubmit(event)">
-      <h3>Demander mon diagnostic</h3>
-      <p class="form-sub">2 minutes · Réponse sous 24h · 100% gratuit</p>
-
-      <div class="form-group">
-        <label>Votre nom complet <span class="req">*</span></label>
-        <input type="text" name="nom" required placeholder="Ex : Dr Ange ADJAGBONI">
+      <div class="diag-field">
+        <label>Nom de l'établissement <span class="req">*</span></label>
+        <input type="text" name="ecole_nom" minlength="2" maxlength="200" placeholder="Ex : Collège Notre-Dame de Cotonou" required>
       </div>
-      <div class="form-group">
+
+      <div class="diag-field">
+        <label>Votre nom <span class="req">*</span></label>
+        <input type="text" name="nom" minlength="2" maxlength="200" placeholder="Prénom Nom" required>
+      </div>
+
+      <div class="diag-field">
         <label>Votre fonction <span class="req">*</span></label>
         <select name="fonction" required>
           <option value="">— Sélectionner —</option>
-          <option>Recteur / Présidente</option>
-          <option>Fondateur(trice) / Directeur(trice) Général</option>
-          <option>Directeur(trice) des Études</option>
-          <option>Directeur(trice) Administratif et Financier</option>
-          <option>Secrétaire Général(e)</option>
-          <option>Autre</option>
+          <option value="Directeur / Directrice">Directeur / Directrice</option>
+          <option value="Surveillant général">Surveillant général</option>
+          <option value="Propriétaire / Fondateur">Propriétaire / Fondateur</option>
+          <option value="Comptable / Gestionnaire">Comptable / Gestionnaire</option>
+          <option value="Enseignant">Enseignant</option>
+          <option value="Autre">Autre</option>
         </select>
       </div>
-      <div class="form-group">
-        <label>Nom de votre université / établissement <span class="req">*</span></label>
-        <input type="text" name="ecole" required placeholder="Ex : Université Catholique de l'Afrique de l'Ouest (UCAO)">
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Effectif étudiants <span class="req">*</span></label>
-          <select name="effectif" required>
-            <option value="">— Sélectionner —</option>
-            <option>Moins de 50</option>
-            <option>50 à 200</option>
-            <option>200 à 500</option>
-            <option>500 à 1 000</option>
-            <option>Plus de 1 000</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Créneau préféré</label>
-          <select name="creneau">
-            <option value="">— Indifférent —</option>
-            <option>Matin (8h-12h)</option>
-            <option>Après-midi (14h-18h)</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Téléphone <span class="req">*</span></label>
-          <input type="tel" name="telephone" required placeholder="+229 XX XX XX XX">
-        </div>
-        <div class="form-group">
-          <label>Email <span class="req">*</span></label>
-          <input type="email" name="email" required placeholder="vous@universite.bj">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Message (optionnel)</label>
-        <textarea name="message" placeholder="Quels sont vos principaux défis actuels ?"></textarea>
+
+      <div class="diag-field">
+        <label>Téléphone <span class="req">*</span></label>
+        <input type="tel" name="telephone" minlength="8" maxlength="30" placeholder="+229 XX XX XX XX" required>
       </div>
 
-      <button type="submit" class="form-submit" id="submit-btn">Demander mon diagnostic gratuit →</button>
-
-      <div class="form-message" id="form-message"></div>
-
-      <div class="form-trust">
-        🔒 <strong>Vos données sont protégées.</strong> Aucun partage. Aucun spam. Conforme RGPD.
+      <div class="diag-field">
+        <label>Email <span class="req">*</span></label>
+        <input type="email" name="email" maxlength="200" placeholder="contact@ecole.bj" required>
       </div>
+
+      <div class="diag-field">
+        <label>Nombre d'élèves <span class="req">*</span></label>
+        <select name="effectif" required>
+          <option value="">— Sélectionner —</option>
+          <option value="Moins de 100">Moins de 100</option>
+          <option value="100 à 300">100 à 300</option>
+          <option value="300 à 700">300 à 700</option>
+          <option value="700 à 1500">700 à 1500</option>
+          <option value="Plus de 1500">Plus de 1500</option>
+        </select>
+      </div>
+
+      <div class="diag-field">
+        <label>Type d'établissement</label>
+        <select name="type_etablissement">
+          <option value="">— Sélectionner —</option>
+          <option value="Maternelle">Maternelle</option>
+          <option value="Primaire">Primaire</option>
+          <option value="Collège">Collège</option>
+          <option value="Lycée">Lycée</option>
+          <option value="Complexe scolaire">Complexe scolaire (primaire+secondaire)</option>
+          <option value="Enseignement supérieur">Enseignement supérieur</option>
+          <option value="Réseau / plusieurs établissements">Réseau / plusieurs établissements</option>
+        </select>
+      </div>
+
+      <div class="diag-field">
+        <label>Créneau préféré pour vous rappeler</label>
+        <select name="creneau">
+          <option value="">— Indifférent —</option>
+          <option value="Matin (8h-12h)">Matin (8h-12h)</option>
+          <option value="Après-midi (12h-17h)">Après-midi (12h-17h)</option>
+          <option value="Fin de journée (17h-19h)">Fin de journée (17h-19h)</option>
+        </select>
+      </div>
+
+      <div class="diag-field">
+        <label>Ville</label>
+        <input type="text" name="ville" maxlength="100" placeholder="Cotonou, Porto-Novo, Parakou…">
+      </div>
+
+      <div class="diag-field full">
+        <label>Comment gérez-vous l'administration aujourd'hui ?</label>
+        <div class="diag-checkbox-grid">
+          <label class="diag-check"><input type="checkbox" name="outils[]" value="Tout sur papier / cahiers"> Tout sur papier / cahiers</label>
+          <label class="diag-check"><input type="checkbox" name="outils[]" value="Excel ou Google Sheets"> Excel ou Google Sheets</label>
+          <label class="diag-check"><input type="checkbox" name="outils[]" value="Logiciel local"> Logiciel installé sur ordinateur</label>
+          <label class="diag-check"><input type="checkbox" name="outils[]" value="SaaS étranger (Pronote, autre)"> Un SaaS étranger (Pronote, autre)</label>
+          <label class="diag-check"><input type="checkbox" name="outils[]" value="Beaucoup via WhatsApp"> Beaucoup via WhatsApp</label>
+          <label class="diag-check"><input type="checkbox" name="outils[]" value="Rien de structuré"> Rien de structuré pour l'instant</label>
+        </div>
+      </div>
+
+      <div class="diag-field full">
+        <label>Qu'est-ce qui vous prend le plus de temps actuellement ?</label>
+        <div class="diag-checkbox-grid">
+          <label class="diag-check"><input type="checkbox" name="douleurs[]" value="Préparer les bulletins"> Préparer les bulletins</label>
+          <label class="diag-check"><input type="checkbox" name="douleurs[]" value="Suivre les absences"> Suivre les absences</label>
+          <label class="diag-check"><input type="checkbox" name="douleurs[]" value="Suivre les paiements et impayés"> Suivre les paiements et impayés</label>
+          <label class="diag-check"><input type="checkbox" name="douleurs[]" value="Communiquer avec les parents"> Communiquer avec les parents</label>
+          <label class="diag-check"><input type="checkbox" name="douleurs[]" value="Faire les emplois du temps"> Faire les emplois du temps</label>
+          <label class="diag-check"><input type="checkbox" name="douleurs[]" value="Sortir des statistiques"> Sortir des statistiques pour la direction</label>
+        </div>
+      </div>
+
+      <div class="diag-field full">
+        <label>Un mot pour nous en dire plus (facultatif)</label>
+        <textarea name="message_libre" maxlength="1000" placeholder="Contexte, urgence, contraintes particulières…"></textarea>
+      </div>
+
+      <div class="diag-feedback" id="diagFeedback"></div>
+
+      <div class="diag-field full" style="display:flex; align-items:center; gap:24px; flex-wrap:wrap;">
+        <button type="submit" class="diag-submit" id="diagSubmit">
+          Envoyer le diagnostic
+          <span id="diagArrow">→</span>
+        </button>
+        <span class="diag-note">Vos données sont traitées par EduLink uniquement, jamais revendues. Réponse sous 48 heures ouvrées.</span>
+      </div>
+
     </form>
   </div>
 </section>
 
-<!-- ═══ FAQ ═══ -->
-<section class="faq" id="faq">
-  <div class="container">
-    <span class="section-eyebrow">Questions fréquentes</span>
-    <h2 class="section-title">Ce que les recteurs nous demandent le plus souvent.</h2>
-
-    <div class="faq-list">
-      <details class="faq-item">
-        <summary class="faq-q">Et si EduLink ferme demain ? Mes données disparaissent ?</summary>
-        <div class="faq-a">Vos données vous appartiennent. À tout moment, vous exportez l'intégralité de votre base — étudiants, notes, bulletins, factures — en Excel et PDF. EduLink est hébergé chez Supabase et Vercel, deux infrastructures mondiales utilisées par Stripe, Mozilla et GitHub. La continuité est assurée, indépendamment de nous.</div>
-      </details>
-      <details class="faq-item">
-        <summary class="faq-q">Combien de temps pour former mes équipes ?</summary>
-        <div class="faq-a">2 heures pour le secrétariat. 1 heure pour les enseignants. 30 minutes pour le recteur. Pourquoi si rapide ? Parce qu'EduLink est conçu pour que la première utilisation soit la formation. Nous accompagnons votre lancement en présentiel — c'est inclus.</div>
-      </details>
-      <details class="faq-item">
-        <summary class="faq-q">Mes données sont-elles vraiment sécurisées ?</summary>
-        <div class="faq-a">Trois niveaux : (1) cloisonnement par école au niveau base de données — une école A ne peut techniquement pas voir l'école B ; (2) communications cryptées HTTPS de bout en bout ; (3) sauvegardes automatiques quotidiennes conservées 7 jours. Conforme aux standards internationaux (équivalent RGPD).</div>
-      </details>
-      <details class="faq-item">
-        <summary class="faq-q">Nous avons déjà Excel et ça marche. Pourquoi changer ?</summary>
-        <div class="faq-a">Excel est génial pour 30 étudiants. Au-delà, les formules cassent, les fichiers se corrompent, les versions partagées créent des confusions. EduLink remplace 5 fichiers Excel, 1 dossier papier et 3 groupes WhatsApp par une plateforme unique où tout est cohérent et sauvegardé.</div>
-      </details>
-      <details class="faq-item">
-        <summary class="faq-q">Peut-on migrer notre base étudiants existante ?</summary>
-        <div class="faq-a">Oui, en 3 minutes. L'import Excel d'EduLink accepte votre fichier actuel, valide chaque ligne, vous indique ce qui doit être corrigé, et insère le tout sans risque de doublons. Nous accompagnons la première migration gratuitement.</div>
-      </details>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ FOOTER ═══ -->
-<footer>
+<!-- ============ FOOTER ============ -->
+<footer class="main">
   <div class="container">
     <div class="footer-grid">
       <div class="footer-brand">
-        <a href="/" class="logo">
-          <span class="logo-mark">E</span>
-          <span>EduLink</span>
+        <a href="#" class="logo">
+          <span class="logo-mark">e</span>
+          EduLink
         </a>
-        <p>La plateforme de gestion scolaire conçue au Bénin, pour les universités privées africaines. Édité par KSP Business Pro.</p>
+        <p class="footer-tagline">La gestion scolaire moderne, pensée et construite au Bénin pour les écoles du Bénin.</p>
       </div>
       <div class="footer-col">
-        <h5>Produit</h5>
-        <ul>
-          <li><a href="#promesses">La promesse</a></li>
-          <li><a href="#features">Fonctionnalités</a></li>
-          <li><a href="#pricing">Tarifs</a></li>
-          <li><a href="#faq">Questions fréquentes</a></li>
-        </ul>
+        <h4>Produit</h4>
+        <a href="#solutions">Solutions</a>
+        <a href="#offres">Offres</a>
+        <a href="#faq">FAQ</a>
+        <a href="#diagnostic">Diagnostic gratuit</a>
       </div>
       <div class="footer-col">
-        <h5>Accès</h5>
-        <ul>
-          <li><a href="https://portail.edulink.bj">Portail famille</a></li>
-          <li><a href="https://app.edulink.bj">Espace administration</a></li>
-          <li><a href="#diagnostic">Diagnostic gratuit</a></li>
-        </ul>
+        <h4>Accès</h4>
+        <a href="https://app.edulink.bj">Back-office écoles</a>
+        <a href="https://portail.edulink.bj">Portail familles</a>
       </div>
       <div class="footer-col">
-        <h5>Contact</h5>
-        <ul>
-          <li>📧 contact@edulink.bj</li>
-          <li>📞 +229 XX XX XX XX</li>
-          <li>📍 Cotonou, Bénin</li>
-        </ul>
+        <h4>Contact</h4>
+        <a href="mailto:contact@afryx.io">contact@afryx.io</a>
+        <a href="#">Cotonou, Bénin</a>
       </div>
     </div>
     <div class="footer-bottom">
-      <div>© 2026 EduLink — KSP Business Pro. Tous droits réservés.</div>
-      <div class="made">🇧🇯 Fait avec rigueur au Bénin</div>
+      <div>© 2026 EduLink — Édité par KSP Business Pro</div>
+      <div>
+        <a href="#" style="color:var(--ink-mute); text-decoration:none; margin-right:18px;">Mentions légales</a>
+        <a href="#" style="color:var(--ink-mute); text-decoration:none;">Confidentialité</a>
+      </div>
     </div>
   </div>
 </footer>
 
-<!-- ═══ MODALE VIDÉO ═══ -->
-<div class="video-modal" id="video-modal" onclick="if(event.target===this) closeVideo()">
-  <div class="video-modal-content">
-    <button class="video-modal-close" onclick="closeVideo()">✕</button>
-    <iframe id="video-iframe" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-  </div>
-</div>
-
 <script>
-  // ═══ CONFIG ═══
-  // À remplacer par la vraie URL de la vidéo de démo quand elle sera tournée
-  const VIDEO_URL = 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&rel=0';
+/* ============================================================
+   FAQ : accordéon
+   ============================================================ */
+document.querySelectorAll('.faq-q').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item = btn.parentElement;
+    const ans  = item.querySelector('.faq-a');
+    const isOpen = item.classList.contains('open');
 
-  // Supabase — projet kcfpvnrgutkhakogbjip
-  const SUPABASE_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co';
-  // ⚠ Clé ANON publique — à coller depuis Supabase Dashboard → Settings → API → anon public
-  //    Cette clé est PUBLIQUE (destinée au navigateur). Ne JAMAIS mettre service_role ici.
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
+    document.querySelectorAll('.faq-item.open').forEach(o => {
+      if (o !== item) {
+        o.classList.remove('open');
+        o.querySelector('.faq-a').style.maxHeight = '0';
+      }
+    });
 
-  // ═══ MODALE VIDÉO ═══
-  function openVideo() {
-    document.getElementById('video-iframe').src = VIDEO_URL;
-    document.getElementById('video-modal').classList.add('open');
-    document.body.style.overflow = 'hidden';
+    if (isOpen) {
+      item.classList.remove('open');
+      ans.style.maxHeight = '0';
+    } else {
+      item.classList.add('open');
+      ans.style.maxHeight = ans.scrollHeight + 'px';
+    }
+  });
+});
+
+/* ============================================================
+   Reveal au scroll
+   ============================================================ */
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('in');
+      io.unobserve(e.target);
+    }
+  });
+}, { threshold: .12, rootMargin: '0px 0px -40px 0px' });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+/* ============================================================
+   Formulaire diagnostic — Supabase prospects_diagnostic
+   ------------------------------------------------------------
+   Aligné sur :
+   - Table   : public.prospects_diagnostic
+   - Policy  : prospects_anon_insert (validation côté serveur)
+   - Champs obligatoires NOT NULL : nom, fonction, ecole_nom,
+     effectif, telephone, email
+   - source forcé à 'landing-edulink.bj' (exigé par la policy)
+   - statut forcé à 'nouveau' (exigé par la policy)
+   ============================================================ */
+
+const SUPABASE_URL      = 'https://kcfpvnrgutkhakogbjip.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
+const FALLBACK_EMAIL    = 'contact@afryx.io';
+
+const form     = document.getElementById('diagForm');
+const submitBtn = document.getElementById('diagSubmit');
+const arrowEl  = document.getElementById('diagArrow');
+const feedback = document.getElementById('diagFeedback');
+
+const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+function showFeedback(type, html) {
+  feedback.className = `diag-feedback show ${type}`;
+  feedback.innerHTML = html;
+  feedback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function clearErrors() {
+  document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
+}
+
+function markError(name) {
+  const el = form.querySelector(`[name="${name}"]`);
+  if (el) el.classList.add('field-error');
+}
+
+/**
+ * Collecte les champs du formulaire et construit le payload aligné sur
+ * la table prospects_diagnostic + les contraintes de la policy RLS.
+ *
+ * Les champs secondaires (type_etablissement, ville, outils[], douleurs[],
+ * message_libre) sont concaténés proprement dans la colonne `message`.
+ */
+function buildPayload() {
+  const fd = new FormData(form);
+
+  // Champs directs (matchent les colonnes de la table)
+  const direct = {
+    nom:        (fd.get('nom') || '').trim(),
+    fonction:   (fd.get('fonction') || '').trim(),
+    ecole_nom:  (fd.get('ecole_nom') || '').trim(),
+    effectif:   (fd.get('effectif') || '').trim(),
+    telephone:  (fd.get('telephone') || '').trim(),
+    email:      (fd.get('email') || '').trim().toLowerCase(),
+    creneau:    (fd.get('creneau') || '').trim() || null
+  };
+
+  // Champs secondaires à concaténer dans `message`
+  const type_et = (fd.get('type_etablissement') || '').trim();
+  const ville   = (fd.get('ville') || '').trim();
+  const outils  = fd.getAll('outils[]');
+  const doul    = fd.getAll('douleurs[]');
+  const libre   = (fd.get('message_libre') || '').trim();
+
+  const parts = [];
+  if (type_et) parts.push(`Type d'établissement : ${type_et}`);
+  if (ville)   parts.push(`Ville : ${ville}`);
+  if (outils.length) parts.push(`Outils actuels : ${outils.join(', ')}`);
+  if (doul.length)   parts.push(`Priorités : ${doul.join(', ')}`);
+  if (libre)         parts.push(`\nMessage du prospect :\n${libre}`);
+
+  const message = parts.length ? parts.join('\n') : null;
+
+  // Payload final — on n'envoie que ce que la policy autorise
+  return {
+    ...direct,
+    message,
+    source: 'landing-edulink.bj',
+    statut: 'nouveau',
+    user_agent: navigator.userAgent.slice(0, 500)
+    // rappele_par, rappele_at, notes_internes : non envoyés (NULL par défaut)
+    // ip_address : sera capturée côté serveur si besoin
+  };
+}
+
+/**
+ * Validation côté client, alignée sur la policy serveur pour éviter
+ * un aller-retour réseau si le formulaire est mal rempli.
+ */
+function validate(payload) {
+  clearErrors();
+  const errs = [];
+
+  if (!payload.nom || payload.nom.length < 2 || payload.nom.length > 200) {
+    errs.push('Votre nom doit comporter entre 2 et 200 caractères.');
+    markError('nom');
   }
-  function closeVideo() {
-    document.getElementById('video-iframe').src = '';
-    document.getElementById('video-modal').classList.remove('open');
-    document.body.style.overflow = '';
+  if (!payload.fonction || payload.fonction.length < 2 || payload.fonction.length > 100) {
+    errs.push('Indiquez votre fonction.');
+    markError('fonction');
   }
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeVideo();
+  if (!payload.ecole_nom || payload.ecole_nom.length < 2 || payload.ecole_nom.length > 200) {
+    errs.push('Le nom de l\u2019établissement doit comporter entre 2 et 200 caractères.');
+    markError('ecole_nom');
+  }
+  if (!payload.effectif) {
+    errs.push('Sélectionnez le nombre d\u2019élèves.');
+    markError('effectif');
+  }
+  const telDigits = payload.telephone.replace(/[^\d+]/g, '');
+  if (!telDigits || telDigits.length < 8 || telDigits.length > 30) {
+    errs.push('Numéro de téléphone invalide.');
+    markError('telephone');
+  }
+  if (!payload.email || !EMAIL_RE.test(payload.email)) {
+    errs.push('Adresse email invalide.');
+    markError('email');
+  }
+  if (payload.message && payload.message.length > 2000) {
+    errs.push('Le message est trop long.');
+    markError('message_libre');
+  }
+
+  return errs;
+}
+
+/**
+ * Envoi vers Supabase PostgREST.
+ * Le service_role n'est jamais utilisé ici (heureusement).
+ * La clé anon est publique, et la policy `prospects_anon_insert`
+ * fait barrage à tout payload non conforme.
+ */
+async function sendToSupabase(payload) {
+  const url = `${SUPABASE_URL}/rest/v1/prospects_diagnostic`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify(payload)
   });
 
-  // ═══ SCROLL VERS FORMULAIRE ═══
-  function scrollToDiagnostic() {
-    document.getElementById('diagnostic').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setTimeout(() => {
-      const firstInput = document.querySelector('#diagnostic-form input[name="nom"]');
-      if (firstInput) firstInput.focus();
-    }, 600);
+  if (res.ok) return { ok: true };
+
+  let detail = '';
+  try {
+    const err = await res.json();
+    detail = err.message || err.hint || err.code || JSON.stringify(err);
+  } catch (e) {
+    detail = res.statusText || `HTTP ${res.status}`;
+  }
+  return { ok: false, status: res.status, detail };
+}
+
+/**
+ * Fallback mailto : si le réseau ou Supabase échouent, on offre au
+ * visiteur un lien pré-rempli vers contact@afryx.io.
+ */
+function buildMailtoFallback(payload) {
+  const lines = [
+    `Établissement : ${payload.ecole_nom}`,
+    `Contact : ${payload.nom} (${payload.fonction})`,
+    `Téléphone : ${payload.telephone}`,
+    `Email : ${payload.email}`,
+    `Effectif : ${payload.effectif}`,
+    payload.creneau ? `Créneau souhaité : ${payload.creneau}` : null,
+    payload.message ? `\n${payload.message}` : null
+  ].filter(Boolean).join('\n');
+
+  const subject = encodeURIComponent(`Diagnostic EduLink — ${payload.ecole_nom}`);
+  const body    = encodeURIComponent(lines);
+  return `mailto:${FALLBACK_EMAIL}?subject=${subject}&body=${body}`;
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  feedback.classList.remove('show');
+
+  const payload = buildPayload();
+  const errs = validate(payload);
+
+  if (errs.length) {
+    showFeedback('err', errs.map(s => `• ${s}`).join('<br>'));
+    return;
   }
 
-  // ═══ SOUMISSION FORMULAIRE ═══
-  async function handleSubmit(e) {
-    e.preventDefault();
-    const form = e.target;
-    const btn = document.getElementById('submit-btn');
-    const msg = document.getElementById('form-message');
+  submitBtn.disabled = true;
+  arrowEl.textContent = '⏳';
 
-    btn.disabled = true;
-    btn.textContent = 'Envoi en cours...';
-    msg.className = 'form-message';
-    msg.textContent = '';
+  const result = await sendToSupabase(payload).catch(err => ({
+    ok: false,
+    detail: (err && err.message) || 'Erreur réseau'
+  }));
 
-    // Préparer le payload — mapping landing → table prospects_diagnostic
-    const formData = new FormData(form);
-    const payload = {
-      nom:        (formData.get('nom') || '').toString().trim(),
-      fonction:   (formData.get('fonction') || '').toString().trim(),
-      ecole_nom:  (formData.get('ecole') || '').toString().trim(),
-      effectif:   (formData.get('effectif') || '').toString().trim(),
-      creneau:    (formData.get('creneau') || '').toString().trim() || null,
-      telephone:  (formData.get('telephone') || '').toString().trim(),
-      email:      (formData.get('email') || '').toString().trim().toLowerCase(),
-      message:    (formData.get('message') || '').toString().trim() || null,
-      source:     'landing-edulink.bj',
-      statut:     'nouveau',
-      user_agent: navigator.userAgent.substring(0, 500),
-    };
-
-    try {
-      const resp = await fetch(SUPABASE_URL + '/rest/v1/prospects_diagnostic', {
-        method: 'POST',
-        headers: {
-          'apikey':        SUPABASE_ANON_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-          'Content-Type':  'application/json',
-          'Prefer':        'return=minimal'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!resp.ok) {
-        const errText = await resp.text();
-        console.error('[diagnostic-form] Supabase erreur', resp.status, errText);
-        if (resp.status === 401 || resp.status === 403) {
-          throw new Error('Configuration incorrecte. Contactez-nous directement.');
-        }
-        throw new Error('Erreur ' + resp.status);
-      }
-
-      msg.className = 'form-message success';
-      msg.innerHTML = '✅ <strong>Demande reçue !</strong> Nous vous rappelons sous 24 heures au ' + payload.telephone + '.';
-      form.reset();
-      btn.textContent = 'Demande envoyée ✓';
-    } catch (err) {
-      console.error('[diagnostic-form] Erreur', err);
-      msg.className = 'form-message error';
-      msg.innerHTML = '❌ <strong>Erreur d\'envoi.</strong> ' +
-                      (err.message || 'Réseau indisponible.') +
-                      ' Vous pouvez aussi nous écrire à <a href="mailto:contact@edulink.bj">contact@edulink.bj</a>.';
-      btn.disabled = false;
-      btn.textContent = 'Demander mon diagnostic gratuit →';
-    }
+  if (result.ok) {
+    showFeedback('ok',
+      '✓ Merci ! Votre diagnostic a bien été reçu. ' +
+      'Nous revenons vers vous sous 48 heures ouvrées.'
+    );
+    form.reset();
+  } else {
+    const mailto = buildMailtoFallback(payload);
+    showFeedback('err',
+      `L'envoi n'a pas abouti (${result.detail || 'erreur inconnue'}). ` +
+      `Vous pouvez nous écrire directement : ` +
+      `<a href="${mailto}">ouvrir mon email</a>`
+    );
   }
+
+  submitBtn.disabled = false;
+  arrowEl.textContent = '→';
+});
 </script>
 
 </body>
 </html>
-
