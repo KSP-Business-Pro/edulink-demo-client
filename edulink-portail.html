@@ -713,7 +713,7 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
           <div class="phone-flag">
             <span class="flag">🇧🇯</span>
             <span class="prefix">+229</span>
-            <input type="tel" id="otp-phone" placeholder="01 97 09 81 17" maxlength="10"
+            <input type="tel" id="otp-phone" autocomplete="off" placeholder="01 97 09 81 17" maxlength="10"
               oninput="this.value=this.value.replace(/\D/g,'')"
               onkeypress="if(event.key==='Enter')envoyerOTP()">
           </div>
