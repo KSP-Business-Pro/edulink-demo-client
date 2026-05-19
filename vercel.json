@@ -37,5 +37,47 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "portail.edulink.bj"
+        }
+      ],
+      "destination": "/edulink-portail.html"
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.edulink.bj"
+        }
+      ],
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "edulink.bj"
+        }
+      ],
+      "destination": "/landing.html"
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.edulink.bj"
+        }
+      ],
+      "destination": "/landing.html"
+    }
   ]
 }
