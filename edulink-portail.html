@@ -1677,8 +1677,11 @@ async function envoyerOTP() {
   // ─── P2.9 (2026-05-11) : Recherche de l'étudiant par téléphone ───
   const phone = document.getElementById('otp-phone').value.trim();
   if (!phone || phone.length < 8) { showOTPError(1, 'Entrez un numéro valide (8 à 10 chiffres)'); return; }
-  const tel  = '+229' + phone;
-  const tel8 = phone.replace(/^229/, '');
+  // Normalisation : supprimer le préfixe 229 ou le zéro initial si l'utilisateur
+  // saisit son numéro en format local béninois (ex: 063237272 ou 22963237272)
+  let phoneClean = phone.replace(/^(\+?229|00229)/, '').replace(/^0/, '');
+  const tel  = '+229' + phoneClean;
+  const tel8 = phoneClean;
   otpTelephone = tel;
   const btn = document.getElementById('btn-envoyer-otp');
   btn.disabled = true; btn.textContent = 'Recherche en cours...';
