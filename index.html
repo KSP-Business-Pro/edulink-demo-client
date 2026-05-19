@@ -13401,60 +13401,14 @@ async function confirmerImportCSV() {
     document.getElementById('csv-progress-label').textContent = `${Math.min(i+BATCH, csvLignesValides.length)} / ${csvLignesValides.length} importés...`;
   }
 
-  // Phase 2 — IMPORT-AUTH-AMONT (2026-05-18) : pré-créer les comptes auth.users
-  // pour éviter la latence à la 1ère connexion OTP côté portail famille.
-  // On ne crée un compte que pour les étudiants ayant un email_parent ou parent_tel,
-  // car ce sont les seuls qui se connecteront au portail.
-  // Email auth = matricule@edulink-portail.bj (convention identique à bright-handler v5).
-  // Mot de passe initial = matricule (bright-handler le remplace à la 1ère connexion OTP).
-  // On stocke auth_id + email_auth sur la ligne etudiants pour que bright-handler
-  // trouve le compte existant au lieu d'en créer un nouveau.
-  const avecPortail = csvLignesValides.filter(e => e.parent_email || e.parent_tel);
-  if (avecPortail.length > 0) {
-    document.getElementById('csv-progress-label').textContent = `Création des comptes portail (0/${avecPortail.length})…`;
-    let authSucces = 0, authEchecs = 0;
-    for (let i = 0; i < avecPortail.length; i++) {
-      const e = avecPortail[i];
-      try {
-        const emailAuth = `${e.matricule.toLowerCase().replace(/[^a-z0-9]/g,'')}@edulink-portail.bj`;
-        const { data: authData, error: authErr } = await db.auth.signUp({
-          email: emailAuth,
-          password: e.matricule,
-          options: { emailRedirectTo: null, data: { matricule: e.matricule, ecole_id: currentEcoleId } }
-        });
-        if (authErr) {
-          // Compte déjà existant (email déjà pris) → pas un vrai échec, bright-handler gérera
-          console.warn('[Import Auth] signUp échoué pour', e.matricule, ':', authErr.message);
-          authEchecs++;
-        } else {
-          const authId = authData?.user?.id;
-          if (authId) {
-            // Lier l'auth_id à la ligne etudiants
-            const { error: updErr } = await db.from('etudiants')
-              .update({ auth_id: authId, email_auth: emailAuth })
-              .eq('matricule', e.matricule)
-              .eq('ecole_id', currentEcoleId);
-            if (updErr) {
-              console.warn('[Import Auth] Liaison auth_id échouée pour', e.matricule, ':', updErr.message);
-            } else {
-              authSucces++;
-            }
-          }
-        }
-      } catch(ex) {
-        console.warn('[Import Auth] Exception pour', e.matricule, ':', ex.message);
-        authEchecs++;
-      }
-      document.getElementById('csv-progress-label').textContent =
-        `Comptes portail : ${i+1}/${avecPortail.length}…`;
-    }
-    console.info(`[Import Auth] ${authSucces} comptes créés, ${authEchecs} ignorés (déjà existants ou sans portail)`);
-  }
-
   fermerModal('modal-import-csv');
   reinitialiserCSV();
   const msg = `✅ ${succes} étudiant(s) importé(s)${echecs?` · ⚠️ ${echecs} erreur(s)`:''}`;
   showToast(msg + (echecs && firstErr ? ` — ${firstErr.slice(0,80)}` : ''), succes > 0 ? 'success' : 'error');
+  // NOTE IMPORT-AUTH-AMONT (2026-05-19) : la Phase 2 (création auth via signUp())
+  // a été retirée car db.auth.signUp() côté client écrase la session admin courante.
+  // Solution correcte : Edge Function dédiée avec service_role key.
+  // À implémenter en SEC-02 / post-pub.
   chargerEtudiants();
   chargerDashboard();
 }
