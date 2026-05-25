@@ -1111,9 +1111,24 @@ async function chargerProgrammes()   { await _chargerProgrammes(); }
 async function chargerSemestres()    { await _chargerSemestres(); }
 async function chargerPromotions()   { await _chargerPromotions(); }
 async function chargerEtudiants()    { await _chargerEtudiants(); }
-async function initSaisieNotes()     { /* géré par les selects */ }
-async function initResultats()       { /* géré par les selects */ }
-async function initReleves()         { /* géré par les selects */ }
+async function initSaisieNotes()  { await peuplerSelectSemestre('saisie-semestre'); }
+async function initResultats()    { await peuplerSelectSemestre('resultats-semestre'); }
+async function initReleves()      { await peuplerSelectSemestre('releves-semestre'); }
+
+async function peuplerSelectSemestre(selId) {
+  if (!currentEcoleId) return;
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  const { data: sems } = await db.from('semestres')
+    .select('id,libelle,niveau,programmes_lmd(intitule)')
+    .eq('ecole_id', currentEcoleId)
+    .in('statut', ['en_cours','planifie'])
+    .order('numero');
+  sel.innerHTML = '<option value="">Sélectionner un semestre...</option>';
+  (sems||[]).forEach(s => {
+    sel.innerHTML += `<option value="${s.id}">${s.libelle} (${s.niveau})</option>`;
+  });
+}
 async function chargerEnseignants()  { document.getElementById('enseignants-content').innerHTML = '<div class="loading">Chargement…</div>'; }
 async function chargerPaiements()    { document.getElementById('paiements-content').innerHTML = '<div class="loading">Chargement…</div>'; }
 async function chargerMessages()     { document.getElementById('messages-content').innerHTML = '<div class="loading">Chargement…</div>'; }
@@ -1133,11 +1148,7 @@ function exporterEtudiants()     { toast('Export en cours…', 'info'); }
 function exporterResultats()     { toast('Export PDF en cours…', 'info'); }
 function filtrerEtudiants()      { /* implémenté page étudiants */ }
 function filtrerReleves()        { /* implémenté page relevés */ }
-function chargerSaisieNotes()    { /* implémenté page saisie */ }
-function chargerMatieresSaisie() { /* implémenté page saisie */ }
-function chargerGrilleNotes()    { /* implémenté page saisie */ }
-function chargerResultats()      { /* implémenté page résultats */ }
-function chargerReleves()        { /* implémenté page relevés */ }
+// Stubs remplacés par implémentations ci-dessous
 
 
 // ══════════════════════════════════════════════
@@ -1409,6 +1420,461 @@ async function voirFicheEtudiant(id) {
     <div style="font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.75rem">Inscriptions semestrielles</div>
     ${insHtml}`);
 }
+
+// ══════════════════════════════════════════════
+//  PAGES ÉVALUATION — Saisie, Résultats, Relevés
+// ══════════════════════════════════════════════
+
+// ── SAISIE DES NOTES ─────────────────────────
+
+async function chargerSaisieNotes() {
+  const semId = document.getElementById('saisie-semestre').value;
+  const uesel = document.getElementById('saisie-ue');
+  const matsel = document.getElementById('saisie-matiere');
+  document.getElementById('saisie-content').innerHTML = '<div class="empty-state"><div class="es-ico">✏️</div><h3>Sélectionnez une UE</h3><p>Choisissez une UE pour continuer</p></div>';
+  uesel.style.display = 'none'; uesel.innerHTML = '<option value="">Sélectionner une UE...</option>';
+  matsel.style.display = 'none'; matsel.innerHTML = '<option value="">Sélectionner une matière...</option>';
+  if (!semId) return;
+  const { data: pues } = await db.from('programme_ue')
+    .select('ue_id, unites_enseignement(id,code,intitule,type_ue,poids_cc,poids_examen)')
+    .eq('semestre_id', semId);
+  (pues||[]).forEach(pu => {
+    const ue = pu.unites_enseignement;
+    if (ue) uesel.innerHTML += `<option value="${ue.id}">${ue.code} — ${ue.intitule}</option>`;
+  });
+  uesel.style.display = '';
+}
+
+async function chargerMatieresSaisie() {
+  const ueId = document.getElementById('saisie-ue').value;
+  const matsel = document.getElementById('saisie-matiere');
+  document.getElementById('saisie-content').innerHTML = '<div class="empty-state"><div class="es-ico">✏️</div><h3>Sélectionnez une matière</h3></div>';
+  matsel.style.display = 'none'; matsel.innerHTML = '<option value="">Sélectionner une matière...</option>';
+  if (!ueId) return;
+  const { data: mats } = await db.from('matieres_lmd').select('id,code,nom,coefficient').eq('ue_id', ueId);
+  (mats||[]).forEach(m => {
+    matsel.innerHTML += `<option value="${m.id}">${m.code} — ${m.nom} (coef ${m.coefficient})</option>`;
+  });
+  matsel.style.display = '';
+}
+
+async function chargerGrilleNotes() {
+  const semId  = document.getElementById('saisie-semestre').value;
+  const ueId   = document.getElementById('saisie-ue').value;
+  const matId  = document.getElementById('saisie-matiere').value;
+  const el     = document.getElementById('saisie-content');
+  if (!matId || !semId) return;
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+
+  // Charger matière + UE
+  const { data: mat } = await db.from('matieres_lmd')
+    .select('*, unites_enseignement(poids_cc,poids_examen,code,intitule)').eq('id', matId).single();
+
+  // Charger sessions
+  const { data: sessions } = await db.from('sessions_evaluation')
+    .select('id,type_session,statut').eq('semestre_id', semId);
+
+  // Charger évaluations existantes
+  const { data: evals } = await db.from('evaluations')
+    .select('*').eq('matiere_id', matId)
+    .in('session_id', (sessions||[]).map(s=>s.id));
+
+  // Charger étudiants inscrits
+  const { data: ins } = await db.from('inscriptions_semestre')
+    .select('etudiant_id, etudiants(id,nom,prenom,matricule)')
+    .eq('semestre_id', semId).eq('statut','active');
+
+  const etudiants = (ins||[]).map(i=>i.etudiants).filter(Boolean).sort((a,b)=>a.nom.localeCompare(b.nom));
+  const sessNorm  = sessions?.find(s=>s.type_session==='normale');
+  const evalsCC   = (evals||[]).filter(e=>e.categorie==='CC');
+  const evalsEX   = (evals||[]).filter(e=>e.categorie==='EXAMEN');
+
+  // Charger notes existantes
+  const evalIds = (evals||[]).map(e=>e.id);
+  let notesMap = {};
+  if (evalIds.length) {
+    const { data: notes } = await db.from('notes_lmd')
+      .select('etudiant_id,evaluation_id,valeur,absent').in('evaluation_id', evalIds);
+    (notes||[]).forEach(n => {
+      if (!notesMap[n.etudiant_id]) notesMap[n.etudiant_id] = {};
+      notesMap[n.etudiant_id][n.evaluation_id] = n;
+    });
+  }
+
+  const poids_cc = mat.unites_enseignement?.poids_cc || 0.4;
+  const poids_ex = mat.unites_enseignement?.poids_examen || 0.6;
+
+  el.innerHTML = `
+    <!-- En-tête matière -->
+    <div style="background:#1e3a5f;color:#fff;border-radius:12px;padding:1rem 1.2rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:15px;font-weight:700">${esc(mat.nom)}</div>
+        <div style="font-size:12px;opacity:.7">UE ${esc(mat.unites_enseignement?.code||'—')} · Coef. ${mat.coefficient} · CC ${Math.round(poids_cc*100)}% / Exam ${Math.round(poids_ex*100)}%</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:12px;opacity:.7">${etudiants.length} étudiants</div>
+        <button onclick="ajouterEvaluation('${matId}','${sessNorm?.id||''}','CC')" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-top:4px;margin-right:4px">+ CC</button>
+        <button onclick="ajouterEvaluation('${matId}','${sessNorm?.id||''}','EXAMEN')" style="background:rgba(201,124,26,.8);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-top:4px">+ Exam</button>
+      </div>
+    </div>
+
+    ${!sessNorm ? '<div class="empty-state"><div class="es-ico">⚠️</div><h3>Aucune session normale</h3><p>Créez une session d\'évaluation pour ce semestre</p></div>' : `
+
+    <!-- Grille de saisie -->
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;min-width:600px">
+      <thead>
+        <tr style="background:#f9fafb">
+          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;border-bottom:2px solid #e5e7eb;position:sticky;left:0;background:#f9fafb;z-index:1">Étudiant</th>
+          ${evalsCC.map(e=>`<th style="padding:8px 10px;text-align:center;font-size:10px;color:#1d4ed8;border-bottom:2px solid #dbeafe;min-width:80px">
+            <div>CC</div>
+            <div style="font-weight:400;color:#9ca3af">${esc(e.intitule||e.format)}</div>
+            <div style="font-size:9px;color:#c97c1a">${Math.round(e.ponderation*100)}%</div>
+          </th>`).join('')}
+          ${evalsEX.map(e=>`<th style="padding:8px 10px;text-align:center;font-size:10px;color:#7c3aed;border-bottom:2px solid #ede9fe;min-width:80px">
+            <div>EXAMEN</div>
+            <div style="font-weight:400;color:#9ca3af">${esc(e.intitule||e.format)}</div>
+          </th>`).join('')}
+          <th style="padding:8px 10px;text-align:center;font-size:10px;color:#059669;border-bottom:2px solid #dcfce7;min-width:70px">Moy. CC</th>
+          <th style="padding:8px 10px;text-align:center;font-size:10px;color:#374151;border-bottom:2px solid #e5e7eb;min-width:70px">Note finale</th>
+        </tr>
+      </thead>
+      <tbody id="grille-tbody">
+        ${etudiants.map((et,idx) => {
+          const rowNotes = notesMap[et.id] || {};
+          let moyCC = null, moyEx = null;
+          const ccNotes = evalsCC.map(e => {
+            const n = rowNotes[e.id];
+            return n?.absent ? 0 : (n?.valeur !== undefined ? n.valeur : null);
+          });
+          const ccPond = evalsCC.map(e => e.ponderation);
+          if (ccNotes.every(n => n !== null)) {
+            const sum = ccNotes.reduce((a,n,i) => a + n * ccPond[i], 0);
+            const tot = ccPond.reduce((a,b) => a+b, 0);
+            moyCC = tot > 0 ? Math.round(sum/tot*100)/100 : null;
+          }
+          const exNotes = evalsEX.map(e => {
+            const n = rowNotes[e.id];
+            return n?.absent ? 0 : (n?.valeur !== undefined ? n.valeur : null);
+          });
+          if (exNotes.length && exNotes.every(n => n !== null)) {
+            moyEx = exNotes[0];
+          }
+          let finale = null;
+          if (moyCC !== null && moyEx !== null) finale = Math.round((moyCC * poids_cc + moyEx * poids_ex)*100)/100;
+          else if (moyCC !== null && evalsEX.length === 0) finale = moyCC;
+          else if (moyEx !== null && evalsCC.length === 0) finale = moyEx;
+          const finClass = finale === null ? 'absent' : finale >= 10 ? 'valide' : 'echec';
+          return `<tr style="border-bottom:1px solid #f3f4f6${idx%2===0?'':';background:#fafafa'}">
+            <td style="padding:8px 12px;position:sticky;left:0;background:${idx%2===0?'#fff':'#fafafa'};z-index:1">
+              <div style="font-size:13px;font-weight:600;color:#111827">${esc(et.nom)} ${esc(et.prenom)}</div>
+              <div style="font-size:10px;color:#9ca3af">${esc(et.matricule||'—')}</div>
+            </td>
+            ${evalsCC.map(e => {
+              const n = rowNotes[e.id];
+              const val = n?.absent ? '' : (n?.valeur !== undefined ? n.valeur : '');
+              return `<td style="padding:4px 6px;text-align:center">
+                <input type="number" min="0" max="20" step="0.5"
+                  value="${val}"
+                  placeholder="—"
+                  style="width:60px;text-align:center;padding:4px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Poppins,sans-serif;outline:none"
+                  onfocus="this.style.borderColor='#1e3a5f'"
+                  onblur="this.style.borderColor='#e5e7eb';sauvegarderNote(this,'${et.id}','${e.id}')"
+                  onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();}">
+              </td>`;}).join('')}
+            ${evalsEX.map(e => {
+              const n = rowNotes[e.id];
+              const val = n?.absent ? '' : (n?.valeur !== undefined ? n.valeur : '');
+              return `<td style="padding:4px 6px;text-align:center">
+                <input type="number" min="0" max="20" step="0.5"
+                  value="${val}"
+                  placeholder="—"
+                  style="width:60px;text-align:center;padding:4px;border:1px solid #ede9fe;border-radius:6px;font-size:13px;font-family:Poppins,sans-serif;outline:none"
+                  onfocus="this.style.borderColor='#7c3aed'"
+                  onblur="this.style.borderColor='#ede9fe';sauvegarderNote(this,'${et.id}','${e.id}')"
+                  onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();}">
+              </td>`;}).join('')}
+            <td style="padding:8px 6px;text-align:center">
+              <span class="note-chip ${moyCC===null?'absent':moyCC>=10?'valide':'echec'}">${moyCC!==null?moyCC.toFixed(2):'—'}</span>
+            </td>
+            <td style="padding:8px 6px;text-align:center">
+              <span class="note-chip ${finClass}">${finale!==null?finale.toFixed(2):'—'}</span>
+            </td>
+          </tr>`;}).join('')}
+      </tbody>
+    </table>
+    </div>
+    <div style="margin-top:.75rem;font-size:11px;color:#9ca3af">
+      💡 Saisissez une note et appuyez sur Entrée ou Tab pour sauvegarder automatiquement.
+    </div>`}`;
+}
+
+async function sauvegarderNote(input, etudiantId, evaluationId) {
+  const val = input.value.trim();
+  if (val === '') return; // Pas de suppression automatique
+  const valeur = parseFloat(val);
+  if (isNaN(valeur) || valeur < 0 || valeur > 20) {
+    input.style.borderColor = '#dc2626';
+    toast('Note invalide (0-20)', 'error');
+    return;
+  }
+  input.style.borderColor = '#059669';
+  input.disabled = true;
+
+  // Récupérer session_id et ecole_id
+  const { data: ev } = await db.from('evaluations').select('session_id').eq('id', evaluationId).single();
+  const { data: ins } = await db.from('sessions_evaluation').select('ecole_id').eq('id', ev?.session_id).single();
+
+  const { error } = await db.from('notes_lmd').upsert({
+    etudiant_id:   etudiantId,
+    evaluation_id: evaluationId,
+    session_id:    ev?.session_id,
+    ecole_id:      ins?.ecole_id || currentEcoleId,
+    valeur,
+    absent: false
+  }, { onConflict: 'etudiant_id,evaluation_id' });
+
+  input.disabled = false;
+  if (error) {
+    input.style.borderColor = '#dc2626';
+    toast('Erreur: ' + error.message, 'error');
+  } else {
+    setTimeout(() => { input.style.borderColor = '#e5e7eb'; }, 1500);
+    // Recharger la grille pour recalculer les moyennes
+    await chargerGrilleNotes();
+  }
+}
+
+async function ajouterEvaluation(matiereId, sessionId, categorie) {
+  if (!sessionId) { toast('Aucune session disponible', 'error'); return; }
+  const intitule = prompt(`Intitulé de l'évaluation ${categorie} :`, categorie === 'CC' ? 'Devoir 1' : 'Examen final');
+  if (!intitule) return;
+  const format = categorie === 'CC' ? 'ecrit' : 'ecrit';
+  const { data: existing } = await db.from('evaluations').select('ponderation').eq('matiere_id', matiereId).eq('categorie', categorie).eq('session_id', sessionId);
+  const totalPond = (existing||[]).reduce((s,e)=>s+e.ponderation,0);
+  const pond = categorie === 'CC' ? Math.max(0.1, parseFloat((1 - totalPond).toFixed(2))) : 1.0;
+  const { error } = await db.from('evaluations').insert({
+    matiere_id: matiereId,
+    session_id: sessionId,
+    ecole_id: currentEcoleId,
+    categorie,
+    format,
+    intitule,
+    ponderation: pond
+  });
+  if (error) { toast('Erreur: ' + error.message, 'error'); return; }
+  toast('Évaluation créée', 'success');
+  await chargerGrilleNotes();
+}
+
+// ── RÉSULTATS ─────────────────────────────────
+
+async function chargerResultats() {
+  const semId = document.getElementById('resultats-semestre').value;
+  const el = document.getElementById('resultats-content');
+  if (!semId) { el.innerHTML = '<div class="empty-state"><div class="es-ico">📋</div><h3>Sélectionnez un semestre</h3></div>'; return; }
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+
+  const { data: inscriptions } = await db.from('inscriptions_semestre')
+    .select('etudiant_id, etudiants(id,nom,prenom,matricule,filiere)').eq('semestre_id', semId).eq('statut','active');
+  const { data: cache } = await db.from('resultats_cache')
+    .select('etudiant_id,credits_valides,semestre_valide').eq('semestre_id', semId);
+  const cacheMap = {};
+  (cache||[]).forEach(c => { cacheMap[c.etudiant_id] = c; });
+
+  const etudiants = (inscriptions||[]).map(i=>i.etudiants).filter(Boolean).sort((a,b)=>a.nom.localeCompare(b.nom));
+  const nbValides = Object.values(cacheMap).filter(c=>c.semestre_valide).length;
+  const nbTotal   = etudiants.length;
+  const taux = nbTotal > 0 ? Math.round(nbValides/nbTotal*100) : 0;
+
+  el.innerHTML = `
+    <!-- Résumé -->
+    <div class="cards cards-3" style="margin-bottom:1rem">
+      <div class="card">
+        <div class="c-ico">👥</div>
+        <div class="c-val">${nbTotal}</div>
+        <div class="c-lbl">Étudiants inscrits</div>
+      </div>
+      <div class="card">
+        <div class="c-ico">✅</div>
+        <div class="c-val">${nbValides}</div>
+        <div class="c-lbl">Semestres validés</div>
+        <div class="c-sub">${nbTotal - nbValides} non validés</div>
+      </div>
+      <div class="card">
+        <div class="c-ico">📊</div>
+        <div class="c-val">${taux}%</div>
+        <div class="c-lbl">Taux de réussite</div>
+        <div style="margin-top:.5rem"><div class="prog-bar"><div class="prog-fill ${taux>=70?'green':taux>=50?'amber':'red'}" style="width:${taux}%"></div></div></div>
+      </div>
+    </div>
+
+    <!-- Tableau résultats -->
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Matricule</th><th>Étudiant</th><th>Filière</th>
+        <th style="text-align:center">Crédits validés</th>
+        <th style="text-align:center">Résultat</th>
+        <th style="text-align:center">Détails</th>
+      </tr></thead>
+      <tbody>
+        ${etudiants.map(et => {
+          const c = cacheMap[et.id];
+          const valide = c?.semestre_valide || false;
+          const credits = c?.credits_valides || 0;
+          return `<tr>
+            <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${esc(et.matricule||'—')}</code></td>
+            <td><strong>${esc(et.nom)} ${esc(et.prenom)}</strong></td>
+            <td style="font-size:12px;color:#6b7280">${esc(et.filiere||'—')}</td>
+            <td style="text-align:center"><span class="badge ${credits>0?'teal':'gray'}">${credits} CECT</span></td>
+            <td style="text-align:center"><span class="badge ${valide?'green':'red'}">${valide?'Validé':'Non validé'}</span></td>
+            <td style="text-align:center"><button class="btn-ghost btn-sm" onclick="voirResultatsEtudiant('${et.id}','${semId}','${esc(et.nom+' '+et.prenom).replace(/'/g,"\\'")}')">Détail UE</button></td>
+          </tr>`;}).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+async function voirResultatsEtudiant(etudiantId, semesterId, nom) {
+  const { data: resultats, error } = await db.rpc('fn_resultats_semestre', {
+    p_etudiant_id: etudiantId, p_semestre_id: semesterId
+  });
+  if (error) { toast('Erreur: ' + error.message, 'error'); return; }
+  const html = (resultats||[]).map(r => `
+    <div class="ue-result-card ${r.ue_validee?'validee':r.est_exclu?'exclue':'echec'}">
+      <div class="ue-rc-code">${esc(r.ue_code)}</div>
+      <div style="flex:1">
+        <div class="ue-rc-nom">${esc(r.ue_intitule)}</div>
+        <div style="font-size:11px;color:#9ca3af">${r.type_ue} · ${r.obligatoire?'Obligatoire':'Optionnelle'} · CC ${Math.round(r.poids_cc*100)}% / Exam ${Math.round(r.poids_examen*100)}%</div>
+      </div>
+      <div class="ue-rc-moy ${r.moyenne_ue===null?'nd':r.moyenne_ue>=10?'ok':'nok'}">${r.moyenne_ue!==null?r.moyenne_ue.toFixed(2):'—'}</div>
+      <div class="ue-rc-credits">${r.credits_acquis}/${r.ue_credits} cr.</div>
+      <span class="badge ${r.ue_validee?'green':r.est_exclu?'gray':'red'}">${r.ue_validee?'Validée':r.est_exclu?'Exclue':'Échec'}</span>
+    </div>`).join('') || '<p style="color:#9ca3af">Aucun résultat calculé</p>';
+  ouvrirModalInfo('Résultats : ' + nom, html);
+}
+
+// ── RELEVÉS ───────────────────────────────────
+
+let _tousReleves = [];
+
+async function chargerReleves() {
+  const semId = document.getElementById('releves-semestre').value;
+  const el = document.getElementById('releves-content');
+  if (!semId) { el.innerHTML = '<div class="empty-state"><div class="es-ico">📄</div><h3>Sélectionnez un semestre</h3></div>'; return; }
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+
+  const { data: inscriptions } = await db.from('inscriptions_semestre')
+    .select('etudiant_id, etudiants(id,nom,prenom,matricule,filiere,email_auth)').eq('semestre_id', semId).eq('statut','active');
+  const { data: releves } = await db.from('releves_notes')
+    .select('*').eq('semestre_id', semId);
+  const relevesMap = {};
+  (releves||[]).forEach(r => { relevesMap[r.etudiant_id] = r; });
+
+  _tousReleves = (inscriptions||[]).map(i=>i.etudiants).filter(Boolean).sort((a,b)=>a.nom.localeCompare(b.nom));
+  renderTableauReleves(_tousReleves, relevesMap, semId);
+}
+
+function filtrerReleves() {
+  const s = (document.getElementById('search-releves')?.value||'').toLowerCase();
+  // Recharger pour avoir relevesMap frais -- simplifié
+  chargerReleves();
+}
+
+function renderTableauReleves(etudiants, relevesMap, semId) {
+  const el = document.getElementById('releves-content');
+  const nbPublies = Object.keys(relevesMap).length;
+  const nbTotal   = etudiants.length;
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;padding:.85rem 1rem;background:#f9fafb;border-radius:10px;border:1px solid #e5e7eb">
+      <div style="flex:1;font-size:13px;color:#374151">${nbPublies} / ${nbTotal} relevés publiés</div>
+      <div class="prog-bar" style="width:150px"><div class="prog-fill" style="width:${nbTotal?Math.round(nbPublies/nbTotal*100):0}%"></div></div>
+      <button onclick="publierTousReleves('${semId}')" class="btn-green btn-sm">Publier tous</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Matricule</th><th>Étudiant</th><th>Filière</th>
+        <th style="text-align:center">Mention</th>
+        <th style="text-align:center">Crédits</th>
+        <th style="text-align:center">Décision</th>
+        <th style="text-align:center">Statut</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        ${etudiants.map(et => {
+          const r = relevesMap[et.id];
+          return `<tr>
+            <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${esc(et.matricule||'—')}</code></td>
+            <td><strong>${esc(et.nom)} ${esc(et.prenom)}</strong></td>
+            <td style="font-size:12px;color:#6b7280">${esc(et.filiere||'—')}</td>
+            <td style="text-align:center">${r ? badgeMention(r.mention) : '<span class="badge gray">—</span>'}</td>
+            <td style="text-align:center">${r ? `<span class="badge teal">${r.credits_valides} CECT</span>` : '—'}</td>
+            <td style="text-align:center">${r ? `<span class="badge ${r.decision==='admis'?'green':'amber'}">${r.decision}</span>` : '—'}</td>
+            <td style="text-align:center">${r ? `<span class="badge green">Publié</span>` : '<span class="badge gray">En attente</span>'}</td>
+            <td>
+              ${r
+                ? `<button class="btn-outline btn-sm" onclick="voirReleve('${et.id}','${semId}')">Voir</button>`
+                : `<button class="btn-sm btn-sm" onclick="publierReleve('${et.id}','${semId}')">Publier</button>`}
+            </td>
+          </tr>`;}).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+async function publierReleve(etudiantId, semestreId) {
+  const { data: session } = await db.from('sessions_evaluation')
+    .select('id').eq('semestre_id', semestreId).eq('type_session','normale').single();
+  if (!session) { toast('Aucune session normale trouvée', 'error'); return; }
+  toast('Publication en cours...', 'info');
+  try {
+    const res = await fetch('https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-webhook-secret': '' },
+      body: JSON.stringify({ etudiant_id: etudiantId, semestre_id: semestreId, session_id: session.id, publie_par: currentUserId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`Relevé publié — ${data.mention||'Résultat calculé'}`, 'success');
+      chargerReleves();
+    } else {
+      toast('Erreur: ' + (data.error||'Inconnue'), 'error');
+    }
+  } catch(e) { toast('Erreur réseau: ' + e.message, 'error'); }
+}
+
+async function publierTousReleves(semestreId) {
+  if (!confirm('Publier les relevés de tous les étudiants sans relevé ? Cette action enverra un email à chacun.')) return;
+  const rows = document.querySelectorAll('#releves-content button[onclick^="publierReleve"]');
+  let count = 0;
+  for (const btn of rows) {
+    const match = btn.getAttribute('onclick').match(/publierReleve\('([^']+)','([^']+)'\)/);
+    if (match) { await publierReleve(match[1], match[2]); count++; }
+  }
+  toast(`${count} relevés publiés`, 'success');
+}
+
+async function voirReleve(etudiantId, semestreaId) {
+  const { data: r } = await db.from('releves_notes')
+    .select('*').eq('etudiant_id', etudiantId).eq('semestre_id', semestreaId).single();
+  if (!r) return;
+  const snap = r.snapshot_notes || {};
+  const uesHtml = (snap.resultats_ue||[]).map(ue => `
+    <div class="ue-result-card ${ue.ue_validee?'validee':ue.est_exclu?'exclue':'echec'}">
+      <div class="ue-rc-code">${esc(ue.ue_code)}</div>
+      <div style="flex:1"><div class="ue-rc-nom">${esc(ue.ue_intitule)}</div></div>
+      <div class="ue-rc-moy ${ue.moyenne_ue===null?'nd':ue.moyenne_ue>=10?'ok':'nok'}">${ue.moyenne_ue!==null?Number(ue.moyenne_ue).toFixed(2):'—'}</div>
+      <div class="ue-rc-credits">${ue.credits_acquis}/${ue.ue_credits} cr.</div>
+      <span class="badge ${ue.ue_validee?'green':ue.est_exclu?'gray':'red'}">${ue.ue_validee?'Validée':ue.est_exclu?'Exclue':'Échec'}</span>
+    </div>`).join('');
+  ouvrirModalInfo('Relevé officiel', `
+    <div style="background:#1e3a5f;color:#fff;border-radius:10px;padding:1rem;margin-bottom:1rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;text-align:center">
+      <div><div style="font-size:22px;font-weight:800">${r.credits_valides}</div><div style="font-size:11px;opacity:.7">Crédits CECT</div></div>
+      <div><div style="font-size:22px;font-weight:800">${r.moyenne_semestre!==null?Number(r.moyenne_semestre).toFixed(2):'—'}</div><div style="font-size:11px;opacity:.7">Moyenne</div></div>
+      <div><div style="font-size:18px;font-weight:700">${r.mention?r.mention.replace('_',' '):'-'}</div><div style="font-size:11px;opacity:.7">Mention</div></div>
+    </div>
+    ${uesHtml}
+    <div style="font-size:11px;color:#9ca3af;margin-top:1rem">Publié le ${new Date(r.publie_le).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'})}</div>`);
+}
+
 </script>
 
 </body>
