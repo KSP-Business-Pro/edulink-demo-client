@@ -804,7 +804,7 @@ window.addEventListener('load', async () => {
 // ── Sélecteur d'école (mode super-admin) ─────────────────────────────────
 async function chargerSelecteurEcoles() {
   const { data: ecoles } = await db.from('ecoles')
-    .select('id,nom,type').eq('is_demo', false).order('nom');
+    .select('id,nom,type,is_demo').order('nom');
   if (!ecoles || !ecoles.length) return;
 
   // Insérer un sélecteur sous le badge école dans la nav
