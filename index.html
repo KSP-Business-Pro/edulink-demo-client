@@ -612,7 +612,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 <script>
 // ── Config Supabase ──────────────────────────────────────────────────────
 const SUPABASE_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYzNzM4MTksImV4cCI6MjA2MTk0OTgxOX0.IcoG9V7RaRYmcFDfNRGg-7SBsNbwHNON-gEjwj5B3kM';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── État global ──────────────────────────────────────────────────────────
@@ -902,7 +902,210 @@ function peuplerSelectsSemestres() {
 }
 
 // ── Stubs pages (seront implémentés page par page) ────────────────────────
-async function chargerDashboard()    { document.getElementById('dash-content').innerHTML = '<div class="empty-state"><div class="es-ico">📊</div><h3>Dashboard en cours</h3><p>Phase 3 en cours de développement</p></div>'; }
+async function chargerDashboard() {
+  if (!currentEcoleId) {
+    document.getElementById('dash-content').innerHTML = `
+      <div class="empty-state">
+        <div class="es-ico">🏫</div>
+        <h3>Sélectionnez une école</h3>
+        <p>Choisissez une école dans le sélecteur de la barre latérale pour afficher le tableau de bord.</p>
+      </div>`;
+    return;
+  }
+  document.getElementById('dash-content').innerHTML = '<div class="loading">Chargement…</div>';
+
+  try {
+    // Charger toutes les données en parallèle
+    const [
+      { data: etudiants },
+      { data: semestres },
+      { data: ues },
+      { data: enseignants },
+      { data: inscriptions },
+      { data: cache },
+      { data: annee }
+    ] = await Promise.all([
+      db.from('etudiants').select('id,statut').eq('ecole_id', currentEcoleId),
+      db.from('semestres').select('id,libelle,niveau,statut,programmes_lmd(intitule,grade)')
+        .eq('ecole_id', currentEcoleId).order('numero'),
+      db.from('unites_enseignement').select('id,credits_cect,type_ue').eq('ecole_id', currentEcoleId),
+      db.from('enseignants').select('id,statut').eq('ecole_id', currentEcoleId),
+      db.from('inscriptions_semestre').select('id,statut,semestre_id').eq('ecole_id', currentEcoleId),
+      db.from('resultats_cache').select('semestre_valide,credits_valides').eq('ecole_id', currentEcoleId),
+      db.from('annees_academiques').select('libelle').eq('ecole_id', currentEcoleId).eq('est_courante', true).single()
+    ]);
+
+    // KPIs
+    const nbEtudiants    = etudiants?.length || 0;
+    const nbSemestresActifs = semestres?.filter(s => s.statut === 'en_cours').length || 0;
+    const nbUE           = ues?.length || 0;
+    const nbInscrits     = inscriptions?.filter(i => i.statut === 'active').length || 0;
+    const nbValides      = cache?.filter(c => c.semestre_valide).length || 0;
+    const tauxValidation = nbInscrits > 0 ? Math.round(nbValides / nbInscrits * 100) : 0;
+    const creditsTotal   = cache?.reduce((s, c) => s + (c.credits_valides || 0), 0) || 0;
+
+    // Semestres en cours
+    const semEn = semestres?.filter(s => s.statut === 'en_cours') || [];
+
+    // Répartition par programme
+    const progMap = {};
+    STATE.programmes.forEach(p => { progMap[p.id] = { ...p, inscrits: 0 }; });
+    inscriptions?.filter(i => i.statut === 'active').forEach(i => {
+      const sem = semestres?.find(s => s.id === i.semestre_id);
+      if (sem?.programmes_lmd) {
+        const pid = STATE.programmes.find(p => p.intitule === sem.programmes_lmd.intitule)?.id;
+        if (pid && progMap[pid]) progMap[pid].inscrits++;
+      }
+    });
+    const progList = Object.values(progMap).filter(p => p.inscrits > 0);
+
+    document.getElementById('dash-content').innerHTML = `
+      <!-- KPIs -->
+      <div class="cards">
+        <div class="card">
+          <div class="c-ico">🧑‍🎓</div>
+          <div class="c-val">${nbEtudiants}</div>
+          <div class="c-lbl">Étudiants</div>
+          <div class="c-sub">${nbInscrits} inscrits ce semestre</div>
+        </div>
+        <div class="card">
+          <div class="c-ico">📅</div>
+          <div class="c-val">${nbSemestresActifs}</div>
+          <div class="c-lbl">Semestres en cours</div>
+          <div class="c-sub">${STATE.programmes.length} programme${STATE.programmes.length > 1 ? 's' : ''}</div>
+        </div>
+        <div class="card">
+          <div class="c-ico">📚</div>
+          <div class="c-val">${nbUE}</div>
+          <div class="c-lbl">Unités d'enseignement</div>
+          <div class="c-sub">Année ${annee?.libelle || '—'}</div>
+        </div>
+        <div class="card">
+          <div class="c-ico">🏆</div>
+          <div class="c-val">${tauxValidation}%</div>
+          <div class="c-lbl">Taux de validation</div>
+          <div class="c-sub">${nbValides} / ${nbInscrits} étudiants</div>
+        </div>
+      </div>
+
+      <!-- Grille principale -->
+      <div class="dash-grid">
+
+        <!-- Semestres en cours -->
+        <div class="dash-block">
+          <div class="block-title">📅 Semestres en cours</div>
+          ${semEn.length === 0
+            ? '<div class="empty-state" style="padding:1.5rem"><p>Aucun semestre actif</p></div>'
+            : semEn.map(s => `
+              <div style="display:flex;align-items:center;gap:.75rem;padding:.75rem;background:#f9fafb;border-radius:10px;margin-bottom:.5rem;border:1px solid #f3f4f6;cursor:pointer"
+                   onclick="showPage('semestres')">
+                <div style="width:40px;height:40px;border-radius:10px;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1d4ed8;flex-shrink:0">
+                  ${s.niveau}
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.libelle}</div>
+                  <div style="font-size:11px;color:#6b7280">${s.programmes_lmd?.intitule || '—'}</div>
+                </div>
+                <span class="badge green">En cours</span>
+              </div>`).join('')
+          }
+          <button class="btn-outline btn-sm" style="width:100%;margin-top:.5rem" onclick="showPage('semestres')">
+            Voir tous les semestres
+          </button>
+        </div>
+
+        <!-- Répartition par programme -->
+        <div class="dash-block">
+          <div class="block-title">🎓 Inscriptions par programme</div>
+          ${STATE.programmes.length === 0
+            ? '<div class="empty-state" style="padding:1.5rem"><p>Aucun programme configuré</p></div>'
+            : STATE.programmes.map(p => {
+                const inscrits = progList.find(x => x.id === p.id)?.inscrits || 0;
+                const pct = nbInscrits > 0 ? Math.round(inscrits / nbEtudiants * 100) : 0;
+                const colors = { licence:'blue', master:'purple', doctorat:'teal' };
+                return `
+                  <div style="margin-bottom:1rem">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                      <div>
+                        <span style="font-size:12.5px;font-weight:600;color:#111827">${p.intitule}</span>
+                        ${badgeGrade(p.grade)}
+                      </div>
+                      <span style="font-size:12px;font-weight:700;color:#374151">${inscrits} étu.</span>
+                    </div>
+                    <div class="prog-bar">
+                      <div class="prog-fill ${colors[p.grade]||''}" style="width:${pct}%"></div>
+                    </div>
+                  </div>`;
+              }).join('')
+          }
+          <button class="btn-outline btn-sm" style="width:100%;margin-top:.5rem" onclick="showPage('programmes')">
+            Gérer les programmes
+          </button>
+        </div>
+
+        <!-- Accès rapides -->
+        <div class="dash-block">
+          <div class="block-title">⚡ Accès rapides</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+            ${[
+              { ico:'✏️', label:'Saisie notes', page:'saisie-notes', color:'#dbeafe' },
+              { ico:'📋', label:'Résultats', page:'resultats', color:'#dcfce7' },
+              { ico:'📄', label:'Relevés', page:'releves', color:'#ede9fe' },
+              { ico:'👥', label:'Promotions', page:'promotions', color:'#fef9c3' },
+              { ico:'🧑‍🎓', label:'Étudiants', page:'etudiants', color:'#ffedd5' },
+              { ico:'👨‍🏫', label:'Enseignants', page:'enseignants', color:'#ccfbf1' },
+            ].map(a => `
+              <div onclick="showPage('${a.page}')" style="
+                background:${a.color};border-radius:10px;padding:.85rem;
+                text-align:center;cursor:pointer;transition:opacity .15s
+              " onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+                <div style="font-size:22px;margin-bottom:4px">${a.ico}</div>
+                <div style="font-size:11.5px;font-weight:600;color:#374151">${a.label}</div>
+              </div>`).join('')}
+          </div>
+        </div>
+
+        <!-- Résumé crédits CAMES -->
+        <div class="dash-block">
+          <div class="block-title">🏅 Crédits CAMES validés</div>
+          ${cache && cache.length > 0 ? `
+            <div style="text-align:center;padding:1rem 0">
+              <div style="font-size:48px;font-weight:800;color:#1e3a5f;line-height:1">${creditsTotal}</div>
+              <div style="font-size:13px;color:#6b7280;margin-top:4px">crédits CECT validés au total</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-top:.5rem">
+              <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.75rem;border:1px solid #f3f4f6">
+                <div style="font-size:18px;font-weight:700;color:#059669">${nbValides}</div>
+                <div style="font-size:10.5px;color:#6b7280">Validés</div>
+              </div>
+              <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.75rem;border:1px solid #f3f4f6">
+                <div style="font-size:18px;font-weight:700;color:#dc2626">${nbInscrits - nbValides}</div>
+                <div style="font-size:10.5px;color:#6b7280">Non validés</div>
+              </div>
+              <div style="text-align:center;background:#f9fafb;border-radius:10px;padding:.75rem;border:1px solid #f3f4f6">
+                <div style="font-size:18px;font-weight:700;color:#7c3aed">${tauxValidation}%</div>
+                <div style="font-size:10.5px;color:#6b7280">Taux</div>
+              </div>
+            </div>` : `
+            <div class="empty-state" style="padding:1.5rem">
+              <p>Aucune note saisie pour l'instant</p>
+              <button class="btn-sm" style="margin-top:.75rem" onclick="showPage('saisie-notes')">
+                Commencer la saisie
+              </button>
+            </div>`}
+        </div>
+
+      </div>`;
+
+  } catch(e) {
+    document.getElementById('dash-content').innerHTML = `
+      <div class="empty-state">
+        <div class="es-ico">⚠️</div>
+        <h3>Erreur de chargement</h3>
+        <p>${e.message || e}</p>
+      </div>`;
+  }
+}
 async function chargerProgrammes()   { document.getElementById('programmes-content').innerHTML = '<div class="loading">Chargement…</div>'; }
 async function chargerSemestres()    { document.getElementById('semestres-content').innerHTML = '<div class="loading">Chargement…</div>'; }
 async function chargerPromotions()   { document.getElementById('promotions-content').innerHTML = '<div class="loading">Chargement…</div>'; }
