@@ -705,15 +705,22 @@ async function seConnecter() {
   err.style.display = 'none';
   btn.disabled = true;
   btn.textContent = 'Connexion…';
-  const { data, error } = await db.auth.signInWithPassword({ email, password: pwd });
-  if (error) {
-    err.textContent = 'Email ou mot de passe incorrect';
+  try {
+    const { data, error } = await db.auth.signInWithPassword({ email, password: pwd });
+    if (error) {
+      err.textContent = 'Email ou mot de passe incorrect (' + error.message + ')';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Se connecter';
+      return;
+    }
+    await ouvrirApp(data.user);
+  } catch(e) {
+    err.textContent = 'Erreur de connexion : ' + (e.message || e);
     err.style.display = 'block';
     btn.disabled = false;
     btn.textContent = 'Se connecter';
-    return;
   }
-  await ouvrirApp(data.user);
 }
 
 document.getElementById('login-pwd').addEventListener('keydown', e => {
@@ -721,23 +728,42 @@ document.getElementById('login-pwd').addEventListener('keydown', e => {
 });
 
 async function ouvrirApp(user) {
-  const { data: profil } = await db.from('utilisateurs')
-    .select('*').eq('auth_id', user.id).single();
-  currentEcoleId = profil?.ecole_id || null;
-  currentRole    = profil?.role     || 'admin';
-  currentUserId  = profil?.id       || null;
+  const { data: profil, error: profilError } = await db.from('utilisateurs')
+    .select('*').eq('auth_id', user.id).maybeSingle();
+
+  // Si pas de profil → on crée un profil super-admin minimal en mémoire
+  // (l'utilisateur existe dans auth mais pas encore dans utilisateurs)
+  if (!profil) {
+    const err = document.getElementById('login-error');
+    err.textContent = 'Compte auth OK mais profil utilisateurs introuvable. Vérifiez la table utilisateurs.';
+    err.style.display = 'block';
+    document.getElementById('login-btn').disabled = false;
+    document.getElementById('login-btn').textContent = 'Se connecter';
+    await db.auth.signOut();
+    return;
+  }
+
+  currentEcoleId = profil.ecole_id || null;  // NULL = super-admin multi-écoles
+  currentRole    = profil.role     || 'admin';
+  currentUserId  = profil.id       || null;
+
   // Mettre à jour la nav
-  const nom = (profil?.prenom ? profil.prenom + ' ' : '') + (profil?.nom || user.email);
+  const nom = (profil.prenom ? profil.prenom + ' ' : '') + (profil.nom || user.email);
   document.getElementById('nav-user-name').textContent = nom;
   document.getElementById('nav-user-role').textContent = currentRole;
   document.getElementById('nav-avatar').textContent = nom[0]?.toUpperCase() || 'U';
-  // Charger l'école
+  // Charger l'école (ou mode super-admin si ecole_id NULL)
   if (currentEcoleId) {
     const { data: ecole } = await db.from('ecoles').select('nom,type').eq('id', currentEcoleId).single();
     if (ecole) {
       document.getElementById('nav-ecole-nom').textContent = ecole.nom;
       document.getElementById('nav-ecole-type').textContent = ecole.type || 'Université';
     }
+  } else {
+    // Super-admin : charger toutes les écoles + sélecteur
+    document.getElementById('nav-ecole-nom').textContent = 'Toutes les écoles';
+    document.getElementById('nav-ecole-type').textContent = 'Super-admin';
+    await chargerSelecteurEcoles();
   }
   // Appliquer permissions selon rôle
   appliquerPermissions(currentRole);
@@ -774,6 +800,62 @@ window.addEventListener('load', async () => {
   const { data: { session } } = await db.auth.getSession();
   if (session) await ouvrirApp(session.user);
 });
+
+// ── Sélecteur d'école (mode super-admin) ─────────────────────────────────
+async function chargerSelecteurEcoles() {
+  const { data: ecoles } = await db.from('ecoles')
+    .select('id,nom,type').eq('is_demo', false).order('nom');
+  if (!ecoles || !ecoles.length) return;
+
+  // Insérer un sélecteur sous le badge école dans la nav
+  let sel = document.getElementById('ecole-selector-superadmin');
+  if (!sel) {
+    const badge = document.querySelector('.ecole-badge');
+    const wrap  = document.createElement('div');
+    wrap.style.cssText = 'margin-bottom:.75rem';
+    wrap.innerHTML = `<select id="ecole-selector-superadmin"
+      style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.25);
+             background:rgba(255,255,255,.1);color:#fff;font-size:11.5px;
+             font-family:Poppins,sans-serif;cursor:pointer;outline:none"
+      onchange="changerEcoleSuperAdmin(this.value)">
+      <option value="">— Toutes les écoles —</option>
+    </select>`;
+    badge.after(wrap);
+    sel = document.getElementById('ecole-selector-superadmin');
+  }
+  sel.innerHTML = '<option value="">— Toutes les écoles —</option>';
+  ecoles.forEach(e => {
+    sel.innerHTML += `<option value="${e.id}">${e.nom}</option>`;
+  });
+
+  // Sélectionner HEMEC par défaut
+  const hemec = ecoles.find(e => e.nom.includes('HEMEC'));
+  if (hemec) {
+    sel.value     = hemec.id;
+    currentEcoleId = hemec.id;
+    document.getElementById('nav-ecole-nom').textContent  = hemec.nom;
+    document.getElementById('nav-ecole-type').textContent = hemec.type || 'Université';
+  }
+}
+
+async function changerEcoleSuperAdmin(ecoleId) {
+  if (!ecoleId) {
+    currentEcoleId = null;
+    document.getElementById('nav-ecole-nom').textContent  = 'Toutes les écoles';
+    document.getElementById('nav-ecole-type').textContent = 'Super-admin';
+    return;
+  }
+  const { data: ecole } = await db.from('ecoles').select('nom,type').eq('id', ecoleId).single();
+  currentEcoleId = ecoleId;
+  document.getElementById('nav-ecole-nom').textContent  = ecole?.nom || '—';
+  document.getElementById('nav-ecole-type').textContent = ecole?.type || 'Université';
+  // Recharger données globales pour la nouvelle école
+  STATE.programmes = []; STATE.semestres = []; STATE.anneeAcademiqueId = null;
+  await chargerDonneesGlobales();
+  // Recharger la page active
+  showPage(currentPage);
+  toast('École changée : ' + ecole?.nom, 'success');
+}
 
 // ── Données globales ──────────────────────────────────────────────────────
 async function chargerDonneesGlobales() {
