@@ -1778,7 +1778,7 @@ async function chargerReleves() {
 function filtrerReleves() {
   const s = (document.getElementById('search-releves')?.value||'').toLowerCase();
   // Recharger pour avoir relevesMap frais -- simplifié
-  chargerReleves();
+  await chargerReleves();
 }
 
 function renderTableauReleves(etudiants, relevesMap, semId) {
@@ -1835,7 +1835,7 @@ async function publierReleve(etudiantId, semestreId) {
     const data = await res.json();
     if (data.success) {
       toast(`Relevé publié — ${data.mention||'Résultat calculé'}`, 'success');
-      chargerReleves();
+      await chargerReleves();
     } else {
       toast('Erreur: ' + (data.error||'Inconnue'), 'error');
     }
