@@ -614,7 +614,6 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 const SUPABASE_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-const WEBHOOK_SECRET = 'ab680f52-881c-4e89-a299-0aeec8c13da1-44cebc6c-d38c-446c-98ba-4390a4bffee8';
 
 // ── État global ──────────────────────────────────────────────────────────
 let currentEcoleId   = null;
@@ -1778,7 +1777,7 @@ async function chargerReleves() {
 function filtrerReleves() {
   const s = (document.getElementById('search-releves')?.value||'').toLowerCase();
   // Recharger pour avoir relevesMap frais -- simplifié
-  await chargerReleves();
+  chargerReleves();
 }
 
 function renderTableauReleves(etudiants, relevesMap, semId) {
@@ -1829,7 +1828,7 @@ async function publierReleve(etudiantId, semestreId) {
   try {
     const res = await fetch('https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${(await db.auth.getSession()).data.session?.access_token}`, 'x-webhook-secret': WEBHOOK_SECRET },
+      headers: { 'Content-Type':'application/json', 'x-webhook-secret': WEBHOOK_SECRET },
       body: JSON.stringify({ etudiant_id: etudiantId, semestre_id: semestreId, session_id: session.id, publie_par: currentUserId })
     });
     const data = await res.json();
@@ -1877,6 +1876,6 @@ async function voirReleve(etudiantId, semestreaId) {
 }
 
 </script>
-   
+
 </body>
 </html>
