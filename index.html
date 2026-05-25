@@ -1106,10 +1106,11 @@ async function chargerDashboard() {
       </div>`;
   }
 }
-async function chargerProgrammes()   { document.getElementById('programmes-content').innerHTML = '<div class="loading">Chargement…</div>'; }
-async function chargerSemestres()    { document.getElementById('semestres-content').innerHTML = '<div class="loading">Chargement…</div>'; }
-async function chargerPromotions()   { document.getElementById('promotions-content').innerHTML = '<div class="loading">Chargement…</div>'; }
-async function chargerEtudiants()    { document.getElementById('etudiants-content').innerHTML = '<div class="loading">Chargement…</div>'; }
+// Pages implementees dans 07_pages_lmd.js (inline)
+async function chargerProgrammes()   { await _chargerProgrammes(); }
+async function chargerSemestres()    { await _chargerSemestres(); }
+async function chargerPromotions()   { await _chargerPromotions(); }
+async function chargerEtudiants()    { await _chargerEtudiants(); }
 async function initSaisieNotes()     { /* géré par les selects */ }
 async function initResultats()       { /* géré par les selects */ }
 async function initReleves()         { /* géré par les selects */ }
@@ -1137,6 +1138,277 @@ function chargerMatieresSaisie() { /* implémenté page saisie */ }
 function chargerGrilleNotes()    { /* implémenté page saisie */ }
 function chargerResultats()      { /* implémenté page résultats */ }
 function chargerReleves()        { /* implémenté page relevés */ }
+
+
+// ══════════════════════════════════════════════
+//  PAGES LMD — Programmes, Semestres, Promotions, Étudiants
+// ══════════════════════════════════════════════
+
+// ── PAGE PROGRAMMES & UE ──────────────────────
+async function _chargerProgrammes() {
+  const el = document.getElementById('programmes-content');
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+  if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
+  const [{ data: progs }, { data: ues }] = await Promise.all([
+    db.from('programmes_lmd').select('*').eq('ecole_id', currentEcoleId).order('grade,intitule'),
+    db.from('unites_enseignement').select('*').eq('ecole_id', currentEcoleId).order('code')
+  ]);
+  const gradeLabel = { licence:'Licence', master:'Master', doctorat:'Doctorat' };
+  const gradeGroups = {};
+  (progs || []).forEach(p => { if (!gradeGroups[p.grade]) gradeGroups[p.grade] = []; gradeGroups[p.grade].push(p); });
+  el.innerHTML = `
+    <div class="tabs" id="prog-tabs">
+      <button class="tab active" onclick="switchProgTab('programmes',this)">Programmes (${(progs||[]).length})</button>
+      <button class="tab" onclick="switchProgTab('ues',this)">Unités d'enseignement (${(ues||[]).length})</button>
+    </div>
+    <div id="prog-tab-programmes">
+      ${Object.entries(gradeGroups).map(([grade, list]) => `
+        <div style="margin-bottom:1.5rem">
+          <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
+            <span class="badge ${grade==='licence'?'blue':grade==='master'?'purple':'teal'}" style="font-size:12px;padding:4px 12px">${gradeLabel[grade]||grade}</span>
+            <div style="flex:1;height:1px;background:#e5e7eb"></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Code</th><th>Intitulé</th><th>Crédits</th><th>Durée</th><th>Statut</th><th></th></tr></thead>
+            <tbody>${list.map(p=>`<tr>
+              <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:12px">${esc(p.code)}</code></td>
+              <td><strong>${esc(p.intitule)}</strong></td>
+              <td><span class="badge gray">${p.credits_total} CECT</span></td>
+              <td>${p.duree_annees} ans</td>
+              <td><span class="badge ${p.actif?'green':'gray'}">${p.actif?'Actif':'Inactif'}</span></td>
+              <td><button class="btn-ghost btn-sm" onclick="voirUEProgramme('${p.id}','${esc(p.intitule).replace(/'/g,"\\'")}')">Voir UE</button></td>
+            </tr>`).join('')}</tbody>
+          </table></div>
+        </div>`).join('') || '<div class="empty-state"><div class="es-ico">🎓</div><h3>Aucun programme</h3></div>'}
+    </div>
+    <div id="prog-tab-ues" style="display:none">
+      ${(ues||[]).length===0 ? '<div class="empty-state"><div class="es-ico">📚</div><h3>Aucune UE</h3></div>'
+        : `<div class="table-wrap"><table>
+          <thead><tr><th>Code</th><th>Intitulé</th><th>Type</th><th>Crédits</th><th>CC / Exam</th><th></th></tr></thead>
+          <tbody>${(ues||[]).map(u=>`<tr>
+            <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:12px">${esc(u.code)}</code></td>
+            <td><strong>${esc(u.intitule)}</strong></td>
+            <td><span class="badge ${u.type_ue==='fondamentale'?'blue':u.type_ue==='optionnelle'?'amber':'purple'}">${u.type_ue}</span></td>
+            <td><span class="badge teal">${u.credits_cect} CECT</span></td>
+            <td style="font-size:12px">CC ${Math.round(u.poids_cc*100)}% · Exam ${Math.round(u.poids_examen*100)}%</td>
+            <td><button class="btn-ghost btn-sm" onclick="voirMatieresUE('${u.id}','${esc(u.intitule).replace(/'/g,"\\'")}')">Matières</button></td>
+          </tr>`).join('')}</tbody>
+        </table></div>`}
+    </div>`;
+}
+
+function switchProgTab(tab, btn) {
+  document.querySelectorAll('#prog-tabs .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('prog-tab-programmes').style.display = tab==='programmes' ? '' : 'none';
+  document.getElementById('prog-tab-ues').style.display = tab==='ues' ? '' : 'none';
+}
+
+async function voirUEProgramme(progId, progNom) {
+  const { data: pues } = await db.from('programme_ue')
+    .select('*, unites_enseignement(*), semestres(libelle,niveau)').eq('programme_id', progId);
+  ouvrirModalInfo('UE du programme : ' + progNom,
+    `<div class="table-wrap"><table>
+      <thead><tr><th>Semestre</th><th>Code</th><th>Intitulé</th><th>Crédits</th><th>Type</th></tr></thead>
+      <tbody>${(pues||[]).map(pu=>`<tr>
+        <td>${esc(pu.semestres?.libelle||'—')}</td>
+        <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${esc(pu.unites_enseignement?.code||'—')}</code></td>
+        <td>${esc(pu.unites_enseignement?.intitule||'—')}</td>
+        <td><span class="badge teal">${pu.unites_enseignement?.credits_cect||0} CECT</span></td>
+        <td><span class="badge ${pu.obligatoire?'blue':'amber'}">${pu.obligatoire?'Obligatoire':'Optionnelle'}</span></td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:1rem">Aucune UE</td></tr>'}</tbody>
+    </table></div>`);
+}
+
+async function voirMatieresUE(ueId, ueNom) {
+  const { data: mats } = await db.from('matieres_lmd').select('*, enseignants(nom,prenom)').eq('ue_id', ueId);
+  ouvrirModalInfo('Matières de l\'UE : ' + ueNom,
+    `<div class="table-wrap"><table>
+      <thead><tr><th>Code</th><th>Matière</th><th>Coef.</th><th>Volume horaire</th><th>Enseignant</th></tr></thead>
+      <tbody>${(mats||[]).map(m=>`<tr>
+        <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${esc(m.code)}</code></td>
+        <td>${esc(m.nom)}</td>
+        <td style="text-align:center"><strong>${m.coefficient}</strong></td>
+        <td style="text-align:center">${m.heures_cm||0}h CM / ${m.heures_td||0}h TD</td>
+        <td>${m.enseignants ? esc(m.enseignants.prenom+' '+m.enseignants.nom) : '<span style="color:#9ca3af">Non assigné</span>'}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:1rem">Aucune matière</td></tr>'}</tbody>
+    </table></div>`);
+}
+
+function ouvrirModalInfo(titre, contenu) {
+  let o = document.getElementById('modal-info-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-info-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `<div class="modal modal-lg">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem">
+        <h3 id="modal-info-titre" style="margin:0;font-size:15px"></h3>
+        <button class="btn-ghost btn-sm" onclick="document.getElementById('modal-info-overlay').classList.remove('open')">✕</button>
+      </div>
+      <div id="modal-info-body" style="max-height:60vh;overflow-y:auto"></div>
+    </div>`;
+    document.body.appendChild(o);
+  }
+  document.getElementById('modal-info-titre').textContent = titre;
+  document.getElementById('modal-info-body').innerHTML = contenu;
+  o.classList.add('open');
+}
+
+// ── PAGE SEMESTRES ────────────────────────────
+async function _chargerSemestres() {
+  const el = document.getElementById('semestres-content');
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+  if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
+  const { data: sems } = await db.from('semestres')
+    .select('*, programmes_lmd(intitule,grade), annees_academiques(libelle), sessions_evaluation(id,type_session,statut)')
+    .eq('ecole_id', currentEcoleId).order('numero');
+  const sc = { planifie:'gray', en_cours:'green', cloture:'blue', archive:'gray' };
+  const sl = { planifie:'Planifié', en_cours:'En cours', cloture:'Clôturé', archive:'Archivé' };
+  el.innerHTML = !sems?.length
+    ? '<div class="empty-state"><div class="es-ico">📅</div><h3>Aucun semestre</h3></div>'
+    : `<div class="table-wrap"><table>
+        <thead><tr><th>Niveau</th><th>Libellé</th><th>Programme</th><th>Année</th><th>Période</th><th>Statut</th><th>Sessions</th></tr></thead>
+        <tbody>${(sems||[]).map(s => {
+          const sessions = s.sessions_evaluation || [];
+          const norm = sessions.find(x => x.type_session==='normale');
+          const ratt = sessions.find(x => x.type_session==='rattrapage');
+          return `<tr>
+            <td>${badgeNiveau(s.niveau)}</td>
+            <td><strong>${esc(s.libelle)}</strong></td>
+            <td style="font-size:12px;color:#6b7280">${esc(s.programmes_lmd?.intitule||'—')}</td>
+            <td style="font-size:12px">${esc(s.annees_academiques?.libelle||'—')}</td>
+            <td style="font-size:12px;color:#6b7280">${s.date_debut?formatDate(s.date_debut)+' → '+formatDate(s.date_fin):'—'}</td>
+            <td><span class="badge ${sc[s.statut]||'gray'}">${sl[s.statut]||s.statut}</span></td>
+            <td>
+              <span class="badge ${norm?'green':'gray'}" style="margin-right:3px">Normale</span>
+              <span class="badge ${ratt?'amber':'gray'}">Rattrapage</span>
+            </td>
+          </tr>`;}).join('')}
+        </tbody>
+      </table></div>`;
+}
+
+// ── PAGE PROMOTIONS ───────────────────────────
+async function _chargerPromotions() {
+  const el = document.getElementById('promotions-content');
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+  if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
+  const [{ data: promos }, { data: inscriptions }] = await Promise.all([
+    db.from('promotions').select('*, programmes_lmd(intitule,grade), annees_academiques(libelle)').eq('ecole_id', currentEcoleId).order('niveau'),
+    db.from('inscriptions_semestre').select('promotion_id').eq('ecole_id', currentEcoleId).eq('statut', 'active')
+  ]);
+  const nbIns = {};
+  (inscriptions||[]).forEach(i => { nbIns[i.promotion_id] = (nbIns[i.promotion_id]||0) + 1; });
+  el.innerHTML = !promos?.length
+    ? '<div class="empty-state"><div class="es-ico">👥</div><h3>Aucune promotion</h3></div>'
+    : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem">
+        ${(promos||[]).map(p => {
+          const ins = nbIns[p.id]||0;
+          const pct = p.effectif_max ? Math.round(ins/p.effectif_max*100) : 0;
+          const bg  = p.niveau.startsWith('L') ? '#dbeafe' : p.niveau.startsWith('M') ? '#ede9fe' : '#ccfbf1';
+          const fg  = p.niveau.startsWith('L') ? '#1d4ed8' : p.niveau.startsWith('M') ? '#7c3aed' : '#0d9488';
+          return `<div class="card" style="padding:1.2rem">
+            <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.85rem">
+              <div style="width:44px;height:44px;border-radius:12px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${fg};flex-shrink:0">${p.niveau}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.nom)}</div>
+                <div style="font-size:11px;color:#6b7280">${esc(p.programmes_lmd?.intitule||'—')}</div>
+              </div>
+              ${badgeGrade(p.programmes_lmd?.grade||'')}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem">
+              <div style="background:#f9fafb;border-radius:8px;padding:.6rem;text-align:center;border:1px solid #f3f4f6">
+                <div style="font-size:20px;font-weight:700;color:#1e3a5f">${ins}</div>
+                <div style="font-size:10px;color:#9ca3af">Inscrits</div>
+              </div>
+              <div style="background:#f9fafb;border-radius:8px;padding:.6rem;text-align:center;border:1px solid #f3f4f6">
+                <div style="font-size:20px;font-weight:700;color:#1e3a5f">${p.effectif_max||'∞'}</div>
+                <div style="font-size:10px;color:#9ca3af">Capacité</div>
+              </div>
+            </div>
+            ${p.effectif_max ? `<div class="prog-bar"><div class="prog-fill ${pct>90?'red':pct>70?'amber':''}" style="width:${pct}%"></div></div>` : ''}
+            <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid #f3f4f6;font-size:11px;color:#9ca3af">
+              ${esc(p.annees_academiques?.libelle||'—')} · Resp: ${esc(p.responsable||'N/A')}
+            </div>
+          </div>`;}).join('')}
+      </div>`;
+}
+
+// ── PAGE ÉTUDIANTS ────────────────────────────
+let _tousEtudiants = [];
+
+async function _chargerEtudiants() {
+  const el = document.getElementById('etudiants-content');
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+  if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
+  const { data: etudiants } = await db.from('etudiants').select('*').eq('ecole_id', currentEcoleId).order('nom,prenom');
+  _tousEtudiants = etudiants || [];
+  document.getElementById('etudiants-count').textContent = `${_tousEtudiants.length} étudiant${_tousEtudiants.length>1?'s':''} enregistré${_tousEtudiants.length>1?'s':''}`;
+  renderTableauEtudiants(_tousEtudiants);
+}
+
+function renderTableauEtudiants(liste) {
+  const el = document.getElementById('etudiants-content');
+  if (!liste.length) { el.innerHTML = '<div class="empty-state"><div class="es-ico">🧑‍🎓</div><h3>Aucun résultat</h3></div>'; return; }
+  const sc = { actif:'green', inactif:'gray', diplome:'purple', abandonne:'red' };
+  el.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Matricule</th><th>Nom & Prénom</th><th>Filière</th><th>Niveau</th><th>Statut</th><th></th></tr></thead>
+    <tbody>${liste.map(e => `<tr>
+      <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${esc(e.matricule||'—')}</code></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:.6rem">
+          <div style="width:32px;height:32px;border-radius:50%;background:${e.sexe==='F'?'#fce7f3':'#dbeafe'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${e.sexe==='F'?'#be185d':'#1d4ed8'};flex-shrink:0">${(e.nom?.[0]||'?').toUpperCase()}</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#111827">${esc(e.nom)} ${esc(e.prenom)}</div>
+            <div style="font-size:11px;color:#9ca3af">${esc(e.email_auth||'—')}</div>
+          </div>
+        </div>
+      </td>
+      <td style="font-size:12px;color:#6b7280">${esc(e.filiere||'—')}</td>
+      <td>${e.niveau ? badgeNiveau(e.niveau) : '<span class="badge gray">—</span>'}</td>
+      <td><span class="badge ${sc[e.statut]||'gray'}">${esc(e.statut||'—')}</span></td>
+      <td><button class="btn-ghost btn-sm" onclick="voirFicheEtudiant('${e.id}')">Fiche</button></td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function filtrerEtudiants() {
+  const s = (document.getElementById('search-etudiants')?.value||'').toLowerCase();
+  const n = document.getElementById('filter-niveau')?.value||'';
+  let l = _tousEtudiants;
+  if (s) l = l.filter(e => (e.nom+' '+e.prenom+' '+(e.matricule||'')).toLowerCase().includes(s));
+  if (n) l = l.filter(e => e.niveau === n);
+  renderTableauEtudiants(l);
+}
+
+async function voirFicheEtudiant(id) {
+  const { data: e } = await db.from('etudiants').select('*').eq('id', id).single();
+  if (!e) return;
+  const { data: ins } = await db.from('inscriptions_semestre')
+    .select('*, semestres(libelle,niveau,programmes_lmd(intitule))').eq('etudiant_id', id).order('created_at', { ascending:false });
+  const insHtml = (ins||[]).map(i => `
+    <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem;background:#f9fafb;border-radius:8px;margin-bottom:.4rem;border:1px solid #f3f4f6">
+      ${badgeNiveau(i.semestres?.niveau||'?')}
+      <div style="flex:1"><div style="font-size:12.5px;font-weight:600">${esc(i.semestres?.libelle||'—')}</div>
+      <div style="font-size:11px;color:#9ca3af">${esc(i.semestres?.programmes_lmd?.intitule||'—')}</div></div>
+      <span class="badge ${i.statut==='active'?'green':'gray'}">${i.statut}</span>
+    </div>`).join('') || '<p style="color:#9ca3af;font-size:13px">Aucune inscription</p>';
+  ouvrirModalInfo(e.prenom+' '+e.nom, `
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem;padding:1rem;background:#1e3a5f;border-radius:12px;color:#fff">
+      <div style="width:52px;height:52px;border-radius:50%;background:#c97c1a;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0">${(e.nom?.[0]||'?').toUpperCase()}</div>
+      <div><div style="font-size:16px;font-weight:700">${esc(e.prenom)} ${esc(e.nom)}</div>
+      <div style="font-size:12px;opacity:.7">${esc(e.matricule||'—')} · ${esc(e.filiere||'—')} · ${e.niveau||'—'}</div></div>
+    </div>
+    <div class="info-grid" style="margin-bottom:1.2rem">
+      <div class="info-item"><div class="ii-label">Email</div><div class="ii-val">${esc(e.email_auth||'—')}</div></div>
+      <div class="info-item"><div class="ii-label">Tél. parent</div><div class="ii-val">${esc(e.telephone_parent||'—')}</div></div>
+      <div class="info-item"><div class="ii-label">Date de naissance</div><div class="ii-val">${formatDate(e.date_naissance)}</div></div>
+      <div class="info-item"><div class="ii-label">Statut</div><div class="ii-val">${esc(e.statut||'—')}</div></div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.75rem">Inscriptions semestrielles</div>
+    ${insHtml}`);
+}
 </script>
 
 </body>
