@@ -1829,7 +1829,7 @@ async function publierReleve(etudiantId, semestreId) {
   try {
     const res = await fetch('https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${(await db.auth.getSession()).data.session?.access_token}`, 'x-webhook-secret': WEBHOOK_SECRET },
+      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${(await db.auth.getSession()).data.session?.access_token}` },
       body: JSON.stringify({ etudiant_id: etudiantId, semestre_id: semestreId, session_id: session.id, publie_par: currentUserId })
     });
     const data = await res.json();
