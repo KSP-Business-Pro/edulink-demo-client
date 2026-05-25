@@ -614,7 +614,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 const SUPABASE_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-
+const WEBHOOK_SECRET = 'ab680f52-881c-4e89-a299-0aeec8c13da1-44cebc6c-d38c-446c-98ba-4390a4bffee8';
 // ── État global ──────────────────────────────────────────────────────────
 let currentEcoleId   = null;
 let currentRole      = 'admin';
