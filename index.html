@@ -2655,7 +2655,7 @@ async function ouvrirSaisiePresence(seanceId, matiereNom, semId) {
       <span class="badge red">${nbAbsents} absents</span>
       <button class="btn-sm btn-secondary" onclick="toutMarquerPresent('${seanceId}')" style="margin-left:auto">✅ Tous présents</button>
     </div>
-    <div style="max-height:50vh;overflow-y:auto">
+    <div style="max-height:45vh;overflow-y:auto" id="presences-liste">
       ${etudiants.map(et => {
         const p = presMap[et.id];
         const statut = p?.statut || 'absent';
@@ -2698,6 +2698,20 @@ async function marquerPresence(seanceId, etudiantId, statut, btn) {
     });
     btn.className = statut === 'present' ? 'btn-sm btn-green' : statut === 'absent' ? 'btn-sm btn-red' : 'btn-sm';
     if (statut === 'retard') btn.style.background = '#d97706';
+  }
+  // Mettre à jour les compteurs
+  const liste = document.getElementById('presences-liste');
+  if (liste) {
+    const rows = liste.querySelectorAll('div[style*="border"]');
+    let p=0, a=0, r=0;
+    rows.forEach(r_ => {
+      const bg = r_.style.background;
+      if (bg.includes('f0fdf4')) p++;
+      else if (bg.includes('fef9c3')) r++;
+      else if (bg.includes('fef2f2')) a++;
+    });
+    const cpt = document.getElementById('presences-compteur');
+    if (cpt) cpt.innerHTML = `Présents : <strong style="color:#059669">${p}</strong> · Absents : <strong style="color:#dc2626">${a}</strong> · Retards : <strong style="color:#d97706">${r}</strong>`;
   }
 }
 
