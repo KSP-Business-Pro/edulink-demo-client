@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edulink Sup — Proposition pour l'École Supérieure de Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0f2340; --navy2:#1e3a5f; --navy3:#2d5a8e;
+  --orange:#f97316; --orange2:#fb923c;
+  --cream:#faf8f4; --gray:#6b7280; --light:#f3f4f6; --white:#ffffff;
+  --danger:#dc2626; --green:#059669; --ink:#1e293b;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;color:var(--ink);background:var(--white);line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:'DM Serif Display',serif;font-weight:400;line-height:1.1}
+.mono{font-family:'JetBrains Mono',monospace}
+em{font-style:italic;color:var(--orange)}
+
+/* progress bar */
+#progress{position:fixed;top:0;left:0;height:3px;background:var(--orange);width:0;z-index:100;transition:width .1s linear}
+
+/* nav wordmark */
+.brand{position:fixed;top:1.4rem;left:1.8rem;display:flex;align-items:center;gap:.5rem;z-index:90;font-family:'DM Serif Display',serif;font-size:1.05rem;font-weight:400;mix-blend-mode:difference;color:#fff}
+.brand .sq{width:14px;height:14px;background:var(--orange)}
+
+/* generic section */
+section{padding:7rem 1.8rem;position:relative}
+.wrap{max-width:1080px;margin:0 auto}
+.kicker{font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--orange);font-weight:600;margin-bottom:1.2rem;display:flex;align-items:center;gap:.7rem}
+.kicker::before{content:attr(data-n);color:var(--navy3);opacity:.6}
+.dark .kicker::before{color:var(--orange2);opacity:.7}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+.d1{transition-delay:.08s}.d2{transition-delay:.16s}.d3{transition-delay:.24s}.d4{transition-delay:.32s}
+
+/* HERO */
+.hero{background:var(--navy);color:#fff;min-height:100vh;display:flex;align-items:center;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(900px 500px at 80% 15%,rgba(249,115,22,.13),transparent 60%);pointer-events:none}
+.hero .tag{font-family:'JetBrains Mono',monospace;font-size:.78rem;letter-spacing:.22em;text-transform:uppercase;color:var(--orange2);font-weight:600;margin-bottom:1.6rem}
+.hero h1{font-size:clamp(2.6rem,6.5vw,5rem);max-width:16ch}
+.hero .pills{display:flex;flex-wrap:wrap;gap:.7rem;margin:2.4rem 0 0}
+.pill{border:1px solid var(--navy3);background:var(--navy2);border-radius:30px;padding:.55rem 1.2rem;font-size:.9rem;color:#dbe7f5}
+.hero .sig{margin-top:3rem;font-style:italic;color:#9fb3c8;font-size:.98rem}
+.scroll-hint{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:.7rem;letter-spacing:.2em;color:#6c83a0;text-transform:uppercase;animation:bob 2.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(7px)}}
+
+/* dark sections */
+.dark{background:var(--navy);color:#fff}
+.dark h2{color:#fff}
+.dark .lead{color:#cadcfc}
+
+h2.big{font-size:clamp(2rem,4.5vw,3.2rem);margin-bottom:.6rem;color:var(--navy)}
+.lead{font-size:1.2rem;color:var(--gray);max-width:60ch;margin-bottom:2.5rem}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem;margin-top:1rem}
+.stat{background:var(--light);border-left:5px solid var(--navy);padding:2rem 1.6rem;border-radius:6px}
+.stat .num{font-family:'DM Serif Display',serif;font-size:3.6rem;line-height:1;margin-bottom:1rem}
+.stat .lbl{font-size:1rem;color:var(--ink)}
+.stat.s1{border-color:var(--navy)}.stat.s1 .num{color:var(--navy)}
+.stat.s2{border-color:var(--orange)}.stat.s2 .num{color:var(--orange)}
+.stat.s3{border-color:var(--danger)}.stat.s3 .num{color:var(--danger)}
+.note{margin-top:2.2rem;font-style:italic;color:var(--gray);font-size:1.05rem}
+
+/* problem rows */
+.prow{display:flex;gap:1.3rem;align-items:flex-start;padding:1.5rem 0;border-bottom:1px solid #ececec}
+.prow:last-child{border-bottom:none}
+.pic{flex:0 0 52px;height:52px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;color:var(--orange2);font-size:1.3rem}
+.prow h3{font-family:'DM Sans',sans-serif;font-weight:700;font-size:1.2rem;color:var(--ink);margin-bottom:.2rem}
+.prow p{color:var(--gray);font-size:1rem}
+
+/* risk dark */
+.risk h2{font-size:clamp(2.4rem,5.5vw,4rem);line-height:1.05}
+.risk h2 .ex{color:var(--orange)}
+.riskcards{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:3rem}
+.rc{background:var(--navy2);border-radius:8px;padding:1.8rem}
+.rc .ic{font-size:1.7rem;color:var(--orange);margin-bottom:1rem}
+.rc h3{font-family:'DM Sans',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:.5rem}
+.rc p{color:#9fb3c8;font-size:.95rem}
+
+/* solution split */
+.split{display:grid;grid-template-columns:1.2fr 1fr;gap:3rem;align-items:center}
+.checklist{list-style:none;margin-top:1.5rem}
+.checklist li{display:flex;gap:.8rem;align-items:flex-start;padding:.6rem 0;font-size:1.08rem}
+.checklist li::before{content:"✓";color:var(--green);font-weight:700;font-size:1.2rem;flex:0 0 auto;line-height:1.4}
+.solpanel{background:var(--navy);border-top:6px solid var(--orange);border-radius:10px;padding:3rem 2rem;text-align:center;color:#fff}
+.solpanel .ic{font-size:3rem;color:var(--orange2);margin-bottom:1rem}
+.solpanel h3{font-size:1.9rem;color:#fff;margin-bottom:.8rem}
+.solpanel p{color:#cadcfc}
+
+/* modules grid */
+.mods{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:1rem}
+.mod{background:var(--light);border-radius:10px;padding:1.8rem;transition:transform .3s,box-shadow .3s}
+.mod:hover{transform:translateY(-6px);box-shadow:0 16px 40px rgba(15,35,64,.13)}
+.mod .ic{width:56px;height:56px;border-radius:50%;background:var(--navy);color:var(--orange2);display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:1.1rem}
+.mod h3{font-family:'DM Sans',sans-serif;font-weight:700;font-size:1.15rem;color:var(--ink);margin-bottom:.35rem}
+.mod p{color:var(--gray);font-size:.95rem}
+
+/* cames cards */
+.cames{display:grid;grid-template-columns:repeat(2,1fr);gap:1.2rem;margin-top:1rem}
+.cc{background:var(--navy);border-left:5px solid var(--green);border-radius:8px;padding:1.7rem;color:#fff;display:flex;gap:1rem;align-items:flex-start}
+.cc .ic{color:#34d399;font-size:1.5rem;flex:0 0 auto;margin-top:.15rem}
+.cc h3{font-family:'DM Sans',sans-serif;font-weight:700;font-size:1.15rem;margin-bottom:.35rem}
+.cc p{color:#cadcfc;font-size:.95rem}
+
+/* comparison table */
+.cmp{width:100%;border-collapse:collapse;margin-top:1rem;font-size:.98rem;overflow:hidden;border-radius:10px;box-shadow:0 8px 30px rgba(15,35,64,.08)}
+.cmp th{padding:1rem 1.2rem;text-align:left;font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#fff}
+.cmp th.crit{background:var(--navy)}
+.cmp th.bad{background:var(--danger)}
+.cmp th.good{background:var(--green)}
+.cmp td{padding:1rem 1.2rem;border-bottom:1px solid #eee;vertical-align:top}
+.cmp tr:nth-child(even) td{background:var(--light)}
+.cmp td.lab{font-weight:700;color:var(--navy)}
+.cmp .x{color:var(--danger);font-weight:700;margin-right:.5rem}
+.cmp .v{color:var(--green);font-weight:700;margin-right:.5rem}
+
+/* security */
+.secs{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;margin-top:1rem}
+.sc{background:var(--navy2);border-radius:10px;padding:1.8rem 1.3rem;text-align:center}
+.sc .ic{width:62px;height:62px;border-radius:50%;background:var(--navy);color:var(--orange2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto 1rem}
+.sc h3{font-family:'DM Sans',sans-serif;font-weight:700;font-size:1.05rem;margin-bottom:.4rem;color:#fff}
+.sc p{color:#9fb3c8;font-size:.9rem}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem;margin-top:1rem;position:relative}
+.step{background:var(--light);border-top:5px solid var(--navy3);border-radius:10px;padding:2rem 1.6rem;position:relative}
+.step.st1{border-color:var(--green)}.step.st2{border-color:var(--orange)}.step.st3{border-color:var(--navy3)}
+.step .n{width:60px;height:60px;border-radius:50%;background:var(--navy);color:var(--orange);font-family:'DM Serif Display',serif;font-size:1.8rem;display:flex;align-items:center;justify-content:center;margin-bottom:1.2rem}
+.step h3{font-family:'DM Sans',sans-serif;font-weight:700;font-size:1.3rem;color:var(--navy);margin-bottom:.6rem}
+.step p{color:var(--ink);font-size:.98rem;margin-bottom:1.2rem}
+.steptag{display:inline-block;font-size:.78rem;font-weight:700;color:#fff;padding:.35rem .9rem;border-radius:20px}
+.st1 .steptag{background:var(--green)}.st2 .steptag{background:var(--orange)}.st3 .steptag{background:var(--navy3)}
+
+/* why now */
+.why{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:3rem}
+.wc{background:var(--navy2);border-radius:10px;padding:1.8rem}
+.wc .ic{font-size:1.7rem;color:var(--orange2);margin-bottom:1rem}
+.wc h3{font-family:'DM Sans',sans-serif;font-weight:700;font-size:1.15rem;margin-bottom:.5rem}
+.wc p{color:#9fb3c8;font-size:.95rem}
+
+/* CTA */
+.cta{text-align:center}
+.cta h2{font-size:clamp(2.4rem,5.5vw,4rem);margin-bottom:1.2rem}
+.cta .lead{margin:0 auto 2.5rem}
+.btn{display:inline-block;background:var(--orange);color:#fff;font-weight:700;font-size:1.1rem;padding:1.1rem 2.4rem;border-radius:12px;text-decoration:none;box-shadow:0 10px 30px rgba(249,115,22,.35);transition:transform .25s,box-shadow .25s}
+.btn:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(249,115,22,.45)}
+.ctacontact{margin-top:2.5rem;font-family:'JetBrains Mono',monospace;font-size:.9rem;color:#9fb3c8}
+.ctacontact b{color:var(--orange2)}
+
+footer{background:#091627;color:#6c83a0;text-align:center;padding:2.5rem 1.8rem;font-size:.85rem}
+
+@media(max-width:860px){
+  .stats,.riskcards,.mods,.cames,.secs,.steps,.why{grid-template-columns:1fr}
+  .split{grid-template-columns:1fr}
+  .secs{grid-template-columns:repeat(2,1fr)}
+  section{padding:5rem 1.4rem}
+  .brand{left:1.2rem;top:1.1rem}
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="brand"><span class="sq"></span>Edulink Sup</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="tag reveal">Proposition pour l'École Supérieure de Management</div>
+    <h1 class="reveal d1">La gestion académique à la hauteur de votre accréditation <em>CAMES</em></h1>
+    <div class="pills reveal d2">
+      <span class="pill">3 000 étudiants</span>
+      <span class="pill">Accréditée LMD CAMES</span>
+      <span class="pill">Aujourd'hui sur Excel</span>
+    </div>
+    <div class="sig reveal d3">Présenté au Fondateur &amp; Directeur Général</div>
+  </div>
+  <div class="scroll-hint">défiler ↓</div>
+</section>
+
+<!-- CONSTAT -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal" data-n="01">Le constat</div>
+    <h2 class="big reveal">ESM aujourd'hui</h2>
+    <div class="stats">
+      <div class="stat s1 reveal d1"><div class="num">3 000</div><div class="lbl">étudiants à gérer chaque semestre</div></div>
+      <div class="stat s2 reveal d2"><div class="num">LMD</div><div class="lbl">accréditée par le CAMES — une exigence permanente</div></div>
+      <div class="stat s3 reveal d3"><div class="num">Excel</div><div class="lbl">+ applications maison pour tout piloter</div></div>
+    </div>
+    <p class="note reveal d2">Une grande institution, accréditée, pilotée avec des outils conçus pour des listes — pas pour une université.</p>
+  </div>
+</section>
+
+<!-- PROBLÈME -->
+<section style="background:var(--cream)">
+  <div class="wrap">
+    <div class="kicker reveal" data-n="02">Le problème</div>
+    <h2 class="big reveal">Ce que coûte Excel à 3 000 étudiants</h2>
+    <div style="margin-top:1.5rem">
+      <div class="prow reveal"><div class="pic">∑</div><div><h3>Moyennes pondérées à la main</h3><p>Coefficients, crédits, compensation : une formule mal copiée et tout un relevé est faux.</p></div></div>
+      <div class="prow reveal"><div class="pic">▤</div><div><h3>Relevés produits manuellement</h3><p>Mise en page refaite à chaque session, risque d'erreur sur chaque document officiel.</p></div></div>
+      <div class="prow reveal"><div class="pic">↻</div><div><h3>Zéro traçabilité</h3><p>Qui a modifié quelle note, et quand ? Aucun historique. Impossible à auditer.</p></div></div>
+      <div class="prow reveal"><div class="pic">⎘</div><div><h3>Fichiers dispersés et fragiles</h3><p>Versions multiples, fichiers écrasés, clés USB perdues. Vos données vitales sans filet.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- RISQUE -->
+<section class="dark risk">
+  <div class="wrap">
+    <div class="kicker reveal" data-n="03">Le risque caché</div>
+    <h2 class="reveal">Accréditée CAMES.<br><span class="ex">Gérée sur Excel.</span></h2>
+    <p class="lead reveal d1" style="margin-top:1.5rem;font-size:1.25rem">C'est une contradiction risquée. Une inspection CAMES peut survenir à tout moment, et chaque relevé produit manuellement est une bombe à retardement.</p>
+    <div class="riskcards">
+      <div class="rc reveal d1"><div class="ic">§</div><h3>Contentieux étudiant</h3><p>Une erreur de moyenne contestée et non traçable vous expose juridiquement.</p></div>
+      <div class="rc reveal d2"><div class="ic">⌕</div><h3>Inspection CAMES</h3><p>Conformité difficile à prouver sans système structuré ni historique.</p></div>
+      <div class="rc reveal d3"><div class="ic">⚑</div><h3>Crédibilité</h3><p>Des documents officiels « bricolés » abîment l'image d'une école accréditée.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLUTION -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal" data-n="04">La solution</div>
+    <div class="split">
+      <div>
+        <h2 class="big reveal">Edulink Sup</h2>
+        <p class="lead reveal d1" style="margin-bottom:1rem">La plateforme de gestion académique LMD, de bout en bout — conçue pour les institutions accréditées CAMES.</p>
+        <ul class="checklist">
+          <li class="reveal d1">Une seule source de vérité pour étudiants, notes et diplômes</li>
+          <li class="reveal d2">Calculs CAMES automatiques — zéro formule manuelle</li>
+          <li class="reveal d2">Relevés et PV conformes, générés en un clic</li>
+          <li class="reveal d3">Accessible partout, par chaque service, en toute sécurité</li>
+        </ul>
+      </div>
+      <div class="solpanel reveal d2">
+        <div class="ic">🎓</div>
+        <h3>De l'inscription au diplôme</h3>
+        <p>Un seul système. Conforme. Traçable.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MODULES -->
+<section style="background:var(--cream)">
+  <div class="wrap">
+    <div class="kicker reveal" data-n="05">La plateforme</div>
+    <h2 class="big reveal">Tout ce dont votre institution a besoin</h2>
+    <div class="mods">
+      <div class="mod reveal d1"><div class="ic">🎓</div><h3>Inscriptions &amp; étudiants</h3><p>Dossiers, parcours, suivi de cohortes.</p></div>
+      <div class="mod reveal d2"><div class="ic">▤</div><h3>UE · Crédits · Semestres</h3><p>Structure LMD complète et paramétrable.</p></div>
+      <div class="mod reveal d3"><div class="ic">∑</div><h3>Moyennes automatiques</h3><p>Pondération, compensation, capitalisation.</p></div>
+      <div class="mod reveal d1"><div class="ic">▦</div><h3>Relevés &amp; PV conformes</h3><p>Documents officiels en un clic.</p></div>
+      <div class="mod reveal d2"><div class="ic">✓</div><h3>Présences &amp; assiduité</h3><p>Saisie par séance, suivi des absences.</p></div>
+      <div class="mod reveal d3"><div class="ic">⚿</div><h3>Back-office &amp; rôles</h3><p>Chaque service avec ses accès.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- CAMES -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal" data-n="06">Conformité</div>
+    <h2 class="big reveal">Construit sur les textes officiels du CAMES</h2>
+    <p class="lead reveal d1" style="font-style:italic;margin-bottom:1.5rem">La conformité n'est pas une option à cocher — c'est le socle de la plateforme.</p>
+    <div class="cames">
+      <div class="cc reveal d1"><div class="ic">✓</div><div><h3>Système LMD</h3><p>Licence-Master-Doctorat structuré nativement : niveaux, semestres, parcours.</p></div></div>
+      <div class="cc reveal d2"><div class="ic">✓</div><div><h3>Crédits &amp; capitalisation</h3><p>Crédits attribués par UE, capitalisés et transférables selon les règles CAMES.</p></div></div>
+      <div class="cc reveal d2"><div class="ic">✓</div><div><h3>Compensation &amp; moyennes</h3><p>Calcul de la compensation semestrielle et annuelle appliqué automatiquement.</p></div></div>
+      <div class="cc reveal d3"><div class="ic">✓</div><div><h3>Mentions &amp; délibérations</h3><p>Mentions attribuées selon les seuils officiels, PV de délibération générés.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- AVANT/APRÈS -->
+<section style="background:var(--cream)">
+  <div class="wrap">
+    <div class="kicker reveal" data-n="07">Avant / Après</div>
+    <h2 class="big reveal">Le changement, concrètement</h2>
+    <table class="cmp reveal d1">
+      <thead><tr><th class="crit"></th><th class="bad">Avec Excel</th><th class="good">Avec Edulink Sup</th></tr></thead>
+      <tbody>
+        <tr><td class="lab">Calcul des moyennes</td><td><span class="x">✕</span>Formules manuelles, risque d'erreur</td><td><span class="v">✓</span>Automatique et conforme CAMES</td></tr>
+        <tr><td class="lab">Relevés de notes</td><td><span class="x">✕</span>Remis en forme à la main, session par session</td><td><span class="v">✓</span>Générés en un clic, format officiel</td></tr>
+        <tr><td class="lab">Traçabilité</td><td><span class="x">✕</span>Aucune — qui a changé quoi ?</td><td><span class="v">✓</span>Historique complet et auditable</td></tr>
+        <tr><td class="lab">Sécurité des données</td><td><span class="x">✕</span>Fichiers dispersés, sans sauvegarde</td><td><span class="v">✓</span>Cloud sécurisé, sauvegardes auto</td></tr>
+        <tr><td class="lab">Accès des équipes</td><td><span class="x">✕</span>Un fichier qui circule, écrasé</td><td><span class="v">✓</span>Accès par rôle, en temps réel</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- SÉCURITÉ -->
+<section class="dark">
+  <div class="wrap">
+    <div class="kicker reveal" data-n="08">Sécurité &amp; souveraineté</div>
+    <h2 class="reveal" style="font-size:clamp(2rem,4.5vw,3.2rem)">Vos données, enfin sous contrôle</h2>
+    <div class="secs">
+      <div class="sc reveal d1"><div class="ic">☁</div><h3>Hébergement cloud</h3><p>Disponible 24/7, depuis chaque campus et service.</p></div>
+      <div class="sc reveal d2"><div class="ic">🔒</div><h3>Accès par rôle</h3><p>Chacun ne voit que ce qui le concerne.</p></div>
+      <div class="sc reveal d3"><div class="ic">⤓</div><h3>Sauvegardes auto</h3><p>Plus jamais un fichier perdu ou écrasé.</p></div>
+      <div class="sc reveal d4"><div class="ic">↻</div><h3>Traçabilité totale</h3><p>Chaque action horodatée et auditable.</p></div>
+    </div>
+    <p class="lead reveal d2" style="margin:2.2rem 0 0;font-style:italic">Fini les clés USB et les versions « final_v3 ». Une infrastructure professionnelle pour une institution professionnelle.</p>
+  </div>
+</section>
+
+<!-- PARCOURS -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal" data-n="09">Comment démarrer</div>
+    <h2 class="big reveal">Un parcours sans risque</h2>
+    <div class="steps">
+      <div class="step st1 reveal d1"><div class="n">1</div><h3>Diagnostic gratuit</h3><p>Sur site. Nous analysons vos process actuels et configurons Edulink Sup à vos données réelles.</p><span class="steptag">Gratuit</span></div>
+      <div class="step st2 reveal d2"><div class="n">2</div><h3>1er semestre — la preuve</h3><p>Déploiement accompagné sur une filière. Vous voyez le système tourner sur vos vraies notes.</p><span class="steptag">Accompagné</span></div>
+      <div class="step st3 reveal d3"><div class="n">3</div><h3>Licence annuelle</h3><p>Déploiement complet à toute l'institution. Tarif sur mesure, établi après le diagnostic.</p><span class="steptag">Sur mesure</span></div>
+    </div>
+    <p class="note reveal d2">Vous ne vous engagez que lorsque vous avez vu le système fonctionner sur vos propres données.</p>
+  </div>
+</section>
+
+<!-- POURQUOI MAINTENANT -->
+<section class="dark">
+  <div class="wrap">
+    <div class="kicker reveal" data-n="10">Pourquoi maintenant</div>
+    <h2 class="reveal" style="font-size:clamp(2.2rem,5vw,3.6rem)">Chaque semestre sur Excel<br><span style="color:var(--orange)">est un risque de plus.</span></h2>
+    <div class="why">
+      <div class="wc reveal d1"><div class="ic">⚠</div><h3>Le risque s'accumule</h3><p>Chaque session ajoute des relevés non traçables à votre historique.</p></div>
+      <div class="wc reveal d2"><div class="ic">▤</div><h3>La migration grossit</h3><p>Plus vous attendez, plus il y a de données à reprendre plus tard.</p></div>
+      <div class="wc reveal d3"><div class="ic">↗</div><h3>L'avantage est immédiat</h3><p>Dès le 1er semestre, vos équipes gagnent du temps et de la sérénité.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="dark cta">
+  <div class="wrap">
+    <h2 class="reveal">Commençons par le diagnostic.</h2>
+    <p class="lead reveal d1">Gratuit, sur site, sans engagement. En 30 minutes, nous vous montrons Edulink Sup configuré pour ESM.</p>
+    <a href="https://edulink-demo-client.vercel.app/landing/landing.html#contact" class="btn reveal d2">Réserver le diagnostic gratuit →</a>
+    <div class="ctacontact reveal d3"><b>Contact</b> · edulink.bj</div>
+  </div>
+</section>
+
+<footer>© 2026 Edulink Sup · Gestion LMD CAMES · Bénin</footer>
+
+<script>
+// scroll reveal
+const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.15});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+// progress bar
+const bar=document.getElementById('progress');
+addEventListener('scroll',()=>{const h=document.documentElement;const p=h.scrollTop/(h.scrollHeight-h.clientHeight)*100;bar.style.width=p+'%';},{passive:true});
+</script>
+</body>
+</html>
