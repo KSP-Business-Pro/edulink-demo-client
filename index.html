@@ -1855,29 +1855,13 @@ function ouvrirModalInfo(titre, contenu) {
         <h3 id="modal-info-titre" style="margin:0;font-size:15px"></h3>
         <button class="btn-ghost btn-sm" onclick="document.getElementById('modal-info-overlay').classList.remove('open')">✕</button>
       </div>
-      <div id="modal-info-body" style="max-height:60vh;overflow-y:auto"></div>
+      <div id="modal-info-body" style="max-height:55vh;overflow-y:auto;overflow-x:hidden"></div>
+      <div id="modal-info-footer" style="display:none;padding-top:.75rem;margin-top:.5rem;border-top:1px solid #f3f4f6"></div>
     </div>`;
     document.body.appendChild(o);
   }
   document.getElementById('modal-info-titre').textContent = titre;
   document.getElementById('modal-info-body').innerHTML = contenu;
-  // Si modal présences : déplacer footer dans le header
-  const body = document.getElementById('modal-info-body');
-  const presFooter = body.querySelector('#presences-footer');
-  const headerDiv = document.querySelector('#modal-info-overlay .modal > div:first-child');
-  // Supprimer ancien bouton terminer s'il existe
-  const oldTerminer = document.getElementById('btn-terminer-saisie');
-  if (oldTerminer) oldTerminer.remove();
-  if (presFooter && headerDiv) {
-    const btnTerminer = document.createElement('button');
-    btnTerminer.id = 'btn-terminer-saisie';
-    btnTerminer.className = 'btn-sm';
-    btnTerminer.style.cssText = 'background:#1e3a5f;color:#fff;border:none;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;font-family:Poppins,sans-serif';
-    btnTerminer.innerHTML = '✓ Terminer';
-    btnTerminer.onclick = () => { document.getElementById('modal-info-overlay').classList.remove('open'); chargerPresences(); };
-    headerDiv.insertBefore(btnTerminer, headerDiv.querySelector('button'));
-    presFooter.remove();
-  }
   o.classList.add('open');
 }
 
@@ -2672,7 +2656,7 @@ async function ouvrirSaisiePresence(seanceId, matiereNom, semId) {
       <span class="badge red presence-badge-absent">${nbAbsents} absents</span>
       <button class="btn-sm btn-secondary" onclick="toutMarquerPresent('${seanceId}')" style="margin-left:auto">✅ Tous présents</button>
     </div>
-    <div style="max-height:38vh;overflow-y:auto" id="presences-liste">
+    <div style="max-height:32vh;overflow-y:auto" id="presences-liste">
       ${etudiants.map(et => {
         const p = presMap[et.id];
         const statut = p?.statut || 'absent';
