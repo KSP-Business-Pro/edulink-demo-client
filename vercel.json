@@ -67,7 +67,7 @@
           "value": "edulink.bj"
         }
       ],
-      "destination": "/landing.html"
+      "destination": "/landing/landing.html"
     },
     {
       "source": "/(.*)",
@@ -77,7 +77,7 @@
           "value": "www.edulink.bj"
         }
       ],
-      "destination": "/landing.html"
+      "destination": "/landing/landing.html"
     }
   ]
 }
