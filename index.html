@@ -1861,22 +1861,22 @@ function ouvrirModalInfo(titre, contenu) {
   }
   document.getElementById('modal-info-titre').textContent = titre;
   document.getElementById('modal-info-body').innerHTML = contenu;
-  // Extraire le footer s'il existe (div avec id presences-footer)
+  // Déplacer le footer hors de la zone scrollable
   const body = document.getElementById('modal-info-body');
   const footer = body.querySelector('#presences-footer');
+  let footerZone = document.getElementById('modal-info-footer-zone');
+  if (!footerZone) {
+    footerZone = document.createElement('div');
+    footerZone.id = 'modal-info-footer-zone';
+    body.parentNode.insertBefore(footerZone, body.nextSibling);
+  }
   if (footer) {
-    let existingFooter = document.getElementById('modal-info-footer-zone');
-    if (!existingFooter) {
-      existingFooter = document.createElement('div');
-      existingFooter.id = 'modal-info-footer-zone';
-      existingFooter.style.cssText = 'padding-top:.75rem;margin-top:.5rem;border-top:1px solid #f3f4f6';
-      body.parentNode.appendChild(existingFooter);
-    }
-    existingFooter.innerHTML = '';
-    existingFooter.appendChild(footer);
+    footerZone.style.cssText = 'padding-top:.75rem;margin-top:.5rem;border-top:1px solid #f3f4f6;display:block';
+    footerZone.innerHTML = footer.outerHTML;
+    footer.remove();
   } else {
-    const existingFooter = document.getElementById('modal-info-footer-zone');
-    if (existingFooter) existingFooter.innerHTML = '';
+    footerZone.style.display = 'none';
+    footerZone.innerHTML = '';
   }
   o.classList.add('open');
 }
@@ -2677,7 +2677,7 @@ async function ouvrirSaisiePresence(seanceId, matiereNom, semId) {
         const p = presMap[et.id];
         const statut = p?.statut || 'absent';
         return `
-          <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;border-radius:8px;margin-bottom:.3rem;background:${statut==='present'?'#f0fdf4':statut==='retard'?'#fef9c3':'#fef2f2'};border:1px solid ${statut==='present'?'#bbf7d0':statut==='retard'?'#fde68a':'#fecaca'}">
+          <div data-statut="${statut}" style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;border-radius:8px;margin-bottom:.3rem;background:${statut==='present'?'#f0fdf4':statut==='retard'?'#fef9c3':'#fef2f2'};border:1px solid ${statut==='present'?'#bbf7d0':statut==='retard'?'#fde68a':'#fecaca'}">
             <div style="flex:1">
               <div style="font-size:13px;font-weight:600;color:#111827">${esc(et.nom)} ${esc(et.prenom)}</div>
               <div style="font-size:10.5px;color:#9ca3af">${esc(et.matricule||'—')}</div>
@@ -2707,6 +2707,7 @@ async function marquerPresence(seanceId, etudiantId, statut, btn) {
   if (row) {
     const colors = { present:'#f0fdf4', retard:'#fef9c3', absent:'#fef2f2' };
     const borders = { present:'#bbf7d0', retard:'#fde68a', absent:'#fecaca' };
+    row.setAttribute('data-statut', statut);
     row.style.background = colors[statut];
     row.style.borderColor = borders[statut];
     row.querySelectorAll('button').forEach(b => {
@@ -2716,19 +2717,19 @@ async function marquerPresence(seanceId, etudiantId, statut, btn) {
     btn.className = statut === 'present' ? 'btn-sm btn-green' : statut === 'absent' ? 'btn-sm btn-red' : 'btn-sm';
     if (statut === 'retard') btn.style.background = '#d97706';
   }
-  // Mettre à jour les compteurs
+  // Mettre à jour les compteurs via data-statut
   const liste = document.getElementById('presences-liste');
   if (liste) {
-    const rows = liste.querySelectorAll('div[style*="border"]');
+    const rows = liste.querySelectorAll('[data-statut]');
     let p=0, a=0, r=0;
-    rows.forEach(r_ => {
-      const bg = r_.style.background;
-      if (bg.includes('f0fdf4')) p++;
-      else if (bg.includes('fef9c3')) r++;
-      else if (bg.includes('fef2f2')) a++;
+    rows.forEach(row => {
+      const s = row.getAttribute('data-statut');
+      if (s === 'present') p++;
+      else if (s === 'retard') r++;
+      else a++;
     });
     const cpt = document.getElementById('presences-compteur');
-    if (cpt) cpt.innerHTML = `Présents : <strong style="color:#059669">${p}</strong> · Absents : <strong style="color:#dc2626">${a}</strong> · Retards : <strong style="color:#d97706">${r}</strong>`;
+    if (cpt) cpt.innerHTML = `Présents : <strong style="color:#059669">${p}</strong> · Absents : <strong style="color:#dc2626">${a}</strong> · Retards : <strong style="color:#d97706">${r}</strong>`;
   }
 }
 
