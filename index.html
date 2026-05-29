@@ -1861,6 +1861,23 @@ function ouvrirModalInfo(titre, contenu) {
   }
   document.getElementById('modal-info-titre').textContent = titre;
   document.getElementById('modal-info-body').innerHTML = contenu;
+  // Extraire le footer s'il existe (div avec id presences-footer)
+  const body = document.getElementById('modal-info-body');
+  const footer = body.querySelector('#presences-footer');
+  if (footer) {
+    let existingFooter = document.getElementById('modal-info-footer-zone');
+    if (!existingFooter) {
+      existingFooter = document.createElement('div');
+      existingFooter.id = 'modal-info-footer-zone';
+      existingFooter.style.cssText = 'padding-top:.75rem;margin-top:.5rem;border-top:1px solid #f3f4f6';
+      body.parentNode.appendChild(existingFooter);
+    }
+    existingFooter.innerHTML = '';
+    existingFooter.appendChild(footer);
+  } else {
+    const existingFooter = document.getElementById('modal-info-footer-zone');
+    if (existingFooter) existingFooter.innerHTML = '';
+  }
   o.classList.add('open');
 }
 
@@ -2655,7 +2672,7 @@ async function ouvrirSaisiePresence(seanceId, matiereNom, semId) {
       <span class="badge red">${nbAbsents} absents</span>
       <button class="btn-sm btn-secondary" onclick="toutMarquerPresent('${seanceId}')" style="margin-left:auto">✅ Tous présents</button>
     </div>
-    <div style="max-height:45vh;overflow-y:auto" id="presences-liste">
+    <div style="max-height:38vh;overflow-y:auto" id="presences-liste">
       ${etudiants.map(et => {
         const p = presMap[et.id];
         const statut = p?.statut || 'absent';
