@@ -1352,6 +1352,10 @@ async function chargerPaiements() {
   el.innerHTML = '<div class="loading">Chargement...</div>';
   if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
 
+  // Récupérer la devise de l'école
+  const { data: ecoleData } = await db.from('ecoles').select('devise').eq('id', currentEcoleId).single();
+  const devise = ecoleData?.devise || 'FCFA';
+
   const { data: factures } = await db.from('factures')
     .select('*, etudiants(nom,prenom,matricule)')
     .eq('ecole_id', currentEcoleId)
@@ -1374,7 +1378,7 @@ async function chargerPaiements() {
                 <div style="font-size:13px;font-weight:600">${esc(f.etudiants?.nom||'—')} ${esc(f.etudiants?.prenom||'')}</div>
                 <div style="font-size:11px;color:#9ca3af">${esc(f.etudiants?.matricule||'—')}</div>
               </td>
-              <td style="font-weight:600">${(f.montant_total||0).toLocaleString('fr-FR')} ${esc(ecole?.devise||'FCFA')}</td>
+              <td style="font-weight:600">${(f.montant_total||0).toLocaleString('fr-FR')} ${esc(devise)}</td>
               <td style="color:#059669;font-weight:600">${(f.montant_paye||0).toLocaleString('fr-FR')}</td>
               <td style="color:${reste>0?'#dc2626':'#059669'};font-weight:600">${reste.toLocaleString('fr-FR')}</td>
               <td style="font-size:12px;color:#6b7280">${formatDate(f.created_at)}</td>
