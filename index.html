@@ -2668,8 +2668,8 @@ async function ouvrirSaisiePresence(seanceId, matiereNom, semId) {
   ouvrirModalInfo(`Présences — ${matiereNom}`,
     `<div style="display:flex;gap:.75rem;margin-bottom:1rem;align-items:center">
       <span style="font-size:13px;color:#6b7280">${etudiants.length} étudiants inscrits</span>
-      <span class="badge green">${nbPresents} présents</span>
-      <span class="badge red">${nbAbsents} absents</span>
+      <span class="badge green presence-badge-present">${nbPresents} présents</span>
+      <span class="badge red presence-badge-absent">${nbAbsents} absents</span>
       <button class="btn-sm btn-secondary" onclick="toutMarquerPresent('${seanceId}')" style="margin-left:auto">✅ Tous présents</button>
     </div>
     <div style="max-height:38vh;overflow-y:auto" id="presences-liste">
@@ -2692,6 +2692,42 @@ async function ouvrirSaisiePresence(seanceId, matiereNom, semId) {
 }
 
 async function marquerPresence(seanceId, etudiantId, statut, btn) {
+  // Feedback visuel immédiat
+  const row = btn.closest('[data-statut]');
+  const prevStatut = row?.getAttribute('data-statut') || 'absent';
+  if (row) {
+    const colors  = { present:'#f0fdf4', retard:'#fef9c3', absent:'#fef2f2' };
+    const borders = { present:'#bbf7d0', retard:'#fde68a', absent:'#fecaca' };
+    row.setAttribute('data-statut', statut);
+    row.style.background   = colors[statut];
+    row.style.borderColor  = borders[statut];
+    row.querySelectorAll('button').forEach(b => {
+      b.className    = 'btn-sm btn-secondary';
+      b.style.background = '';
+    });
+    btn.className = statut==='present' ? 'btn-sm btn-green' : statut==='absent' ? 'btn-sm btn-red' : 'btn-sm';
+    if (statut === 'retard') btn.style.background = '#d97706';
+  }
+
+  // Recalculer compteur
+  const liste = document.getElementById('presences-liste');
+  if (liste) {
+    let p=0, a=0, r=0;
+    liste.querySelectorAll('[data-statut]').forEach(el => {
+      const s = el.getAttribute('data-statut');
+      if (s==='present') p++; else if (s==='retard') r++; else a++;
+    });
+    const cpt = document.getElementById('presences-compteur');
+    if (cpt) cpt.innerHTML = `Présents : <strong style="color:#059669">${p}</strong> · Absents : <strong style="color:#dc2626">${a}</strong> · Retards : <strong style="color:#d97706">${r}</strong>`;
+    // Mettre à jour les badges en haut
+    const badges = document.querySelectorAll('.presence-badge-present, .presence-badge-absent');
+    badges.forEach(b => {
+      if (b.classList.contains('presence-badge-present')) b.textContent = p + ' présents';
+      if (b.classList.contains('presence-badge-absent'))  b.textContent = a + ' absents';
+    });
+  }
+
+  // Sauvegarder en base
   const { error } = await db.from('presences').upsert({
     seance_id:   seanceId,
     etudiant_id: etudiantId,
@@ -2700,36 +2736,16 @@ async function marquerPresence(seanceId, etudiantId, statut, btn) {
     saisie_par:  currentUserId
   }, { onConflict: 'seance_id,etudiant_id' });
 
-  if (error) { toast('Erreur: ' + error.message, 'error'); return; }
-
-  // Mettre à jour visuellement la ligne
-  const row = btn.closest('div[style]');
-  if (row) {
-    const colors = { present:'#f0fdf4', retard:'#fef9c3', absent:'#fef2f2' };
-    const borders = { present:'#bbf7d0', retard:'#fde68a', absent:'#fecaca' };
-    row.setAttribute('data-statut', statut);
-    row.style.background = colors[statut];
-    row.style.borderColor = borders[statut];
-    row.querySelectorAll('button').forEach(b => {
-      b.className = 'btn-sm btn-secondary';
-      b.style.background = '';
-    });
-    btn.className = statut === 'present' ? 'btn-sm btn-green' : statut === 'absent' ? 'btn-sm btn-red' : 'btn-sm';
-    if (statut === 'retard') btn.style.background = '#d97706';
-  }
-  // Mettre à jour les compteurs via data-statut
-  const liste = document.getElementById('presences-liste');
-  if (liste) {
-    const rows = liste.querySelectorAll('[data-statut]');
-    let p=0, a=0, r=0;
-    rows.forEach(row => {
-      const s = row.getAttribute('data-statut');
-      if (s === 'present') p++;
-      else if (s === 'retard') r++;
-      else a++;
-    });
-    const cpt = document.getElementById('presences-compteur');
-    if (cpt) cpt.innerHTML = `Présents : <strong style="color:#059669">${p}</strong> · Absents : <strong style="color:#dc2626">${a}</strong> · Retards : <strong style="color:#d97706">${r}</strong>`;
+  if (error) {
+    // Annuler le feedback visuel en cas d'erreur
+    if (row) {
+      const colors  = { present:'#f0fdf4', retard:'#fef9c3', absent:'#fef2f2' };
+      const borders = { present:'#bbf7d0', retard:'#fde68a', absent:'#fecaca' };
+      row.setAttribute('data-statut', prevStatut);
+      row.style.background  = colors[prevStatut];
+      row.style.borderColor = borders[prevStatut];
+    }
+    toast('Erreur: ' + error.message, 'error');
   }
 }
 
