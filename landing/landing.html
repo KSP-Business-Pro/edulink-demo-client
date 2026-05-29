@@ -500,8 +500,17 @@ nav {
 .cta-h2 em { font-style:italic; color:var(--orange); }
 .cta-sub { font-size:1.05rem; color:rgba(255,255,255,.6); margin-bottom:2.5rem; font-weight:300; }
 .cta-form {
-  display:flex; gap:.75rem; max-width:480px; margin:0 auto 1rem;
+  display:flex; flex-direction:column; gap:.75rem; max-width:560px; margin:0 auto 1rem; text-align:left;
 }
+.cta-row { display:flex; gap:.75rem; }
+.cta-row > * { flex:1; min-width:0; }
+select.cta-input { appearance:none; -webkit-appearance:none; cursor:pointer;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23ffffff' stroke-width='1.5' fill='none' opacity='0.5'/></svg>");
+  background-repeat:no-repeat; background-position:right 1rem center; padding-right:2.5rem;
+}
+select.cta-input option { color:#1e293b; }
+.cta-textarea { resize:vertical; font-family:'DM Sans',sans-serif; }
+.cta-submit { width:100%; justify-content:center; }
 .cta-input {
   flex:1; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
   color:#fff; padding:.9rem 1.25rem; border-radius:10px;
@@ -563,7 +572,7 @@ footer {
   .pain-grid, .features-grid, .cames-diagram, .esm-kpi-grid { grid-template-columns:1fr; }
   .hero-stats { flex-wrap:wrap; gap:1.5rem; }
   footer { padding:2rem 1.5rem; flex-direction:column; align-items:flex-start; }
-  .cta-form { flex-direction:column; }
+  .cta-row { flex-direction:column; }
 }
 </style>
 </head>
@@ -976,8 +985,33 @@ footer {
     <h2 class="cta-h2">Prêt à passer à<br><em>l'ère numérique</em> ?</h2>
     <p class="cta-sub">Demandez une démonstration personnalisée. Nous vous montrons Edulink Sup configuré pour votre institution en moins de 30 minutes.</p>
     <form class="cta-form" onsubmit="soumettreContact(event)">
-      <input type="email" class="cta-input" id="cta-email" placeholder="votre@institution.bj" required>
-      <button type="submit" class="btn-primary">Demander →</button>
+      <div class="cta-row">
+        <input type="text" class="cta-input" id="cta-nom" placeholder="Nom complet" required>
+        <select class="cta-input" id="cta-fonction" required>
+          <option value="" disabled selected>Votre fonction</option>
+          <option>Fondateur / Directeur Général</option>
+          <option>Directeur académique</option>
+          <option>Responsable scolarité</option>
+          <option>Responsable informatique</option>
+          <option>Autre</option>
+        </select>
+      </div>
+      <div class="cta-row">
+        <input type="text" class="cta-input" id="cta-ecole" placeholder="Nom de votre institution" required>
+        <select class="cta-input" id="cta-effectif" required>
+          <option value="" disabled selected>Nombre d'étudiants</option>
+          <option>Moins de 500</option>
+          <option>500 à 1 500</option>
+          <option>1 500 à 3 000</option>
+          <option>Plus de 3 000</option>
+        </select>
+      </div>
+      <div class="cta-row">
+        <input type="tel" class="cta-input" id="cta-tel" placeholder="Téléphone / WhatsApp" required>
+        <input type="email" class="cta-input" id="cta-email" placeholder="votre@institution.bj" required>
+      </div>
+      <textarea class="cta-input cta-textarea" id="cta-message" placeholder="Un mot sur votre besoin (optionnel)" rows="2"></textarea>
+      <button type="submit" class="btn-primary cta-submit" id="cta-btn">Demander une démonstration →</button>
     </form>
     <p class="cta-note">Réponse sous 24h · Sans engagement · Démo 100% personnalisée</p>
     <div class="cta-success" id="cta-success">
@@ -1063,14 +1097,49 @@ function calculerReleve() {
 });
 calculerReleve();
 
-// ── CTA Form ──
-function soumettreContact(e) {
+// ── CTA Form → Supabase (prospects_diagnostic → prospect-notify → Brevo) ──
+const SB_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc'; // clé anon public (kcfpvnrgutkhakogbjip)
+
+function _v(id){ return (document.getElementById(id).value || '').trim(); }
+
+async function soumettreContact(e) {
   e.preventDefault();
-  const email = document.getElementById('cta-email').value;
-  document.querySelector('.cta-form').style.display = 'none';
-  document.getElementById('cta-success').style.display = 'block';
-  // TODO: connecter à Brevo
-  console.log('Lead:', email);
+  const btn = document.getElementById('cta-btn');
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Envoi…';
+
+  const payload = {
+    nom:       _v('cta-nom'),
+    fonction:  _v('cta-fonction'),
+    ecole_nom: _v('cta-ecole'),
+    effectif:  _v('cta-effectif'),
+    telephone: _v('cta-tel'),
+    email:     _v('cta-email'),
+    message:   _v('cta-message') || null,
+    source:    'landing-edulink-vercel'
+  };
+
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/prospects_diagnostic', {
+      method: 'POST',
+      headers: {
+        'apikey':        SB_ANON,
+        'Authorization': 'Bearer ' + SB_ANON,
+        'Content-Type':  'application/json',
+        'Prefer':        'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' — ' + await r.text());
+    document.querySelector('.cta-form').style.display = 'none';
+    document.querySelector('.cta-note').style.display = 'none';
+    document.getElementById('cta-success').style.display = 'block';
+  } catch (err) {
+    console.error('Erreur envoi lead:', err);
+    btn.disabled = false; btn.textContent = original;
+    alert("Une erreur est survenue lors de l'envoi. Merci de réessayer, ou contactez-nous directement.");
+  }
 }
 
 // ── Scroll reveal ──
