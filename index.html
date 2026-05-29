@@ -1567,14 +1567,34 @@ function renderComptaTableau(liste, fmt) {
 function filtrerCompta() {
   if (!window._comptaData) return;
   const { etudiantsList, formatMontant } = window._comptaData;
-  const s = (document.getElementById('search-compta')?.value||'').toLowerCase();
-  const statut = document.getElementById('filter-compta-statut')?.value||'';
+  const s       = (document.getElementById('search-compta')?.value||'').toLowerCase();
+  const rubrique = document.getElementById('filter-compta-rubrique')?.value||'';
+  const statut   = document.getElementById('filter-compta-statut')?.value||'';
+
   let liste = etudiantsList;
+
+  // Filtre texte
   if (s) liste = liste.filter(e =>
     ((e.etudiant?.nom||'') + ' ' + (e.etudiant?.prenom||'') + ' ' + (e.etudiant?.matricule||'')).toLowerCase().includes(s));
-  if (statut === 'impaye') liste = liste.filter(e => e.encaisse === 0);
+
+  // Filtre rubrique — recalculer attendu/encaissé sur la rubrique sélectionnée
+  if (rubrique) {
+    liste = liste
+      .map(e => {
+        const facsFiltrees = e.factures.filter(f => f.type_frais === rubrique);
+        if (!facsFiltrees.length) return null;
+        const att = facsFiltrees.reduce((s,f) => s+(f.montant_total||f.montant||0), 0);
+        const enc = facsFiltrees.reduce((s,f) => s+(f.montant_paye||0), 0);
+        return { ...e, attendu: att, encaisse: enc, factures: facsFiltrees };
+      })
+      .filter(Boolean);
+  }
+
+  // Filtre statut
+  if (statut === 'impaye')  liste = liste.filter(e => e.encaisse === 0 && e.attendu > 0);
   else if (statut === 'partiel') liste = liste.filter(e => e.encaisse > 0 && e.encaisse < e.attendu);
-  else if (statut === 'paye') liste = liste.filter(e => e.encaisse >= e.attendu);
+  else if (statut === 'paye')    liste = liste.filter(e => e.encaisse >= e.attendu && e.attendu > 0);
+
   document.getElementById('compta-tableau').innerHTML = renderComptaTableau(liste, formatMontant);
 }
 
