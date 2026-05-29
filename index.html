@@ -359,7 +359,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
     <span class="ico">👨‍🏫</span> <span>Enseignants</span>
   </a>
   <a data-page="paiements">
-    <span class="ico">💳</span> <span>Paiements</span>
+    <span class="ico">💳</span> <span>Comptabilité</span>
   </a>
   <a data-page="messages">
     <span class="ico">💬</span> <span>Messages</span>
@@ -565,7 +565,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 <!-- PAIEMENTS -->
 <div class="page" id="page-paiements">
   <div class="top">
-    <div><h2>Paiements</h2><p class="page-subtitle">Facturation et suivi des règlements</p></div>
+    <div><h2>Comptabilité</h2><p class="page-subtitle">Facturation et suivi des règlements</p></div>
     <div class="top-actions">
       <button onclick="ouvrirModalFacture()">+ Facture</button>
     </div>
@@ -614,7 +614,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 const SUPABASE_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-const WEBHOOK_SECRET = 'ab680f52-881c-4e89-a299-0aeec8c13da1-44cebc6c-d38c-446c-98ba-4390a4bffee8';
+
 // ── État global ──────────────────────────────────────────────────────────
 let currentEcoleId   = null;
 let currentRole      = 'admin';
@@ -1129,11 +1129,299 @@ async function peuplerSelectSemestre(selId) {
     sel.innerHTML += `<option value="${s.id}">${s.libelle} (${s.niveau})</option>`;
   });
 }
-async function chargerEnseignants()  { document.getElementById('enseignants-content').innerHTML = '<div class="loading">Chargement…</div>'; }
-async function chargerPaiements()    { document.getElementById('paiements-content').innerHTML = '<div class="loading">Chargement…</div>'; }
-async function chargerMessages()     { document.getElementById('messages-content').innerHTML = '<div class="loading">Chargement…</div>'; }
-async function chargerProspects()    { document.getElementById('prospects-content').innerHTML = '<div class="loading">Chargement…</div>'; }
-async function chargerParametres()   { document.getElementById('parametres-content').innerHTML = '<div class="loading">Chargement…</div>'; }
+
+// ══════════════════════════════════════════════
+//  PAGES RESTANTES — Enseignants, Prospects, Paramètres, Comptabilité, Messages
+// ══════════════════════════════════════════════
+
+// ── PAGE ENSEIGNANTS ──────────────────────────
+async function chargerEnseignants() {
+  const el = document.getElementById('enseignants-content');
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+  if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
+
+  const { data: ens } = await db.from('enseignants')
+    .select('*').eq('ecole_id', currentEcoleId).order('nom,prenom');
+
+  const gradeColors = {
+    'Assistant': 'blue', 'Maître-Assistant': 'purple',
+    'Maître de Conférences': 'teal', 'Professeur': 'orange'
+  };
+
+  el.innerHTML = !ens?.length
+    ? '<div class="empty-state"><div class="es-ico">👨‍🏫</div><h3>Aucun enseignant</h3><p>Ajoutez votre corps enseignant</p></div>'
+    : `<div class="table-wrap"><table>
+        <thead><tr>
+          <th>Enseignant</th><th>Spécialité</th><th>Grade</th>
+          <th>Contact</th><th>Statut</th><th>Matières LMD</th>
+        </tr></thead>
+        <tbody>
+          ${(ens||[]).map(e => {
+            const initiales = ((e.prenom?.[0]||'') + (e.nom?.[0]||'')).toUpperCase();
+            return `<tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:.6rem">
+                  <div style="width:36px;height:36px;border-radius:50%;background:#1e3a5f;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">${initiales}</div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:#111827">${esc(e.nom)} ${esc(e.prenom||'')}</div>
+                    <div style="font-size:11px;color:#9ca3af">${esc(e.email||'—')}</div>
+                  </div>
+                </div>
+              </td>
+              <td style="font-size:12px;color:#6b7280">${esc(e.specialite||'—')}</td>
+              <td>${e.grade ? `<span class="badge ${gradeColors[e.grade]||'gray'}">${esc(e.grade)}</span>` : '<span class="badge gray">—</span>'}</td>
+              <td style="font-size:12px;color:#6b7280">${esc(e.telephone||'—')}</td>
+              <td><span class="badge ${e.statut==='actif'?'green':'gray'}">${esc(e.statut||'—')}</span></td>
+              <td><button class="btn-ghost btn-sm" onclick="voirMatieresEnseignant('${e.id}','${esc((e.nom+' '+(e.prenom||'')).trim()).replace(/'/g,"\\'")}')">Matières</button></td>
+            </tr>`;}).join('')}
+        </tbody>
+      </table></div>`;
+}
+
+async function voirMatieresEnseignant(ensId, nom) {
+  const { data: mats } = await db.from('matieres_lmd')
+    .select('*, unites_enseignement(code,intitule,credits_cect)')
+    .eq('enseignant_id', ensId);
+  const html = (mats||[]).map(m => `
+    <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem;background:#f9fafb;border-radius:8px;margin-bottom:.4rem;border:1px solid #f3f4f6">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:#111827">${esc(m.nom)}</div>
+        <div style="font-size:11px;color:#9ca3af">UE ${esc(m.unites_enseignement?.code||'—')} · ${esc(m.unites_enseignement?.intitule||'—')}</div>
+      </div>
+      <span class="badge teal">${m.unites_enseignement?.credits_cect||0} CECT</span>
+      <span class="badge gray">Coef. ${m.coefficient}</span>
+    </div>`).join('') || '<p style="color:#9ca3af;font-size:13px">Aucune matière LMD assignée</p>';
+  ouvrirModalInfo('Matières de ' + nom, html);
+}
+
+// ── PAGE PROSPECTS ────────────────────────────
+async function chargerProspects() {
+  const el = document.getElementById('prospects-content');
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+
+  const { data: prospects } = await db.from('prospects_diagnostic')
+    .select('*').order('created_at', { ascending: false });
+
+  const typeColors = {
+    'université': 'blue', 'grande_ecole': 'purple',
+    'lycee': 'amber', 'college': 'orange', 'primaire': 'teal'
+  };
+
+  // Mettre à jour le badge nav
+  const badge = document.getElementById('badge-prospects');
+  if (badge && prospects?.length) {
+    badge.textContent = prospects.length;
+    badge.style.display = '';
+  }
+
+  el.innerHTML = !prospects?.length
+    ? '<div class="empty-state"><div class="es-ico">🎯</div><h3>Aucun prospect</h3><p>Les établissements ayant rempli le formulaire diagnostic apparaîtront ici</p></div>'
+    : `<div style="margin-bottom:1rem;display:flex;gap:.75rem;align-items:center">
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:.6rem 1rem;font-size:13px;font-weight:600;color:#1e3a5f">
+          ${prospects.length} prospect${prospects.length>1?'s':''} au total
+        </div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Établissement</th><th>Type</th><th>Ville</th>
+          <th>Contact</th><th>Date</th><th>Statut</th>
+        </tr></thead>
+        <tbody>
+          ${(prospects||[]).map(p => `<tr>
+            <td>
+              <div style="font-size:13px;font-weight:600;color:#111827">${esc(p.nom_etablissement||'—')}</div>
+              ${p.site_web ? `<div style="font-size:11px;color:#9ca3af">${esc(p.site_web)}</div>` : ''}
+            </td>
+            <td><span class="badge ${typeColors[p.type_etablissement]||'gray'}">${esc(p.type_etablissement||'—')}</span></td>
+            <td style="font-size:12px;color:#6b7280">${esc(p.ville||'—')}</td>
+            <td>
+              <div style="font-size:12px;font-weight:500">${esc(p.nom_contact||'—')}</div>
+              <div style="font-size:11px;color:#9ca3af">${esc(p.email_contact||'—')}</div>
+              <div style="font-size:11px;color:#9ca3af">${esc(p.telephone_contact||'—')}</div>
+            </td>
+            <td style="font-size:12px;color:#6b7280">${formatDate(p.created_at)}</td>
+            <td><span class="badge ${p.statut==='traite'?'green':p.statut==='en_cours'?'amber':'blue'}">${esc(p.statut||'nouveau')}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`;
+}
+
+// ── PAGE PARAMÈTRES LMD ───────────────────────
+async function chargerParametres() {
+  const el = document.getElementById('parametres-content');
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+  if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
+
+  const [{ data: ecole }, { data: regles }, { data: annee }] = await Promise.all([
+    db.from('ecoles').select('*').eq('id', currentEcoleId).single(),
+    db.from('regles_ecole').select('*').eq('ecole_id', currentEcoleId).single(),
+    db.from('annees_academiques').select('*').eq('ecole_id', currentEcoleId).eq('est_courante', true).single()
+  ]);
+
+  el.innerHTML = `
+    <div class="dash-grid">
+
+      <!-- Infos école -->
+      <div class="dash-block">
+        <div class="block-title">🏫 Établissement</div>
+        <div class="info-grid">
+          <div class="info-item"><div class="ii-label">Nom</div><div class="ii-val">${esc(ecole?.nom||'—')}</div></div>
+          <div class="info-item"><div class="ii-label">Type</div><div class="ii-val">${esc(ecole?.type||'—')}</div></div>
+          <div class="info-item"><div class="ii-label">Ville</div><div class="ii-val">${esc(ecole?.ville||'—')}</div></div>
+          <div class="info-item"><div class="ii-label">Pays</div><div class="ii-val">${esc(ecole?.pays||'—')}</div></div>
+          <div class="info-item"><div class="ii-label">Email</div><div class="ii-val">${esc(ecole?.email||'—')}</div></div>
+          <div class="info-item"><div class="ii-label">Téléphone</div><div class="ii-val">${esc(ecole?.telephone||'—')}</div></div>
+        </div>
+      </div>
+
+      <!-- Année académique -->
+      <div class="dash-block">
+        <div class="block-title">📅 Année académique courante</div>
+        ${annee ? `
+          <div class="info-grid">
+            <div class="info-item"><div class="ii-label">Libellé</div><div class="ii-val">${esc(annee.libelle)}</div></div>
+            <div class="info-item"><div class="ii-label">Statut</div><div class="ii-val"><span class="badge green">Courante</span></div></div>
+            <div class="info-item"><div class="ii-label">Début</div><div class="ii-val">${formatDate(annee.date_debut)}</div></div>
+            <div class="info-item"><div class="ii-label">Fin</div><div class="ii-val">${formatDate(annee.date_fin)}</div></div>
+          </div>` : '<p style="color:#9ca3af;font-size:13px">Aucune année courante définie</p>'}
+      </div>
+
+      <!-- Règles LMD CAMES -->
+      <div class="dash-block">
+        <div class="block-title">⚖️ Règles LMD CAMES</div>
+        ${regles ? `
+          <div style="display:flex;flex-direction:column;gap:.75rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#111827">Compensation entre UE</div>
+                <div style="font-size:11px;color:#9ca3af">Validation stricte UE par UE</div>
+              </div>
+              <span class="badge ${regles.compensation_active?'green':'gray'}">${regles.compensation_active?'Activée':'Désactivée'}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#111827">Note plancher</div>
+                <div style="font-size:11px;color:#9ca3af">Seuil minimum à l'examen</div>
+              </div>
+              <span class="badge ${regles.note_plancher_active?'amber':'gray'}">${regles.note_plancher_active?'Seuil: '+regles.seuil_note_plancher+'/20':'Désactivée'}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#111827">Règle rattrapage</div>
+                <div style="font-size:11px;color:#9ca3af">Session normale vs rattrapage</div>
+              </div>
+              <span class="badge blue">${regles.regle_rattrapage==='max'?'Max des deux sessions':'Écrase la normale'}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#111827">Seuil validation UE</div>
+                <div style="font-size:11px;color:#9ca3af">Moyenne minimale par UE</div>
+              </div>
+              <span class="badge teal">${regles.seuil_validation_ue}/20</span>
+            </div>
+          </div>` : '<p style="color:#9ca3af;font-size:13px">Règles non configurées</p>'}
+      </div>
+
+      <!-- Mentions CAMES -->
+      <div class="dash-block">
+        <div class="block-title">🏅 Barème des mentions CAMES</div>
+        <div style="display:flex;flex-direction:column;gap:.5rem">
+          ${[
+            { mention:'tres_bien', label:'Très Bien', seuil:'≥ 16/20', color:'#7c3aed', bg:'#ede9fe' },
+            { mention:'bien',      label:'Bien',      seuil:'≥ 14/20', color:'#059669', bg:'#dcfce7' },
+            { mention:'assez_bien',label:'Assez Bien',seuil:'≥ 12/20', color:'#1d4ed8', bg:'#dbeafe' },
+            { mention:'passable',  label:'Passable',  seuil:'≥ 10/20', color:'#6b7280', bg:'#f3f4f6' },
+          ].map(m => `
+            <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem 1rem;background:${m.bg};border-radius:8px">
+              <span style="font-size:13px;font-weight:700;color:${m.color};min-width:90px">${m.label}</span>
+              <span style="font-size:12px;color:${m.color};flex:1">${m.seuil}</span>
+            </div>`).join('')}
+          <div style="padding:.6rem 1rem;background:#fee2e2;border-radius:8px;display:flex;align-items:center;gap:.75rem">
+            <span style="font-size:13px;font-weight:700;color:#dc2626;min-width:90px">Ajourné</span>
+            <span style="font-size:12px;color:#dc2626;flex:1">&lt; 10/20</span>
+          </div>
+        </div>
+      </div>
+
+    </div>`;
+}
+
+// ── PAGE PAIEMENTS ────────────────────────────
+async function chargerPaiements() {
+  const el = document.getElementById('paiements-content');
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+  if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
+
+  const { data: factures } = await db.from('factures')
+    .select('*, etudiants(nom,prenom,matricule)')
+    .eq('ecole_id', currentEcoleId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  const statutColors = { paye:'green', partiel:'amber', impaye:'red', annule:'gray' };
+
+  el.innerHTML = !factures?.length
+    ? '<div class="empty-state"><div class="es-ico">💳</div><h3>Aucune facture</h3><p>Les factures apparaîtront ici</p></div>'
+    : `<div class="table-wrap"><table>
+        <thead><tr>
+          <th>Étudiant</th><th>Montant</th><th>Payé</th><th>Reste</th><th>Date</th><th>Statut</th>
+        </tr></thead>
+        <tbody>
+          ${(factures||[]).map(f => {
+            const reste = (f.montant_total||0) - (f.montant_paye||0);
+            return `<tr>
+              <td>
+                <div style="font-size:13px;font-weight:600">${esc(f.etudiants?.nom||'—')} ${esc(f.etudiants?.prenom||'')}</div>
+                <div style="font-size:11px;color:#9ca3af">${esc(f.etudiants?.matricule||'—')}</div>
+              </td>
+              <td style="font-weight:600">${(f.montant_total||0).toLocaleString('fr-FR')} ${esc(ecole?.devise||'FCFA')}</td>
+              <td style="color:#059669;font-weight:600">${(f.montant_paye||0).toLocaleString('fr-FR')}</td>
+              <td style="color:${reste>0?'#dc2626':'#059669'};font-weight:600">${reste.toLocaleString('fr-FR')}</td>
+              <td style="font-size:12px;color:#6b7280">${formatDate(f.created_at)}</td>
+              <td><span class="badge ${statutColors[f.statut]||'gray'}">${esc(f.statut||'—')}</span></td>
+            </tr>`;}).join('')}
+        </tbody>
+      </table></div>`;
+}
+
+// ── PAGE MESSAGES ─────────────────────────────
+async function chargerMessages() {
+  const el = document.getElementById('messages-content');
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+  if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
+
+  const { data: messages } = await db.from('messages')
+    .select('*, utilisateurs!messages_expediteur_id_fkey(nom,prenom,role)')
+    .eq('ecole_id', currentEcoleId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  el.innerHTML = !messages?.length
+    ? '<div class="empty-state"><div class="es-ico">💬</div><h3>Aucun message</h3><p>La messagerie interne apparaîtra ici</p></div>'
+    : `<div style="display:flex;flex-direction:column;gap:.5rem">
+        ${(messages||[]).map(m => `
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem 1.2rem">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem">
+              <div style="display:flex;align-items:center;gap:.5rem">
+                <div style="width:32px;height:32px;border-radius:50%;background:#1e3a5f;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">
+                  ${(m.utilisateurs?.nom?.[0]||'?').toUpperCase()}
+                </div>
+                <div>
+                  <div style="font-size:12.5px;font-weight:600;color:#111827">
+                    ${esc(m.utilisateurs?.nom||'—')} ${esc(m.utilisateurs?.prenom||'')}
+                  </div>
+                  <div style="font-size:10.5px;color:#9ca3af">${esc(m.utilisateurs?.role||'—')}</div>
+                </div>
+              </div>
+              <div style="font-size:11px;color:#9ca3af">${formatDate(m.created_at)}</div>
+            </div>
+            ${m.sujet ? `<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:.25rem">${esc(m.sujet)}</div>` : ''}
+            <div style="font-size:13px;color:#6b7280;line-height:1.5">${esc(m.contenu||'—')}</div>
+          </div>`).join('')}
+      </div>`;
+}
+
+
 
 // Stubs modals
 function ouvrirModalProgramme()  { toast('Modal Programme — en cours', 'info'); }
