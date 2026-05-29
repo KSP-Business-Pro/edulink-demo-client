@@ -1347,48 +1347,307 @@ async function chargerParametres() {
 }
 
 // ── PAGE PAIEMENTS ────────────────────────────
+// ══════════════════════════════════════════════
+//  MODULE COMPTABILITÉ — Tableau de bord + détail étudiant
+// ══════════════════════════════════════════════
+
 async function chargerPaiements() {
   const el = document.getElementById('paiements-content');
   el.innerHTML = '<div class="loading">Chargement...</div>';
   if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
 
-  // Récupérer la devise de l'école
-  const { data: ecoleData } = await db.from('ecoles').select('devise').eq('id', currentEcoleId).single();
-  const devise = ecoleData?.devise || 'FCFA';
-
-  const { data: factures } = await db.from('factures')
-    .select('*, etudiants(nom,prenom,matricule)')
+  // Charger toutes les factures + étudiants
+  const { data: factures, error } = await db.from('factures')
+    .select('*, etudiants(id,nom,prenom,matricule,filiere,niveau)')
     .eq('ecole_id', currentEcoleId)
-    .order('created_at', { ascending: false })
-    .limit(50);
+    .order('created_at', { ascending: false });
 
-  const statutColors = { paye:'green', partiel:'amber', impaye:'red', annule:'gray' };
+  if (error) { el.innerHTML = `<div class="empty-state"><p>Erreur: ${error.message}</p></div>`; return; }
+  if (!factures?.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">💳</div><h3>Aucune facture</h3></div>';
+    return;
+  }
 
-  el.innerHTML = !factures?.length
-    ? '<div class="empty-state"><div class="es-ico">💳</div><h3>Aucune facture</h3><p>Les factures apparaîtront ici</p></div>'
-    : `<div class="table-wrap"><table>
-        <thead><tr>
-          <th>Étudiant</th><th>Montant</th><th>Payé</th><th>Reste</th><th>Date</th><th>Statut</th>
-        </tr></thead>
-        <tbody>
-          ${(factures||[]).map(f => {
-            const reste = (f.montant_total||0) - (f.montant_paye||0);
-            return `<tr>
-              <td>
-                <div style="font-size:13px;font-weight:600">${esc(f.etudiants?.nom||'—')} ${esc(f.etudiants?.prenom||'')}</div>
-                <div style="font-size:11px;color:#9ca3af">${esc(f.etudiants?.matricule||'—')}</div>
-              </td>
-              <td style="font-weight:600">${(f.montant_total||0).toLocaleString('fr-FR')} ${esc(devise)}</td>
-              <td style="color:#059669;font-weight:600">${(f.montant_paye||0).toLocaleString('fr-FR')}</td>
-              <td style="color:${reste>0?'#dc2626':'#059669'};font-weight:600">${reste.toLocaleString('fr-FR')}</td>
-              <td style="font-size:12px;color:#6b7280">${formatDate(f.created_at)}</td>
-              <td><span class="badge ${statutColors[f.statut]||'gray'}">${esc(f.statut||'—')}</span></td>
-            </tr>`;}).join('')}
-        </tbody>
-      </table></div>`;
+  // Calculs globaux
+  const totalAttendu  = factures.reduce((s,f) => s + (f.montant_total||f.montant||0), 0);
+  const totalEncaisse = factures.reduce((s,f) => s + (f.montant_paye||0), 0);
+  const totalRestant  = totalAttendu - totalEncaisse;
+  const tauxRecouv    = totalAttendu > 0 ? Math.round(totalEncaisse / totalAttendu * 100) : 0;
+
+  // Calculs par rubrique
+  const rubriques = {};
+  factures.forEach(f => {
+    const r = f.type_frais || 'autre';
+    if (!rubriques[r]) rubriques[r] = { attendu:0, encaisse:0, count:0 };
+    rubriques[r].attendu   += f.montant_total || f.montant || 0;
+    rubriques[r].encaisse  += f.montant_paye || 0;
+    rubriques[r].count++;
+  });
+
+  // Regrouper par étudiant pour le tableau
+  const parEtudiant = {};
+  factures.forEach(f => {
+    const id = f.etudiant_id;
+    if (!parEtudiant[id]) parEtudiant[id] = {
+      etudiant: f.etudiants,
+      factures: [], attendu: 0, encaisse: 0
+    };
+    parEtudiant[id].factures.push(f);
+    parEtudiant[id].attendu  += f.montant_total || f.montant || 0;
+    parEtudiant[id].encaisse += f.montant_paye || 0;
+  });
+
+  const etudiantsList = Object.values(parEtudiant)
+    .sort((a,b) => (b.attendu - b.encaisse) - (a.attendu - a.encaisse));
+
+  const rubriqueLabels = {
+    scolarite: 'Frais de scolarité', inscription: 'Frais d\'inscription',
+    examen: 'Frais d\'examen', bibliotheque: 'Bibliothèque',
+    autre: 'Autres frais'
+  };
+  const rubriqueColors = {
+    scolarite:'blue', inscription:'purple', examen:'amber',
+    bibliotheque:'teal', autre:'gray'
+  };
+
+  const formatMontant = (n) => Math.round(n).toLocaleString('fr-FR') + ' FCFA';
+
+  el.innerHTML = `
+    <!-- KPIs -->
+    <div class="cards" style="margin-bottom:1.5rem">
+      <div class="card">
+        <div class="c-ico">💰</div>
+        <div class="c-val" style="font-size:18px">${formatMontant(totalAttendu)}</div>
+        <div class="c-lbl">Total attendu</div>
+        <div class="c-sub">${factures.length} factures</div>
+      </div>
+      <div class="card">
+        <div class="c-ico">✅</div>
+        <div class="c-val" style="font-size:18px;color:#059669">${formatMontant(totalEncaisse)}</div>
+        <div class="c-lbl">Total encaissé</div>
+        <div class="c-sub">${tauxRecouv}% de recouvrement</div>
+      </div>
+      <div class="card">
+        <div class="c-ico">⏳</div>
+        <div class="c-val" style="font-size:18px;color:${totalRestant>0?'#dc2626':'#059669'}">${formatMontant(totalRestant)}</div>
+        <div class="c-lbl">Reste à recouvrer</div>
+        <div class="c-sub">${etudiantsList.filter(e=>e.attendu>e.encaisse).length} étudiants débiteurs</div>
+      </div>
+      <div class="card">
+        <div class="c-ico">📊</div>
+        <div class="c-val">${tauxRecouv}%</div>
+        <div class="c-lbl">Taux de recouvrement</div>
+        <div style="margin-top:.5rem">
+          <div class="prog-bar">
+            <div class="prog-fill ${tauxRecouv>=80?'green':tauxRecouv>=50?'amber':'red'}" style="width:${tauxRecouv}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-grid" style="margin-bottom:1.5rem">
+
+      <!-- Répartition par rubrique -->
+      <div class="dash-block">
+        <div class="block-title">📂 Répartition par rubrique</div>
+        ${Object.entries(rubriques).map(([code, r]) => {
+          const taux = r.attendu > 0 ? Math.round(r.encaisse/r.attendu*100) : 0;
+          return `
+            <div style="margin-bottom:1rem">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <div style="display:flex;align-items:center;gap:.5rem">
+                  <span class="badge ${rubriqueColors[code]||'gray'}">${rubriqueLabels[code]||code}</span>
+                  <span style="font-size:11px;color:#9ca3af">${r.count} facture${r.count>1?'s':''}</span>
+                </div>
+                <span style="font-size:12px;font-weight:700;color:#374151">${taux}%</span>
+              </div>
+              <div class="prog-bar">
+                <div class="prog-fill ${rubriqueColors[code]||''}" style="width:${taux}%"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:11px;color:#9ca3af">
+                <span>Encaissé : ${formatMontant(r.encaisse)}</span>
+                <span>Attendu : ${formatMontant(r.attendu)}</span>
+              </div>
+            </div>`;}).join('')}
+      </div>
+
+      <!-- Top impayés -->
+      <div class="dash-block">
+        <div class="block-title">🔴 Soldes impayés</div>
+        ${etudiantsList.filter(e => e.attendu > e.encaisse).length === 0
+          ? '<p style="color:#9ca3af;font-size:13px">Aucun impayé 🎉</p>'
+          : etudiantsList.filter(e => e.attendu > e.encaisse).slice(0,8).map(e => {
+              const restant = e.attendu - e.encaisse;
+              const taux = Math.round(e.encaisse/e.attendu*100);
+              return `
+                <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem;background:#fff;border-radius:8px;margin-bottom:.4rem;border:1px solid #fee2e2;cursor:pointer" onclick="voirFicheComptable('${e.etudiant?.id}','${esc((e.etudiant?.nom+' '+(e.etudiant?.prenom||'')).trim()).replace(/'/g,"\\'")}')">
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:12.5px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.etudiant?.nom||'—')} ${esc(e.etudiant?.prenom||'')}</div>
+                    <div style="font-size:10.5px;color:#9ca3af">${esc(e.etudiant?.matricule||'—')}</div>
+                  </div>
+                  <div style="text-align:right;flex-shrink:0">
+                    <div style="font-size:13px;font-weight:700;color:#dc2626">${formatMontant(restant)}</div>
+                    <div style="font-size:10px;color:#9ca3af">${taux}% payé</div>
+                  </div>
+                </div>`;}).join('')}
+      </div>
+    </div>
+
+    <!-- Tableau par étudiant -->
+    <div class="section-header">
+      <span class="section-title">Détail par étudiant</span>
+      <div class="section-line"></div>
+      <div class="filters" style="margin:0">
+        <input type="search" id="search-compta" placeholder="🔍 Rechercher..." oninput="filtrerCompta()" style="min-width:180px">
+        <select id="filter-compta-rubrique" onchange="filtrerCompta()">
+          <option value="">Toutes rubriques</option>
+          ${Object.entries(rubriqueLabels).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
+        </select>
+        <select id="filter-compta-statut" onchange="filtrerCompta()">
+          <option value="">Tous statuts</option>
+          <option value="impaye">Impayé</option>
+          <option value="partiel">Partiel</option>
+          <option value="paye">Payé</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="compta-tableau" style="margin-top:.75rem">
+      ${renderComptaTableau(etudiantsList, formatMontant)}
+    </div>`;
+
+  // Stocker pour filtrage
+  window._comptaData = { etudiantsList, formatMontant };
 }
 
-// ── PAGE MESSAGES ─────────────────────────────
+function renderComptaTableau(liste, fmt) {
+  if (!liste.length) return '<div class="empty-state"><p>Aucun résultat</p></div>';
+  const statutColor = { paye:'green', partiel:'amber', impaye:'red', annule:'gray' };
+  return `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>Étudiant</th><th>Filière / Niveau</th>
+      ${['scolarite','inscription','examen','bibliotheque','autre'].map(r =>
+        `<th style="text-align:center;font-size:10px">Scolarité</th>`
+      ).slice(0,1).join('')}
+      <th style="text-align:right">Attendu</th>
+      <th style="text-align:right">Encaissé</th>
+      <th style="text-align:right">Reste</th>
+      <th style="text-align:center">Statut</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      ${liste.map(e => {
+        const restant = e.attendu - e.encaisse;
+        const taux = e.attendu > 0 ? Math.round(e.encaisse/e.attendu*100) : 0;
+        const statut = restant <= 0 ? 'paye' : taux > 0 ? 'partiel' : 'impaye';
+        return `<tr>
+          <td>
+            <div style="font-size:13px;font-weight:600;color:#111827">${esc(e.etudiant?.nom||'—')} ${esc(e.etudiant?.prenom||'')}</div>
+            <div style="font-size:11px;color:#9ca3af">${esc(e.etudiant?.matricule||'—')}</div>
+          </td>
+          <td>
+            <div style="font-size:12px;color:#6b7280">${esc(e.etudiant?.filiere||'—')}</div>
+            ${e.etudiant?.niveau ? badgeNiveau(e.etudiant.niveau) : ''}
+          </td>
+          <td style="text-align:right;font-weight:600;font-size:13px">${fmt(e.attendu)}</td>
+          <td style="text-align:right;font-weight:600;font-size:13px;color:#059669">${fmt(e.encaisse)}</td>
+          <td style="text-align:right;font-weight:600;font-size:13px;color:${restant>0?'#dc2626':'#059669'}">${fmt(restant)}</td>
+          <td style="text-align:center">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <span class="badge ${statutColor[statut]||'gray'}">${statut}</span>
+              <div class="prog-bar" style="width:60px"><div class="prog-fill ${statutColor[statut]||''}" style="width:${taux}%"></div></div>
+            </div>
+          </td>
+          <td><button class="btn-ghost btn-sm" onclick="voirFicheComptable('${e.etudiant?.id}','${esc((e.etudiant?.nom+' '+(e.etudiant?.prenom||'')).trim()).replace(/'/g,"\\'")}')">Fiche</button></td>
+        </tr>`;}).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+function filtrerCompta() {
+  if (!window._comptaData) return;
+  const { etudiantsList, formatMontant } = window._comptaData;
+  const s = (document.getElementById('search-compta')?.value||'').toLowerCase();
+  const statut = document.getElementById('filter-compta-statut')?.value||'';
+  let liste = etudiantsList;
+  if (s) liste = liste.filter(e =>
+    ((e.etudiant?.nom||'') + ' ' + (e.etudiant?.prenom||'') + ' ' + (e.etudiant?.matricule||'')).toLowerCase().includes(s));
+  if (statut === 'impaye') liste = liste.filter(e => e.encaisse === 0);
+  else if (statut === 'partiel') liste = liste.filter(e => e.encaisse > 0 && e.encaisse < e.attendu);
+  else if (statut === 'paye') liste = liste.filter(e => e.encaisse >= e.attendu);
+  document.getElementById('compta-tableau').innerHTML = renderComptaTableau(liste, formatMontant);
+}
+
+async function voirFicheComptable(etudiantId, nom) {
+  const { data: factures } = await db.from('factures')
+    .select('*').eq('etudiant_id', etudiantId)
+    .order('created_at', { ascending: false });
+
+  const fmt = (n) => Math.round(n||0).toLocaleString('fr-FR') + ' FCFA';
+  const totalAttendu  = factures?.reduce((s,f) => s+(f.montant_total||f.montant||0), 0)||0;
+  const totalEncaisse = factures?.reduce((s,f) => s+(f.montant_paye||0), 0)||0;
+  const totalRestant  = totalAttendu - totalEncaisse;
+  const statutColor   = { paye:'green', partiel:'amber', impaye:'red', annule:'gray' };
+  const rubriqueLabels = {
+    scolarite:'Frais de scolarité', inscription:'Frais d\'inscription',
+    examen:'Frais d\'examen', bibliotheque:'Bibliothèque', autre:'Autres frais'
+  };
+
+  const html = `
+    <!-- Résumé financier -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:1.2rem">
+      <div style="background:#f0fdf4;border-radius:10px;padding:.85rem;text-align:center;border:1px solid #bbf7d0">
+        <div style="font-size:18px;font-weight:800;color:#059669">${fmt(totalEncaisse)}</div>
+        <div style="font-size:10.5px;color:#059669">Encaissé</div>
+      </div>
+      <div style="background:${totalRestant>0?'#fef2f2':'#f0fdf4'};border-radius:10px;padding:.85rem;text-align:center;border:1px solid ${totalRestant>0?'#fecaca':'#bbf7d0'}">
+        <div style="font-size:18px;font-weight:800;color:${totalRestant>0?'#dc2626':'#059669'}">${fmt(totalRestant)}</div>
+        <div style="font-size:10.5px;color:${totalRestant>0?'#dc2626':'#059669'}">Reste dû</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:10px;padding:.85rem;text-align:center;border:1px solid #e2e8f0">
+        <div style="font-size:18px;font-weight:800;color:#1e3a5f">${fmt(totalAttendu)}</div>
+        <div style="font-size:10.5px;color:#6b7280">Total attendu</div>
+      </div>
+    </div>
+
+    <!-- Détail des factures -->
+    <div style="font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.75rem">
+      Historique des factures (${factures?.length||0})
+    </div>
+    ${(factures||[]).map(f => `
+      <div style="border:1px solid #e5e7eb;border-radius:10px;padding:.85rem 1rem;margin-bottom:.5rem;background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#111827">${esc(f.libelle||rubriqueLabels[f.type_frais]||'Facture')}</div>
+            <div style="font-size:11px;color:#9ca3af">${esc(f.reference||'—')} · ${esc(f.annee_scolaire||'—')} · ${esc(f.trimestre||'')}</div>
+          </div>
+          <span class="badge ${statutColor[f.statut]||'gray'}">${esc(f.statut||'—')}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem;margin-top:.5rem">
+          <div style="background:#f9fafb;border-radius:6px;padding:.4rem .6rem">
+            <div style="font-size:9.5px;color:#9ca3af">Montant</div>
+            <div style="font-size:12px;font-weight:700">${fmt(f.montant_total||f.montant)}</div>
+          </div>
+          <div style="background:#f0fdf4;border-radius:6px;padding:.4rem .6rem">
+            <div style="font-size:9.5px;color:#059669">Payé</div>
+            <div style="font-size:12px;font-weight:700;color:#059669">${fmt(f.montant_paye)}</div>
+          </div>
+          <div style="background:${(f.montant_total||f.montant)-(f.montant_paye||0)>0?'#fef2f2':'#f0fdf4'};border-radius:6px;padding:.4rem .6rem">
+            <div style="font-size:9.5px;color:#9ca3af">Reste</div>
+            <div style="font-size:12px;font-weight:700;color:${(f.montant_total||f.montant)-(f.montant_paye||0)>0?'#dc2626':'#059669'}">${fmt((f.montant_total||f.montant||0)-(f.montant_paye||0))}</div>
+          </div>
+          <div style="background:#f9fafb;border-radius:6px;padding:.4rem .6rem">
+            <div style="font-size:9.5px;color:#9ca3af">Échéance</div>
+            <div style="font-size:12px;font-weight:700">${formatDate(f.date_echeance)}</div>
+          </div>
+        </div>
+        ${f.mode_paiement ? `<div style="margin-top:.4rem;font-size:11px;color:#6b7280">Mode : ${esc(f.mode_paiement)}</div>` : ''}
+      </div>`).join('')}`;
+
+  ouvrirModalInfo('Fiche comptable — ' + nom, html);
+}
+
+
 async function chargerMessages() {
   const el = document.getElementById('messages-content');
   el.innerHTML = '<div class="loading">Chargement...</div>';
