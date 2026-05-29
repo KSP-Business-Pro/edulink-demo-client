@@ -1861,22 +1861,22 @@ function ouvrirModalInfo(titre, contenu) {
   }
   document.getElementById('modal-info-titre').textContent = titre;
   document.getElementById('modal-info-body').innerHTML = contenu;
-  // Déplacer le footer hors de la zone scrollable
+  // Si modal présences : déplacer footer dans le header
   const body = document.getElementById('modal-info-body');
-  const footer = body.querySelector('#presences-footer');
-  let footerZone = document.getElementById('modal-info-footer-zone');
-  if (!footerZone) {
-    footerZone = document.createElement('div');
-    footerZone.id = 'modal-info-footer-zone';
-    body.parentNode.insertBefore(footerZone, body.nextSibling);
-  }
-  if (footer) {
-    footerZone.style.cssText = 'padding-top:.75rem;margin-top:.5rem;border-top:1px solid #f3f4f6;display:block';
-    footerZone.innerHTML = footer.outerHTML;
-    footer.remove();
-  } else {
-    footerZone.style.display = 'none';
-    footerZone.innerHTML = '';
+  const presFooter = body.querySelector('#presences-footer');
+  const headerDiv = document.querySelector('#modal-info-overlay .modal > div:first-child');
+  // Supprimer ancien bouton terminer s'il existe
+  const oldTerminer = document.getElementById('btn-terminer-saisie');
+  if (oldTerminer) oldTerminer.remove();
+  if (presFooter && headerDiv) {
+    const btnTerminer = document.createElement('button');
+    btnTerminer.id = 'btn-terminer-saisie';
+    btnTerminer.className = 'btn-sm';
+    btnTerminer.style.cssText = 'background:#1e3a5f;color:#fff;border:none;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;font-family:Poppins,sans-serif';
+    btnTerminer.innerHTML = '✓ Terminer';
+    btnTerminer.onclick = () => { document.getElementById('modal-info-overlay').classList.remove('open'); chargerPresences(); };
+    headerDiv.insertBefore(btnTerminer, headerDiv.querySelector('button'));
+    presFooter.remove();
   }
   o.classList.add('open');
 }
