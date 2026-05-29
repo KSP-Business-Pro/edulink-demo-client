@@ -1863,6 +1863,17 @@ function ouvrirModalInfo(titre, contenu, footerHtml) {
   document.getElementById('modal-info-titre').textContent = titre;
   document.getElementById('modal-info-body').innerHTML = contenu;
   o.classList.add('open');
+  // Injecter footer en attente
+  if (window._pendingFooter) {
+    const fz = document.getElementById('modal-info-footer');
+    if (fz) {
+      fz.innerHTML = window._pendingFooter;
+      fz.style.display = 'flex';
+      fz.style.justifyContent = 'space-between';
+      fz.style.alignItems = 'center';
+    }
+    window._pendingFooter = null;
+  }
 }
 
 // ── PAGE SEMESTRES ────────────────────────────
@@ -2660,6 +2671,7 @@ async function ouvrirSaisiePresence(seanceId, matiereNom, semId) {
       ✓ Terminer la saisie
     </button>`;
 
+  window._pendingFooter = footerPresences;
   ouvrirModalInfo(`Présences — ${matiereNom}`,
     `<div style="display:flex;gap:.75rem;margin-bottom:1rem;align-items:center">
       <span style="font-size:13px;color:#6b7280">${etudiants.length} étudiants inscrits</span>
