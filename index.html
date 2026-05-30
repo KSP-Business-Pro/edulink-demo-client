@@ -643,7 +643,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── État global ──────────────────────────────────────────────────────────
-let currentEcoleId   = null;
+let currentEcoleId = null, currentUserNom = '', currentUserRole = 'admin';
 let currentRole      = 'admin';
 let currentUserId    = null;
 let currentPage      = 'dashboard';
@@ -771,9 +771,11 @@ async function ouvrirApp(user) {
     return;
   }
 
-  currentEcoleId = profil.ecole_id || null;  // NULL = super-admin multi-écoles
-  currentRole    = profil.role     || 'admin';
-  currentUserId  = profil.id       || null;
+  currentEcoleId   = profil.ecole_id || null;
+  currentRole      = profil.role     || 'admin';
+  currentUserId    = profil.id       || null;
+  currentUserNom   = ((profil.prenom ? profil.prenom + ' ' : '') + (profil.nom || '')).trim();
+  currentUserRole  = profil.role     || 'admin';
 
   // Mettre à jour la nav
   const nom = (profil.prenom ? profil.prenom + ' ' : '') + (profil.nom || user.email);
