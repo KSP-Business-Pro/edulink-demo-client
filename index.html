@@ -465,7 +465,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
     </div>
   </div>
   <div class="filters">
-    <input type="search" id="search-etudiants" placeholder="🔍 Rechercher un étudiant…" oninput="filtrerEtudiants()">
+    <input type="search" id="search-etudiants" placeholder="🔍 Rechercher un étudiant…" oninput="filtrerEtudiantsDebounced()">
     <select id="filter-programme" onchange="filtrerEtudiants()">
       <option value="">Tous les programmes</option>
     </select>
@@ -1277,8 +1277,8 @@ async function chargerProspects() {
       </div>
       <div class="table-wrap"><table>
         <thead><tr>
-          <th>Établissement</th><th>Type</th><th>Ville</th>
-          <th>Contact</th><th>Date</th><th>Statut</th>
+          <th>Établissement</th><th>Type</th><th>Effectif</th>
+          <th>Contact</th><th>Date</th><th>Statut</th><th></th>
         </tr></thead>
         <tbody>
           ${(prospects||[]).map(p => `<tr>
@@ -1294,11 +1294,99 @@ async function chargerProspects() {
               <div style="font-size:11px;color:#9ca3af">${esc(p.telephone_contact||'—')}</div>
             </td>
             <td style="font-size:12px;color:#6b7280">${formatDate(p.created_at)}</td>
-            <td><span class="badge ${p.statut==='traite'?'green':p.statut==='en_cours'?'amber':'blue'}">${esc(p.statut||'nouveau')}</span></td>
+            <td>
+              <span class="badge ${p.statut==='converti'?'green':p.statut==='en_cours'||p.statut==='demo_planifiee'?'amber':p.statut==='perdu'?'red':'blue'}">
+                ${({nouveau:'Nouveau',contacte:'Contacté',demo_planifiee:'Démo planifiée',converti:'Converti',perdu:'Perdu'})[p.statut]||p.statut||'Nouveau'}
+              </span>
+            </td>
+            <td style="display:flex;gap:4px">
+              <button class="btn-ghost btn-sm" onclick="voirProspect(${JSON.stringify(p).replace(/'/g,'&#39;')})">Voir</button>
+              ${p.telephone ? `<a href="https://wa.me/${(p.telephone||'').replace(/[^0-9]/g,'')}" target="_blank" class="btn-ghost btn-sm" style="text-decoration:none">📱</a>` : ''}
+            </td>
           </tr>`).join('')}
         </tbody>
       </table></div>`;
 }
+
+// ── CRM Prospects ─────────────────────────────────────────────────────────────
+const PROSPECT_STATUTS = {
+  nouveau: { label: 'Nouveau', color: '#3b82f6' },
+  contacte: { label: 'Contacté', color: '#f97316' },
+  demo_planifiee: { label: 'Démo planifiée', color: '#8b5cf6' },
+  converti: { label: 'Converti', color: '#059669' },
+  perdu: { label: 'Perdu', color: '#dc2626' }
+};
+
+function voirProspect(p) {
+  const statOpts = Object.entries(PROSPECT_STATUTS)
+    .map(([k,v]) => `<option value="${k}" ${p.statut===k?'selected':''}>${v.label}</option>`).join('');
+  ouvrirModalInfo('Prospect — ' + esc(p.nom||p.ecole_nom||'—'), `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem">
+      <div style="background:#f9fafb;border-radius:8px;padding:.75rem">
+        <div style="font-size:11px;color:#9ca3af;margin-bottom:2px">Établissement</div>
+        <div style="font-weight:600">${esc(p.ecole_nom||'—')}</div>
+        <div style="font-size:12px;color:#6b7280">${esc(p.fonction||'—')}</div>
+      </div>
+      <div style="background:#f9fafb;border-radius:8px;padding:.75rem">
+        <div style="font-size:11px;color:#9ca3af;margin-bottom:2px">Contact</div>
+        <div style="font-weight:600">${esc(p.nom||'—')}</div>
+        <div style="font-size:12px;color:#6b7280">${esc(p.email||'—')}</div>
+        <div style="font-size:12px;color:#6b7280">${esc(p.telephone||'—')}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:1rem">
+      <div style="text-align:center;background:#eff6ff;border-radius:8px;padding:.6rem">
+        <div style="font-size:18px;font-weight:700;color:#1d4ed8">${esc(p.effectif||'—')}</div>
+        <div style="font-size:10px;color:#6b7280">Effectif</div>
+      </div>
+      <div style="text-align:center;background:#f0fdf4;border-radius:8px;padding:.6rem">
+        <div style="font-size:13px;font-weight:600;color:#059669">${esc(p.creneau||'—')}</div>
+        <div style="font-size:10px;color:#6b7280">Créneau</div>
+      </div>
+      <div style="text-align:center;background:#faf5ff;border-radius:8px;padding:.6rem">
+        <div style="font-size:12px;font-weight:600;color:#7c3aed">${esc(p.source||'—')}</div>
+        <div style="font-size:10px;color:#6b7280">Source</div>
+      </div>
+    </div>
+    ${p.message ? `<div style="background:#fff8f0;border-left:3px solid #f97316;padding:.75rem;border-radius:0 8px 8px 0;margin-bottom:1rem;font-size:13px;color:#374151">${esc(p.message)}</div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase">Statut</label>
+        <select id="prospect-statut-${p.id}" style="width:100%;margin-top:4px">
+          ${statOpts}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase">Rappelé par</label>
+        <input type="text" id="prospect-rappele-${p.id}" value="${esc(p.rappele_par||'')}"
+          style="width:100%;margin-top:4px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:12.5px">
+      </div>
+    </div>
+    <div>
+      <label style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase">Notes internes</label>
+      <textarea id="prospect-notes-${p.id}" rows="3"
+        style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:12.5px;resize:vertical"
+        placeholder="Notes de suivi, prochaine action...">${esc(p.notes_internes||'')}</textarea>
+    </div>`,
+  `<div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+    ${p.telephone ? `<a href="https://wa.me/${(p.telephone||'').replace(/[^0-9]/g,'')}" target="_blank" class="btn-outline btn-sm">📱 WhatsApp</a>` : '<span></span>'}
+    <button class="btn-blue" onclick="sauvegarderProspect('${p.id}')">Enregistrer</button>
+  </div>`);
+}
+
+async function sauvegarderProspect(prospectId) {
+  const statut    = document.getElementById('prospect-statut-'   + prospectId)?.value;
+  const notes     = document.getElementById('prospect-notes-'    + prospectId)?.value;
+  const rappele   = document.getElementById('prospect-rappele-'  + prospectId)?.value;
+  const { error } = await db.from('prospects_diagnostic').update({
+    statut, notes_internes: notes, rappele_par: rappele
+  }).eq('id', prospectId);
+  if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+  document.getElementById('modal-info-overlay')?.classList.remove('open');
+  await chargerProspects();
+  toast('Prospect mis à jour ✓', 'success');
+}
+
 
 // ── PAGE PARAMÈTRES LMD ───────────────────────
 async function chargerParametres() {
@@ -2908,6 +2996,23 @@ async function calculerResultatsBatch(semId) {
 
 function exporterResultats()     { toast('Export PDF en cours…', 'info'); }
 function filtrerEtudiants()      { /* implémenté page étudiants */ }
+
+// ── Sprint 7 — Utilitaires performance ──────────────────────────────────────
+const _PAGE_SIZE = 25;
+let _etuPage = 0;
+
+function _prevPage() { if(_etuPage>0){_etuPage--;renderTableauEtudiants(_listeFiltrée||_tousEtudiants);} }
+function _nextPage(total) { if((_etuPage+1)*_PAGE_SIZE<total){_etuPage++;renderTableauEtudiants(_listeFiltrée||_tousEtudiants);} }
+
+let _listeFiltrée = null;
+
+function debounce(fn, ms=300) {
+  let t;
+  return (...a) => { clearTimeout(t); t = setTimeout(()=>fn(...a), ms); };
+}
+
+const filtrerEtudiantsDebounced = debounce(filtrerEtudiants, 250);
+
 function filtrerReleves()        { /* implémenté page relevés */ }
 // Stubs remplacés par implémentations ci-dessous
 async function initPresences() { await peuplerSelectSemestre('presences-semestre'); }
@@ -3331,12 +3436,13 @@ async function _chargerEtudiants() {
 }
 
 function renderTableauEtudiants(liste) {
+  _listeFiltrée = liste;
   const el = document.getElementById('etudiants-content');
   if (!liste.length) { el.innerHTML = '<div class="empty-state"><div class="es-ico">🧑‍🎓</div><h3>Aucun résultat</h3></div>'; return; }
   const sc = { actif:'green', inactif:'gray', diplome:'purple', abandonne:'red' };
   el.innerHTML = `<div class="table-wrap"><table>
     <thead><tr><th>Matricule</th><th>Nom & Prénom</th><th>Filière</th><th>Niveau</th><th>Statut</th><th></th></tr></thead>
-    <tbody>${liste.map(e => `<tr>
+    <tbody>${liste.slice(_etuPage*_PAGE_SIZE,(_etuPage+1)*_PAGE_SIZE).map(e => `<tr>
       <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${esc(e.matricule||'—')}</code></td>
       <td>
         <div style="display:flex;align-items:center;gap:.6rem">
@@ -3356,10 +3462,19 @@ function renderTableauEtudiants(liste) {
         <button class="btn-ghost btn-sm" style="color:#dc2626" onclick="supprimerEtudiant('${e.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
       </td>
     </tr>`).join('')}
-    </tbody></table></div>`;
+    </tbody></table></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 0;border-top:1px solid #f3f4f6;margin-top:4px">
+    <span style="font-size:12px;color:#6b7280">${_etuPage*_PAGE_SIZE+1}–${Math.min((_etuPage+1)*_PAGE_SIZE,liste.length)} sur ${liste.length} étudiant${liste.length>1?'s':''}</span>
+    <div style="display:flex;gap:.5rem">
+      <button class="btn-ghost btn-sm" onclick="_prevPage()" ${_etuPage===0?'disabled':''}>← Préc.</button>
+      <span style="font-size:12px;padding:4px 10px;background:#f3f4f6;border-radius:6px">Page ${_etuPage+1} / ${Math.ceil(liste.length/_PAGE_SIZE)||1}</span>
+      <button class="btn-ghost btn-sm" onclick="_nextPage(${liste.length?'liste.length':'0'})" ${(_etuPage+1)*_PAGE_SIZE>=liste.length?'disabled':''}>Suiv. →</button>
+    </div>
+  </div>\`;
 }
 
 function filtrerEtudiants() {
+  _etuPage = 0;
   const s = (document.getElementById('search-etudiants')?.value||'').toLowerCase();
   const n = document.getElementById('filter-niveau')?.value||'';
   let l = _tousEtudiants;
@@ -3670,7 +3785,7 @@ async function _logNote(etudiantId, evaluationId, ancienne, nouvelle) {
   } catch(e) { /* Silencieux si table absente */ }
 }
 
-function ouvrirImportNotes() {
+async function ouvrirImportNotes() {
   const st = window._saisieState;
   if (!st?.matId) { toast("Sélectionnez une matière d'abord", 'error'); return; }
   if (st.sessNormStatut === 'close') { toast('Session clôturée — import impossible', 'error'); return; }
