@@ -3521,8 +3521,8 @@ async function _parseImportFile(file) {
   try {
     if (file.name.endsWith('.csv') || file.type === 'text/csv') {
       const text = await file.text();
-      const lines = text.trim().split('
-');
+      const lines = text.trim().split('\n');
+
       const headers = lines[0].split(/[,;]/).map(h => h.trim().toLowerCase());
       const matIdx  = headers.findIndex(h => h.includes('matri'));
       const noteIdx = headers.findIndex(h => h.includes('note') || h.includes('mark'));
