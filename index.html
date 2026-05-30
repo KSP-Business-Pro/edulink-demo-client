@@ -3465,11 +3465,11 @@ async function _logNote(etudiantId, evaluationId, ancienne, nouvelle) {
 
 function ouvrirImportNotes() {
   const st = window._saisieState;
-  if (!st?.matId) { toast('Sélectionnez une matière d'abord', 'error'); return; }
+  if (!st?.matId) { toast("Sélectionnez une matière d'abord", 'error'); return; }
   if (st.sessNormStatut === 'close') { toast('Session clôturée — import impossible', 'error'); return; }
 
   const allEvals = [...(st.evalsCC||[]), ...(st.evalsEX||[])];
-  if (!allEvals.length) { toast('Créez des évaluations d'abord', 'error'); return; }
+  if (!allEvals.length) { toast("Créez des évaluations d'abord", 'error'); return; }
 
   let o = document.getElementById('modal-import-notes');
   if (!o) {
