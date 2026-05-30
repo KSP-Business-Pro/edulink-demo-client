@@ -3992,6 +3992,7 @@ async function chargerPresences() {
                   <div style="font-size:11px;color:#9ca3af">${formatDate(s.date_seance)} · <span class="badge gray" style="font-size:9px">${s.type_seance}</span></div>
                 </div>
                 <button class="btn-ghost btn-sm" onclick="event.stopPropagation();ouvrirSaisiePresence('${s.id}','${esc(s.matieres_lmd?.nom||'?').replace(/'/g,"\\'")}','${semId}')">Saisir</button>
+                <button class="btn-ghost btn-sm" style="color:#dc2626" title="Supprimer" onclick="event.stopPropagation();supprimerSeance('${s.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
               </div>`).join('')}
         </div>
       </div>
@@ -4011,7 +4012,7 @@ async function chargerPresences() {
   window._presencesSemId = semId;
 }
 
-function switchPresencesTab(tab, btn) {
+async function switchPresencesTab(tab, btn) {
   document.querySelectorAll('#presences-tabs .tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('presences-tab-saisie').style.display     = tab==='saisie' ? '' : 'none';
@@ -4092,7 +4093,7 @@ async function ouvrirSaisiePresence(seanceId, matiereNom, semId) {
         const p = presMap[et.id];
         const statut = p?.statut || 'absent';
         return `
-          <div data-statut="${statut}" style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;border-radius:8px;margin-bottom:.3rem;background:${statut==='present'?'#f0fdf4':statut==='retard'?'#fef9c3':'#fef2f2'};border:1px solid ${statut==='present'?'#bbf7d0':statut==='retard'?'#fde68a':'#fecaca'}">
+          <div data-statut="${statut}" style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;border-radius:8px;margin-bottom:.3rem;background:${statut==='present'?'#f0fdf4':statut==='retard'?'#fef9c3':statut==='justifie'?'#f3e8ff':'#fef2f2'};border:1px solid ${statut==='present'?'#bbf7d0':statut==='retard'?'#fde68a':statut==='justifie'?'#d8b4fe':'#fecaca'}">
             <div style="flex:1">
               <div style="font-size:13px;font-weight:600;color:#111827">${esc(et.nom)} ${esc(et.prenom)}</div>
               <div style="font-size:10.5px;color:#9ca3af">${esc(et.matricule||'—')}</div>
@@ -4101,6 +4102,7 @@ async function ouvrirSaisiePresence(seanceId, matiereNom, semId) {
               <button onclick="marquerPresence('${seanceId}','${et.id}','present',this)" class="btn-sm ${statut==='present'?'btn-green':'btn-secondary'}" style="padding:3px 8px;font-size:11px">✅ Présent</button>
               <button onclick="marquerPresence('${seanceId}','${et.id}','retard',this)" class="btn-sm ${statut==='retard'?'':'btn-secondary'}" style="padding:3px 8px;font-size:11px;background:${statut==='retard'?'#d97706':''}">⏰ Retard</button>
               <button onclick="marquerPresence('${seanceId}','${et.id}','absent',this)" class="btn-sm ${statut==='absent'?'btn-red':'btn-secondary'}" style="padding:3px 8px;font-size:11px">❌ Absent</button>
+              <button onclick="marquerPresence('${seanceId}','${et.id}','justifie',this)" class="btn-sm ${statut==='justifie'?'':'btn-secondary'}" style="padding:3px 8px;font-size:11px;background:${statut==='justifie'?'#7c3aed':''}">📄 Justifié</button>
             </div>
           </div>`;}).join('')}
     </div>`, footerPresences);
@@ -4111,8 +4113,8 @@ async function marquerPresence(seanceId, etudiantId, statut, btn) {
   const row = btn.closest('[data-statut]');
   const prevStatut = row?.getAttribute('data-statut') || 'absent';
   if (row) {
-    const colors  = { present:'#f0fdf4', retard:'#fef9c3', absent:'#fef2f2' };
-    const borders = { present:'#bbf7d0', retard:'#fde68a', absent:'#fecaca' };
+    const colors  = { present:'#f0fdf4', retard:'#fef9c3', absent:'#fef2f2', justifie:'#f3e8ff' };
+    const borders = { present:'#bbf7d0', retard:'#fde68a', absent:'#fecaca', justifie:'#d8b4fe' };
     row.setAttribute('data-statut', statut);
     row.style.background   = colors[statut];
     row.style.borderColor  = borders[statut];
@@ -4164,6 +4166,19 @@ async function marquerPresence(seanceId, etudiantId, statut, btn) {
       row.style.borderColor = borders[prevStatut];
     }
     toast('Erreur: ' + error.message, 'error');
+  }
+}
+
+async function supprimerSeance(seanceId) {
+  if (!confirm("Supprimer cette séance ? Les présences associées seront perdues.")) return;
+  try {
+    await db.from('presences').delete().eq('seance_id', seanceId);
+    const { error } = await db.from('seances').delete().eq('id', seanceId);
+    if (error) throw error;
+    toast('Séance supprimée', 'success');
+    await chargerPresences();
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
   }
 }
 
