@@ -2441,7 +2441,201 @@ async function ouvrirModalPromotion() {
 
   o.classList.add('open');
 }
-function ouvrirModalEtudiant()   { toast('Modal Étudiant — en cours', 'info'); }
+// ── CRUD Étudiants ───────────────────────────────────────────────────────────
+let _editEtuId = null;
+
+function fermerModalEtudiant() {
+  document.getElementById('modal-etu-overlay')?.classList.remove('open');
+  _editEtuId = null;
+}
+
+function _genMatricule() {
+  const year = new Date().getFullYear();
+  const rand = String(Math.floor(1000 + Math.random() * 9000));
+  return year + '-' + rand;
+}
+
+function _etuOnProgramme() {
+  const prog = STATE.programmes.find(p => p.id === document.getElementById('etu-programme').value);
+  if (!prog) return;
+  const filiere = document.getElementById('etu-filiere');
+  if (!filiere._manualEdit) filiere.value = prog.intitule;
+  const nivs = { licence:['L1','L2','L3'], master:['M1','M2'], doctorat:['D1','D2','D3'] }[prog.grade] || [];
+  const sel = document.getElementById('etu-niveau');
+  sel.innerHTML = '<option value="">— Niveau —</option>' + nivs.map(n => '<option value="' + n + '">' + n + '</option>').join('');
+}
+
+async function soumettreModalEtudiant(e) {
+  e.preventDefault();
+  const btn = document.getElementById('etu-submit-btn');
+  btn.disabled = true; btn.textContent = _editEtuId ? 'Enregistrement…' : 'Inscription…';
+  const payload = {
+    ecole_id:          currentEcoleId,
+    matricule:         document.getElementById('etu-matricule').value.trim(),
+    nom:               document.getElementById('etu-nom').value.trim().toUpperCase(),
+    prenom:            document.getElementById('etu-prenom').value.trim(),
+    sexe:              document.getElementById('etu-sexe').value,
+    date_naissance:    document.getElementById('etu-naissance').value  || null,
+    email_auth:        document.getElementById('etu-email').value.trim()  || null,
+    telephone_parent:  document.getElementById('etu-tel').value.trim()    || null,
+    filiere:           document.getElementById('etu-filiere').value.trim() || null,
+    niveau:            document.getElementById('etu-niveau').value         || null,
+    statut:            document.getElementById('etu-statut').value
+  };
+  try {
+    let error;
+    if (_editEtuId) {
+      ({ error } = await db.from('etudiants').update(payload).eq('id', _editEtuId));
+    } else {
+      ({ error } = await db.from('etudiants').insert(payload));
+    }
+    if (error) throw error;
+    fermerModalEtudiant();
+    await chargerEtudiants();
+    toast(_editEtuId ? 'Étudiant modifié ✓' : 'Étudiant inscrit ✓', 'success');
+  } catch(err) {
+    const dup = err.message?.includes('duplicate') || err.message?.includes('unique');
+    toast(dup ? 'Ce matricule existe déjà.' : 'Erreur : ' + (err.message || err), 'error');
+    btn.disabled = false;
+    btn.textContent = _editEtuId ? 'Enregistrer' : 'Inscrire →';
+  }
+}
+
+async function modifierEtudiant(id) {
+  const etu = _tousEtudiants?.find(x => x.id === id);
+  const e = etu || (await db.from('etudiants').select('*').eq('id', id).single()).data;
+  if (!e) { toast('Étudiant introuvable', 'error'); return; }
+  _editEtuId = id;
+  ouvrirModalEtudiant();
+  setTimeout(() => {
+    document.getElementById('etu-matricule').value  = e.matricule         || '';
+    document.getElementById('etu-nom').value        = e.nom               || '';
+    document.getElementById('etu-prenom').value     = e.prenom            || '';
+    document.getElementById('etu-sexe').value       = e.sexe              || 'M';
+    document.getElementById('etu-naissance').value  = e.date_naissance    || '';
+    document.getElementById('etu-email').value      = e.email_auth        || '';
+    document.getElementById('etu-tel').value        = e.telephone_parent  || '';
+    document.getElementById('etu-filiere').value    = e.filiere           || '';
+    const progMatch = STATE.programmes.find(p => p.intitule === e.filiere);
+    if (progMatch) document.getElementById('etu-programme').value = progMatch.id;
+    _etuOnProgramme();
+    document.getElementById('etu-niveau').value     = e.niveau   || '';
+    document.getElementById('etu-statut').value     = e.statut   || 'actif';
+    document.getElementById('etu-modal-title').textContent = 'Modifier le dossier';
+    document.getElementById('etu-submit-btn').textContent  = 'Enregistrer';
+  }, 80);
+}
+
+async function supprimerEtudiant(id) {
+  const e = _tousEtudiants?.find(x => x.id === id);
+  const nom = e ? e.prenom + ' ' + e.nom : id;
+  if (!confirm('Supprimer "' + nom + '" ? Cette action est irréversible.')) return;
+  try {
+    const { error } = await db.from('etudiants').delete().eq('id', id);
+    if (error) throw error;
+    await chargerEtudiants();
+    toast('Étudiant supprimé', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+  }
+}
+
+function ouvrirModalEtudiant() {
+  let o = document.getElementById('modal-etu-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-etu-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:580px;padding:1.5rem;max-height:90vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 id="etu-modal-title" style="margin:0;font-size:15px;font-weight:700;color:#111827">+ Nouvel Étudiant</h3>
+          <button class="btn-ghost btn-sm" onclick="fermerModalEtudiant()">✕</button>
+        </div>
+        <form id="form-etu" onsubmit="soumettreModalEtudiant(event)" autocomplete="off">
+
+          <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem">Identité</div>
+
+          <div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div><label>Nom *</label>
+              <input type="text" id="etu-nom" style="width:100%;margin-top:4px" placeholder="NOM (majuscules)" required></div>
+            <div><label>Prénom *</label>
+              <input type="text" id="etu-prenom" style="width:100%;margin-top:4px" placeholder="Prénom" required></div>
+            <div><label>Sexe *</label>
+              <select id="etu-sexe" style="width:100%;margin-top:4px" required>
+                <option value="M">M</option><option value="F">F</option>
+              </select></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div><label>Date de naissance</label>
+              <input type="date" id="etu-naissance" style="width:100%;margin-top:4px"></div>
+            <div><label>Email</label>
+              <input type="email" id="etu-email" style="width:100%;margin-top:4px" placeholder="etudiant@email.com"></div>
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Téléphone parent / tuteur</label>
+            <input type="tel" id="etu-tel" style="width:100%;margin-top:4px" placeholder="+229 …">
+          </div>
+
+          <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem;padding-top:.6rem;border-top:1px solid #f3f4f6">Académique</div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div><label>Programme</label>
+              <select id="etu-programme" style="width:100%;margin-top:4px" onchange="_etuOnProgramme()">
+                <option value="">— Sélectionner —</option>
+              </select></div>
+            <div><label>Niveau *</label>
+              <select id="etu-niveau" style="width:100%;margin-top:4px" required>
+                <option value="">— Niveau —</option>
+                <option value="L1">L1</option><option value="L2">L2</option><option value="L3">L3</option>
+                <option value="M1">M1</option><option value="M2">M2</option>
+                <option value="D1">D1</option><option value="D2">D2</option><option value="D3">D3</option>
+              </select></div>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div><label>Filière</label>
+              <input type="text" id="etu-filiere" style="width:100%;margin-top:4px"
+                     placeholder="auto depuis le programme" oninput="this._manualEdit=true"></div>
+            <div><label>Statut *</label>
+              <select id="etu-statut" style="width:100%;margin-top:4px" required>
+                <option value="actif">Actif</option>
+                <option value="inactif">Inactif</option>
+                <option value="diplome">Diplômé</option>
+                <option value="abandonne">Abandonné</option>
+              </select></div>
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Matricule *</label>
+            <input type="text" id="etu-matricule" style="width:100%;margin-top:4px" placeholder="auto-généré" required>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="fermerModalEtudiant()">Annuler</button>
+            <button type="submit" class="btn-blue" id="etu-submit-btn">Inscrire →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+
+  const progSel = document.getElementById('etu-programme');
+  progSel.innerHTML = '<option value="">— Sélectionner —</option>'
+    + STATE.programmes.map(p => '<option value="' + p.id + '">' + esc(p.intitule) + '</option>').join('');
+
+  if (!_editEtuId) {
+    const form = document.getElementById('form-etu');
+    if (form) { form.reset(); document.getElementById('etu-filiere')._manualEdit = false; }
+    document.getElementById('etu-modal-title').textContent = '+ Nouvel Étudiant';
+    document.getElementById('etu-submit-btn').textContent  = 'Inscrire →';
+    document.getElementById('etu-matricule').value = _genMatricule();
+    document.getElementById('etu-statut').value = 'actif';
+    document.getElementById('etu-niveau').innerHTML = '<option value="">— Niveau —</option>'
+      + ['L1','L2','L3','M1','M2','D1','D2','D3'].map(n => '<option value="' + n + '">' + n + '</option>').join('');
+  }
+
+  o.classList.add('open');
+  setTimeout(() => document.getElementById('etu-nom')?.focus(), 100);
+}
 function ouvrirModalEnseignant() { toast('Modal Enseignant — en cours', 'info'); }
 function ouvrirModalFacture()    { toast('Modal Facture — en cours', 'info'); }
 function ouvrirModalMessage()    { toast('Modal Message — en cours', 'info'); }
@@ -2890,7 +3084,11 @@ function renderTableauEtudiants(liste) {
       <td style="font-size:12px;color:#6b7280">${esc(e.filiere||'—')}</td>
       <td>${e.niveau ? badgeNiveau(e.niveau) : '<span class="badge gray">—</span>'}</td>
       <td><span class="badge ${sc[e.statut]||'gray'}">${esc(e.statut||'—')}</span></td>
-      <td><button class="btn-ghost btn-sm" onclick="voirFicheEtudiant('${e.id}')">Fiche</button></td>
+      <td style="display:flex;gap:4px">
+        <button class="btn-ghost btn-sm" onclick="voirFicheEtudiant('${e.id}')">Fiche</button>
+        <button class="btn-ghost btn-sm" onclick="modifierEtudiant('${e.id}')" title="Modifier"><i class="ti ti-edit" aria-hidden="true"></i></button>
+        <button class="btn-ghost btn-sm" style="color:#dc2626" onclick="supprimerEtudiant('${e.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
+      </td>
     </tr>`).join('')}
     </tbody></table></div>`;
 }
