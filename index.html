@@ -1716,6 +1716,13 @@ async function voirFicheComptable(etudiantId, nom) {
           </div>
         </div>
         ${f.mode_paiement ? `<div style="margin-top:.4rem;font-size:11px;color:#6b7280">Mode : ${esc(f.mode_paiement)}</div>` : ''}
+        ${f.statut !== 'paye' && f.statut !== 'annule' ? `
+        <div style="margin-top:.6rem;display:flex;justify-content:flex-end">
+          <button onclick="ouvrirPaiement('${f.id}',${(f.montant_total||f.montant||0)-(f.montant_paye||0)})"
+            style="background:#1e3a5f;color:#fff;border:none;padding:5px 14px;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif">
+            + Enregistrer un paiement
+          </button>
+        </div>` : ''}
       </div>`).join('')}`;
 
   ouvrirModalInfo('Fiche comptable — ' + nom, html);
@@ -2639,7 +2646,188 @@ function ouvrirModalEtudiant() {
   setTimeout(() => document.getElementById('etu-nom')?.focus(), 100);
 }
 function ouvrirModalEnseignant() { toast('Modal Enseignant — en cours', 'info'); }
-function ouvrirModalFacture()    { toast('Modal Facture — en cours', 'info'); }
+// ── CRUD Factures & Paiements ────────────────────────────────────────────────
+function fermerModalFacture() {
+  document.getElementById('modal-facture-overlay')?.classList.remove('open');
+}
+
+function ouvrirPaiement(factureId, restant) {
+  let o = document.getElementById('modal-paiement-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-paiement-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:420px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 style="margin:0;font-size:15px;font-weight:700;color:#111827">Enregistrer un paiement</h3>
+          <button class="btn-ghost btn-sm" onclick="document.getElementById('modal-paiement-overlay').classList.remove('open')">✕</button>
+        </div>
+        <form id="form-paiement" onsubmit="soumettreModalPaiement(event)" autocomplete="off">
+          <input type="hidden" id="paiement-facture-id">
+          <div style="margin-bottom:.85rem">
+            <label>Montant payé (FCFA) *</label>
+            <input type="number" id="paiement-montant" style="width:100%;margin-top:4px" min="1" step="100" required>
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Mode de paiement *</label>
+            <select id="paiement-mode" style="width:100%;margin-top:4px" required>
+              <option value="especes">Espèces</option>
+              <option value="virement">Virement bancaire</option>
+              <option value="mobile_money">Mobile Money</option>
+              <option value="cheque">Chèque</option>
+            </select>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="document.getElementById('modal-paiement-overlay').classList.remove('open')">Annuler</button>
+            <button type="submit" class="btn-blue" id="paiement-submit-btn">Enregistrer →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+  document.getElementById('paiement-facture-id').value = factureId;
+  document.getElementById('paiement-montant').value = Math.round(restant);
+  document.getElementById('paiement-submit-btn').disabled = false;
+  document.getElementById('paiement-submit-btn').textContent = 'Enregistrer →';
+  o.classList.add('open');
+  setTimeout(() => document.getElementById('paiement-montant')?.focus(), 100);
+}
+
+async function soumettreModalPaiement(e) {
+  e.preventDefault();
+  const btn = document.getElementById('paiement-submit-btn');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+  const factureId = document.getElementById('paiement-facture-id').value;
+  const montant   = parseFloat(document.getElementById('paiement-montant').value);
+  const mode      = document.getElementById('paiement-mode').value;
+  try {
+    const { data: f } = await db.from('factures').select('montant_total,montant,montant_paye').eq('id', factureId).single();
+    if (!f) throw new Error('Facture introuvable');
+    const totalFact = f.montant_total || f.montant || 0;
+    const nouvPaye  = Math.min((f.montant_paye||0) + montant, totalFact);
+    const statut    = nouvPaye >= totalFact ? 'paye' : nouvPaye > 0 ? 'partiel' : 'impaye';
+    const { error } = await db.from('factures').update({
+      montant_paye: nouvPaye, statut, mode_paiement: mode
+    }).eq('id', factureId);
+    if (error) throw error;
+    document.getElementById('modal-paiement-overlay').classList.remove('open');
+    await chargerPaiements();
+    toast('Paiement enregistré ✓', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+    btn.disabled = false; btn.textContent = 'Enregistrer →';
+  }
+}
+
+async function ouvrirModalFacture() {
+  let o = document.getElementById('modal-facture-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-facture-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:520px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 style="margin:0;font-size:15px;font-weight:700;color:#111827">+ Nouvelle Facture</h3>
+          <button class="btn-ghost btn-sm" onclick="fermerModalFacture()">✕</button>
+        </div>
+        <form id="form-facture" onsubmit="soumettreModalFacture(event)" autocomplete="off">
+          <div style="margin-bottom:.85rem">
+            <label>Étudiant *</label>
+            <select id="fact-etudiant" style="width:100%;margin-top:4px" required>
+              <option value="">— Sélectionner —</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Type de frais *</label>
+              <select id="fact-type" style="width:100%;margin-top:4px" required onchange="_factAutoLibelle()">
+                <option value="scolarite">Frais de scolarité</option>
+                <option value="inscription">Frais d&#39;inscription</option>
+                <option value="examen">Frais d&#39;examen</option>
+                <option value="bibliotheque">Bibliothèque</option>
+                <option value="autre">Autres frais</option>
+              </select>
+            </div>
+            <div>
+              <label>Année scolaire</label>
+              <input type="text" id="fact-annee" style="width:100%;margin-top:4px" placeholder="2025-2026">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Libellé *</label>
+              <input type="text" id="fact-libelle" style="width:100%;margin-top:4px" required placeholder="ex : Scolarité S1 2025-2026">
+            </div>
+            <div>
+              <label>Montant (FCFA) *</label>
+              <input type="number" id="fact-montant" style="width:100%;margin-top:4px" min="1" step="100" required>
+            </div>
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Date d&#39;échéance</label>
+            <input type="date" id="fact-echeance" style="width:100%;margin-top:4px">
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="fermerModalFacture()">Annuler</button>
+            <button type="submit" class="btn-blue" id="fact-submit-btn">Créer la facture →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+
+  const sel = document.getElementById('fact-etudiant');
+  sel.innerHTML = '<option value="">— Sélectionner —</option>'
+    + (_tousEtudiants||[]).map(e => '<option value="' + e.id + '">' + esc(e.nom + ' ' + e.prenom) + ' (' + (e.matricule||'—') + ')</option>').join('');
+
+  const form = document.getElementById('form-facture');
+  if (form) form.reset();
+  document.getElementById('fact-annee').value = new Date().getFullYear() + '-' + (new Date().getFullYear()+1);
+  document.getElementById('fact-submit-btn').disabled = false;
+  document.getElementById('fact-submit-btn').textContent = 'Créer la facture →';
+  o.classList.add('open');
+  setTimeout(() => document.getElementById('fact-etudiant')?.focus(), 100);
+}
+
+function _factAutoLibelle() {
+  const labels = { scolarite:'Frais de scolarité', inscription:"Frais d'inscription",
+    examen:"Frais d'examen", bibliotheque:'Bibliothèque', autre:'Autres frais' };
+  const lib = document.getElementById('fact-libelle');
+  const annee = document.getElementById('fact-annee').value;
+  if (!lib._manualEdit) {
+    const type = document.getElementById('fact-type').value;
+    lib.value = (labels[type]||type) + (annee ? ' ' + annee : '');
+  }
+}
+
+async function soumettreModalFacture(e) {
+  e.preventDefault();
+  const btn = document.getElementById('fact-submit-btn');
+  btn.disabled = true; btn.textContent = 'Création…';
+  const payload = {
+    ecole_id:      currentEcoleId,
+    etudiant_id:   document.getElementById('fact-etudiant').value,
+    type_frais:    document.getElementById('fact-type').value,
+    libelle:       document.getElementById('fact-libelle').value.trim(),
+    montant_total: parseFloat(document.getElementById('fact-montant').value),
+    montant_paye:  0,
+    statut:        'impaye',
+    annee_scolaire: document.getElementById('fact-annee').value.trim() || null,
+    date_echeance: document.getElementById('fact-echeance').value || null
+  };
+  try {
+    const { error } = await db.from('factures').insert(payload);
+    if (error) throw error;
+    fermerModalFacture();
+    await chargerPaiements();
+    toast('Facture créée ✓', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+    btn.disabled = false; btn.textContent = 'Créer la facture →';
+  }
+}
 function ouvrirModalMessage()    { toast('Modal Message — en cours', 'info'); }
 function exporterEtudiants()     { toast('Export en cours…', 'info'); }
 // ── Sprint 5 — Calcul résultats ──────────────────────────────────────────────
