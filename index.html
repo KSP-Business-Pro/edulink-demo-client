@@ -1197,6 +1197,7 @@ async function chargerEnseignants() {
   const { data: ens } = await db.from('enseignants')
     .select('*').eq('ecole_id', currentEcoleId).order('nom,prenom');
 
+  window._ensEns = (ens||[]);
   const gradeColors = {
     'Assistant': 'blue', 'Maître-Assistant': 'purple',
     'Maître de Conférences': 'teal', 'Professeur': 'orange'
@@ -1227,7 +1228,7 @@ async function chargerEnseignants() {
               <td style="font-size:12px;color:#6b7280">${esc(e.telephone||'—')}</td>
               <td><span class="badge ${e.statut==='actif'?'green':'gray'}">${esc(e.statut||'—')}</span></td>
               <td style="display:flex;gap:4px;align-items:center">
-              <button class="btn-ghost btn-sm" onclick="voirMatieresEnseignant('${e.id}','${esc((e.nom+' '+(e.prenom||'')).trim()).replace(/'/g,\"\\'\")}')">Matières</button>
+              <button class="btn-ghost btn-sm" onclick="voirMatieresEnseignant('${e.id}')">Matières</button>
               <button class="btn-ghost btn-sm" onclick="modifierEnseignant('${e.id}')" title="Modifier"><i class="ti ti-edit" aria-hidden="true"></i></button>
               <button class="btn-ghost btn-sm" style="color:#dc2626" onclick="supprimerEnseignant('${e.id}')" title="Supprimer"><i class="ti ti-trash" aria-hidden="true"></i></button>
             </td>
@@ -1237,6 +1238,7 @@ async function chargerEnseignants() {
 }
 
 async function voirMatieresEnseignant(ensId, nom) {
+  if (!nom) { const e = (window._ensEns||[]).find(x=>x.id===ensId); nom = e ? (e.prenom ? e.prenom+' '+e.nom : e.nom) : ''; }
   const { data: mats } = await db.from('matieres_lmd')
     .select('*, unites_enseignement(code,intitule,credits_cect)')
     .eq('enseignant_id', ensId);
