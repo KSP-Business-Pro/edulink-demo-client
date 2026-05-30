@@ -2270,7 +2270,177 @@ async function ouvrirModalSemestre() {
   o.classList.add('open');
   setTimeout(() => document.getElementById('sem-programme')?.focus(), 100);
 }
-function ouvrirModalPromotion()  { toast('Modal Promotion — en cours', 'info'); }
+// ── CRUD Promotions ──────────────────────────────────────────────────────────
+let _editPromoId = null;
+
+function fermerModalPromotion() {
+  document.getElementById('modal-promo-overlay')?.classList.remove('open');
+  _editPromoId = null;
+}
+
+function _promoAutoNom() {
+  const prog  = STATE.programmes.find(p => p.id === document.getElementById('promo-programme').value);
+  const niv   = document.getElementById('promo-niveau').value;
+  const annSel = document.getElementById('promo-annee');
+  const annLib = annSel?.options[annSel.selectedIndex]?.text || '';
+  const nom = document.getElementById('promo-nom');
+  if (!nom._manualEdit && prog && niv) {
+    nom.value = 'Promo ' + niv + ' — ' + prog.intitule + (annLib ? ' ' + annLib : '');
+  }
+}
+
+function _promoOnProgramme() {
+  const prog = STATE.programmes.find(p => p.id === document.getElementById('promo-programme').value);
+  if (!prog) return;
+  const nivs = { licence:['L1','L2','L3'], master:['M1','M2'], doctorat:['D1','D2','D3'] }[prog.grade] || [];
+  const sel = document.getElementById('promo-niveau');
+  sel.innerHTML = '<option value="">— Niveau —</option>' + nivs.map(n => '<option value="' + n + '">' + n + '</option>').join('');
+  _promoAutoNom();
+}
+
+async function soumettreModalPromotion(e) {
+  e.preventDefault();
+  const btn = document.getElementById('promo-submit-btn');
+  btn.disabled = true; btn.textContent = _editPromoId ? 'Enregistrement…' : 'Création…';
+  const payload = {
+    ecole_id:            currentEcoleId,
+    programme_id:        document.getElementById('promo-programme').value || null,
+    annee_academique_id: document.getElementById('promo-annee').value     || null,
+    niveau:              document.getElementById('promo-niveau').value,
+    nom:                 document.getElementById('promo-nom').value.trim(),
+    effectif_max:        parseInt(document.getElementById('promo-effectif').value) || null,
+    responsable:         document.getElementById('promo-responsable').value.trim() || null
+  };
+  try {
+    let error;
+    if (_editPromoId) {
+      ({ error } = await db.from('promotions').update(payload).eq('id', _editPromoId));
+    } else {
+      ({ error } = await db.from('promotions').insert(payload));
+    }
+    if (error) throw error;
+    fermerModalPromotion();
+    await chargerPromotions();
+    toast(_editPromoId ? 'Promotion modifiée ✓' : 'Promotion créée ✓', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+    btn.disabled = false;
+    btn.textContent = _editPromoId ? 'Enregistrer' : 'Créer la promotion →';
+  }
+}
+
+async function modifierPromotion(id) {
+  const { data: p } = await db.from('promotions').select('*').eq('id', id).single();
+  if (!p) { toast('Promotion introuvable', 'error'); return; }
+  _editPromoId = id;
+  await ouvrirModalPromotion();
+  setTimeout(() => {
+    document.getElementById('promo-programme').value   = p.programme_id           || '';
+    _promoOnProgramme();
+    document.getElementById('promo-niveau').value      = p.niveau                 || '';
+    document.getElementById('promo-annee').value       = p.annee_academique_id    || '';
+    document.getElementById('promo-nom').value         = p.nom                    || '';
+    document.getElementById('promo-effectif').value   = p.effectif_max            || '';
+    document.getElementById('promo-responsable').value = p.responsable            || '';
+    document.getElementById('promo-modal-title').textContent = 'Modifier la promotion';
+    document.getElementById('promo-submit-btn').textContent  = 'Enregistrer';
+  }, 80);
+}
+
+async function supprimerPromotion(id) {
+  const { data: p } = await db.from('promotions').select('nom').eq('id', id).single();
+  if (!confirm('Supprimer la promotion "' + (p?.nom || id) + '" ?')) return;
+  try {
+    const { error } = await db.from('promotions').delete().eq('id', id);
+    if (error) throw error;
+    await chargerPromotions();
+    toast('Promotion supprimée', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+  }
+}
+
+async function ouvrirModalPromotion() {
+  const { data: annees } = await db.from('annees_academiques')
+    .select('id,libelle').eq('ecole_id', currentEcoleId).order('libelle', {ascending:false});
+
+  let o = document.getElementById('modal-promo-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-promo-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:520px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 id="promo-modal-title" style="margin:0;font-size:15px;font-weight:700;color:#111827">+ Nouvelle Promotion</h3>
+          <button class="btn-ghost btn-sm" onclick="fermerModalPromotion()">✕</button>
+        </div>
+        <form id="form-promo" onsubmit="soumettreModalPromotion(event)" autocomplete="off">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Programme *</label>
+              <select id="promo-programme" style="width:100%;margin-top:4px" required onchange="_promoOnProgramme()">
+                <option value="">— Sélectionner —</option>
+              </select>
+            </div>
+            <div>
+              <label>Niveau *</label>
+              <select id="promo-niveau" style="width:100%;margin-top:4px" required onchange="_promoAutoNom()">
+                <option value="">— Niveau —</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Année académique</label>
+              <select id="promo-annee" style="width:100%;margin-top:4px" onchange="_promoAutoNom()">
+                <option value="">— Sélectionner —</option>
+              </select>
+            </div>
+            <div>
+              <label>Effectif max</label>
+              <input type="number" id="promo-effectif" style="width:100%;margin-top:4px" min="1" max="500" placeholder="ex : 50">
+            </div>
+          </div>
+          <div style="margin-bottom:.85rem">
+            <label>Nom de la promotion *</label>
+            <input type="text" id="promo-nom" style="width:100%;margin-top:4px"
+                   placeholder="ex : Promo L1 — Licence GFC 2025-2026" required
+                   oninput="this._manualEdit=true">
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Responsable pédagogique</label>
+            <input type="text" id="promo-responsable" style="width:100%;margin-top:4px" placeholder="Nom du responsable (optionnel)">
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="fermerModalPromotion()">Annuler</button>
+            <button type="submit" class="btn-blue" id="promo-submit-btn">Créer la promotion →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+
+  const progSel = document.getElementById('promo-programme');
+  progSel.innerHTML = '<option value="">— Sélectionner —</option>'
+    + STATE.programmes.map(p => '<option value="' + p.id + '">' + esc(p.intitule) + '</option>').join('');
+
+  const anneeSel = document.getElementById('promo-annee');
+  anneeSel.innerHTML = '<option value="">— Sélectionner —</option>'
+    + (annees||[]).map(a => '<option value="' + a.id + '">' + esc(a.libelle) + '</option>').join('');
+  if (STATE.anneeAcademiqueId) anneeSel.value = STATE.anneeAcademiqueId;
+
+  if (!_editPromoId) {
+    const form = document.getElementById('form-promo');
+    if (form) { form.reset(); document.getElementById('promo-nom')._manualEdit = false; }
+    document.getElementById('promo-modal-title').textContent = '+ Nouvelle Promotion';
+    document.getElementById('promo-submit-btn').textContent  = 'Créer la promotion →';
+    document.getElementById('promo-niveau').innerHTML = '<option value="">— Niveau —</option>';
+    if (STATE.anneeAcademiqueId) document.getElementById('promo-annee').value = STATE.anneeAcademiqueId;
+  }
+
+  o.classList.add('open');
+}
 function ouvrirModalEtudiant()   { toast('Modal Étudiant — en cours', 'info'); }
 function ouvrirModalEnseignant() { toast('Modal Enseignant — en cours', 'info'); }
 function ouvrirModalFacture()    { toast('Modal Facture — en cours', 'info'); }
@@ -2676,8 +2846,12 @@ async function _chargerPromotions() {
               </div>
             </div>
             ${p.effectif_max ? `<div class="prog-bar"><div class="prog-fill ${pct>90?'red':pct>70?'amber':''}" style="width:${pct}%"></div></div>` : ''}
-            <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid #f3f4f6;font-size:11px;color:#9ca3af">
-              ${esc(p.annees_academiques?.libelle||'—')} · Resp: ${esc(p.responsable||'N/A')}
+            <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;gap:.5rem">
+              <span style="font-size:11px;color:#9ca3af">${esc(p.annees_academiques?.libelle||'—')} · Resp: ${esc(p.responsable||'N/A')}</span>
+              <div style="display:flex;gap:4px;flex-shrink:0">
+                <button class="btn-ghost btn-sm" onclick="modifierPromotion('${p.id}')" title="Modifier"><i class="ti ti-edit" aria-hidden="true"></i></button>
+                <button class="btn-ghost btn-sm" style="color:#dc2626" onclick="supprimerPromotion('${p.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
+              </div>
             </div>
           </div>`;}).join('')}
       </div>`;
