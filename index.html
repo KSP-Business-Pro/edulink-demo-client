@@ -1716,13 +1716,17 @@ async function voirFicheComptable(etudiantId, nom) {
           </div>
         </div>
         ${f.mode_paiement ? `<div style="margin-top:.4rem;font-size:11px;color:#6b7280">Mode : ${esc(f.mode_paiement)}</div>` : ''}
-        ${f.statut !== 'paye' && f.statut !== 'annule' ? `
-        <div style="margin-top:.6rem;display:flex;justify-content:flex-end">
+        <div style="margin-top:.75rem;display:flex;justify-content:space-between;align-items:center;padding-top:.6rem;border-top:1px solid #f3f4f6">
+          <button onclick="supprimerFacture('${f.id}',this)"
+            style="background:none;border:1px solid #fca5a5;color:#dc2626;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:Poppins,sans-serif">
+            🗑 Supprimer
+          </button>
+          ${((f.montant_total||f.montant||0)-(f.montant_paye||0)) > 0 ? `
           <button onclick="ouvrirPaiement('${f.id}',${(f.montant_total||f.montant||0)-(f.montant_paye||0)})"
             style="background:#1e3a5f;color:#fff;border:none;padding:5px 14px;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif">
             + Enregistrer un paiement
-          </button>
-        </div>` : ''}
+          </button>` : `<span style="font-size:11px;color:#059669;font-weight:600">✓ Soldée</span>`}
+        </div>
       </div>`).join('')}`;
 
   ouvrirModalInfo('Fiche comptable — ' + nom, html);
@@ -2649,6 +2653,21 @@ function ouvrirModalEnseignant() { toast('Modal Enseignant — en cours', 'info'
 // ── CRUD Factures & Paiements ────────────────────────────────────────────────
 function fermerModalFacture() {
   document.getElementById('modal-facture-overlay')?.classList.remove('open');
+}
+
+async function supprimerFacture(factureId, btn) {
+  if (!confirm("Supprimer cette facture ?")) return;
+  if (btn) { btn.disabled = true; btn.textContent = "Suppression…"; }
+  try {
+    const { error } = await db.from('factures').delete().eq('id', factureId);
+    if (error) throw error;
+    document.getElementById('modal-info-overlay')?.classList.remove('open');
+    await chargerPaiements();
+    toast('Facture supprimée', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 Supprimer'; }
+  }
 }
 
 function ouvrirPaiement(factureId, restant) {
