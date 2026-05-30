@@ -1164,7 +1164,7 @@ async function chargerProgrammes()   { await _chargerProgrammes(); }
 async function chargerSemestres()    { await _chargerSemestres(); }
 async function chargerPromotions()   { await _chargerPromotions(); }
 async function chargerEtudiants()    { await _chargerEtudiants(); }
-async async function initSaisieNotes()  { await peuplerSelectSemestre('saisie-semestre'); }
+async function initSaisieNotes()  { await peuplerSelectSemestre('saisie-semestre'); }
 async function initResultats()    { await peuplerSelectSemestre('resultats-semestre'); }
 async function initReleves()      { await peuplerSelectSemestre('releves-semestre'); }
 
@@ -3386,7 +3386,7 @@ async function chargerGrilleNotes() {
     </div>`}`;
 }
 
-async async function sauvegarderNote(input, etudiantId, evaluationId) {
+async function sauvegarderNote(input, etudiantId, evaluationId) {
   const val = input.value.trim();
   if (val === '') return; // Pas de suppression automatique
   const valeur = parseFloat(val);
