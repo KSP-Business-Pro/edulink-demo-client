@@ -2061,7 +2061,215 @@ function ouvrirModalUE() {
   o.classList.add('open');
   setTimeout(() => document.getElementById('ue-code')?.focus(), 100);
 }
-function ouvrirModalSemestre()   { toast('Modal Semestre — en cours', 'info'); }
+// ── CRUD Semestres ───────────────────────────────────────────────────────────
+let _editSemId = null;
+
+const NIVEAUX_BY_GRADE = {
+  licence: ['L1','L2','L3'],
+  master:  ['M1','M2'],
+  doctorat:['D1','D2','D3']
+};
+
+function fermerModalSemestre() {
+  document.getElementById('modal-sem-overlay')?.classList.remove('open');
+  _editSemId = null;
+}
+
+function _semAutoLibelle() {
+  const num  = document.getElementById('sem-numero').value;
+  const prog = STATE.programmes.find(p => p.id === document.getElementById('sem-programme').value);
+  const ann  = document.getElementById('sem-annee');
+  const annLib = ann?.options[ann.selectedIndex]?.text || '';
+  if (num && prog) {
+    const sug = 'S' + num + ' — ' + prog.intitule + (annLib ? ' ' + annLib : '');
+    const lib = document.getElementById('sem-libelle');
+    if (!lib._manualEdit) lib.value = sug;
+  }
+  // Auto-fill niveau from programme grade + numero
+  const prog2 = STATE.programmes.find(p => p.id === document.getElementById('sem-programme').value);
+  if (prog2) {
+    const niveaux = NIVEAUX_BY_GRADE[prog2.grade] || [];
+    const sel = document.getElementById('sem-niveau');
+    sel.innerHTML = '<option value="">Choisir…</option>'
+      + niveaux.map(n => '<option value="' + n + '">' + n + '</option>').join('');
+    const idx = Math.ceil(parseInt(num || 1) / 2) - 1;
+    if (niveaux[idx]) sel.value = niveaux[idx];
+  }
+}
+
+async function soumettreModalSemestre(e) {
+  e.preventDefault();
+  const btn = document.getElementById('sem-submit-btn');
+  btn.disabled = true; btn.textContent = _editSemId ? 'Enregistrement…' : 'Création…';
+  const anneeId = document.getElementById('sem-annee').value;
+  const payload = {
+    ecole_id:             currentEcoleId,
+    programme_id:         document.getElementById('sem-programme').value || null,
+    annee_academique_id:  anneeId || null,
+    numero:               parseInt(document.getElementById('sem-numero').value),
+    libelle:              document.getElementById('sem-libelle').value.trim(),
+    niveau:               document.getElementById('sem-niveau').value,
+    statut:               document.getElementById('sem-statut').value,
+    date_debut:           document.getElementById('sem-debut').value || null,
+    date_fin:             document.getElementById('sem-fin').value   || null
+  };
+  try {
+    let error;
+    if (_editSemId) {
+      ({ error } = await db.from('semestres').update(payload).eq('id', _editSemId));
+    } else {
+      ({ error } = await db.from('semestres').insert(payload));
+    }
+    if (error) throw error;
+    fermerModalSemestre();
+    await chargerSemestres();
+    await chargerDonneesGlobales();
+    toast(_editSemId ? 'Semestre modifié ✓' : 'Semestre créé ✓', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+    btn.disabled = false;
+    btn.textContent = _editSemId ? 'Enregistrer' : 'Créer le semestre →';
+  }
+}
+
+async function modifierSemestre(id) {
+  const { data: s } = await db.from('semestres').select('*').eq('id', id).single();
+  if (!s) { toast('Semestre introuvable', 'error'); return; }
+  _editSemId = id;
+  await ouvrirModalSemestre();
+  setTimeout(() => {
+    document.getElementById('sem-programme').value = s.programme_id   || '';
+    _semAutoLibelle();
+    document.getElementById('sem-numero').value    = s.numero         || '';
+    document.getElementById('sem-libelle').value   = s.libelle        || '';
+    document.getElementById('sem-niveau').value    = s.niveau         || '';
+    document.getElementById('sem-statut').value    = s.statut         || 'planifie';
+    document.getElementById('sem-debut').value     = s.date_debut     || '';
+    document.getElementById('sem-fin').value       = s.date_fin       || '';
+    document.getElementById('sem-annee').value     = s.annee_academique_id || '';
+    document.getElementById('sem-modal-title').textContent = 'Modifier le semestre';
+    document.getElementById('sem-submit-btn').textContent  = 'Enregistrer';
+  }, 80);
+}
+
+async function supprimerSemestre(id) {
+  const { data: s } = await db.from('semestres').select('libelle').eq('id', id).single();
+  if (!confirm('Supprimer "' + (s?.libelle || id) + '" ? Attention : notes et présences liées seront perdues.')) return;
+  try {
+    const { error } = await db.from('semestres').delete().eq('id', id);
+    if (error) throw error;
+    await chargerSemestres();
+    await chargerDonneesGlobales();
+    toast('Semestre supprimé', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+  }
+}
+
+async function ouvrirModalSemestre() {
+  const { data: annees } = await db.from('annees_academiques')
+    .select('id,libelle').eq('ecole_id', currentEcoleId).order('libelle', {ascending:false});
+
+  let o = document.getElementById('modal-sem-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-sem-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:560px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 id="sem-modal-title" style="margin:0;font-size:15px;font-weight:700;color:#111827">+ Nouveau Semestre</h3>
+          <button class="btn-ghost btn-sm" onclick="fermerModalSemestre()">✕</button>
+        </div>
+        <form id="form-sem" onsubmit="soumettreModalSemestre(event)" autocomplete="off">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Programme *</label>
+              <select id="sem-programme" style="width:100%;margin-top:4px" required onchange="_semAutoLibelle()">
+                <option value="">— Sélectionner —</option>
+              </select>
+            </div>
+            <div>
+              <label>Année académique</label>
+              <select id="sem-annee" style="width:100%;margin-top:4px" onchange="_semAutoLibelle()">
+                <option value="">— Sélectionner —</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>N° semestre *</label>
+              <input type="number" id="sem-numero" style="width:100%;margin-top:4px" min="1" max="12"
+                     placeholder="ex : 2" required oninput="_semAutoLibelle()">
+            </div>
+            <div>
+              <label>Libellé *</label>
+              <input type="text" id="sem-libelle" style="width:100%;margin-top:4px"
+                     placeholder="ex : S2 — Licence GFC 2025-2026" required
+                     oninput="this._manualEdit=true">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Niveau *</label>
+              <select id="sem-niveau" style="width:100%;margin-top:4px" required>
+                <option value="">—</option>
+                <option value="L1">L1</option><option value="L2">L2</option><option value="L3">L3</option>
+                <option value="M1">M1</option><option value="M2">M2</option>
+                <option value="D1">D1</option><option value="D2">D2</option><option value="D3">D3</option>
+              </select>
+            </div>
+            <div>
+              <label>Statut *</label>
+              <select id="sem-statut" style="width:100%;margin-top:4px" required>
+                <option value="planifie">Planifié</option>
+                <option value="en_cours">En cours</option>
+                <option value="cloture">Clôturé</option>
+                <option value="archive">Archivé</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.2rem">
+            <div>
+              <label>Date début</label>
+              <input type="date" id="sem-debut" style="width:100%;margin-top:4px">
+            </div>
+            <div>
+              <label>Date fin</label>
+              <input type="date" id="sem-fin" style="width:100%;margin-top:4px">
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="fermerModalSemestre()">Annuler</button>
+            <button type="submit" class="btn-blue" id="sem-submit-btn">Créer le semestre →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+
+  // Populate selects
+  const progSel = document.getElementById('sem-programme');
+  progSel.innerHTML = '<option value="">— Sélectionner —</option>'
+    + STATE.programmes.map(p => '<option value="' + p.id + '">' + esc(p.intitule) + '</option>').join('');
+
+  const anneeSel = document.getElementById('sem-annee');
+  anneeSel.innerHTML = '<option value="">— Sélectionner —</option>'
+    + (annees||[]).map(a => '<option value="' + a.id + '">' + esc(a.libelle) + '</option>').join('');
+  if (STATE.anneeAcademiqueId) anneeSel.value = STATE.anneeAcademiqueId;
+
+  if (!_editSemId) {
+    const form = document.getElementById('form-sem');
+    if (form) { form.reset(); document.getElementById('sem-libelle')._manualEdit = false; }
+    document.getElementById('sem-modal-title').textContent = '+ Nouveau Semestre';
+    document.getElementById('sem-submit-btn').textContent  = 'Créer le semestre →';
+    document.getElementById('sem-statut').value = 'planifie';
+    if (STATE.anneeAcademiqueId) document.getElementById('sem-annee').value = STATE.anneeAcademiqueId;
+  }
+
+  o.classList.add('open');
+  setTimeout(() => document.getElementById('sem-programme')?.focus(), 100);
+}
 function ouvrirModalPromotion()  { toast('Modal Promotion — en cours', 'info'); }
 function ouvrirModalEtudiant()   { toast('Modal Étudiant — en cours', 'info'); }
 function ouvrirModalEnseignant() { toast('Modal Enseignant — en cours', 'info'); }
@@ -2404,7 +2612,7 @@ async function _chargerSemestres() {
   el.innerHTML = !sems?.length
     ? '<div class="empty-state"><div class="es-ico">📅</div><h3>Aucun semestre</h3></div>'
     : `<div class="table-wrap"><table>
-        <thead><tr><th>Niveau</th><th>Libellé</th><th>Programme</th><th>Année</th><th>Période</th><th>Statut</th><th>Sessions</th></tr></thead>
+        <thead><tr><th>Niveau</th><th>Libellé</th><th>Programme</th><th>Année</th><th>Période</th><th>Statut</th><th>Sessions</th><th></th></tr></thead>
         <tbody>${(sems||[]).map(s => {
           const sessions = s.sessions_evaluation || [];
           const norm = sessions.find(x => x.type_session==='normale');
@@ -2419,6 +2627,10 @@ async function _chargerSemestres() {
             <td>
               <span class="badge ${norm?'green':'gray'}" style="margin-right:3px">Normale</span>
               <span class="badge ${ratt?'amber':'gray'}">Rattrapage</span>
+            </td>
+            <td style="display:flex;gap:4px">
+              <button class="btn-ghost btn-sm" onclick="modifierSemestre('${s.id}')" title="Modifier"><i class="ti ti-edit" aria-hidden="true"></i></button>
+              <button class="btn-ghost btn-sm" style="color:#dc2626" onclick="supprimerSemestre('${s.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
             </td>
           </tr>`;}).join('')}
         </tbody>
