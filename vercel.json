@@ -23,17 +23,7 @@
     {
       "source": "/(.*)",
       "has": [{ "type": "host", "value": "app.edulink.bj" }],
-      "destination": "/index.html"
-    },
-    {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": "edulink.bj" }],
-      "destination": "/edulink-landing.html"
-    },
-    {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": "www.edulink.bj" }],
-      "destination": "/edulink-landing.html"
+      "destination": "/edulink-portail.html"
     }
   ]
 }
