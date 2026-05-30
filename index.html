@@ -3470,7 +3470,7 @@ function renderTableauEtudiants(liste) {
       <span style="font-size:12px;padding:4px 10px;background:#f3f4f6;border-radius:6px">Page ${_etuPage+1} / ${Math.ceil(liste.length/_PAGE_SIZE)||1}</span>
       <button class="btn-ghost btn-sm" onclick="_nextPage(${liste.length?'liste.length':'0'})" ${(_etuPage+1)*_PAGE_SIZE>=liste.length?'disabled':''}>Suiv. →</button>
     </div>
-  </div>\`;
+  </div>`;
 }
 
 function filtrerEtudiants() {
