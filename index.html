@@ -1906,12 +1906,15 @@ function ouvrirModalProgramme() {
 }
 function fermerModalUE() {
   document.getElementById('modal-ue-overlay')?.classList.remove('open');
+  _editUEId = null;
 }
+
+let _editUEId = null;
 
 async function soumettreUE(e) {
   e.preventDefault();
   const btn = document.getElementById('ue-submit-btn');
-  btn.disabled = true; btn.textContent = 'Création…';
+  btn.disabled = true; btn.textContent = _editUEId ? 'Enregistrement…' : 'Création…';
   const cc = parseFloat(document.getElementById('ue-cc').value) || 0;
   const payload = {
     ecole_id: currentEcoleId,
@@ -1923,16 +1926,21 @@ async function soumettreUE(e) {
     poids_examen: (100 - cc) / 100
   };
   try {
-    const { data: newUE, error } = await db.from('unites_enseignement').insert(payload).select().single();
-    if (error) throw error;
-    const progId = document.getElementById('ue-programme').value;
-    if (progId && newUE?.id) {
-      const { error: puErr } = await db.from('programme_ue').insert({ programme_id: progId, ue_id: newUE.id, ecole_id: currentEcoleId });
-      if (puErr) console.warn('Lien programme_ue non créé :', puErr.message);
+    if (_editUEId) {
+      const { error } = await db.from('unites_enseignement').update(payload).eq('id', _editUEId);
+      if (error) throw error;
+    } else {
+      const { data: newUE, error } = await db.from('unites_enseignement').insert(payload).select().single();
+      if (error) throw error;
+      const progId = document.getElementById('ue-programme').value;
+      if (progId && newUE?.id) {
+        const { error: puErr } = await db.from('programme_ue').insert({ programme_id: progId, ue_id: newUE.id, ecole_id: currentEcoleId });
+        if (puErr) console.warn('Lien programme_ue non créé :', puErr.message);
+      }
     }
     fermerModalUE();
     await chargerProgrammes();
-    toast('UE créée ✓', 'success');
+    toast(_editUEId ? 'UE modifiée ✓' : 'UE créée ✓', 'success');
   } catch(err) {
     const isDup = err.message?.includes('ue_unique') || err.message?.includes('duplicate key');
     const isRls = err.message?.includes('row-level security');
@@ -1940,7 +1948,38 @@ async function soumettreUE(e) {
                : isRls ? 'Accès refusé — vérifiez vos droits.'
                : 'Erreur : ' + (err.message || err);
     toast(msg, 'error');
-    btn.disabled = false; btn.textContent = "Créer l'UE →";
+    btn.disabled = false; btn.textContent = _editUEId ? 'Enregistrer' : "Créer l'UE →";
+  }
+}
+
+async function modifierUE(id) {
+  const { data: u } = await db.from('unites_enseignement').select('*').eq('id', id).single();
+  if (!u) { toast('UE introuvable', 'error'); return; }
+  _editUEId = id;
+  ouvrirModalUE();
+  setTimeout(() => {
+    document.getElementById('ue-code').value      = u.code      || '';
+    document.getElementById('ue-intitule').value  = u.intitule  || '';
+    document.getElementById('ue-type').value      = u.type_ue   || 'fondamentale';
+    document.getElementById('ue-credits').value   = u.credits_cect || '';
+    const cc = Math.round((u.poids_cc || 0) * 100);
+    document.getElementById('ue-cc').value   = cc;
+    document.getElementById('ue-exam').value = 100 - cc;
+    document.getElementById('ue-modal-title').textContent  = 'Modifier l'UE';
+    document.getElementById('ue-submit-btn').textContent   = 'Enregistrer';
+  }, 60);
+}
+
+async function supprimerUE(id) {
+  const { data: u } = await db.from('unites_enseignement').select('intitule').eq('id', id).single();
+  if (!confirm('Supprimer l'UE "' + (u?.intitule || id) + '" ? Action irréversible.')) return;
+  try {
+    const { error } = await db.from('unites_enseignement').delete().eq('id', id);
+    if (error) throw error;
+    await chargerProgrammes();
+    toast('UE supprimée', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
   }
 }
 
@@ -1953,7 +1992,7 @@ function ouvrirModalUE() {
     o.innerHTML = `
       <div class="modal" style="width:520px;padding:1.5rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
-          <h3 style="margin:0;font-size:15px;font-weight:700;color:#111827">+ Nouvelle Unité d'Enseignement</h3>
+          <h3 id="ue-modal-title" style="margin:0;font-size:15px;font-weight:700;color:#111827">+ Nouvelle Unité d'Enseignement</h3>
           <button class="btn-ghost btn-sm" onclick="fermerModalUE()">✕</button>
         </div>
         <form id="form-ue" onsubmit="soumettreUE(event)" autocomplete="off">
@@ -2006,10 +2045,14 @@ function ouvrirModalUE() {
       </div>`;
     document.body.appendChild(o);
   }
-  const form = document.getElementById('form-ue');
-  if (form) { form.reset(); document.getElementById('ue-exam').value = ''; }
-  const btn = document.getElementById('ue-submit-btn');
-  if (btn) { btn.disabled = false; btn.textContent = "Créer l'UE →"; }
+  if (!_editUEId) {
+    const form = document.getElementById('form-ue');
+    if (form) { form.reset(); document.getElementById('ue-exam').value = ''; }
+    const btn = document.getElementById('ue-submit-btn');
+    if (btn) { btn.disabled = false; btn.textContent = "Créer l'UE →"; }
+    const title = document.getElementById('ue-modal-title');
+    if (title) title.textContent = "+ Nouvelle Unité d'Enseignement";
+  }
   const sel = document.getElementById('ue-programme');
   if (sel) {
     sel.innerHTML = '<option value="">— sélectionner —</option>' +
@@ -2086,7 +2129,10 @@ async function _chargerProgrammes() {
             <td><span class="badge ${u.type_ue==='fondamentale'?'blue':u.type_ue==='optionnelle'?'amber':'purple'}">${u.type_ue}</span></td>
             <td><span class="badge teal">${u.credits_cect} CECT</span></td>
             <td style="font-size:12px">CC ${Math.round(u.poids_cc*100)}% · Exam ${Math.round(u.poids_examen*100)}%</td>
-            <td><button class="btn-ghost btn-sm" onclick="voirMatieresUE('${u.id}','${esc(u.intitule).replace(/'/g,"\\'")}')">Matières</button></td>
+            <td><button class="btn-ghost btn-sm" onclick="voirMatieresUE('${u.id}','${esc(u.intitule).replace(/'/g,"\\'")}')">Matières</button>
+              <button class="btn-ghost btn-sm" onclick="modifierUE('${u.id}')" title="Modifier"><i class="ti ti-edit" aria-hidden="true"></i></button>
+              <button class="btn-ghost btn-sm" style="color:#dc2626" onclick="supprimerUE('${u.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
+            </td>
           </tr>`).join('')}</tbody>
         </table></div>`}
     </div>`;
