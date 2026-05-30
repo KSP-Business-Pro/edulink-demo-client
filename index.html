@@ -3399,8 +3399,8 @@ function exporterEtudiants() {
   const escape = v => '"' + String(v).replace(/"/g, '""') + '"';
   const header = cols.map(c => escape(c.h)).join(';');
   const rows   = liste.map(e => cols.map(c => escape(c.v(e))).join(';'));
-  const csv    = [header, ...rows].join('
-');
+  const csv    = [header, ...rows].join('\n');
+
 
   // UTF-8 BOM pour Excel
   const bom  = '﻿';
