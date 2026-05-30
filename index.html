@@ -461,6 +461,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
     </div>
     <div class="top-actions">
       <button class="btn-outline" onclick="exporterEtudiants()">⬇ Export</button>
+      <button class="btn-outline" onclick="ouvrirImportEtudiants()">⬆ Import</button>
       <button onclick="ouvrirModalEtudiant()">+ Étudiant</button>
     </div>
   </div>
@@ -3463,6 +3464,167 @@ async function supprimerMessage(id, btn) {
   await chargerMessages();
   toast('Message supprimé', 'success');
 }
+// ── Import étudiants en masse ─────────────────────────────────────────────────
+const _IMPORT_COLS = [
+  { csv: ['nom','name'],                       key: 'nom',              req: true,  tx: v => v.toUpperCase() },
+  { csv: ['prenom','prénom','firstname'],       key: 'prenom',           req: true,  tx: v => v },
+  { csv: ['matricule','id','numero'],          key: 'matricule',        req: false, tx: v => v },
+  { csv: ['sexe','genre','sex','gender'],      key: 'sexe',             req: false, tx: v => v.toUpperCase().charAt(0) },
+  { csv: ['date_naissance','naissance','dob'], key: 'date_naissance',   req: false, tx: v => v || null },
+  { csv: ['email','email_auth','mail'],        key: 'email_auth',       req: false, tx: v => v || null },
+  { csv: ['telephone','tel','phone'],          key: 'telephone_parent', req: false, tx: v => v || null },
+  { csv: ['filiere','filière','programme'],    key: 'filiere',          req: false, tx: v => v || null },
+  { csv: ['niveau','level'],                   key: 'niveau',           req: false, tx: v => v || null },
+  { csv: ['statut','status'],                  key: 'statut',           req: false, tx: v => v || 'actif' },
+];
+
+function telechargerModeleImport() {
+  const header = 'Nom;Prenom;Sexe;Date_naissance;Email;Telephone;Filiere;Niveau;Statut';
+  const ex1    = 'ADANNOU;Rodrigue;M;2001-03-15;r.adannou@email.com;+22997000001;Gestion Financière;L1;actif';
+  const ex2    = 'BOKO;Clarisse;F;2002-07-22;;+22997000002;Marketing et Commerce;L2;actif';
+  const bom    = '\uFEFF';
+  const blob   = new Blob([bom + header + '\n' + ex1 + '\n' + ex2], { type: 'text/csv;charset=utf-8;' });
+  const url    = URL.createObjectURL(blob);
+  const a      = document.createElement('a');
+  a.href = url; a.download = 'modele_import_etudiants.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function ouvrirImportEtudiants() {
+  let o = document.getElementById('modal-import-etu');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-import-etu';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:580px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem">
+          <h3 style="margin:0;font-size:15px;font-weight:700;color:#111827">⬆ Import étudiants</h3>
+          <button class="btn-ghost btn-sm" onclick="document.getElementById('modal-import-etu').classList.remove('open')">✕</button>
+        </div>
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem;margin-bottom:1rem;font-size:12px;color:#1d4ed8">
+          Format CSV ou Excel. Colonnes requises : <strong>Nom</strong> et <strong>Prenom</strong>.
+          Le matricule est auto-généré si absent. Le séparateur CSV doit être <strong>;</strong> ou <strong>,</strong>.
+          <button class="btn-ghost btn-sm" onclick="telechargerModeleImport()" style="margin-left:.5rem;font-size:11px">⬇ Télécharger le modèle</button>
+        </div>
+        <div style="margin-bottom:.85rem">
+          <label>Fichier CSV ou Excel *</label>
+          <input type="file" id="import-etu-file" accept=".csv,.xlsx,.xls" style="width:100%;margin-top:4px">
+        </div>
+        <div id="import-etu-preview" style="margin-bottom:.85rem;max-height:180px;overflow-y:auto"></div>
+        <div id="import-etu-report" style="margin-bottom:.85rem"></div>
+        <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+          <button class="btn-ghost" onclick="document.getElementById('modal-import-etu').classList.remove('open')">Fermer</button>
+          <button class="btn-blue" id="import-etu-btn" onclick="lancerImportEtudiants()">Importer →</button>
+        </div>
+      </div>`;
+    document.body.appendChild(o);
+
+    document.getElementById('import-etu-file').addEventListener('change', async function() {
+      const preview = document.getElementById('import-etu-preview');
+      document.getElementById('import-etu-report').innerHTML = '';
+      preview.innerHTML = '<div style="font-size:12px;color:#6b7280">Analyse…</div>';
+      const rows = await _parseEtuFile(this.files[0]);
+      if (!rows) { preview.innerHTML = ''; return; }
+      let html2 = '<div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:4px">' + rows.length + ' étudiant(s) détecté(s)</div>';
+      html2 += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+      html2 += '<tr style="background:#f9fafb">';
+      ['Nom','Prénom','Filière','Niveau','Statut'].forEach(function(h) {
+        html2 += '<th style="padding:4px 6px;text-align:left;border-bottom:1px solid #e5e7eb">' + h + '</th>';
+      });
+      html2 += '</tr>';
+      rows.slice(0, 5).forEach(function(r) {
+        html2 += '<tr>';
+        [r.nom, r.prenom, r.filiere||'—', r.niveau||'—', r.statut||'actif'].forEach(function(v) {
+          html2 += '<td style="padding:4px 6px;border-bottom:1px solid #f3f4f6">' + esc(String(v||'')) + '</td>';
+        });
+        html2 += '</tr>';
+      });
+      if (rows.length > 5) html2 += '<tr><td colspan="5" style="padding:4px 6px;color:#9ca3af">… et ' + (rows.length-5) + ' autres</td></tr>';
+      html2 += '</table>';
+      preview.innerHTML = html2;
+    });
+  }
+
+  document.getElementById('import-etu-preview').innerHTML = '';
+  document.getElementById('import-etu-report').innerHTML = '';
+  document.getElementById('import-etu-file').value = '';
+  document.getElementById('import-etu-btn').disabled = false;
+  document.getElementById('import-etu-btn').textContent = 'Importer →';
+  o.classList.add('open');
+}
+
+async function _parseEtuFile(file) {
+  if (!file) return null;
+  try {
+    let rawRows = [];
+    if (file.name.match(/\.xlsx?$/i)) {
+      if (!window.XLSX) { toast('SheetJS non chargé — utilisez CSV', 'error'); return null; }
+      const buf  = await file.arrayBuffer();
+      const wb   = XLSX.read(buf, { type: 'array' });
+      rawRows    = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+    } else {
+      const text = await file.text();
+      const lines = text.trim().split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+      if (!lines.length) return [];
+      const sep     = lines[0].includes(';') ? ';' : ',';
+      const headers = lines[0].split(sep).map(function(h) { return h.trim().toLowerCase().replace(/[^a-z_éèàêî]/g,''); });
+      rawRows = lines.slice(1).map(function(l) {
+        const vals = l.split(sep);
+        const obj  = {};
+        headers.forEach(function(h, i) { obj[h] = (vals[i]||'').trim(); });
+        return obj;
+      });
+    }
+
+    return rawRows.map(function(row) {
+      const obj = {};
+      _IMPORT_COLS.forEach(function(col) {
+        const key = col.csv.find(function(c) {
+          return Object.keys(row).some(function(k) { return k.toLowerCase().replace(/[^a-z]/g,'').includes(c.replace(/[^a-z]/g,'')); });
+        });
+        const raw = key ? (row[Object.keys(row).find(function(k) { return k.toLowerCase().replace(/[^a-z]/g,'').includes(key.replace(/[^a-z]/g,'')); })]||'') : '';
+        obj[col.key] = raw ? col.tx(String(raw)) : (col.req ? null : (col.key === 'statut' ? 'actif' : null));
+      });
+      return obj;
+    }).filter(function(r) { return r.nom && r.prenom; });
+  } catch(err) { toast('Erreur lecture : ' + err.message, 'error'); return null; }
+}
+
+async function lancerImportEtudiants() {
+  const file = document.getElementById('import-etu-file').files[0];
+  if (!file) { toast('Sélectionnez un fichier', 'error'); return; }
+  const btn = document.getElementById('import-etu-btn');
+  btn.disabled = true; btn.textContent = 'Import…';
+  const rows = await _parseEtuFile(file);
+  if (!rows || !rows.length) { btn.disabled=false; btn.textContent='Importer →'; return; }
+
+  let ok = 0, skip = 0, errors = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r.matricule) r.matricule = _genMatricule();
+    r.ecole_id = currentEcoleId;
+    const { error } = await db.from('etudiants')
+      .upsert(r, { onConflict: 'matricule,ecole_id', ignoreDuplicates: false });
+    if (error) { skip++; errors.push(r.nom + ' ' + r.prenom + ' : ' + error.message); }
+    else ok++;
+  }
+
+  const report = document.getElementById('import-etu-report');
+  let html2 = '<div style="padding:.75rem;border-radius:8px;background:' + (skip ? '#fef9c3' : '#f0fdf4') + ';border:1px solid ' + (skip ? '#fde68a' : '#bbf7d0') + '">';
+  html2 += '<div style="font-size:13px;font-weight:700;color:#374151">Import terminé</div>';
+  html2 += '<div style="font-size:12px;color:#059669">✅ ' + ok + ' étudiant(s) importé(s)</div>';
+  if (skip) html2 += '<div style="font-size:12px;color:#dc2626">❌ ' + skip + ' erreur(s)</div>';
+  if (errors.length) html2 += '<div style="font-size:11px;color:#6b7280;margin-top:4px">' + errors.slice(0,3).join('<br>') + '</div>';
+  html2 += '</div>';
+  report.innerHTML = html2;
+
+  btn.disabled = false; btn.textContent = 'Importer →';
+  await chargerEtudiants();
+  if (!skip) toast(ok + ' étudiant(s) importé(s) ✓', 'success');
+}
+
 function exporterEtudiants() {
   const liste = _listeFiltrée?.length ? _listeFiltrée : _tousEtudiants;
   if (!liste?.length) { toast("Aucun étudiant à exporter", 'info'); return; }
