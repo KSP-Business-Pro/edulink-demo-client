@@ -1965,14 +1965,14 @@ async function modifierUE(id) {
     const cc = Math.round((u.poids_cc || 0) * 100);
     document.getElementById('ue-cc').value   = cc;
     document.getElementById('ue-exam').value = 100 - cc;
-    document.getElementById('ue-modal-title').textContent  = 'Modifier l'UE';
+    document.getElementById('ue-modal-title').textContent  = "Modifier l'UE";
     document.getElementById('ue-submit-btn').textContent   = 'Enregistrer';
   }, 60);
 }
 
 async function supprimerUE(id) {
   const { data: u } = await db.from('unites_enseignement').select('intitule').eq('id', id).single();
-  if (!confirm('Supprimer l'UE "' + (u?.intitule || id) + '" ? Action irréversible.')) return;
+  if (!confirm("Supprimer l'UE \"" + (u?.intitule || id) + "\" ? Action irréversible.")) return;
   try {
     const { error } = await db.from('unites_enseignement').delete().eq('id', id);
     if (error) throw error;
