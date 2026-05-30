@@ -1759,7 +1759,151 @@ async function chargerMessages() {
 
 
 // Stubs modals
-function ouvrirModalProgramme()  { toast('Modal Programme — en cours', 'info'); }
+// ── CRUD Programmes ──────────────────────────────────────────────────────────
+let _editProgId = null;
+
+function fermerModalProgramme() {
+  document.getElementById('modal-prog-overlay')?.classList.remove('open');
+  _editProgId = null;
+}
+
+function _autoFillProgramme() {
+  const grade = document.getElementById('prog-grade').value;
+  const defaults = { licence:{credits:180,duree:3}, master:{credits:120,duree:2}, doctorat:{credits:180,duree:3} };
+  const d = defaults[grade] || {};
+  if (!document.getElementById('prog-credits')._manualEdit) document.getElementById('prog-credits').value = d.credits || '';
+  if (!document.getElementById('prog-duree')._manualEdit)   document.getElementById('prog-duree').value   = d.duree  || '';
+}
+
+async function soumettreModalProgramme(e) {
+  e.preventDefault();
+  const btn = document.getElementById('prog-submit-btn');
+  btn.disabled = true; btn.textContent = _editProgId ? 'Enregistrement…' : 'Création…';
+  const payload = {
+    ecole_id:     currentEcoleId,
+    code:         document.getElementById('prog-code').value.trim().toUpperCase(),
+    intitule:     document.getElementById('prog-intitule').value.trim(),
+    grade:        document.getElementById('prog-grade').value,
+    credits_total:parseInt(document.getElementById('prog-credits').value),
+    duree_annees: parseInt(document.getElementById('prog-duree').value),
+    actif:        document.getElementById('prog-actif').checked
+  };
+  try {
+    let error;
+    if (_editProgId) {
+      ({ error } = await db.from('programmes_lmd').update(payload).eq('id', _editProgId));
+    } else {
+      ({ error } = await db.from('programmes_lmd').insert(payload));
+    }
+    if (error) throw error;
+    fermerModalProgramme();
+    await chargerProgrammes();
+    toast(_editProgId ? 'Programme modifié ✓' : 'Programme créé ✓', 'success');
+  } catch(err) {
+    const dup = err.message?.includes('unique') || err.message?.includes('duplicate');
+    toast(dup ? 'Ce code programme existe déjà.' : 'Erreur : ' + (err.message || err), 'error');
+    btn.disabled = false;
+    btn.textContent = _editProgId ? 'Enregistrer' : "Créer le programme →";
+  }
+}
+
+async function modifierProgramme(id) {
+  const p = STATE.programmes.find(x => x.id === id);
+  if (!p) { toast('Programme introuvable', 'error'); return; }
+  _editProgId = id;
+  ouvrirModalProgramme();
+  setTimeout(() => {
+    document.getElementById('prog-grade').value    = p.grade    || 'licence';
+    document.getElementById('prog-code').value     = p.code     || '';
+    document.getElementById('prog-intitule').value = p.intitule || '';
+    document.getElementById('prog-credits').value  = p.credits_total || '';
+    document.getElementById('prog-duree').value    = p.duree_annees || '';
+    document.getElementById('prog-actif').checked  = p.actif !== false;
+    document.getElementById('prog-modal-title').textContent = 'Modifier le programme';
+    document.getElementById('prog-submit-btn').textContent  = 'Enregistrer';
+  }, 60);
+}
+
+async function supprimerProgramme(id) {
+  const p = STATE.programmes.find(x => x.id === id);
+  const nom = p?.intitule || 'ce programme';
+  if (!confirm(`Supprimer "${nom}" ? Cette action est irréversible.`)) return;
+  try {
+    const { error } = await db.from('programmes_lmd').delete().eq('id', id);
+    if (error) throw error;
+    await chargerProgrammes();
+    toast('Programme supprimé', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+  }
+}
+
+function ouvrirModalProgramme() {
+  let o = document.getElementById('modal-prog-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-prog-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:520px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 id="prog-modal-title" style="margin:0;font-size:15px;font-weight:700;color:#111827">+ Nouveau Programme</h3>
+          <button class="btn-ghost btn-sm" onclick="fermerModalProgramme()">✕</button>
+        </div>
+        <form id="form-prog" onsubmit="soumettreModalProgramme(event)" autocomplete="off">
+          <div style="margin-bottom:.85rem">
+            <label>Grade *</label>
+            <select id="prog-grade" style="width:100%;margin-top:4px" required onchange="_autoFillProgramme()">
+              <option value="licence">Licence (Bac +3 · 180 CECT · 3 ans)</option>
+              <option value="master">Master (Bac +5 · 120 CECT · 2 ans)</option>
+              <option value="doctorat">Doctorat (Bac +8 · 180 CECT · 3 ans)</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Code *</label>
+              <input type="text" id="prog-code" style="width:100%;margin-top:4px" placeholder="LIC-GFC" required>
+            </div>
+            <div>
+              <label>Intitulé complet *</label>
+              <input type="text" id="prog-intitule" style="width:100%;margin-top:4px" placeholder="ex : Licence Gestion Financière" required>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Crédits CECT *</label>
+              <input type="number" id="prog-credits" style="width:100%;margin-top:4px" min="1" max="360" required
+                     oninput="this._manualEdit=true">
+            </div>
+            <div>
+              <label>Durée (années) *</label>
+              <input type="number" id="prog-duree" style="width:100%;margin-top:4px" min="1" max="10" required
+                     oninput="this._manualEdit=true">
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1.2rem">
+            <input type="checkbox" id="prog-actif" checked style="width:16px;height:16px;margin:0">
+            <label for="prog-actif" style="font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;margin:0;cursor:pointer">Programme actif</label>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="fermerModalProgramme()">Annuler</button>
+            <button type="submit" class="btn-blue" id="prog-submit-btn">Créer le programme →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+  if (!_editProgId) {
+    const form = document.getElementById('form-prog');
+    if (form) { form.reset(); ['prog-credits','prog-duree'].forEach(id => document.getElementById(id)._manualEdit=false); }
+    document.getElementById('prog-modal-title').textContent = '+ Nouveau Programme';
+    document.getElementById('prog-submit-btn').textContent  = 'Créer le programme →';
+    document.getElementById('prog-actif').checked = true;
+    _autoFillProgramme();
+  }
+  o.classList.add('open');
+  setTimeout(() => document.getElementById('prog-code')?.focus(), 100);
+}
 function fermerModalUE() {
   document.getElementById('modal-ue-overlay')?.classList.remove('open');
 }
@@ -1924,7 +2068,10 @@ async function _chargerProgrammes() {
               <td><span class="badge gray">${p.credits_total} CECT</span></td>
               <td>${p.duree_annees} ans</td>
               <td><span class="badge ${p.actif?'green':'gray'}">${p.actif?'Actif':'Inactif'}</span></td>
-              <td><button class="btn-ghost btn-sm" onclick="voirUEProgramme('${p.id}','${esc(p.intitule).replace(/'/g,"\\'")}')">Voir UE</button></td>
+              <td><button class="btn-ghost btn-sm" onclick="voirUEProgramme('${p.id}','${esc(p.intitule).replace(/'/g,"\\'")}')">Voir UE</button>
+              <button class="btn-ghost btn-sm" onclick="modifierProgramme('${p.id}')"><i class="ti ti-edit" aria-hidden="true"></i></button>
+              <button class="btn-ghost btn-sm" style="color:#dc2626" onclick="supprimerProgramme('${p.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
+            </td>
             </tr>`).join('')}</tbody>
           </table></div>
         </div>`).join('') || '<div class="empty-state"><div class="es-ico">🎓</div><h3>Aucun programme</h3></div>'}
