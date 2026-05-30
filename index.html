@@ -1227,10 +1227,10 @@ async function chargerEnseignants() {
               <td>${e.grade ? `<span class="badge ${gradeColors[e.grade]||'gray'}">${esc(e.grade)}</span>` : '<span class="badge gray">—</span>'}</td>
               <td style="font-size:12px;color:#6b7280">${esc(e.telephone||'—')}</td>
               <td><span class="badge ${e.statut==='actif'?'green':'gray'}">${esc(e.statut||'—')}</span></td>
-              <td style="display:flex;gap:4px;align-items:center">
+              <td style="display:flex;gap:4px;align-items:center;min-width:160px">
               <button class="btn-ghost btn-sm" onclick="voirMatieresEnseignant('${e.id}')">Matières</button>
-              <button class="btn-ghost btn-sm" onclick="modifierEnseignant('${e.id}')" title="Modifier"><i class="ti ti-edit" aria-hidden="true"></i></button>
-              <button class="btn-ghost btn-sm" style="color:#dc2626" onclick="supprimerEnseignant('${e.id}')" title="Supprimer"><i class="ti ti-trash" aria-hidden="true"></i></button>
+              <button class="btn-ghost btn-sm" onclick="modifierEnseignant('${e.id}')" title="Modifier">✏</button>
+              <button class="btn-ghost btn-sm" style="color:#dc2626" onclick="supprimerEnseignant('${e.id}')" title="Supprimer">🗑</button>
             </td>
             </tr>`;}).join('')}
         </tbody>
