@@ -1760,7 +1760,115 @@ async function chargerMessages() {
 
 // Stubs modals
 function ouvrirModalProgramme()  { toast('Modal Programme — en cours', 'info'); }
-function ouvrirModalUE()         { toast('Modal UE — en cours', 'info'); }
+function fermerModalUE() {
+  document.getElementById('modal-ue-overlay')?.classList.remove('open');
+}
+
+async function soumettreUE(e) {
+  e.preventDefault();
+  const btn = document.getElementById('ue-submit-btn');
+  btn.disabled = true; btn.textContent = 'Création…';
+  const cc = parseFloat(document.getElementById('ue-cc').value) || 0;
+  const payload = {
+    ecole_id: currentEcoleId,
+    code: document.getElementById('ue-code').value.trim().toUpperCase(),
+    intitule: document.getElementById('ue-intitule').value.trim(),
+    type_ue: document.getElementById('ue-type').value,
+    credits_cect: parseInt(document.getElementById('ue-credits').value),
+    poids_cc: cc / 100,
+    poids_examen: (100 - cc) / 100
+  };
+  try {
+    const { data: newUE, error } = await db.from('unites_enseignement').insert(payload).select().single();
+    if (error) throw error;
+    const progId = document.getElementById('ue-programme').value;
+    if (progId && newUE?.id) {
+      const { error: puErr } = await db.from('programme_ue').insert({ programme_id: progId, ue_id: newUE.id, ecole_id: currentEcoleId });
+      if (puErr) console.warn('Lien programme_ue non créé :', puErr.message);
+    }
+    fermerModalUE();
+    await chargerProgrammes();
+    toast('UE créée ✓', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+    btn.disabled = false; btn.textContent = "Créer l'UE →";
+  }
+}
+
+function ouvrirModalUE() {
+  let o = document.getElementById('modal-ue-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-ue-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:520px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 style="margin:0;font-size:15px;font-weight:700;color:#111827">+ Nouvelle Unité d'Enseignement</h3>
+          <button class="btn-ghost btn-sm" onclick="fermerModalUE()">✕</button>
+        </div>
+        <form id="form-ue" onsubmit="soumettreUE(event)" autocomplete="off">
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Code *</label>
+              <input type="text" id="ue-code" style="width:100%;margin-top:4px" placeholder="GFC-L1-UE3" required>
+            </div>
+            <div>
+              <label>Intitulé *</label>
+              <input type="text" id="ue-intitule" style="width:100%;margin-top:4px" placeholder="ex : Comptabilité analytique" required>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Type *</label>
+              <select id="ue-type" style="width:100%;margin-top:4px" required>
+                <option value="fondamentale">Fondamentale</option>
+                <option value="optionnelle">Optionnelle</option>
+                <option value="transversale">Transversale</option>
+              </select>
+            </div>
+            <div>
+              <label>Crédits CECT *</label>
+              <input type="number" id="ue-credits" style="width:100%;margin-top:4px" min="1" max="30" placeholder="4" required>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Pondération CC % *</label>
+              <input type="number" id="ue-cc" style="width:100%;margin-top:4px" min="0" max="100" step="5" placeholder="40" required
+                     oninput="const v=parseInt(this.value)||0;document.getElementById('ue-exam').value=100-v">
+            </div>
+            <div>
+              <label>Exam % (auto)</label>
+              <input type="number" id="ue-exam" style="width:100%;margin-top:4px;background:#f9fafb;color:#6b7280" readonly placeholder="60">
+            </div>
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Programme (optionnel)</label>
+            <select id="ue-programme" style="width:100%;margin-top:4px">
+              <option value="">— sélectionner —</option>
+            </select>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="fermerModalUE()">Annuler</button>
+            <button type="submit" class="btn-blue" id="ue-submit-btn">Créer l'UE →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+  const form = document.getElementById('form-ue');
+  if (form) { form.reset(); document.getElementById('ue-exam').value = ''; }
+  const btn = document.getElementById('ue-submit-btn');
+  if (btn) { btn.disabled = false; btn.textContent = "Créer l'UE →"; }
+  const sel = document.getElementById('ue-programme');
+  if (sel) {
+    sel.innerHTML = '<option value="">— sélectionner —</option>' +
+      STATE.programmes.map(p => `<option value="${p.id}">${esc(p.intitule)}</option>`).join('');
+  }
+  o.classList.add('open');
+  setTimeout(() => document.getElementById('ue-code')?.focus(), 100);
+}
 function ouvrirModalSemestre()   { toast('Modal Semestre — en cours', 'info'); }
 function ouvrirModalPromotion()  { toast('Modal Promotion — en cours', 'info'); }
 function ouvrirModalEtudiant()   { toast('Modal Étudiant — en cours', 'info'); }
