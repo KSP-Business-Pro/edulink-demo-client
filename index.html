@@ -2733,7 +2733,7 @@ function fermerInscriptionModal() {
 }
 
 async function toggleStatutInscription(inscId, currentStatut, etuId) {
-  const newStatut = currentStatut === 'active' ? 'inactive' : 'active';
+  const newStatut = currentStatut === 'active' ? 'inactif' : 'active';
   const { error } = await db.from('inscriptions_semestre').update({ statut: newStatut }).eq('id', inscId);
   if (error) { toast('Erreur : ' + error.message, 'error'); return; }
   toast(newStatut === 'active' ? 'Inscription activée ✓' : 'Inscription désactivée', 'success');
