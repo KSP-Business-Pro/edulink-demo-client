@@ -2733,10 +2733,12 @@ function fermerInscriptionModal() {
 }
 
 async function toggleStatutInscription(inscId, currentStatut, etuId) {
-  const newStatut = currentStatut === 'active' ? 'inactif' : 'active';
+  // Cycle: active → suspendue → active
+  const newStatut = currentStatut === 'active' ? 'suspendue' : 'active';
+  const labels = { active:'Active', suspendue:'Suspendue', abandonnee:'Abandonnée', diplomee:'Diplomée' };
   const { error } = await db.from('inscriptions_semestre').update({ statut: newStatut }).eq('id', inscId);
   if (error) { toast('Erreur : ' + error.message, 'error'); return; }
-  toast(newStatut === 'active' ? 'Inscription activée ✓' : 'Inscription désactivée', 'success');
+  toast('Statut → ' + (labels[newStatut]||newStatut) + ' ✓', 'success');
   voirFicheEtudiant(etuId);
 }
 
@@ -2754,7 +2756,9 @@ async function soumettreInscription(e) {
   btn.disabled = true; btn.textContent = 'Inscription…';
   const semId   = document.getElementById('inscr-semestre').value;
   const promoId = document.getElementById('inscr-promo').value;
-  if (!semId) { toast('Sélectionnez un semestre', 'error'); btn.disabled=false; btn.textContent='Inscrire →'; return; }
+  if (!semId)   { toast('Sélectionnez un semestre', 'error'); btn.disabled=false; btn.textContent='Inscrire →'; return; }
+  if (!promoId) { toast('Sélectionnez une promotion', 'error'); btn.disabled=false; btn.textContent='Inscrire →'; return; }
+  if (!STATE.anneeAcademiqueId) { toast("Aucune année académique courante définie", 'error'); btn.disabled=false; btn.textContent='Inscrire →'; return; }
 
   // Check for duplicate
   const { data: existing } = await db.from('inscriptions_semestre')
@@ -2762,11 +2766,12 @@ async function soumettreInscription(e) {
   if (existing) { toast('Déjà inscrit à ce semestre', 'info'); btn.disabled=false; btn.textContent='Inscrire →'; return; }
 
   const { error } = await db.from('inscriptions_semestre').insert({
-    ecole_id:     currentEcoleId,
-    etudiant_id:  _inscrEtuId,
-    semestre_id:  semId,
-    promotion_id: promoId || null,
-    statut:       'active'
+    ecole_id:             currentEcoleId,
+    etudiant_id:          _inscrEtuId,
+    semestre_id:          semId,
+    promotion_id:         promoId,
+    annee_academique_id:  STATE.anneeAcademiqueId,
+    statut:               'active'
   });
   if (error) { toast('Erreur : ' + (error.message || error), 'error'); btn.disabled=false; btn.textContent='Inscrire →'; return; }
 
@@ -2785,7 +2790,7 @@ function _inscrOnSemestre() {
   const promoSel = document.getElementById('inscr-promo');
   const filtered = STATE.promotions.filter(p =>
     !sem.programme_id || p.programme_id === sem.programme_id);
-  promoSel.innerHTML = '<option value="">— aucune —</option>'
+  promoSel.innerHTML = '<option value="">— Sélectionner —</option>'
     + filtered.map(p => '<option value="' + p.id + '">' + esc(p.nom) + '</option>').join('');
 }
 
@@ -2811,9 +2816,9 @@ function ouvrirInscriptionModal(etuId, etuNom) {
             </select>
           </div>
           <div style="margin-bottom:1.2rem">
-            <label>Promotion (optionnel)</label>
-            <select id="inscr-promo" style="width:100%;margin-top:4px">
-              <option value="">— aucune —</option>
+            <label>Promotion *</label>
+            <select id="inscr-promo" style="width:100%;margin-top:4px" required>
+              <option value="">— Sélectionner —</option>
             </select>
           </div>
           <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
@@ -2828,7 +2833,7 @@ function ouvrirInscriptionModal(etuId, etuNom) {
   document.getElementById('inscr-title').textContent = "Inscrire — " + _inscrEtuNom;
   document.getElementById('inscr-semestre').innerHTML = '<option value="">— Sélectionner —</option>'
     + STATE.semestres.map(s => '<option value="' + s.id + '">' + esc(s.libelle) + '</option>').join('');
-  document.getElementById('inscr-promo').innerHTML = '<option value="">— aucune —</option>'
+  document.getElementById('inscr-promo').innerHTML = '<option value="">— Sélectionner —</option>'
     + STATE.promotions.map(p => '<option value="' + p.id + '">' + esc(p.nom) + '</option>').join('');
 
   const form = document.getElementById('form-inscription');
@@ -3975,8 +3980,8 @@ async function voirFicheEtudiant(id) {
         <div style="font-size:12.5px;font-weight:600">${esc(i.semestres?.libelle||'—')}</div>
         <div style="font-size:11px;color:#9ca3af">${esc(i.semestres?.programmes_lmd?.intitule||'—')}</div>
       </div>
-      <span class="badge ${i.statut==='active'?'green':'gray'}" style="cursor:pointer" title="Cliquer pour changer le statut"
-        onclick="toggleStatutInscription('${i.id}','${i.statut}','${id}')">${i.statut==='active'?'Active':'Inactive'}</span>
+      <span class="badge ${ {active:'green',suspendue:'amber',abandonnee:'red',diplomee:'purple'}[i.statut]||'gray' }" style="cursor:pointer" title="Cliquer pour changer le statut"
+        onclick="toggleStatutInscription('${i.id}','${i.statut}','${id}')">${ ({active:'Active',suspendue:'Suspendue',abandonnee:'Abandonnée',diplomee:'Diplomée'})[i.statut]||i.statut }</span>
       <button class="btn-ghost btn-sm" style="color:#dc2626;padding:2px 6px" title="Retirer"
         onclick="supprimerInscription('${i.id}','${id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
     </div>`).join('');
