@@ -1163,7 +1163,7 @@ async function chargerProgrammes()   { await _chargerProgrammes(); }
 async function chargerSemestres()    { await _chargerSemestres(); }
 async function chargerPromotions()   { await _chargerPromotions(); }
 async function chargerEtudiants()    { await _chargerEtudiants(); }
-async function initSaisieNotes()  { await peuplerSelectSemestre('saisie-semestre'); }
+async async function initSaisieNotes()  { await peuplerSelectSemestre('saisie-semestre'); }
 async function initResultats()    { await peuplerSelectSemestre('resultats-semestre'); }
 async function initReleves()      { await peuplerSelectSemestre('releves-semestre'); }
 
@@ -3227,7 +3227,7 @@ async function chargerGrilleNotes() {
       </div>
     </div>
 
-    ${!sessNorm ? '<div class="empty-state"><div class="es-ico">⚠️</div><h3>Aucune session normale</h3><p>Créez une session d\'évaluation pour ce semestre</p></div>' : `
+    ${!sessNorm ? `<div class="empty-state"><div class="es-ico">⚠️</div><h3>Aucune session d'évaluation</h3><p>Aucune session normale n'est associée à ce semestre.</p><button class="btn-blue" style="margin-top:.75rem" onclick="creerSessionsEvaluation('${semId}')">Créer les sessions (normale + rattrapage)</button></div>` : `
 
     <!-- Grille de saisie -->
     <div style="overflow-x:auto">
@@ -3283,25 +3283,35 @@ async function chargerGrilleNotes() {
               const n = rowNotes[e.id];
               const val = n?.absent ? '' : (n?.valeur !== undefined ? n.valeur : '');
               return `<td style="padding:4px 6px;text-align:center">
-                <input type="number" min="0" max="20" step="0.5"
-                  value="${val}"
-                  placeholder="—"
-                  style="width:60px;text-align:center;padding:4px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Poppins,sans-serif;outline:none"
-                  onfocus="this.style.borderColor='#1e3a5f'"
-                  onblur="this.style.borderColor='#e5e7eb';sauvegarderNote(this,'${et.id}','${e.id}')"
-                  onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();}">
+                <div style="display:flex;align-items:center;gap:2px;justify-content:center">
+                  <input type="number" min="0" max="20" step="0.5"
+                    value="${val}"
+                    placeholder="—"
+                    ${n?.absent ? 'disabled' : ''}
+                    style="width:54px;text-align:center;padding:4px;border:1px solid ${n?.absent ? '#f3f4f6' : '#e5e7eb'};border-radius:6px;font-size:13px;font-family:Poppins,sans-serif;outline:none;background:${n?.absent ? '#f9fafb' : '#fff'};color:${n?.absent ? '#9ca3af' : '#111827'}"
+                    onfocus="this.style.borderColor='#1e3a5f'"
+                    onblur="this.style.borderColor='#e5e7eb';sauvegarderNote(this,'${et.id}','${e.id}')"
+                    onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();}">
+                  <button title="Marquer absent" onclick="toggleAbsent('${et.id}','${e.id}',${!!n?.absent})"
+                    style="padding:1px 4px;font-size:9px;font-weight:700;border-radius:4px;cursor:pointer;border:1px solid ${n?.absent ? '#dc2626' : '#e5e7eb'};background:${n?.absent ? '#fee2e2' : '#f9fafb'};color:${n?.absent ? '#dc2626' : '#9ca3af'};line-height:1.6;flex-shrink:0">ABS</button>
+                </div>
               </td>`;}).join('')}
             ${evalsEX.map(e => {
               const n = rowNotes[e.id];
               const val = n?.absent ? '' : (n?.valeur !== undefined ? n.valeur : '');
               return `<td style="padding:4px 6px;text-align:center">
-                <input type="number" min="0" max="20" step="0.5"
-                  value="${val}"
-                  placeholder="—"
-                  style="width:60px;text-align:center;padding:4px;border:1px solid #ede9fe;border-radius:6px;font-size:13px;font-family:Poppins,sans-serif;outline:none"
-                  onfocus="this.style.borderColor='#7c3aed'"
-                  onblur="this.style.borderColor='#ede9fe';sauvegarderNote(this,'${et.id}','${e.id}')"
-                  onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();}">
+                <div style="display:flex;align-items:center;gap:2px;justify-content:center">
+                  <input type="number" min="0" max="20" step="0.5"
+                    value="${val}"
+                    placeholder="—"
+                    ${n?.absent ? 'disabled' : ''}
+                    style="width:54px;text-align:center;padding:4px;border:1px solid ${n?.absent ? '#f3f4f6' : '#ede9fe'};border-radius:6px;font-size:13px;font-family:Poppins,sans-serif;outline:none;background:${n?.absent ? '#f9fafb' : '#fff'};color:${n?.absent ? '#9ca3af' : '#111827'}"
+                    onfocus="this.style.borderColor='#7c3aed'"
+                    onblur="this.style.borderColor='#ede9fe';sauvegarderNote(this,'${et.id}','${e.id}')"
+                    onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();}">
+                  <button title="Marquer absent" onclick="toggleAbsent('${et.id}','${e.id}',${!!n?.absent})"
+                    style="padding:1px 4px;font-size:9px;font-weight:700;border-radius:4px;cursor:pointer;border:1px solid ${n?.absent ? '#dc2626' : '#ede9fe'};background:${n?.absent ? '#fee2e2' : '#f9fafb'};color:${n?.absent ? '#dc2626' : '#9ca3af'};line-height:1.6;flex-shrink:0">ABS</button>
+                </div>
               </td>`;}).join('')}
             <td style="padding:8px 6px;text-align:center">
               <span class="note-chip ${moyCC===null?'absent':moyCC>=10?'valide':'echec'}">${moyCC!==null?moyCC.toFixed(2):'—'}</span>
@@ -3318,7 +3328,7 @@ async function chargerGrilleNotes() {
     </div>`}`;
 }
 
-async function sauvegarderNote(input, etudiantId, evaluationId) {
+async async function sauvegarderNote(input, etudiantId, evaluationId) {
   const val = input.value.trim();
   if (val === '') return; // Pas de suppression automatique
   const valeur = parseFloat(val);
@@ -3354,9 +3364,39 @@ async function sauvegarderNote(input, etudiantId, evaluationId) {
   }
 }
 
+// ── Notes — fonctions complémentaires ────────────────────────────────────────
+async function toggleAbsent(etudiantId, evaluationId, isAbsent) {
+  const { data: ev } = await db.from('evaluations').select('session_id').eq('id', evaluationId).single();
+  const { error } = await db.from('notes_lmd').upsert({
+    etudiant_id:   etudiantId,
+    evaluation_id: evaluationId,
+    session_id:    ev?.session_id,
+    ecole_id:      currentEcoleId,
+    absent:        !isAbsent,
+    valeur:        null
+  }, { onConflict: 'etudiant_id,evaluation_id' });
+  if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+  await chargerGrilleNotes();
+}
+
+async function creerSessionsEvaluation(semId) {
+  if (!semId) { toast('Sélectionnez un semestre', 'error'); return; }
+  const { data: exist } = await db.from('sessions_evaluation')
+    .select('id,type_session').eq('semestre_id', semId);
+  const types = (exist||[]).map(s => s.type_session);
+  const toCreate = [];
+  if (!types.includes('normale'))    toCreate.push({ semestre_id: semId, ecole_id: currentEcoleId, type_session: 'normale',    statut: 'ouverte' });
+  if (!types.includes('rattrapage')) toCreate.push({ semestre_id: semId, ecole_id: currentEcoleId, type_session: 'rattrapage', statut: 'planifiee' });
+  if (!toCreate.length) { toast('Sessions déjà créées', 'info'); return; }
+  const { error } = await db.from('sessions_evaluation').insert(toCreate);
+  if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+  toast('Sessions créées (' + toCreate.map(t=>t.type_session).join(', ') + ')', 'success');
+  await chargerGrilleNotes();
+}
+
 async function ajouterEvaluation(matiereId, sessionId, categorie) {
   if (!sessionId) { toast('Aucune session disponible', 'error'); return; }
-  const intitule = prompt(`Intitulé de l'évaluation ${categorie} :`, categorie === 'CC' ? 'Devoir 1' : 'Examen final');
+  const intitule = prompt("Intitulé (" + categorie + ") :", categorie === 'CC' ? 'Devoir 1' : 'Examen final');
   if (!intitule) return;
   const format = categorie === 'CC' ? 'ecrit' : 'ecrit';
   const { data: existing } = await db.from('evaluations').select('ponderation').eq('matiere_id', matiereId).eq('categorie', categorie).eq('session_id', sessionId);
