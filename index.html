@@ -2010,43 +2010,44 @@ async function chargerMessages() {
   if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
 
   const { data: messages, error } = await db.from('messages')
-    .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,sujet,contenu,objet,lu,created_at')
+    .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,sujet,objet,contenu,lu,created_at')
     .eq('ecole_id', currentEcoleId)
     .order('created_at', { ascending: false })
     .limit(50);
 
   if (error) { el.innerHTML = '<div class="empty-state"><p>Erreur : ' + error.message + '</p></div>'; return; }
 
-  if (!messages?.length) {
-    el.innerHTML = '<div class="empty-state"><div class="es-ico">💬</div><h3>Aucun message</h3><p>La messagerie interne apparaîtra ici</p></div>';
+  if (!messages || !messages.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">&#x1F4AC;</div><h3>Aucun message</h3><p>La messagerie interne appara&#xEE;tra ici</p></div>';
     return;
   }
 
-  el.innerHTML = '<div style="display:flex;flex-direction:column;gap:.75rem;max-width:780px">'
-    + messages.map(m => {
-      const isMine = m.expediteur_id === currentUserId;
-      const senderNom = m.expediteur_nom || (isMine ? (currentUserNom||'Moi') : 'Système');
-      const initiale  = (senderNom[0]||'?').toUpperCase();
-      const sujet     = m.sujet || m.objet || '';
-      return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem 1.2rem">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem">
-          <div style="display:flex;align-items:center;gap:.5rem">
-            <div style="width:32px;height:32px;border-radius:50%;background:${isMine?'#1e3a5f':'#6b7280'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">${initiale}</div>
-            <div>
-              <div style="font-size:12.5px;font-weight:600;color:#111827">${esc(senderNom)}</div>
-              ${m.expediteur_role ? '<div style="font-size:10px;color:#9ca3af">' + esc(m.expediteur_role) + '</div>' : ''}
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:.5rem">
-            <div style="font-size:11px;color:#9ca3af">${formatDate(m.created_at)}</div>
-            ${isMine ? '<button class="btn-ghost btn-sm" style="color:#dc2626;padding:2px 5px" onclick="supprimerMessage('' + m.id + '',this)" title="Supprimer">🗑</button>' : ''}
-          </div>
-        </div>
-        ${sujet ? '<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:.25rem">' + esc(sujet) + '</div>' : ''}
-        <div style="font-size:13px;color:#6b7280;line-height:1.5">${esc(m.contenu||'—')}</div>
-      </div>`;
-    }).join('')
-    + '</div>';
+  let html2 = '<div style="display:flex;flex-direction:column;gap:.75rem;max-width:780px">';
+  messages.forEach(function(m) {
+    const isMine    = m.expediteur_id === currentUserId;
+    const senderNom = m.expediteur_nom || (isMine ? (currentUserNom || 'Moi') : 'Système');
+    const initiale  = senderNom.charAt(0).toUpperCase();
+    const sujet     = m.sujet || m.objet || '';
+    const avatarBg  = isMine ? '#1e3a5f' : '#6b7280';
+
+    html2 += '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem 1.2rem">';
+    html2 += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem">';
+    html2 += '<div style="display:flex;align-items:center;gap:.5rem">';
+    html2 += '<div style="width:32px;height:32px;border-radius:50%;background:' + avatarBg + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">' + initiale + '</div>';
+    html2 += '<div>';
+    html2 += '<div style="font-size:12.5px;font-weight:600;color:#111827">' + esc(senderNom) + '</div>';
+    if (m.expediteur_role) html2 += '<div style="font-size:10px;color:#9ca3af">' + esc(m.expediteur_role) + '</div>';
+    html2 += '</div></div>';
+    html2 += '<div style="display:flex;align-items:center;gap:.5rem">';
+    html2 += '<div style="font-size:11px;color:#9ca3af">' + formatDate(m.created_at) + '</div>';
+    if (isMine) html2 += '<button class="btn-ghost btn-sm" style="color:#dc2626;padding:2px 5px" title="Supprimer" onclick="supprimerMessage(\'' + m.id + '\',this)">&#x1F5D1;</button>';
+    html2 += '</div></div>';
+    if (sujet) html2 += '<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:.25rem">' + esc(sujet) + '</div>';
+    html2 += '<div style="font-size:13px;color:#6b7280;line-height:1.5">' + esc(m.contenu || '—') + '</div>';
+    html2 += '</div>';
+  });
+  html2 += '</div>';
+  el.innerHTML = html2;
 }
 
 
