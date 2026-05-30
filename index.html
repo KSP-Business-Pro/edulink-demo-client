@@ -2161,20 +2161,203 @@ async function voirUEProgramme(progId, progNom) {
     </table></div>`);
 }
 
-async function voirMatieresUE(ueId, ueNom) {
-  const { data: mats } = await db.from('matieres_lmd').select('*, enseignants(nom,prenom)').eq('ue_id', ueId);
-  ouvrirModalInfo('Matières de l\'UE : ' + ueNom,
-    `<div class="table-wrap"><table>
-      <thead><tr><th>Code</th><th>Matière</th><th>Coef.</th><th>Volume horaire</th><th>Enseignant</th></tr></thead>
-      <tbody>${(mats||[]).map(m=>`<tr>
-        <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${esc(m.code)}</code></td>
-        <td>${esc(m.nom)}</td>
-        <td style="text-align:center"><strong>${m.coefficient}</strong></td>
-        <td style="text-align:center">${m.heures_cm||0}h CM / ${m.heures_td||0}h TD</td>
-        <td>${m.enseignants ? esc(m.enseignants.prenom+' '+m.enseignants.nom) : '<span style="color:#9ca3af">Non assigné</span>'}</td>
-      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:1rem">Aucune matière</td></tr>'}</tbody>
-    </table></div>`);
+// ── CRUD Matières ────────────────────────────────────────────────────────────
+let _matUeId = null, _editMatId = null, _matEnseignants = [];
+
+function fermerGestionMatieres() {
+  document.getElementById('modal-mat-overlay')?.classList.remove('open');
+  _matUeId = null; _editMatId = null;
 }
+
+async function _reloadMatieres() {
+  const { data: mats } = await db.from('matieres_lmd')
+    .select('*, enseignants(nom,prenom)').eq('ue_id', _matUeId).order('code');
+  _renderMatTable(mats || []);
+}
+
+function _renderMatTable(mats) {
+  const wrap = document.getElementById('mat-table-wrap');
+  if (!wrap) return;
+  if (!mats.length) {
+    wrap.innerHTML = '<div class="empty-state" style="padding:1.5rem"><p>Aucune matière — cliquez sur + Ajouter</p></div>';
+    return;
+  }
+  wrap.innerHTML = '<div class="table-wrap"><table>'
+    + '<thead><tr><th>Code</th><th>Nom</th><th style="text-align:center">Coef.</th>'
+    + '<th>Horaires</th><th>Enseignant</th><th></th></tr></thead><tbody>'
+    + mats.map(m => '<tr>'
+        + '<td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">' + esc(m.code) + '</code></td>'
+        + '<td><strong>' + esc(m.nom) + '</strong></td>'
+        + '<td style="text-align:center">' + m.coefficient + '</td>'
+        + '<td style="font-size:12px">' + (m.heures_cm||0) + 'h CM / ' + (m.heures_td||0) + 'h TD</td>'
+        + '<td style="font-size:12px">' + (m.enseignants ? esc(m.enseignants.prenom + ' ' + m.enseignants.nom) : '<span style="color:#9ca3af">—</span>') + '</td>'
+        + '<td style="display:flex;gap:4px">'
+          + '<button class="btn-ghost btn-sm" onclick="_showMatForm(' + JSON.stringify(m) + ')"><i class="ti ti-edit" aria-hidden="true"></i></button>'
+          + '<button class="btn-ghost btn-sm" style="color:#dc2626" onclick="_supprimerMat(' + JSON.stringify(m.id) + ',' + JSON.stringify(m.nom) + ')"><i class="ti ti-trash" aria-hidden="true"></i></button>'
+        + '</td></tr>'
+      ).join('')
+    + '</tbody></table></div>';
+}
+
+function _showMatForm(mat) {
+  _editMatId = mat ? mat.id : null;
+  document.getElementById('mat-list-section').style.display  = 'none';
+  document.getElementById('mat-form-section').style.display  = 'block';
+  document.getElementById('mat-form-title').textContent = mat ? "Modifier la matière" : "+ Nouvelle matière";
+  document.getElementById('mat-save-btn').textContent   = mat ? 'Enregistrer' : 'Créer la matière →';
+  const f = document.getElementById('form-mat');
+  f.reset();
+  if (mat) {
+    document.getElementById('mat-code').value        = mat.code        || '';
+    document.getElementById('mat-nom').value         = mat.nom         || '';
+    document.getElementById('mat-coef').value        = mat.coefficient  || 1;
+    document.getElementById('mat-hcm').value         = mat.heures_cm   || 0;
+    document.getElementById('mat-htd').value         = mat.heures_td   || 0;
+    document.getElementById('mat-ens').value         = mat.enseignant_id || '';
+  }
+}
+
+function _hideMatForm() {
+  _editMatId = null;
+  document.getElementById('mat-list-section').style.display = 'block';
+  document.getElementById('mat-form-section').style.display = 'none';
+}
+
+async function _soumettreMat(e) {
+  e.preventDefault();
+  const btn = document.getElementById('mat-save-btn');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+  const ensId = document.getElementById('mat-ens').value;
+  const payload = {
+    ecole_id:     currentEcoleId,
+    ue_id:        _matUeId,
+    code:         document.getElementById('mat-code').value.trim().toUpperCase(),
+    nom:          document.getElementById('mat-nom').value.trim(),
+    coefficient:  parseFloat(document.getElementById('mat-coef').value) || 1,
+    heures_cm:    parseInt(document.getElementById('mat-hcm').value)  || 0,
+    heures_td:    parseInt(document.getElementById('mat-htd').value)  || 0,
+    enseignant_id: ensId || null
+  };
+  try {
+    let error;
+    if (_editMatId) {
+      ({ error } = await db.from('matieres_lmd').update(payload).eq('id', _editMatId));
+    } else {
+      ({ error } = await db.from('matieres_lmd').insert(payload));
+    }
+    if (error) throw error;
+    _hideMatForm();
+    await _reloadMatieres();
+    toast(_editMatId ? 'Matière modifiée ✓' : 'Matière créée ✓', 'success');
+    btn.disabled = false;
+    btn.textContent = _editMatId ? 'Enregistrer' : 'Créer la matière →';
+    _editMatId = null;
+  } catch(err) {
+    const dup = err.message?.includes('duplicate') || err.message?.includes('unique');
+    toast(dup ? 'Ce code matière existe déjà.' : 'Erreur : ' + (err.message || err), 'error');
+    btn.disabled = false;
+    btn.textContent = _editMatId ? 'Enregistrer' : 'Créer la matière →';
+  }
+}
+
+async function _supprimerMat(id, nom) {
+  if (!confirm('Supprimer la matière "' + nom + '" ?')) return;
+  try {
+    const { error } = await db.from('matieres_lmd').delete().eq('id', id);
+    if (error) throw error;
+    await _reloadMatieres();
+    toast('Matière supprimée', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+  }
+}
+
+async function ouvrirGestionMatieres(ueId, ueNom) {
+  _matUeId = ueId; _editMatId = null;
+  const { data: ens } = await db.from('enseignants')
+    .select('id,nom,prenom').eq('ecole_id', currentEcoleId).eq('statut','actif').order('nom');
+  _matEnseignants = ens || [];
+
+  let o = document.getElementById('modal-mat-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-mat-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:720px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem">
+          <h3 id="mat-ue-title" style="margin:0;font-size:15px;font-weight:700;color:#111827"></h3>
+          <button class="btn-ghost btn-sm" onclick="fermerGestionMatieres()">✕</button>
+        </div>
+
+        <div id="mat-list-section">
+          <div id="mat-table-wrap"></div>
+          <button class="btn-blue" style="margin-top:.75rem;width:100%" onclick="_showMatForm(null)">
+            + Ajouter une matière
+          </button>
+        </div>
+
+        <div id="mat-form-section" style="display:none">
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
+            <button class="btn-ghost btn-sm" onclick="_hideMatForm()"><i class="ti ti-arrow-left" aria-hidden="true"></i></button>
+            <h4 id="mat-form-title" style="margin:0;font-size:14px;font-weight:600;color:#111827"></h4>
+          </div>
+          <form id="form-mat" onsubmit="_soumettreMat(event)" autocomplete="off">
+            <div style="display:grid;grid-template-columns:1fr 2fr;gap:.75rem;margin-bottom:.85rem">
+              <div>
+                <label>Code *</label>
+                <input type="text" id="mat-code" style="width:100%;margin-top:4px" placeholder="GFC-L1-MAT1" required>
+              </div>
+              <div>
+                <label>Nom de la matière *</label>
+                <input type="text" id="mat-nom" style="width:100%;margin-top:4px" placeholder="ex : Comptabilité générale" required>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+              <div>
+                <label>Coefficient *</label>
+                <input type="number" id="mat-coef" style="width:100%;margin-top:4px" min="0.5" max="10" step="0.5" value="1" required>
+              </div>
+              <div>
+                <label>Heures CM</label>
+                <input type="number" id="mat-hcm" style="width:100%;margin-top:4px" min="0" max="200" step="1" value="0">
+              </div>
+              <div>
+                <label>Heures TD</label>
+                <input type="number" id="mat-htd" style="width:100%;margin-top:4px" min="0" max="200" step="1" value="0">
+              </div>
+            </div>
+            <div style="margin-bottom:1.2rem">
+              <label>Enseignant (optionnel)</label>
+              <select id="mat-ens" style="width:100%;margin-top:4px">
+                <option value="">— Non assigné —</option>
+              </select>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+              <button type="button" class="btn-ghost" onclick="_hideMatForm()">Annuler</button>
+              <button type="submit" class="btn-blue" id="mat-save-btn">Créer la matière →</button>
+            </div>
+          </form>
+        </div>
+      </div>`;
+    document.body.appendChild(o);
+  }
+
+  document.getElementById('mat-ue-title').textContent = "Matières — " + ueNom;
+  document.getElementById('mat-list-section').style.display = 'block';
+  document.getElementById('mat-form-section').style.display = 'none';
+
+  const sel = document.getElementById('mat-ens');
+  if (sel) {
+    sel.innerHTML = '<option value="">— Non assigné —</option>'
+      + _matEnseignants.map(e => '<option value="' + e.id + '">' + esc(e.prenom + ' ' + e.nom) + '</option>').join('');
+  }
+
+  o.classList.add('open');
+  await _reloadMatieres();
+}
+
+async function voirMatieresUE(ueId, ueNom) { ouvrirGestionMatieres(ueId, ueNom); }
 
 function ouvrirModalInfo(titre, contenu, footerHtml) {
   let o = document.getElementById('modal-info-overlay');
