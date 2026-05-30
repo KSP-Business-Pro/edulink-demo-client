@@ -2032,7 +2032,10 @@ async function chargerMessages() {
                   <div style="font-size:10.5px;color:#9ca3af">${esc(m.utilisateurs?.role||'—')}</div>
                 </div>
               </div>
-              <div style="font-size:11px;color:#9ca3af">${formatDate(m.created_at)}</div>
+              <div style="display:flex;align-items:center;gap:.5rem">
+                <div style="font-size:11px;color:#9ca3af">${formatDate(m.created_at)}</div>
+                ${m.expediteur_id === currentUserId ? `<button class="btn-ghost btn-sm" style="color:#dc2626;padding:2px 5px" onclick="supprimerMessage('${m.id}',this)" title="Supprimer">🗑</button>` : ''}
+              </div>
             </div>
             ${m.sujet ? `<div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:.25rem">${esc(m.sujet)}</div>` : ''}
             <div style="font-size:13px;color:#6b7280;line-height:1.5">${esc(m.contenu||'—')}</div>
@@ -3382,7 +3385,72 @@ async function soumettreModalFacture(e) {
     btn.disabled = false; btn.textContent = 'Créer la facture →';
   }
 }
-function ouvrirModalMessage()    { toast('Modal Message — en cours', 'info'); }
+// ── Messages internes ────────────────────────────────────────────────────────
+function ouvrirModalMessage() {
+  let o = document.getElementById('modal-message-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-message-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:520px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 style="margin:0;font-size:15px;font-weight:700;color:#111827">✉ Nouveau message</h3>
+          <button class="btn-ghost btn-sm" onclick="document.getElementById('modal-message-overlay').classList.remove('open')">✕</button>
+        </div>
+        <form id="form-message" onsubmit="envoyerMessage(event)" autocomplete="off">
+          <div style="margin-bottom:.85rem">
+            <label>Sujet <span style="color:#9ca3af;font-weight:400">(optionnel)</span></label>
+            <input type="text" id="msg-sujet" style="width:100%;margin-top:4px" placeholder="Objet du message…">
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Message *</label>
+            <textarea id="msg-contenu" rows="5" required
+              style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Poppins,sans-serif;resize:vertical"
+              placeholder="Votre message…"></textarea>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="document.getElementById('modal-message-overlay').classList.remove('open')">Annuler</button>
+            <button type="submit" class="btn-blue" id="msg-submit-btn">Envoyer →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+  document.getElementById('form-message')?.reset();
+  document.getElementById('msg-submit-btn').disabled = false;
+  document.getElementById('msg-submit-btn').textContent = 'Envoyer →';
+  o.classList.add('open');
+  setTimeout(() => document.getElementById('msg-sujet')?.focus(), 100);
+}
+
+async function envoyerMessage(evt) {
+  evt.preventDefault();
+  const btn = document.getElementById('msg-submit-btn');
+  btn.disabled = true; btn.textContent = 'Envoi…';
+  const sujet   = document.getElementById('msg-sujet').value.trim();
+  const contenu = document.getElementById('msg-contenu').value.trim();
+  if (!contenu) { toast('Le message ne peut pas être vide', 'error'); btn.disabled=false; btn.textContent='Envoyer →'; return; }
+  const { error } = await db.from('messages').insert({
+    ecole_id:       currentEcoleId,
+    expediteur_id:  currentUserId,
+    sujet:          sujet || null,
+    contenu
+  });
+  if (error) { toast('Erreur : ' + error.message, 'error'); btn.disabled=false; btn.textContent='Envoyer →'; return; }
+  document.getElementById('modal-message-overlay').classList.remove('open');
+  await chargerMessages();
+  toast('Message envoyé ✓', 'success');
+}
+
+async function supprimerMessage(id, btn) {
+  if (!confirm('Supprimer ce message ?')) return;
+  if (btn) { btn.disabled=true; btn.textContent='…'; }
+  const { error } = await db.from('messages').delete().eq('id', id);
+  if (error) { toast('Erreur : ' + error.message, 'error'); if (btn) { btn.disabled=false; btn.textContent='🗑'; } return; }
+  await chargerMessages();
+  toast('Message supprimé', 'success');
+}
 function exporterEtudiants() {
   const liste = _listeFiltrée?.length ? _listeFiltrée : _tousEtudiants;
   if (!liste?.length) { toast("Aucun étudiant à exporter", 'info'); return; }
