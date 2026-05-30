@@ -1411,7 +1411,7 @@ async function chargerParametres() {
 
       <!-- Infos école -->
       <div class="dash-block">
-        <div class="block-title">🏫 Établissement</div>
+        <div class="block-title" style="display:flex;justify-content:space-between;align-items:center">🏫 Établissement <button class="btn-ghost btn-sm" onclick="ouvrirEditEcole()">✏ Modifier</button></div>
         <div class="info-grid">
           <div class="info-item"><div class="ii-label">Nom</div><div class="ii-val">${esc(ecole?.nom||'—')}</div></div>
           <div class="info-item"><div class="ii-label">Type</div><div class="ii-val">${esc(ecole?.type||'—')}</div></div>
@@ -1436,7 +1436,7 @@ async function chargerParametres() {
 
       <!-- Règles LMD CAMES -->
       <div class="dash-block">
-        <div class="block-title">⚖️ Règles LMD CAMES</div>
+        <div class="block-title" style="display:flex;justify-content:space-between;align-items:center">⚖️ Règles LMD CAMES <button class="btn-ghost btn-sm" onclick="ouvrirEditRegles()">✏ Modifier</button></div>
         ${regles ? `
           <div style="display:flex;flex-direction:column;gap:.75rem">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6">
@@ -1493,6 +1493,183 @@ async function chargerParametres() {
 
     </div>`;
 }
+
+// ── Paramètres — Édition ─────────────────────────────────────────────────────
+async function ouvrirEditEcole() {
+  const { data: e } = await db.from('ecoles').select('*').eq('id', currentEcoleId).single();
+  if (!e) { toast('Données établissement introuvables', 'error'); return; }
+
+  let o = document.getElementById('modal-edit-ecole');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-edit-ecole';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:500px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 style="margin:0;font-size:15px;font-weight:700;color:#111827">🏫 Modifier l&#39;établissement</h3>
+          <button class="btn-ghost btn-sm" onclick="document.getElementById('modal-edit-ecole').classList.remove('open')">✕</button>
+        </div>
+        <form id="form-ecole" onsubmit="sauvegarderEcole(event)" autocomplete="off">
+          <div style="margin-bottom:.85rem">
+            <label>Nom de l&#39;établissement *</label>
+            <input type="text" id="ecole-nom" style="width:100%;margin-top:4px" required>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Type</label>
+              <select id="ecole-type" style="width:100%;margin-top:4px">
+                <option value="universite">Université</option>
+                <option value="grande_ecole">Grande École</option>
+                <option value="école">École</option>
+                <option value="institut">Institut</option>
+                <option value="lycee">Lycée</option>
+              </select>
+            </div>
+            <div>
+              <label>Pays</label>
+              <input type="text" id="ecole-pays" style="width:100%;margin-top:4px" placeholder="Bénin">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Ville</label>
+              <input type="text" id="ecole-ville" style="width:100%;margin-top:4px">
+            </div>
+            <div>
+              <label>Téléphone</label>
+              <input type="tel" id="ecole-tel" style="width:100%;margin-top:4px">
+            </div>
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Email</label>
+            <input type="email" id="ecole-email" style="width:100%;margin-top:4px">
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="document.getElementById('modal-edit-ecole').classList.remove('open')">Annuler</button>
+            <button type="submit" class="btn-blue" id="ecole-submit-btn">Enregistrer →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+
+  document.getElementById('ecole-nom').value   = e.nom        || '';
+  document.getElementById('ecole-type').value  = e.type       || 'grande_ecole';
+  document.getElementById('ecole-pays').value  = e.pays       || 'Bénin';
+  document.getElementById('ecole-ville').value = e.ville      || '';
+  document.getElementById('ecole-tel').value   = e.telephone  || '';
+  document.getElementById('ecole-email').value = e.email      || '';
+  document.getElementById('ecole-submit-btn').disabled = false;
+  document.getElementById('ecole-submit-btn').textContent = 'Enregistrer →';
+  o.classList.add('open');
+}
+
+async function sauvegarderEcole(evt) {
+  evt.preventDefault();
+  const btn = document.getElementById('ecole-submit-btn');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+  const { error } = await db.from('ecoles').update({
+    nom:       document.getElementById('ecole-nom').value.trim(),
+    type:      document.getElementById('ecole-type').value,
+    pays:      document.getElementById('ecole-pays').value.trim(),
+    ville:     document.getElementById('ecole-ville').value.trim(),
+    telephone: document.getElementById('ecole-tel').value.trim() || null,
+    email:     document.getElementById('ecole-email').value.trim() || null
+  }).eq('id', currentEcoleId);
+  if (error) { toast('Erreur : ' + error.message, 'error'); btn.disabled=false; btn.textContent='Enregistrer →'; return; }
+  document.getElementById('modal-edit-ecole').classList.remove('open');
+  await chargerParametres();
+  toast('Établissement mis à jour ✓', 'success');
+}
+
+async function ouvrirEditRegles() {
+  const { data: r } = await db.from('regles_ecole').select('*').eq('ecole_id', currentEcoleId).maybeSingle();
+
+  let o = document.getElementById('modal-edit-regles');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-edit-regles';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:500px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 style="margin:0;font-size:15px;font-weight:700;color:#111827">⚖️ Règles LMD CAMES</h3>
+          <button class="btn-ghost btn-sm" onclick="document.getElementById('modal-edit-regles').classList.remove('open')">✕</button>
+        </div>
+        <form id="form-regles" onsubmit="sauvegarderRegles(event)" autocomplete="off">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Seuil validation UE (/ 20) *</label>
+              <input type="number" id="regles-seuil-ue" style="width:100%;margin-top:4px" min="0" max="20" step="0.5" required>
+            </div>
+            <div>
+              <label>Seuil note plancher (/ 20)</label>
+              <input type="number" id="regles-plancher" style="width:100%;margin-top:4px" min="0" max="20" step="0.5">
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.2rem">
+            <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.75rem;background:#f9fafb;border-radius:8px">
+              <input type="checkbox" id="regles-compensation" style="width:16px;height:16px">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#111827">Compensation entre UE</div>
+                <div style="font-size:11px;color:#9ca3af">La moyenne générale peut compenser les UE faibles</div>
+              </div>
+            </label>
+            <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.75rem;background:#f9fafb;border-radius:8px">
+              <input type="checkbox" id="regles-plancher-active" style="width:16px;height:16px">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#111827">Note plancher active</div>
+                <div style="font-size:11px;color:#9ca3af">Une note en dessous du seuil bloque la validation</div>
+              </div>
+            </label>
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Règle de rattrapage</label>
+            <select id="regles-rattrapage" style="width:100%;margin-top:4px">
+              <option value="automatique">Automatique (moyenne < seuil)</option>
+              <option value="partiel">Partiel (selon décision jury)</option>
+              <option value="tout">Tout étudiant (systématique)</option>
+            </select>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="document.getElementById('modal-edit-regles').classList.remove('open')">Annuler</button>
+            <button type="submit" class="btn-blue" id="regles-submit-btn">Enregistrer →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+
+  document.getElementById('regles-seuil-ue').value         = r?.seuil_validation_ue    ?? 10;
+  document.getElementById('regles-plancher').value          = r?.seuil_note_plancher    ?? 5;
+  document.getElementById('regles-compensation').checked    = r?.compensation_active    ?? false;
+  document.getElementById('regles-plancher-active').checked = r?.note_plancher_active   ?? false;
+  document.getElementById('regles-rattrapage').value        = r?.regle_rattrapage       || 'automatique';
+  document.getElementById('regles-submit-btn').disabled = false;
+  document.getElementById('regles-submit-btn').textContent = 'Enregistrer →';
+  o.classList.add('open');
+}
+
+async function sauvegarderRegles(evt) {
+  evt.preventDefault();
+  const btn = document.getElementById('regles-submit-btn');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+  const payload = {
+    ecole_id:             currentEcoleId,
+    seuil_validation_ue:  parseFloat(document.getElementById('regles-seuil-ue').value)  || 10,
+    seuil_note_plancher:  parseFloat(document.getElementById('regles-plancher').value)   || 5,
+    compensation_active:  document.getElementById('regles-compensation').checked,
+    note_plancher_active: document.getElementById('regles-plancher-active').checked,
+    regle_rattrapage:     document.getElementById('regles-rattrapage').value
+  };
+  const { error } = await db.from('regles_ecole').upsert(payload, { onConflict: 'ecole_id' });
+  if (error) { toast('Erreur : ' + error.message, 'error'); btn.disabled=false; btn.textContent='Enregistrer →'; return; }
+  document.getElementById('modal-edit-regles').classList.remove('open');
+  await chargerParametres();
+  toast('Règles LMD mises à jour ✓', 'success');
+}
+
 
 // ── PAGE PAIEMENTS ────────────────────────────
 // ══════════════════════════════════════════════
