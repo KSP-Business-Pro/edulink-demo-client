@@ -1207,7 +1207,7 @@ async function chargerEnseignants() {
     : `<div class="table-wrap"><table>
         <thead><tr>
           <th>Enseignant</th><th>Spécialité</th><th>Grade</th>
-          <th>Contact</th><th>Statut</th><th>Matières LMD</th>
+          <th>Contact</th><th>Statut</th><th></th>
         </tr></thead>
         <tbody>
           ${(ens||[]).map(e => {
@@ -1226,7 +1226,10 @@ async function chargerEnseignants() {
               <td>${e.grade ? `<span class="badge ${gradeColors[e.grade]||'gray'}">${esc(e.grade)}</span>` : '<span class="badge gray">—</span>'}</td>
               <td style="font-size:12px;color:#6b7280">${esc(e.telephone||'—')}</td>
               <td><span class="badge ${e.statut==='actif'?'green':'gray'}">${esc(e.statut||'—')}</span></td>
-              <td><button class="btn-ghost btn-sm" onclick="voirMatieresEnseignant('${e.id}','${esc((e.nom+' '+(e.prenom||'')).trim()).replace(/'/g,"\\'")}')">Matières</button></td>
+              <td><button class="btn-ghost btn-sm" onclick="voirMatieresEnseignant('${e.id}','${esc((e.nom+' '+(e.prenom||'')).trim()).replace(/'/g,"\\'")}')">Matières</button>
+              <button class="btn-ghost btn-sm" onclick="modifierEnseignant('${e.id}')" title="Modifier"><i class="ti ti-edit" aria-hidden="true"></i></button>
+              <button class="btn-ghost btn-sm" style="color:#dc2626" onclick="supprimerEnseignant('${e.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
+            </td>
             </tr>`;}).join('')}
         </tbody>
       </table></div>`;
@@ -2852,7 +2855,151 @@ function ouvrirModalEtudiant() {
   o.classList.add('open');
   setTimeout(() => document.getElementById('etu-nom')?.focus(), 100);
 }
-function ouvrirModalEnseignant() { toast('Modal Enseignant — en cours', 'info'); }
+// ── CRUD Enseignants ─────────────────────────────────────────────────────────
+let _editEnsId = null;
+
+function fermerModalEnseignant() {
+  document.getElementById('modal-ens-overlay')?.classList.remove('open');
+  _editEnsId = null;
+}
+
+async function soumettreModalEnseignant(e) {
+  e.preventDefault();
+  const btn = document.getElementById('ens-submit-btn');
+  btn.disabled = true; btn.textContent = _editEnsId ? 'Enregistrement…' : 'Créer →';
+  const payload = {
+    ecole_id:   currentEcoleId,
+    nom:        document.getElementById('ens-nom').value.trim().toUpperCase(),
+    prenom:     document.getElementById('ens-prenom').value.trim(),
+    grade:      document.getElementById('ens-grade').value,
+    specialite: document.getElementById('ens-specialite').value.trim() || null,
+    email:      document.getElementById('ens-email').value.trim() || null,
+    telephone:  document.getElementById('ens-tel').value.trim() || null,
+    statut:     document.getElementById('ens-statut').value
+  };
+  try {
+    let error;
+    if (_editEnsId) {
+      ({ error } = await db.from('enseignants').update(payload).eq('id', _editEnsId));
+    } else {
+      ({ error } = await db.from('enseignants').insert(payload));
+    }
+    if (error) throw error;
+    fermerModalEnseignant();
+    await chargerEnseignants();
+    toast(_editEnsId ? 'Enseignant modifié ✓' : 'Enseignant créé ✓', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+    btn.disabled = false;
+    btn.textContent = _editEnsId ? 'Enregistrer' : 'Créer →';
+  }
+}
+
+async function modifierEnseignant(id) {
+  const { data: e } = await db.from('enseignants').select('*').eq('id', id).single();
+  if (!e) { toast('Enseignant introuvable', 'error'); return; }
+  _editEnsId = id;
+  ouvrirModalEnseignant();
+  setTimeout(() => {
+    document.getElementById('ens-nom').value        = e.nom        || '';
+    document.getElementById('ens-prenom').value     = e.prenom     || '';
+    document.getElementById('ens-grade').value      = e.grade      || 'Assistant';
+    document.getElementById('ens-specialite').value = e.specialite || '';
+    document.getElementById('ens-email').value      = e.email      || '';
+    document.getElementById('ens-tel').value        = e.telephone  || '';
+    document.getElementById('ens-statut').value     = e.statut     || 'actif';
+    document.getElementById('ens-modal-title').textContent = 'Modifier enseignant';
+    document.getElementById('ens-submit-btn').textContent  = 'Enregistrer';
+  }, 80);
+}
+
+async function supprimerEnseignant(id) {
+  const { data: e } = await db.from('enseignants').select('nom,prenom').eq('id', id).single();
+  const nom = e ? (e.prenom ? e.prenom + ' ' + e.nom : e.nom) : id;
+  if (!confirm('Supprimer "' + nom + '" ?')) return;
+  try {
+    const { error } = await db.from('enseignants').delete().eq('id', id);
+    if (error) throw error;
+    await chargerEnseignants();
+    toast('Enseignant supprimé', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+  }
+}
+
+function ouvrirModalEnseignant() {
+  let o = document.getElementById('modal-ens-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-ens-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:500px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 id="ens-modal-title" style="margin:0;font-size:15px;font-weight:700;color:#111827">+ Nouvel Enseignant</h3>
+          <button class="btn-ghost btn-sm" onclick="fermerModalEnseignant()">✕</button>
+        </div>
+        <form id="form-ens" onsubmit="soumettreModalEnseignant(event)" autocomplete="off">
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Nom *</label>
+              <input type="text" id="ens-nom" style="width:100%;margin-top:4px" placeholder="NOM (majuscules)" required>
+            </div>
+            <div>
+              <label>Prénom</label>
+              <input type="text" id="ens-prenom" style="width:100%;margin-top:4px" placeholder="Prénom">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Grade *</label>
+              <select id="ens-grade" style="width:100%;margin-top:4px" required>
+                <option value="Assistant">Assistant</option>
+                <option value="Maître-Assistant">Maître-Assistant</option>
+                <option value="Maître de Conférences">Maître de Conférences</option>
+                <option value="Professeur">Professeur</option>
+              </select>
+            </div>
+            <div>
+              <label>Statut *</label>
+              <select id="ens-statut" style="width:100%;margin-top:4px" required>
+                <option value="actif">Actif</option>
+                <option value="inactif">Inactif</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-bottom:.85rem">
+            <label>Spécialité</label>
+            <input type="text" id="ens-specialite" style="width:100%;margin-top:4px" placeholder="ex : Comptabilité, Marketing, Droit...">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.2rem">
+            <div>
+              <label>Email</label>
+              <input type="email" id="ens-email" style="width:100%;margin-top:4px" placeholder="enseignant@email.com">
+            </div>
+            <div>
+              <label>Téléphone</label>
+              <input type="tel" id="ens-tel" style="width:100%;margin-top:4px" placeholder="+229 ...">
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="fermerModalEnseignant()">Annuler</button>
+            <button type="submit" class="btn-blue" id="ens-submit-btn">Créer →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+  if (!_editEnsId) {
+    const form = document.getElementById('form-ens');
+    if (form) form.reset();
+    document.getElementById('ens-modal-title').textContent = '+ Nouvel Enseignant';
+    document.getElementById('ens-submit-btn').textContent  = 'Créer →';
+    document.getElementById('ens-statut').value = 'actif';
+  }
+  o.classList.add('open');
+  setTimeout(() => document.getElementById('ens-nom')?.focus(), 100);
+}
 // ── CRUD Factures & Paiements ────────────────────────────────────────────────
 function fermerModalFacture() {
   document.getElementById('modal-facture-overlay')?.classList.remove('open');
