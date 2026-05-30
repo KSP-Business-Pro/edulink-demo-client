@@ -3703,7 +3703,7 @@ async function exporterReleve(etudiantId, semId) {
     '<div class="badge-box"><div class="badge-val">' + (r.moyenne_semestre!==null?Number(r.moyenne_semestre).toFixed(2):'—') + '</div><div class="badge-lbl">Moyenne générale</div></div>' +
     '<div class="badge-box"><div class="badge-val" style="font-size:18px">' + (r.mention||'—').replace('_',' ') + '</div><div class="badge-lbl">Mention</div></div>' +
     '</div>' +
-    '<table><thead><tr><th>Code</th><th>Unité d'Enseignement</th><th>Crédits</th><th>Moyenne</th><th>Résultat</th><th>Crédits acquis</th></tr></thead>' +
+    '<table><thead><tr><th>Code</th><th>Unit&#233; d&#39;Enseignement</th><th>Crédits</th><th>Moyenne</th><th>Résultat</th><th>Crédits acquis</th></tr></thead>' +
     '<tbody>' + uesRows + '</tbody></table>' +
     '<div class="footer">Publié le ' + new Date(r.publie_le).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}) + ' · Système EduLink Sup · LMD-CAMES</div>' +
     '<script>window.onload=()=>window.print();<\/script>' +
