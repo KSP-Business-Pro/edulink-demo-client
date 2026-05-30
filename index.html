@@ -2009,11 +2009,12 @@ async function chargerMessages() {
   el.innerHTML = '<div class="loading">Chargement...</div>';
   if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
 
-  const { data: messages } = await db.from('messages')
-    .select('*, utilisateurs!messages_expediteur_id_fkey(nom,prenom,role)')
+  const { data: messages, error: msgErr } = await db.from('messages')
+    .select('*')
     .eq('ecole_id', currentEcoleId)
     .order('created_at', { ascending: false })
     .limit(50);
+  if (msgErr) { el.innerHTML = '<div class="empty-state"><p>Erreur : ' + msgErr.message + '</p></div>'; return; }
 
   el.innerHTML = !messages?.length
     ? '<div class="empty-state"><div class="es-ico">💬</div><h3>Aucun message</h3><p>La messagerie interne apparaîtra ici</p></div>'
@@ -2023,13 +2024,13 @@ async function chargerMessages() {
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem">
               <div style="display:flex;align-items:center;gap:.5rem">
                 <div style="width:32px;height:32px;border-radius:50%;background:#1e3a5f;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">
-                  ${(m.utilisateurs?.nom?.[0]||'?').toUpperCase()}
+                  ${(m.expediteur_id ? (currentUserId===m.expediteur_id?'M':'?') : 'S').toUpperCase()}
                 </div>
                 <div>
                   <div style="font-size:12.5px;font-weight:600;color:#111827">
-                    ${esc(m.utilisateurs?.nom||'—')} ${esc(m.utilisateurs?.prenom||'')}
+                    ${esc(m.expediteur_id === currentUserId ? (currentUserNom||'Moi') : 'Système'||'—')} ${esc(''||'')}
                   </div>
-                  <div style="font-size:10.5px;color:#9ca3af">${esc(m.utilisateurs?.role||'—')}</div>
+                  <div style="font-size:10.5px;color:#9ca3af">${esc(''||'—')}</div>
                 </div>
               </div>
               <div style="display:flex;align-items:center;gap:.5rem">
