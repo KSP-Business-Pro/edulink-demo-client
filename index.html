@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
 <style>
@@ -3255,6 +3256,8 @@ async function chargerGrilleNotes() {
   const sessNorm  = sessions?.find(s=>s.type_session==='normale');
   const evalsCC   = (evals||[]).filter(e=>e.categorie==='CC');
   const evalsEX   = (evals||[]).filter(e=>e.categorie==='EXAMEN');
+  // State global pour import
+  window._saisieState = { matId, semId, sessNormId: sessNorm?.id, sessNormStatut: sessNorm?.statut, etudiants, evalsCC, evalsEX };
 
   // Charger notes existantes
   const evalIds = (evals||[]).map(e=>e.id);
@@ -3268,6 +3271,7 @@ async function chargerGrilleNotes() {
     });
   }
 
+  const sessLocked = sessNorm?.statut === 'close';
   const poids_cc = mat.unites_enseignement?.poids_cc || 0.4;
   const poids_ex = mat.unites_enseignement?.poids_examen || 0.6;
 
@@ -3280,8 +3284,19 @@ async function chargerGrilleNotes() {
       </div>
       <div style="text-align:right">
         <div style="font-size:12px;opacity:.7">${etudiants.length} étudiants</div>
-        <button onclick="ajouterEvaluation('${matId}','${sessNorm?.id||''}','CC')" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-top:4px;margin-right:4px">+ CC</button>
-        <button onclick="ajouterEvaluation('${matId}','${sessNorm?.id||''}','EXAMEN')" style="background:rgba(201,124,26,.8);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-top:4px">+ Exam</button>
+        <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px">
+          <span style="font-size:10px;padding:2px 7px;border-radius:12px;font-weight:600;background:${sessNorm?.statut==='close'?'#dc2626':'#059669'};color:#fff">
+            ${sessNorm?.statut==='close'?'🔒 Verrouillée':'🔓 Ouverte'}
+          </span>
+          ${sessNorm?.statut==='close'
+            ? '<button onclick="changerStatutSession(\''+sessNorm.id+'\',\'ouverte\')" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">Rouvrir</button>'
+            : '<button onclick="ajouterEvaluation(\''+matId+'\',\''+sessNorm?.id+'\',\'CC\')" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">+ CC</button><button onclick="ajouterEvaluation(\''+matId+'\',\''+sessNorm?.id+'\',\'EXAMEN\')" style="background:rgba(201,124,26,.8);color:#fff;border:none;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">+ Exam</button>'
+          }
+          <button onclick="ouvrirImportNotes()" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3);padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">⬆ Import</button>
+          ${sessNorm?.statut!=='close'
+            ? '<button onclick="changerStatutSession(\''+sessNorm?.id+'\',\'close\')" style="background:rgba(220,38,38,.7);color:#fff;border:none;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">Clôturer</button>'
+            : ''}
+        </div>
       </div>
     </div>
 
@@ -3345,12 +3360,12 @@ async function chargerGrilleNotes() {
                   <input type="number" min="0" max="20" step="0.5"
                     value="${val}"
                     placeholder="—"
-                    ${n?.absent ? 'disabled' : ''}
-                    style="width:54px;text-align:center;padding:4px;border:1px solid ${n?.absent ? '#f3f4f6' : '#e5e7eb'};border-radius:6px;font-size:13px;font-family:Poppins,sans-serif;outline:none;background:${n?.absent ? '#f9fafb' : '#fff'};color:${n?.absent ? '#9ca3af' : '#111827'}"
+                    ${n?.absent || sessLocked ? 'disabled' : ''}
+                    style="width:54px;text-align:center;padding:4px;border:1px solid ${n?.absent||sessLocked ? '#f3f4f6' : '#e5e7eb'};border-radius:6px;font-size:13px;font-family:Poppins,sans-serif;outline:none;background:${n?.absent||sessLocked ? '#f9fafb' : '#fff'};color:${n?.absent||sessLocked ? '#9ca3af' : '#111827'}"
                     onfocus="this.style.borderColor='#1e3a5f'"
                     onblur="this.style.borderColor='#e5e7eb';sauvegarderNote(this,'${et.id}','${e.id}')"
                     onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();}">
-                  <button title="Marquer absent" onclick="toggleAbsent('${et.id}','${e.id}',${!!n?.absent})"
+                  <button title="Marquer absent" onclick="toggleAbsent('${et.id}','${e.id}',${!!n?.absent})" ${sessLocked ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}
                     style="padding:1px 4px;font-size:9px;font-weight:700;border-radius:4px;cursor:pointer;border:1px solid ${n?.absent ? '#dc2626' : '#e5e7eb'};background:${n?.absent ? '#fee2e2' : '#f9fafb'};color:${n?.absent ? '#dc2626' : '#9ca3af'};line-height:1.6;flex-shrink:0">ABS</button>
                 </div>
               </td>`;}).join('')}
@@ -3362,12 +3377,12 @@ async function chargerGrilleNotes() {
                   <input type="number" min="0" max="20" step="0.5"
                     value="${val}"
                     placeholder="—"
-                    ${n?.absent ? 'disabled' : ''}
+                    ${n?.absent || sessLocked ? 'disabled' : ''}
                     style="width:54px;text-align:center;padding:4px;border:1px solid ${n?.absent ? '#f3f4f6' : '#ede9fe'};border-radius:6px;font-size:13px;font-family:Poppins,sans-serif;outline:none;background:${n?.absent ? '#f9fafb' : '#fff'};color:${n?.absent ? '#9ca3af' : '#111827'}"
                     onfocus="this.style.borderColor='#7c3aed'"
                     onblur="this.style.borderColor='#ede9fe';sauvegarderNote(this,'${et.id}','${e.id}')"
                     onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();}">
-                  <button title="Marquer absent" onclick="toggleAbsent('${et.id}','${e.id}',${!!n?.absent})"
+                  <button title="Marquer absent" onclick="toggleAbsent('${et.id}','${e.id}',${!!n?.absent})" ${sessLocked ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}
                     style="padding:1px 4px;font-size:9px;font-weight:700;border-radius:4px;cursor:pointer;border:1px solid ${n?.absent ? '#dc2626' : '#ede9fe'};background:${n?.absent ? '#fee2e2' : '#f9fafb'};color:${n?.absent ? '#dc2626' : '#9ca3af'};line-height:1.6;flex-shrink:0">ABS</button>
                 </div>
               </td>`;}).join('')}
@@ -3417,9 +3432,153 @@ async function sauvegarderNote(input, etudiantId, evaluationId) {
     toast('Erreur: ' + error.message, 'error');
   } else {
     setTimeout(() => { input.style.borderColor = '#e5e7eb'; }, 1500);
+    // Journalisation silencieuse
+    _logNote(etudiantId, evaluationId, null, valeur);
     // Recharger la grille pour recalculer les moyennes
     await chargerGrilleNotes();
   }
+}
+
+// ── Sprint 3 phase 2 — Verrouillage, Import, Historique ────────────────────
+async function changerStatutSession(sessionId, newStatut) {
+  if (!sessionId) { toast('Session introuvable', 'error'); return; }
+  if (newStatut === 'close' && !confirm('Clôturer cette session ? Les saisies seront verrouillées.')) return;
+  const { error } = await db.from('sessions_evaluation').update({ statut: newStatut }).eq('id', sessionId);
+  if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+  toast(newStatut === 'close' ? 'Session clôturée 🔒' : 'Session rouverte 🔓', 'success');
+  await chargerGrilleNotes();
+}
+
+async function _logNote(etudiantId, evaluationId, ancienne, nouvelle) {
+  try {
+    await db.from('notes_historique').insert({
+      etudiant_id:   etudiantId,
+      evaluation_id: evaluationId,
+      ecole_id:      currentEcoleId,
+      valeur_ancienne: ancienne,
+      valeur_nouvelle: nouvelle,
+      modifie_par:   currentUserId,
+      modifie_le:    new Date().toISOString()
+    });
+  } catch(e) { /* Silencieux si table absente */ }
+}
+
+function ouvrirImportNotes() {
+  const st = window._saisieState;
+  if (!st?.matId) { toast('Sélectionnez une matière d'abord', 'error'); return; }
+  if (st.sessNormStatut === 'close') { toast('Session clôturée — import impossible', 'error'); return; }
+
+  const allEvals = [...(st.evalsCC||[]), ...(st.evalsEX||[])];
+  if (!allEvals.length) { toast('Créez des évaluations d'abord', 'error'); return; }
+
+  let o = document.getElementById('modal-import-notes');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-import-notes';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:500px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem">
+          <h3 style="margin:0;font-size:15px;font-weight:700;color:#111827">Import de notes</h3>
+          <button class="btn-ghost btn-sm" onclick="document.getElementById('modal-import-notes').classList.remove('open')">✕</button>
+        </div>
+        <div style="margin-bottom:.85rem">
+          <label>Évaluation cible *</label>
+          <select id="import-eval-id" style="width:100%;margin-top:4px"></select>
+        </div>
+        <div style="margin-bottom:.85rem">
+          <label>Fichier CSV ou Excel *</label>
+          <input type="file" id="import-file" accept=".csv,.xlsx,.xls" style="width:100%;margin-top:4px">
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px">Format attendu : colonne <strong>Matricule</strong> + colonne <strong>Note</strong> (0-20). Première ligne = en-têtes.</div>
+        </div>
+        <div id="import-preview" style="max-height:150px;overflow-y:auto;margin-bottom:.85rem"></div>
+        <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+          <button class="btn-ghost" onclick="document.getElementById('modal-import-notes').classList.remove('open')">Annuler</button>
+          <button class="btn-blue" id="import-run-btn" onclick="lancerImportNotes()">Importer →</button>
+        </div>
+      </div>`;
+    document.body.appendChild(o);
+
+    document.getElementById('import-file').addEventListener('change', async function() {
+      const preview = document.getElementById('import-preview');
+      preview.innerHTML = '<div style="font-size:12px;color:#6b7280">Analyse du fichier…</div>';
+      const rows = await _parseImportFile(this.files[0]);
+      if (!rows) { preview.innerHTML = ''; return; }
+      preview.innerHTML = '<div style="font-size:11px;color:#374151;font-weight:600;margin-bottom:4px">' + rows.length + ' ligne(s) détectée(s)</div>'
+        + '<div style="font-size:11px;color:#6b7280">' + rows.slice(0,5).map(r=>'<div>' + r.matricule + ' → ' + r.note + '</div>').join('') + (rows.length>5?'<div>…</div>':'') + '</div>';
+    });
+  }
+
+  const evalSel = document.getElementById('import-eval-id');
+  evalSel.innerHTML = allEvals.map(e => '<option value="' + e.id + '">[' + e.categorie + '] ' + esc(e.intitule||e.format) + '</option>').join('');
+  document.getElementById('import-preview').innerHTML = '';
+  document.getElementById('import-file').value = '';
+  o.classList.add('open');
+}
+
+async function _parseImportFile(file) {
+  if (!file) return null;
+  try {
+    if (file.name.endsWith('.csv') || file.type === 'text/csv') {
+      const text = await file.text();
+      const lines = text.trim().split('
+');
+      const headers = lines[0].split(/[,;]/).map(h => h.trim().toLowerCase());
+      const matIdx  = headers.findIndex(h => h.includes('matri'));
+      const noteIdx = headers.findIndex(h => h.includes('note') || h.includes('mark'));
+      if (matIdx < 0 || noteIdx < 0) { toast('Colonnes Matricule/Note non trouvées', 'error'); return null; }
+      return lines.slice(1).map(l => {
+        const cols = l.split(/[,;]/);
+        return { matricule: cols[matIdx]?.trim(), note: parseFloat(cols[noteIdx]) };
+      }).filter(r => r.matricule && !isNaN(r.note));
+    } else {
+      if (!window.XLSX) { toast('SheetJS non chargé — utilisez CSV', 'error'); return null; }
+      const buf = await file.arrayBuffer();
+      const wb  = XLSX.read(buf, { type:'array' });
+      const ws  = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      return data.map(row => {
+        const matKey  = Object.keys(row).find(k => k.toLowerCase().includes('matri'));
+        const noteKey = Object.keys(row).find(k => k.toLowerCase().includes('note') || k.toLowerCase().includes('mark'));
+        return { matricule: String(row[matKey]||'').trim(), note: parseFloat(row[noteKey]) };
+      }).filter(r => r.matricule && !isNaN(r.note));
+    }
+  } catch(e) { toast('Erreur lecture fichier : ' + e.message, 'error'); return null; }
+}
+
+async function lancerImportNotes() {
+  const st = window._saisieState;
+  const evalId = document.getElementById('import-eval-id').value;
+  const file   = document.getElementById('import-file').files[0];
+  if (!file || !evalId) { toast('Sélectionnez un fichier et une évaluation', 'error'); return; }
+  const btn = document.getElementById('import-run-btn');
+  btn.disabled = true; btn.textContent = 'Import…';
+  const rows = await _parseImportFile(file);
+  if (!rows?.length) { btn.disabled=false; btn.textContent='Importer →'; return; }
+  const matMap = {};
+  (st.etudiants||[]).forEach(e => { matMap[e.matricule] = e.id; });
+  const { data: ev } = await db.from('evaluations').select('session_id').eq('id', evalId).single();
+  let ok=0, skip=0;
+  for (const row of rows) {
+    const etuId = matMap[row.matricule];
+    if (!etuId) { skip++; continue; }
+    // Get existing note for history
+    const { data: existing } = await db.from('notes_lmd')
+      .select('valeur').eq('etudiant_id', etuId).eq('evaluation_id', evalId).maybeSingle();
+    const { error } = await db.from('notes_lmd').upsert({
+      etudiant_id: etuId, evaluation_id: evalId,
+      session_id: ev?.session_id, ecole_id: currentEcoleId,
+      valeur: row.note, absent: false
+    }, { onConflict: 'etudiant_id,evaluation_id' });
+    if (!error) {
+      ok++;
+      _logNote(etuId, evalId, existing?.valeur ?? null, row.note);
+    } else skip++;
+  }
+  document.getElementById('modal-import-notes').classList.remove('open');
+  await chargerGrilleNotes();
+  toast(ok + ' note(s) importée(s)' + (skip ? ', ' + skip + ' ignorée(s) (matricule inconnu)' : ''), skip ? 'info' : 'success');
+  btn.disabled=false; btn.textContent='Importer →';
 }
 
 // ── Notes — fonctions complémentaires ────────────────────────────────────────
