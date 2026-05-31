@@ -2979,6 +2979,13 @@ async function modifierEtudiant(id) {
   }, 80);
 }
 
+async function supprimerEtuFiche() {
+  const id = _ficheEtuId;
+  if (!id) { toast("Identifiant manquant — rouvrez la fiche", 'error'); return; }
+  fermerModalInfo();
+  await supprimerEtudiant(id);
+}
+
 async function supprimerEtudiant(id) {
   // Fallback to global if id is missing
   if (!id || id === 'undefined' || id === 'null') id = _ficheEtuId;
@@ -4301,8 +4308,8 @@ async function voirFicheEtudiant(id) {
   const _etuNomComplet = _ficheEtuNom;
   const _ficheFooter = '<div style="display:flex;justify-content:space-between;align-items:center;width:100%">'
     + '<div style="display:flex;gap:.5rem">'
-    + '<button class="btn-ghost" onclick="fermerModalInfo();modifierEtudiant(_ficheEtuId)">&#x270F; Modifier</button>'
-    + '<button class="btn-ghost" style="color:#dc2626" onclick="fermerModalInfo();supprimerEtudiant(_ficheEtuId)">&#x1F5D1; Supprimer</button>'
+    + '<button class="btn-ghost" onclick="fermerModalInfo();modifierEtudiant(_ficheEtuId||null)">&#x270F; Modifier</button>'
+    + '<button class="btn-ghost" style="color:#dc2626" onclick="supprimerEtuFiche()">&#x1F5D1; Supprimer</button>'
     + '</div>'
     + '<button class="btn-blue" onclick="fermerModalInfo();ouvrirInscriptionModal(_ficheEtuId,_ficheEtuNom)">+ Inscrire</button>'
     + '</div>';
