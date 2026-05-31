@@ -3476,13 +3476,12 @@ const _IMPORT_COLS = [
   { csv: ['telephone','tel','phone','téléphone'],              key: 'telephone_parent', req: false, tx: v => v || null },
   { csv: ['date_naissance','naissance','dob','date de naissance'], key: 'date_naissance', req: false, tx: v => v || null },
   { csv: ['sexe','genre','sex','gender'],                      key: 'sexe',             req: false, tx: v => v ? v.toUpperCase().charAt(0) : null },
-  { csv: ['nationalite','nationalité','nationality'],          key: 'nationalite',      req: false, tx: v => v || null },
 ];
 
 function telechargerModeleImport() {
-  const header = 'Matricule;Nom;Prénom;Filière;Niveau;Statut;Email;Téléphone;Date de naissance;Sexe;Nationalité';
-  const ex1    = ';ADANNOU;Rodrigue;Gestion Financière et Comptable;L1;actif;r.adannou@email.com;+22997000001;2001-03-15;M;Béninoise';
-  const ex2    = ';BOKO;Clarisse;Marketing et Commerce;L2;actif;;+22997000002;2002-07-22;F;Béninoise';
+  const header = 'Matricule;Nom;Prénom;Filière;Niveau;Statut;Email;Téléphone;Date de naissance;Sexe';
+  const ex1    = ';ADANNOU;Rodrigue;Gestion Financière et Comptable;L1;actif;r.adannou@email.com;+22997000001;2001-03-15;M';
+  const ex2    = ';BOKO;Clarisse;Marketing et Commerce;L2;actif;;+22997000002;2002-07-22;F';
   const bom    = '\uFEFF';
   const blob   = new Blob([bom + header + '\n' + ex1 + '\n' + ex2], { type: 'text/csv;charset=utf-8;' });
   const url    = URL.createObjectURL(blob);
@@ -3648,7 +3647,6 @@ function exporterEtudiants() {
     { h: 'Téléphone',         v: e => e.telephone || '' },
     { h: 'Date de naissance', v: e => e.date_naissance ? e.date_naissance.split('T')[0] : '' },
     { h: 'Sexe',              v: e => e.sexe || '' },
-    { h: 'Nationalité',       v: e => e.nationalite || '' },
   ];
 
   const escape = v => '"' + String(v).replace(/"/g, '""') + '"';
