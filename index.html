@@ -3649,6 +3649,11 @@ async function lancerImportEtudiants() {
     const r = rows[i];
     if (!r.matricule) r.matricule = await _genMatriculeEcole(r.filiere || '');
     r.ecole_id = currentEcoleId;
+    // Check duplicate by nom+prenom
+    const { data: dup } = await db.from('etudiants')
+      .select('id').eq('ecole_id', currentEcoleId)
+      .eq('nom', r.nom).eq('prenom', r.prenom).maybeSingle();
+    if (dup) { skip++; errors.push(r.nom + ' ' + r.prenom + ' : déjà existant (ignoré)'); continue; }
     const { error } = await db.from('etudiants').insert(r);
     if (error) {
       // Duplicate key = already exists → skip silently
@@ -4095,18 +4100,21 @@ function ouvrirModalInfo(titre, contenu, footerHtml) {
   }
   document.getElementById('modal-info-titre').textContent = titre;
   document.getElementById('modal-info-body').innerHTML = contenu;
-  o.classList.add('open');
-  // Injecter footer en attente
-  if (window._pendingFooter) {
-    const fz = document.getElementById('modal-info-footer');
-    if (fz) {
-      fz.innerHTML = window._pendingFooter;
+  const fz = document.getElementById('modal-info-footer');
+  const footer = footerHtml || window._pendingFooter || null;
+  if (fz) {
+    if (footer) {
+      fz.innerHTML = footer;
       fz.style.display = 'flex';
       fz.style.justifyContent = 'space-between';
       fz.style.alignItems = 'center';
+    } else {
+      fz.innerHTML = '';
+      fz.style.display = 'none';
     }
-    window._pendingFooter = null;
   }
+  window._pendingFooter = null;
+  o.classList.add('open');
 }
 
 // ── PAGE SEMESTRES ────────────────────────────
