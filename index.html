@@ -2975,6 +2975,7 @@ async function modifierEtudiant(id) {
     document.getElementById('etu-statut').value     = e.statut   || 'actif';
     document.getElementById('etu-modal-title').textContent = 'Modifier le dossier';
     document.getElementById('etu-submit-btn').textContent  = 'Enregistrer';
+    document.getElementById('etu-submit-btn').disabled     = false;
   }, 80);
 }
 
@@ -3082,6 +3083,7 @@ function ouvrirModalEtudiant() {
     if (form) { form.reset(); document.getElementById('etu-filiere')._manualEdit = false; }
     document.getElementById('etu-modal-title').textContent = '+ Nouvel Étudiant';
     document.getElementById('etu-submit-btn').textContent  = 'Inscrire →';
+    document.getElementById('etu-submit-btn').disabled     = false;
     document.getElementById('etu-matricule').value = _genMatricule();
     document.getElementById('etu-statut').value = 'actif';
     document.getElementById('etu-niveau').innerHTML = '<option value="">— Niveau —</option>'
