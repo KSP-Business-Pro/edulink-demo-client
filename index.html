@@ -2867,9 +2867,42 @@ function fermerModalEtudiant() {
 }
 
 function _genMatricule() {
-  const year = new Date().getFullYear();
-  const rand = String(Math.floor(1000 + Math.random() * 9000));
-  return year + '-' + rand;
+  // Fallback simple (used as last resort)
+  return new Date().getFullYear() + '-' + String(Math.floor(1000 + Math.random() * 9000));
+}
+
+async function _genMatriculeEcole(filiere) {
+  // 1. Detect school prefix from existing conventional matricules
+  let ecolePrefix = null;
+  const { data: samples } = await db.from('etudiants')
+    .select('matricule').eq('ecole_id', currentEcoleId).limit(30);
+  for (const s of (samples || [])) {
+    const m = (s.matricule || '').match(/^([a-z]{2,8})-[A-Z]{2,5}-\d+$/i);
+    if (m) { ecolePrefix = m[1].toLowerCase(); break; }
+  }
+  if (!ecolePrefix) {
+    const { data: ec } = await db.from('ecoles').select('nom').eq('id', currentEcoleId).single();
+    ecolePrefix = ((ec?.nom || 'ETU').match(/\w/g)||[]).join('').substring(0,4).toLowerCase();
+  }
+
+  // 2. Filière code: initials of significant words (skip: et de du le la les des)
+  const stop = new Set(['et','de','du','le','la','les','des','en','au']);
+  const fCode = (filiere || 'ETU').split(/\s+/)
+    .filter(w => w.length > 1 && !stop.has(w.toLowerCase()))
+    .map(w => w[0].toUpperCase()).join('').substring(0, 4) || 'ETU';
+
+  // 3. Find max existing number for this prefix+filiere
+  const pat = ecolePrefix + '-' + fCode + '-';
+  const { data: existing } = await db.from('etudiants')
+    .select('matricule').eq('ecole_id', currentEcoleId)
+    .ilike('matricule', pat + '%');
+  let maxNum = 0;
+  (existing || []).forEach(function(e) {
+    const n = parseInt((e.matricule || '').split('-').pop()) || 0;
+    if (n > maxNum) maxNum = n;
+  });
+
+  return pat + String(maxNum + 1).padStart(4, '0');
 }
 
 function _etuOnProgramme() {
@@ -2888,7 +2921,7 @@ async function soumettreModalEtudiant(e) {
   btn.disabled = true; btn.textContent = _editEtuId ? 'Enregistrement…' : 'Inscription…';
   const payload = {
     ecole_id:          currentEcoleId,
-    matricule:         document.getElementById('etu-matricule').value.trim(),
+    matricule:         document.getElementById('etu-matricule').value.trim() || await _genMatriculeEcole(document.getElementById('etu-filiere').value.trim()),
     nom:               document.getElementById('etu-nom').value.trim().toUpperCase(),
     prenom:            document.getElementById('etu-prenom').value.trim(),
     sexe:              document.getElementById('etu-sexe').value,
@@ -3614,7 +3647,7 @@ async function lancerImportEtudiants() {
   let ok = 0, skip = 0, errors = [];
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
-    if (!r.matricule) r.matricule = _genMatricule();
+    if (!r.matricule) r.matricule = await _genMatriculeEcole(r.filiere || '');
     r.ecole_id = currentEcoleId;
     const { error } = await db.from('etudiants').insert(r);
     if (error) {
@@ -4244,7 +4277,14 @@ async function voirFicheEtudiant(id) {
       <button class="btn-ghost btn-sm" style="color:#dc2626;padding:2px 6px" title="Retirer"
         onclick="supprimerInscription('${i.id}','${id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
     </div>`).join('');
-  const _ficheFooter = `<button class="btn-blue" onclick="ouvrirInscriptionModal('${id}','${esc(e.prenom+' '+e.nom)}')">+ Inscrire à un semestre</button>`;
+  const _ficheFooter = `
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+      <div style="display:flex;gap:.5rem">
+        <button class="btn-ghost" onclick="document.getElementById('modal-info-overlay').classList.remove('open');modifierEtudiant('${id}')">✏ Modifier</button>
+        <button class="btn-ghost" style="color:#dc2626" onclick="document.getElementById('modal-info-overlay').classList.remove('open');supprimerEtudiant('${id}')">🗑 Supprimer</button>
+      </div>
+      <button class="btn-blue" onclick="ouvrirInscriptionModal('${id}','${esc(e.prenom+' '+e.nom)}')">+ Inscrire à un semestre</button>
+    </div>`;
   ouvrirModalInfo(e.prenom+' '+e.nom, `
     <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem;padding:1rem;background:#1e3a5f;border-radius:12px;color:#fff">
       <div style="width:52px;height:52px;border-radius:50%;background:#c97c1a;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0">${(e.nom?.[0]||'?').toUpperCase()}</div>
