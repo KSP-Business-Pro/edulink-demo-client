@@ -3466,22 +3466,23 @@ async function supprimerMessage(id, btn) {
 }
 // ── Import étudiants en masse ─────────────────────────────────────────────────
 const _IMPORT_COLS = [
-  { csv: ['nom','name'],                       key: 'nom',              req: true,  tx: v => v.toUpperCase() },
-  { csv: ['prenom','prénom','firstname'],       key: 'prenom',           req: true,  tx: v => v },
-  { csv: ['matricule','id','numero'],          key: 'matricule',        req: false, tx: v => v },
-  { csv: ['sexe','genre','sex','gender'],      key: 'sexe',             req: false, tx: v => v.toUpperCase().charAt(0) },
-  { csv: ['date_naissance','naissance','dob'], key: 'date_naissance',   req: false, tx: v => v || null },
-  { csv: ['email','email_auth','mail'],        key: 'email_auth',       req: false, tx: v => v || null },
-  { csv: ['telephone','tel','phone'],          key: 'telephone_parent', req: false, tx: v => v || null },
-  { csv: ['filiere','filière','programme'],    key: 'filiere',          req: false, tx: v => v || null },
-  { csv: ['niveau','level'],                   key: 'niveau',           req: false, tx: v => v || null },
-  { csv: ['statut','status'],                  key: 'statut',           req: false, tx: v => v || 'actif' },
+  { csv: ['matricule','id','numero'],                          key: 'matricule',        req: false, tx: v => v },
+  { csv: ['nom','name'],                                       key: 'nom',              req: true,  tx: v => v.toUpperCase() },
+  { csv: ['prenom','prénom','firstname'],                      key: 'prenom',           req: true,  tx: v => v },
+  { csv: ['filiere','filière','programme'],                    key: 'filiere',          req: false, tx: v => v || null },
+  { csv: ['niveau','level'],                                   key: 'niveau',           req: false, tx: v => v || null },
+  { csv: ['statut','status'],                                  key: 'statut',           req: false, tx: v => v || 'actif' },
+  { csv: ['email','email_auth','mail'],                        key: 'email_auth',       req: false, tx: v => v || null },
+  { csv: ['telephone','tel','phone','téléphone'],              key: 'telephone_parent', req: false, tx: v => v || null },
+  { csv: ['date_naissance','naissance','dob','date de naissance'], key: 'date_naissance', req: false, tx: v => v || null },
+  { csv: ['sexe','genre','sex','gender'],                      key: 'sexe',             req: false, tx: v => v ? v.toUpperCase().charAt(0) : null },
+  { csv: ['nationalite','nationalité','nationality'],          key: 'nationalite',      req: false, tx: v => v || null },
 ];
 
 function telechargerModeleImport() {
-  const header = 'Nom;Prenom;Sexe;Date_naissance;Email;Telephone;Filiere;Niveau;Statut';
-  const ex1    = 'ADANNOU;Rodrigue;M;2001-03-15;r.adannou@email.com;+22997000001;Gestion Financière;L1;actif';
-  const ex2    = 'BOKO;Clarisse;F;2002-07-22;;+22997000002;Marketing et Commerce;L2;actif';
+  const header = 'Matricule;Nom;Prénom;Filière;Niveau;Statut;Email;Téléphone;Date de naissance;Sexe;Nationalité';
+  const ex1    = ';ADANNOU;Rodrigue;Gestion Financière et Comptable;L1;actif;r.adannou@email.com;+22997000001;2001-03-15;M;Béninoise';
+  const ex2    = ';BOKO;Clarisse;Marketing et Commerce;L2;actif;;+22997000002;2002-07-22;F;Béninoise';
   const bom    = '\uFEFF';
   const blob   = new Blob([bom + header + '\n' + ex1 + '\n' + ex2], { type: 'text/csv;charset=utf-8;' });
   const url    = URL.createObjectURL(blob);
