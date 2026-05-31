@@ -3474,7 +3474,17 @@ const _IMPORT_COLS = [
   { csv: ['statut','status'],                                  key: 'statut',           req: false, tx: v => v || 'actif' },
   { csv: ['email','email_auth','mail'],                        key: 'email_auth',       req: false, tx: v => v || null },
   { csv: ['telephone','tel','phone','téléphone'],              key: 'telephone_parent', req: false, tx: v => v || null },
-  { csv: ['date_naissance','naissance','dob','date de naissance'], key: 'date_naissance', req: false, tx: v => v || null },
+  { csv: ['date_naissance','naissance','dob','date de naissance'], key: 'date_naissance', req: false, tx: function(v) {
+    if (!v) return null;
+    // Convert DD/MM/YYYY or DD-MM-YYYY → YYYY-MM-DD
+    const d = v.trim();
+    const m1 = d.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (m1) return m1[3] + '-' + m1[2].padStart(2,'0') + '-' + m1[1].padStart(2,'0');
+    // Already YYYY-MM-DD
+    const m2 = d.match(/^\d{4}-\d{2}-\d{2}$/);
+    if (m2) return d;
+    return null;
+  } },
   { csv: ['sexe','genre','sex','gender'],                      key: 'sexe',             req: false, tx: v => v ? v.toUpperCase().charAt(0) : null },
 ];
 
