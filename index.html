@@ -3606,10 +3606,17 @@ async function lancerImportEtudiants() {
     const r = rows[i];
     if (!r.matricule) r.matricule = _genMatricule();
     r.ecole_id = currentEcoleId;
-    const { error } = await db.from('etudiants')
-      .upsert(r, { onConflict: 'matricule,ecole_id', ignoreDuplicates: false });
-    if (error) { skip++; errors.push(r.nom + ' ' + r.prenom + ' : ' + error.message); }
-    else ok++;
+    const { error } = await db.from('etudiants').insert(r);
+    if (error) {
+      // Duplicate key = already exists → skip silently
+      if (error.code === '23505' || error.message.includes('duplicate') || error.message.includes('unique')) {
+        skip++;
+        errors.push(r.nom + ' ' + r.prenom + ' : doublon ignoré');
+      } else {
+        skip++;
+        errors.push(r.nom + ' ' + r.prenom + ' : ' + error.message);
+      }
+    } else ok++;
   }
 
   const report = document.getElementById('import-etu-report');
