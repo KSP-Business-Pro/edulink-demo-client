@@ -3514,8 +3514,9 @@ function ouvrirImportEtudiants() {
           <button class="btn-ghost btn-sm" onclick="document.getElementById('modal-import-etu').classList.remove('open')">✕</button>
         </div>
         <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.75rem;margin-bottom:1rem;font-size:12px;color:#1d4ed8">
-          Format CSV ou Excel. Colonnes requises : <strong>Nom</strong> et <strong>Prenom</strong>.
-          Le matricule est auto-généré si absent. Le séparateur CSV doit être <strong>;</strong> ou <strong>,</strong>.
+          Format CSV ou Excel. Colonnes requises : <strong>Nom</strong> et <strong>Prénom</strong>.
+          Fournissez le <strong>Matricule</strong> pour respecter la convention de votre école (ex: hemec-GFC-0031).
+          S&#39;il est absent, un matricule temporaire sera généré. Séparateur : <strong>;</strong> ou <strong>,</strong>.
           <button class="btn-ghost btn-sm" onclick="telechargerModeleImport()" style="margin-left:.5rem;font-size:11px">⬇ Télécharger le modèle</button>
         </div>
         <div style="margin-bottom:.85rem">
@@ -3743,7 +3744,7 @@ const _PAGE_SIZE = 25;
 let _etuPage = 0;
 
 function _prevPage() { if(_etuPage>0){_etuPage--;renderTableauEtudiants(_listeFiltrée||_tousEtudiants);} }
-function _nextPage(total) { if((_etuPage+1)*_PAGE_SIZE<total){_etuPage++;renderTableauEtudiants(_listeFiltrée||_tousEtudiants);} }
+function _nextPage(total) { total = parseInt(total)||0; if((_etuPage+1)*_PAGE_SIZE<total){_etuPage++;renderTableauEtudiants(_listeFiltrée||_tousEtudiants);} }
 
 let _listeFiltrée = null;
 
@@ -4209,7 +4210,7 @@ function renderTableauEtudiants(liste) {
     <div style="display:flex;gap:.5rem">
       <button class="btn-ghost btn-sm" onclick="_prevPage()" ${_etuPage===0?'disabled':''}>← Préc.</button>
       <span style="font-size:12px;padding:4px 10px;background:#f3f4f6;border-radius:6px">Page ${_etuPage+1} / ${Math.ceil(liste.length/_PAGE_SIZE)||1}</span>
-      <button class="btn-ghost btn-sm" onclick="_nextPage(${liste.length?'liste.length':'0'})" ${(_etuPage+1)*_PAGE_SIZE>=liste.length?'disabled':''}>Suiv. →</button>
+      <button class="btn-ghost btn-sm" onclick="_nextPage(${liste.length})" ${(_etuPage+1)*_PAGE_SIZE>=liste.length?'disabled':''}>Suiv. →</button>
     </div>
   </div>`;
 }
