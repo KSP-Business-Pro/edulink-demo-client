@@ -2979,6 +2979,9 @@ async function modifierEtudiant(id) {
 }
 
 async function supprimerEtudiant(id) {
+  // Fallback to global if id is missing
+  if (!id || id === 'undefined' || id === 'null') id = _ficheEtuId;
+  if (!id) { toast("Impossible de supprimer : identifiant manquant", 'error'); return; }
   const e = _tousEtudiants?.find(x => x.id === id);
   const nom = e ? e.prenom + ' ' + e.nom : id;
   if (!confirm('Supprimer "' + nom + '" ? Cette action est irréversible.')) return;
