@@ -644,7 +644,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── État global ──────────────────────────────────────────────────────────
-let currentEcoleId = null, currentUserNom = '', currentUserRole = 'admin', _ficheEtuId = null;
+let currentEcoleId = null, currentUserNom = '', currentUserRole = 'admin', _ficheEtuId = null, _ficheEtuNom = '';
 let currentRole      = 'admin';
 let currentUserId    = null;
 let currentPage      = 'dashboard';
@@ -4084,6 +4084,10 @@ async function ouvrirGestionMatieres(ueId, ueNom) {
 
 async function voirMatieresUE(ueId, ueNom) { ouvrirGestionMatieres(ueId, ueNom); }
 
+function fermerModalInfo() {
+  document.getElementById('modal-info-overlay')?.classList.remove('open');
+}
+
 function ouvrirModalInfo(titre, contenu, footerHtml) {
   let o = document.getElementById('modal-info-overlay');
   if (!o) {
@@ -4269,7 +4273,7 @@ function filtrerEtudiants() {
 }
 
 async function voirFicheEtudiant(id) {
-  _ficheEtuId = id;
+  _ficheEtuId = id; _ficheEtuNom = '';
   const { data: e } = await db.from('etudiants').select('*').eq('id', id).single();
   if (!e) return;
   const { data: ins } = await db.from('inscriptions_semestre')
@@ -4288,13 +4292,14 @@ async function voirFicheEtudiant(id) {
       <button class="btn-ghost btn-sm" style="color:#dc2626;padding:2px 6px" title="Retirer"
         onclick="supprimerInscription('${i.id}','${id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
     </div>`).join('');
-  const _etuNomComplet = esc(e.prenom + ' ' + e.nom);
+  _ficheEtuNom = esc(e.prenom + ' ' + e.nom);
+  const _etuNomComplet = _ficheEtuNom;
   const _ficheFooter = '<div style="display:flex;justify-content:space-between;align-items:center;width:100%">'
     + '<div style="display:flex;gap:.5rem">'
-    + '<button class="btn-ghost" onclick="document.getElementById('modal-info-overlay').classList.remove('open');modifierEtudiant(_ficheEtuId)">&#x270F; Modifier</button>'
-    + '<button class="btn-ghost" style="color:#dc2626" onclick="document.getElementById('modal-info-overlay').classList.remove('open');supprimerEtudiant(_ficheEtuId)">&#x1F5D1; Supprimer</button>'
+    + '<button class="btn-ghost" onclick="fermerModalInfo();modifierEtudiant(_ficheEtuId)">&#x270F; Modifier</button>'
+    + '<button class="btn-ghost" style="color:#dc2626" onclick="fermerModalInfo();supprimerEtudiant(_ficheEtuId)">&#x1F5D1; Supprimer</button>'
     + '</div>'
-    + '<button class="btn-blue" onclick="ouvrirInscriptionModal(_ficheEtuId,'' + _etuNomComplet + '')">+ Inscrire &#224; un semestre</button>'
+    + '<button class="btn-blue" onclick="fermerModalInfo();ouvrirInscriptionModal(_ficheEtuId,_ficheEtuNom)">+ Inscrire</button>'
     + '</div>';
   ouvrirModalInfo(e.prenom+' '+e.nom, `
     <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem;padding:1rem;background:#1e3a5f;border-radius:12px;color:#fff">
