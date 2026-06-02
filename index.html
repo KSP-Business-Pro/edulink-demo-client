@@ -5810,7 +5810,7 @@ async function exporterReleve(etudiantId, semId) {
     doc.text((et.prenom || '') + ' ' + (et.nom || ''), M + 5, y + 9);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(107, 114, 128);
     doc.text('Matricule : ' + (et.matricule || '—') + '   ·   Filière : ' + (et.filiere || '—'), M + 5, y + 17);
-    doc.text('Semestre : ' + (snap.semestre_libelle || '—') + '   ·   Année : ' + (snap.annee_libelle || '—'), M + 5, y + 23);
+    doc.text('Semestre : ' + (snap.semestre_libelle || '—') + (snap.annee_libelle ? '   ·   Année : ' + snap.annee_libelle : ''), M + 5, y + 23);
     y += 33;
 
     // 3 badges résumé
@@ -5846,9 +5846,9 @@ async function exporterReleve(etudiantId, semId) {
       styles: { fontSize: 8, cellPadding: 3 },
       headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold', fontSize: 8 },
       columnStyles: {
-        0: { cellWidth: 22 }, 1: { cellWidth: 74 },
-        2: { cellWidth: 18, halign: 'center' }, 3: { cellWidth: 22, halign: 'center' },
-        4: { cellWidth: 26, halign: 'center' }, 5: { cellWidth: 24, halign: 'center' }
+        0: { cellWidth: 24 }, 1: { cellWidth: 68 },
+        2: { cellWidth: 16, halign: 'center' }, 3: { cellWidth: 22, halign: 'center' },
+        4: { cellWidth: 24, halign: 'center' }, 5: { cellWidth: 24, halign: 'center' }
       },
       didParseCell: (data) => {
         if (data.section === 'body' && data.column.index === 5) {
