@@ -1737,7 +1737,8 @@ async function ouvrirEditRegles() {
           <div style="margin-bottom:1.2rem">
             <label>Règle de rattrapage</label>
             <select id="regles-rattrapage" style="width:100%;margin-top:4px">
-              <option value="automatique">Automatique (moyenne < seuil)</option>
+              <option value="max">Max des deux sessions</option>
+              <option value="ecrase">Écrase la normale</option>
               <option value="partiel">Partiel (selon décision jury)</option>
               <option value="tout">Tout étudiant (systématique)</option>
             </select>
@@ -1755,7 +1756,7 @@ async function ouvrirEditRegles() {
   document.getElementById('regles-plancher').value          = r?.seuil_note_plancher    ?? 5;
   document.getElementById('regles-compensation').checked    = r?.compensation_active    ?? false;
   document.getElementById('regles-plancher-active').checked = r?.note_plancher_active   ?? false;
-  document.getElementById('regles-rattrapage').value        = r?.regle_rattrapage       || 'automatique';
+  document.getElementById('regles-rattrapage').value        = r?.regle_rattrapage       || 'max';
   document.getElementById('regles-submit-btn').disabled = false;
   document.getElementById('regles-submit-btn').textContent = 'Enregistrer →';
   o.classList.add('open');
@@ -1771,7 +1772,7 @@ async function sauvegarderRegles(evt) {
     seuil_note_plancher:  parseFloat(document.getElementById('regles-plancher').value)   || 5,
     compensation_active:  document.getElementById('regles-compensation').checked,
     note_plancher_active: document.getElementById('regles-plancher-active').checked,
-    regle_rattrapage:     document.getElementById('regles-rattrapage').value || 'automatique'
+    regle_rattrapage:     document.getElementById('regles-rattrapage').value || 'max'
   };
   const { error } = await db.from('regles_ecole').upsert(payload, { onConflict: 'ecole_id' });
   if (error) { toast('Erreur : ' + error.message, 'error'); btn.disabled=false; btn.textContent='Enregistrer →'; return; }
