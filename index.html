@@ -5761,28 +5761,30 @@ async function genererPV(semId) {
   }
 }
 
-// ── Génération QR code — canvas drawing → PNG data URL ───────────────────────
+// ── Génération QR code — GIF → canvas → PNG (compatible jsPDF) ──────────────
 async function _genQR(text) {
   try {
-    const qr = qrcode(5, 'M');   // type 5 = jusqu'à 64 bytes, correction M
+    const qr = qrcode(5, 'M');
     qr.addData(text);
     qr.make();
-    const n     = qr.getModuleCount();
-    const scale = 4;
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = n * scale;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#000000';
-    for (let r = 0; r < n; r++) {
-      for (let c = 0; c < n; c++) {
-        if (qr.isDark(r, c)) ctx.fillRect(c * scale, r * scale, scale, scale);
-      }
-    }
-    return canvas.toDataURL('image/png');
+    const gifUrl = qr.createDataURL(4, 1);   // GIF data URL
+    // Convertir GIF → PNG via canvas pour compatibilité jsPDF
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = img.width; c.height = img.height;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0);
+        resolve(c.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(null);
+      img.src = gifUrl;
+    });
   } catch (e) {
-    console.warn('QR generation failed:', e);
+    console.warn('QR failed:', e);
     return null;
   }
 }
