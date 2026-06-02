@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" crossorigin="anonymous"></script>
 <style>
 /* ══════════════════════════════════════════════
    BASE — EduLink Sup LMD
@@ -5761,10 +5761,26 @@ async function genererPV(semId) {
   }
 }
 
-// ── Génération QR code — qrcode npm (PNG data URL sans DOM) ─────────────────
+// ── Génération QR code — canvas drawing → PNG data URL ───────────────────────
 async function _genQR(text) {
   try {
-    return await QRCode.toDataURL(text, { errorCorrectionLevel: 'M', margin: 1, width: 128 });
+    const qr = qrcode(5, 'M');   // type 5 = jusqu'à 64 bytes, correction M
+    qr.addData(text);
+    qr.make();
+    const n     = qr.getModuleCount();
+    const scale = 4;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = n * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000000';
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (qr.isDark(r, c)) ctx.fillRect(c * scale, r * scale, scale, scale);
+      }
+    }
+    return canvas.toDataURL('image/png');
   } catch (e) {
     console.warn('QR generation failed:', e);
     return null;
