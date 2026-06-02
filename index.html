@@ -5297,8 +5297,10 @@ async function creerSessionsEvaluation(semId) {
     .select('id,type_session').eq('semestre_id', semId);
   const types = (exist||[]).map(s => s.type_session);
   const toCreate = [];
-  if (!types.includes('normale'))    toCreate.push({ semestre_id: semId, ecole_id: currentEcoleId, type_session: 'normale',    statut: 'ouverte' });
-  if (!types.includes('rattrapage')) toCreate.push({ semestre_id: semId, ecole_id: currentEcoleId, type_session: 'rattrapage', statut: 'planifiee' });
+  const today = new Date().toISOString().split('T')[0];
+    const in60  = new Date(Date.now()+60*864e5).toISOString().split('T')[0];
+    if (!types.includes('normale'))    toCreate.push({ semestre_id: semId, ecole_id: currentEcoleId, type_session: 'normale',    statut: 'ouverte',    date_debut: today, date_fin: in60 });
+    if (!types.includes('rattrapage')) toCreate.push({ semestre_id: semId, ecole_id: currentEcoleId, type_session: 'rattrapage', statut: 'planifiee',  date_debut: today, date_fin: in60 });
   if (!toCreate.length) { toast('Sessions déjà créées', 'info'); return; }
   const { error } = await db.from('sessions_evaluation').insert(toCreate);
   if (error) { toast('Erreur : ' + error.message, 'error'); return; }
