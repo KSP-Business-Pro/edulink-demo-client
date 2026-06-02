@@ -509,7 +509,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
       <p class="page-subtitle">Par semestre, UE et matière</p>
     </div>
   </div>
-  <div class="filters">
+  <div class="filters" style="flex-wrap:wrap;gap:.5rem">
     <select id="saisie-semestre" onchange="chargerSaisieNotes()">
       <option value="">Sélectionner un semestre…</option>
     </select>
@@ -519,6 +519,17 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
     <select id="saisie-matiere" onchange="chargerGrilleNotes()" style="display:none">
       <option value="">Sélectionner une matière…</option>
     </select>
+    <!-- Toggle session Normale / Rattrapage -->
+    <div id="saisie-session-toggle" style="display:none;align-items:center;gap:4px;margin-left:8px">
+      <button id="saisie-btn-norm" onclick="switchSaisieSession('normale')"
+        style="padding:4px 12px;border-radius:999px;border:1.5px solid #1e3a5f;background:#1e3a5f;color:#fff;font-size:12px;font-weight:500;cursor:pointer">
+        📋 Normale
+      </button>
+      <button id="saisie-btn-ratt" onclick="switchSaisieSession('rattrapage')"
+        style="padding:4px 12px;border-radius:999px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer">
+        🔄 Rattrapage
+      </button>
+    </div>
   </div>
   <div id="saisie-content">
     <div class="empty-state">
@@ -1274,7 +1285,36 @@ async function chargerProgrammes()   { await _chargerProgrammes(); }
 async function chargerSemestres()    { await _chargerSemestres(); }
 async function chargerPromotions()   { await _chargerPromotions(); }
 async function chargerEtudiants()    { await _chargerEtudiants(); }
-async function initSaisieNotes()  { await peuplerSelectSemestre('saisie-semestre'); }
+async function initSaisieNotes()  { _saisieSessionType = 'normale'; await peuplerSelectSemestre('saisie-semestre'); }
+
+// ── Toggle session Normale / Rattrapage ────────────────────────────────────────
+let _saisieSessionType = 'normale';
+
+function switchSaisieSession(type) {
+  _saisieSessionType = type;
+  const isNorm = type === 'normale';
+  const btnN = document.getElementById('saisie-btn-norm');
+  const btnR = document.getElementById('saisie-btn-ratt');
+  if (btnN) {
+    btnN.style.background  = isNorm ? '#1e3a5f' : '#fff';
+    btnN.style.color       = isNorm ? '#fff'    : '#6b7280';
+    btnN.style.borderColor = isNorm ? '#1e3a5f' : '#e5e7eb';
+  }
+  if (btnR) {
+    btnR.style.background  = isNorm ? '#fff'    : '#f97316';
+    btnR.style.color       = isNorm ? '#6b7280' : '#fff';
+    btnR.style.borderColor = isNorm ? '#e5e7eb' : '#f97316';
+  }
+  chargerGrilleNotes();
+}
+
+async function activerSessionRattrapage(sessId) {
+  if (!sessId) { toast('Session rattrapage introuvable', 'error'); return; }
+  const { error } = await db.from('sessions_evaluation').update({ statut: 'ouverte' }).eq('id', sessId);
+  if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+  toast('Session rattrapage activée ✓ — vous pouvez maintenant saisir les notes', 'success');
+  chargerGrilleNotes();
+}
 async function initResultats()    { await peuplerSelectSemestre('resultats-semestre'); }
 async function initDeliberations() { await peuplerSelectSemestre('delib-semestre'); }
 async function initReleves()      { await peuplerSelectSemestre('releves-semestre'); }
@@ -1737,8 +1777,9 @@ async function ouvrirEditRegles() {
           <div style="margin-bottom:1.2rem">
             <label>Règle de rattrapage</label>
             <select id="regles-rattrapage" style="width:100%;margin-top:4px">
-              <option value="max">Max des deux sessions</option>
-              <option value="ecrase">Écrase la normale</option>
+              <option value="automatique">Automatique (moyenne < seuil)</option>
+              <option value="partiel">Partiel (selon décision jury)</option>
+              <option value="tout">Tout étudiant (systématique)</option>
             </select>
           </div>
           <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
@@ -1754,7 +1795,7 @@ async function ouvrirEditRegles() {
   document.getElementById('regles-plancher').value          = r?.seuil_note_plancher    ?? 5;
   document.getElementById('regles-compensation').checked    = r?.compensation_active    ?? false;
   document.getElementById('regles-plancher-active').checked = r?.note_plancher_active   ?? false;
-  document.getElementById('regles-rattrapage').value        = r?.regle_rattrapage       || 'max';
+  document.getElementById('regles-rattrapage').value        = r?.regle_rattrapage       || 'automatique';
   document.getElementById('regles-submit-btn').disabled = false;
   document.getElementById('regles-submit-btn').textContent = 'Enregistrer →';
   o.classList.add('open');
@@ -1770,7 +1811,7 @@ async function sauvegarderRegles(evt) {
     seuil_note_plancher:  parseFloat(document.getElementById('regles-plancher').value)   || 5,
     compensation_active:  document.getElementById('regles-compensation').checked,
     note_plancher_active: document.getElementById('regles-plancher-active').checked,
-    regle_rattrapage:     document.getElementById('regles-rattrapage').value || 'max'
+    regle_rattrapage:     document.getElementById('regles-rattrapage').value
   };
   const { error } = await db.from('regles_ecole').upsert(payload, { onConflict: 'ecole_id' });
   if (error) { toast('Erreur : ' + error.message, 'error'); btn.disabled=false; btn.textContent='Enregistrer →'; return; }
@@ -4901,10 +4942,12 @@ async function chargerGrilleNotes() {
 
   const etudiants = (ins||[]).map(i=>i.etudiants).filter(Boolean).sort((a,b)=>a.nom.localeCompare(b.nom));
   const sessNorm  = sessions?.find(s=>s.type_session==='normale');
-  const evalsCC   = (evals||[]).filter(e=>e.categorie==='CC');
-  const evalsEX   = (evals||[]).filter(e=>e.categorie==='EXAMEN');
+  const sessRatt  = sessions?.find(s=>s.type_session==='rattrapage');
+  const sessActive = _saisieSessionType === 'rattrapage' ? sessRatt : sessNorm;
+  const evalsCC   = (evals||[]).filter(e=>e.categorie==='CC'     && e.session_id === sessActive?.id);
+  const evalsEX   = (evals||[]).filter(e=>e.categorie==='EXAMEN' && e.session_id === sessActive?.id);
   // State global pour import
-  window._saisieState = { matId, semId, sessNormId: sessNorm?.id, sessNormStatut: sessNorm?.statut, etudiants, evalsCC, evalsEX };
+  window._saisieState = { matId, semId, sessNormId: sessActive?.id, sessNormStatut: sessActive?.statut, etudiants, evalsCC, evalsEX };
 
   // Charger notes existantes
   const evalIds = (evals||[]).map(e=>e.id);
@@ -4918,7 +4961,11 @@ async function chargerGrilleNotes() {
     });
   }
 
-  const sessLocked = sessNorm?.statut === 'close';
+  const sessLocked = sessActive?.statut === 'close';
+  const sessPlanned = sessActive?.statut === 'planifiee';
+  // Afficher/masquer le toggle de session
+  const toggle = document.getElementById('saisie-session-toggle');
+  if (toggle) toggle.style.display = 'flex';
   const poids_cc = mat.unites_enseignement?.poids_cc || 0.4;
   const poids_ex = mat.unites_enseignement?.poids_examen || 0.6;
 
@@ -4931,23 +4978,24 @@ async function chargerGrilleNotes() {
       </div>
       <div style="text-align:right">
         <div style="font-size:12px;opacity:.7">${etudiants.length} étudiants</div>
-        <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px">
-          <span style="font-size:10px;padding:2px 7px;border-radius:12px;font-weight:600;background:${sessNorm?.statut==='close'?'#dc2626':'#059669'};color:#fff">
-            ${sessNorm?.statut==='close'?'🔒 Verrouillée':'🔓 Ouverte'}
+          <span style="font-size:10px;padding:2px 7px;border-radius:12px;font-weight:600;background:${sessActive?.statut==='close'?'#dc2626':sessPlanned?'#f97316':'#059669'};color:#fff">
+            ${sessActive?.statut==='close'?'🔒 Verrouillée':sessPlanned?'⏳ Planifiée':'🔓 Ouverte'}
           </span>
-          ${sessNorm?.statut==='close'
-            ? '<button onclick="changerStatutSession(\''+sessNorm.id+'\',\'ouverte\')" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">Rouvrir</button>'
-            : '<button onclick="ajouterEvaluation(\''+matId+'\',\''+sessNorm?.id+'\',\'CC\')" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">+ CC</button><button onclick="ajouterEvaluation(\''+matId+'\',\''+sessNorm?.id+'\',\'EXAMEN\')" style="background:rgba(201,124,26,.8);color:#fff;border:none;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">+ Exam</button>'
+          ${sessPlanned
+            ? `<button onclick="activerSessionRattrapage('${sessActive?.id}')" style="background:rgba(249,115,22,.8);color:#fff;border:none;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">▶ Activer rattrapage</button>`
+            : sessActive?.statut==='close'
+              ? '<button onclick="changerStatutSession(\''+sessActive.id+'\',\'ouverte\')" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">Rouvrir</button>'
+              : '<button onclick="ajouterEvaluation(\''+matId+'\',\''+sessActive?.id+'\',\'CC\')" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">+ CC</button><button onclick="ajouterEvaluation(\''+matId+'\',\''+sessActive?.id+'\',\'EXAMEN\')" style="background:rgba(201,124,26,.8);color:#fff;border:none;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">+ Exam</button>'
           }
           <button onclick="ouvrirImportNotes()" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3);padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">⬆ Import</button>
-          ${sessNorm?.statut!=='close'
-            ? '<button onclick="changerStatutSession(\''+sessNorm?.id+'\',\'close\')" style="background:rgba(220,38,38,.7);color:#fff;border:none;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">Clôturer</button>'
+          ${!sessPlanned && sessActive?.statut!=='close'
+            ? '<button onclick="changerStatutSession(\''+sessActive?.id+'\',\'close\')" style="background:rgba(220,38,38,.7);color:#fff;border:none;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">Clôturer</button>'
             : ''}
         </div>
       </div>
     </div>
 
-    ${!sessNorm ? `<div class="empty-state"><div class="es-ico">⚠️</div><h3>Aucune session d'évaluation</h3><p>Aucune session normale n'est associée à ce semestre.</p><button class="btn-blue" style="margin-top:.75rem" onclick="creerSessionsEvaluation('${semId}')">Créer les sessions (normale + rattrapage)</button></div>` : `
+    ${!sessActive ? `<div class="empty-state"><div class="es-ico">⚠️</div><h3>Aucune session d'évaluation</h3><p>Aucune session n'est associée à ce semestre.</p><button class="btn-blue" style="margin-top:.75rem" onclick="creerSessionsEvaluation('${semId}')">Créer les sessions (normale + rattrapage)</button></div>` : `
 
     <!-- Grille de saisie -->
     <div style="overflow-x:auto">
