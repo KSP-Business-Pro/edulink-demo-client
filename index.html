@@ -1994,7 +1994,7 @@ async function chargerPaiements() {
         </select>
         <select id="filter-compta-statut" onchange="filtrerCompta()">
           <option value="">Tous statuts</option>
-          <option value="impaye">Impayé</option>
+          <option value="en_attente">Impayé</option>
           <option value="partiel">Partiel</option>
           <option value="paye">Payé</option>
         </select>
@@ -2011,7 +2011,7 @@ async function chargerPaiements() {
 
 function renderComptaTableau(liste, fmt) {
   if (!liste.length) return '<div class="empty-state"><p>Aucun résultat</p></div>';
-  const statutColor = { paye:'green', partiel:'amber', impaye:'red', annule:'gray' };
+  const statutColor = { paye:'green', partiel:'amber', en_attente:'red', annule:'gray' };
   return `<div class="table-wrap"><table>
     <thead><tr>
       <th>Étudiant</th><th>Filière / Niveau</th>
@@ -2028,7 +2028,7 @@ function renderComptaTableau(liste, fmt) {
       ${liste.map(e => {
         const restant = e.attendu - e.encaisse;
         const taux = e.attendu > 0 ? Math.round(e.encaisse/e.attendu*100) : 0;
-        const statut = restant <= 0 ? 'paye' : taux > 0 ? 'partiel' : 'impaye';
+        const statut = restant <= 0 ? 'paye' : taux > 0 ? 'partiel' : 'en_attente';
         return `<tr>
           <td>
             <div style="font-size:13px;font-weight:600;color:#111827">${esc(e.etudiant?.nom||'—')} ${esc(e.etudiant?.prenom||'')}</div>
@@ -2080,7 +2080,7 @@ function filtrerCompta() {
   }
 
   // Filtre statut
-  if (statut === 'impaye')  liste = liste.filter(e => e.encaisse === 0 && e.attendu > 0);
+  if (statut === 'en_attente')  liste = liste.filter(e => e.encaisse === 0 && e.attendu > 0);
   else if (statut === 'partiel') liste = liste.filter(e => e.encaisse > 0 && e.encaisse < e.attendu);
   else if (statut === 'paye')    liste = liste.filter(e => e.encaisse >= e.attendu && e.attendu > 0);
 
@@ -2096,7 +2096,7 @@ async function voirFicheComptable(etudiantId, nom) {
   const totalAttendu  = factures?.reduce((s,f) => s+(f.montant_total||f.montant||0), 0)||0;
   const totalEncaisse = factures?.reduce((s,f) => s+(f.montant_paye||0), 0)||0;
   const totalRestant  = totalAttendu - totalEncaisse;
-  const statutColor   = { paye:'green', partiel:'amber', impaye:'red', annule:'gray' };
+  const statutColor   = { paye:'green', partiel:'amber', en_attente:'red', annule:'gray' };
   const rubriqueLabels = {
     scolarite:'Frais de scolarité', inscription:'Frais d\'inscription',
     examen:'Frais d\'examen', bibliotheque:'Bibliothèque', autre:'Autres frais'
@@ -3486,7 +3486,7 @@ async function soumettreModalPaiement(e) {
     if (!f) throw new Error('Facture introuvable');
     const totalFact = f.montant_total || f.montant || 0;
     const nouvPaye  = Math.min((f.montant_paye||0) + montant, totalFact);
-    const statut    = nouvPaye >= totalFact ? 'paye' : nouvPaye > 0 ? 'partiel' : 'impaye';
+    const statut    = nouvPaye >= totalFact ? 'paye' : nouvPaye > 0 ? 'partiel' : 'en_attente';
     const { error } = await db.from('factures').update({
       montant_paye: nouvPaye, statut, mode_paiement: mode
     }).eq('id', factureId);
@@ -3593,7 +3593,7 @@ async function soumettreModalFacture(e) {
     libelle:       document.getElementById('fact-libelle').value.trim(),
     montant_total: parseFloat(document.getElementById('fact-montant').value),
     montant_paye:  0,
-    statut:        'impaye',
+    statut:        'en_attente',
     annee_scolaire: document.getElementById('fact-annee').value.trim() || null,
     date_echeance: document.getElementById('fact-echeance').value || null
   };
@@ -3710,7 +3710,7 @@ async function soumettreFactureMasse(evt) {
       .map(i => ({
         ecole_id: currentEcoleId, etudiant_id: i.etudiant_id,
         type_frais: type, libelle, montant_total: montant,
-        montant_paye: 0, statut: 'impaye', annee_scolaire: annee
+        montant_paye: 0, statut: 'en_attente', annee_scolaire: annee
       }));
 
     if (!toCreate.length) throw new Error('Toutes les factures existent déjà pour cette combinaison type/année');
