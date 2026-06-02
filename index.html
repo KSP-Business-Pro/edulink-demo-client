@@ -711,6 +711,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
     <div><h2>Comptabilité</h2><p class="page-subtitle">Facturation et suivi des règlements</p></div>
     <div class="top-actions">
       <button onclick="ouvrirModalFacture()">+ Facture</button>
+      <button onclick="ouvrirModalFactureMasse()" style="background:#059669;color:#fff;border-color:#059669">📋 Facturer promotion</button>
     </div>
   </div>
   <div id="paiements-content"><div class="loading">Chargement…</div></div>
@@ -1777,10 +1778,14 @@ async function ouvrirEditRegles() {
           <div style="margin-bottom:1.2rem">
             <label>Règle de rattrapage</label>
             <select id="regles-rattrapage" style="width:100%;margin-top:4px">
-              <option value="automatique">Automatique (moyenne < seuil)</option>
-              <option value="partiel">Partiel (selon décision jury)</option>
-              <option value="tout">Tout étudiant (systématique)</option>
+              <option value="max">Max des deux sessions</option>
+              <option value="ecrase">Écrase la normale</option>
             </select>
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Seuil exclusion absences (%)</label>
+            <input type="number" id="regles-seuil-absence" style="width:100%;margin-top:4px" min="0" max="100" step="5" placeholder="30">
+            <div style="font-size:11px;color:#9ca3af;margin-top:3px">Au-delà de ce taux d'absence, l'étudiant est signalé ou exclu</div>
           </div>
           <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
             <button type="button" class="btn-ghost" onclick="document.getElementById('modal-edit-regles').classList.remove('open')">Annuler</button>
@@ -1795,7 +1800,8 @@ async function ouvrirEditRegles() {
   document.getElementById('regles-plancher').value          = r?.seuil_note_plancher    ?? 5;
   document.getElementById('regles-compensation').checked    = r?.compensation_active    ?? false;
   document.getElementById('regles-plancher-active').checked = r?.note_plancher_active   ?? false;
-  document.getElementById('regles-rattrapage').value        = r?.regle_rattrapage       || 'automatique';
+  document.getElementById('regles-rattrapage').value        = r?.regle_rattrapage       || 'max';
+  document.getElementById('regles-seuil-absence').value     = r?.seuil_absence_pct      ?? 30;
   document.getElementById('regles-submit-btn').disabled = false;
   document.getElementById('regles-submit-btn').textContent = 'Enregistrer →';
   o.classList.add('open');
@@ -1811,7 +1817,8 @@ async function sauvegarderRegles(evt) {
     seuil_note_plancher:  parseFloat(document.getElementById('regles-plancher').value)   || 5,
     compensation_active:  document.getElementById('regles-compensation').checked,
     note_plancher_active: document.getElementById('regles-plancher-active').checked,
-    regle_rattrapage:     document.getElementById('regles-rattrapage').value
+    regle_rattrapage:     document.getElementById('regles-rattrapage').value || 'max',
+    seuil_absence_pct:    parseInt(document.getElementById('regles-seuil-absence').value) || 30
   };
   const { error } = await db.from('regles_ecole').upsert(payload, { onConflict: 'ecole_id' });
   if (error) { toast('Erreur : ' + error.message, 'error'); btn.disabled=false; btn.textContent='Enregistrer →'; return; }
@@ -2142,6 +2149,11 @@ async function voirFicheComptable(etudiantId, nom) {
             style="background:none;border:1px solid #fca5a5;color:#dc2626;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:Poppins,sans-serif">
             🗑 Supprimer
           </button>
+          ${(f.montant_paye||0) > 0 ? `
+          <button onclick="genererRecuPDF('${f.id}','${esc(nom)}')"
+            style="background:#059669;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif">
+            📄 Reçu PDF
+          </button>` : ''}
           ${((f.montant_total||f.montant||0)-(f.montant_paye||0)) > 0 ? `
           <button onclick="ouvrirPaiement('${f.id}',${(f.montant_total||f.montant||0)-(f.montant_paye||0)})"
             style="background:#1e3a5f;color:#fff;border:none;padding:5px 14px;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif">
@@ -3589,8 +3601,211 @@ async function soumettreModalFacture(e) {
     btn.disabled = false; btn.textContent = 'Créer la facture →';
   }
 }
+// ── MODULE FINANCES AVANCÉ — S6 ──────────────────────────────────────────────
+
+// ── Génération factures en masse ──────────────────────────────────────────────
+async function ouvrirModalFactureMasse() {
+  let o = document.getElementById('modal-masse-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-masse-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:520px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 style="margin:0;font-size:15px;font-weight:700;color:#111827">📋 Facturer une promotion</h3>
+          <button class="btn-ghost btn-sm" onclick="document.getElementById('modal-masse-overlay').classList.remove('open')">✕</button>
+        </div>
+        <form id="form-masse" onsubmit="soumettreFactureMasse(event)" autocomplete="off">
+          <div style="margin-bottom:.85rem">
+            <label>Semestre / Promotion *</label>
+            <select id="masse-semestre" style="width:100%;margin-top:4px" required>
+              <option value="">— Sélectionner —</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Type de frais *</label>
+              <select id="masse-type" style="width:100%;margin-top:4px" required>
+                <option value="scolarite">Frais de scolarité</option>
+                <option value="inscription">Frais d'inscription</option>
+                <option value="examen">Frais d'examen</option>
+                <option value="bibliotheque">Bibliothèque</option>
+                <option value="autre">Autres frais</option>
+              </select>
+            </div>
+            <div>
+              <label>Montant (FCFA) *</label>
+              <input type="number" id="masse-montant" style="width:100%;margin-top:4px" min="1" step="100" required placeholder="ex: 150000">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-bottom:.85rem">
+            <div>
+              <label>Libellé *</label>
+              <input type="text" id="masse-libelle" style="width:100%;margin-top:4px" required placeholder="ex: Scolarité S1 2025-2026">
+            </div>
+            <div>
+              <label>Année scolaire</label>
+              <input type="text" id="masse-annee" style="width:100%;margin-top:4px" placeholder="2025-2026">
+            </div>
+          </div>
+          <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:.75rem;margin-bottom:1rem;font-size:12px;color:#92400e">
+            ⚠️ Les étudiants ayant déjà une facture du même type pour la même année ne seront pas refacturés.
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
+            <button type="button" class="btn-ghost" onclick="document.getElementById('modal-masse-overlay').classList.remove('open')">Annuler</button>
+            <button type="submit" class="btn-blue" id="masse-submit-btn">Créer les factures →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+  }
+  // Peupler semestres
+  const sel = document.getElementById('masse-semestre');
+  if (sel.options.length <= 1) {
+    const { data: sems } = await db.from('semestres')
+      .select('id,libelle').eq('ecole_id', currentEcoleId).order('libelle', { ascending: false });
+    (sems||[]).forEach(s => {
+      const op = document.createElement('option');
+      op.value = s.id; op.textContent = s.libelle;
+      sel.appendChild(op);
+    });
+  }
+  document.getElementById('modal-masse-overlay').classList.add('open');
+}
+
+async function soumettreFactureMasse(evt) {
+  evt.preventDefault();
+  const btn = document.getElementById('masse-submit-btn');
+  btn.disabled = true; btn.textContent = 'Création en cours…';
+  const semId   = document.getElementById('masse-semestre').value;
+  const type    = document.getElementById('masse-type').value;
+  const montant = parseFloat(document.getElementById('masse-montant').value);
+  const libelle = document.getElementById('masse-libelle').value.trim();
+  const annee   = document.getElementById('masse-annee').value.trim() || null;
+
+  try {
+    // Récupérer étudiants inscrits
+    const { data: ins } = await db.from('inscriptions_semestre')
+      .select('etudiant_id').eq('semestre_id', semId).eq('statut', 'active');
+    if (!ins?.length) throw new Error('Aucun étudiant inscrit dans ce semestre');
+
+    // Récupérer factures existantes du même type/année pour éviter doublons
+    const etuIds = ins.map(i => i.etudiant_id);
+    const { data: existing } = await db.from('factures')
+      .select('etudiant_id').eq('ecole_id', currentEcoleId)
+      .eq('type_frais', type).in('etudiant_id', etuIds)
+      .eq('annee_scolaire', annee || '');
+
+    const dejaTrait = new Set((existing||[]).map(f => f.etudiant_id));
+    const toCreate = ins
+      .filter(i => !dejaTrait.has(i.etudiant_id))
+      .map(i => ({
+        ecole_id: currentEcoleId, etudiant_id: i.etudiant_id,
+        type_frais: type, libelle, montant_total: montant,
+        montant_paye: 0, statut: 'impaye', annee_scolaire: annee
+      }));
+
+    if (!toCreate.length) throw new Error('Toutes les factures existent déjà pour cette combinaison type/année');
+
+    const { error } = await db.from('factures').insert(toCreate);
+    if (error) throw error;
+
+    document.getElementById('modal-masse-overlay').classList.remove('open');
+    await chargerPaiements();
+    toast(`${toCreate.length} factures créées ✓ (${dejaTrait.size} ignorées — déjà existantes)`, 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+    btn.disabled = false; btn.textContent = 'Créer les factures →';
+  }
+}
+
+// ── Reçu PDF ──────────────────────────────────────────────────────────────────
+async function genererRecuPDF(factureId, nomEtudiant) {
+  const { data: f } = await db.from('factures').select('*').eq('id', factureId).single();
+  if (!f) { toast('Facture introuvable', 'error'); return; }
+  const { data: ecole } = await db.from('ecoles').select('nom,ville,email').eq('id', currentEcoleId).single();
+
+  const fmt = n => Math.round(n||0).toLocaleString('fr-FR') + ' FCFA';
+  const rubriqueLabels = {
+    scolarite:'Frais de scolarité', inscription:"Frais d'inscription",
+    examen:"Frais d'examen", bibliotheque:'Bibliothèque', autre:'Autres frais'
+  };
+  const ref = f.reference || ('REC-' + factureId.substring(0,8).toUpperCase());
+  const dateRecuStr = new Date().toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' });
+
+  const doc = new window.jspdf.jsPDF({ unit:'mm', format:'a5' });
+  // En-tête
+  doc.setFillColor(30, 58, 95);
+  doc.rect(0, 0, 148, 22, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.text(ecole?.nom || 'Établissement', 10, 10);
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text((ecole?.ville || '') + (ecole?.email ? ' · ' + ecole.email : ''), 10, 17);
+  doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text('REÇU DE PAIEMENT', 148-10, 13, { align:'right' });
+
+  // Corps
+  doc.setTextColor(0,0,0);
+  doc.setFillColor(248,250,252);
+  doc.rect(8, 26, 132, 14, 'F');
+  doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('Réf. : ' + ref, 12, 32);
+  doc.text('Date : ' + dateRecuStr, 12, 38);
+  doc.setFont('helvetica','normal');
+  doc.text('Étudiant : ' + nomEtudiant, 75, 32);
+  doc.text('Année : ' + (f.annee_scolaire || '—'), 75, 38);
+
+  // Détail
+  doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('DÉTAIL DU PAIEMENT', 10, 50);
+  doc.setDrawColor(30,58,95); doc.setLineWidth(0.4);
+  doc.line(10, 52, 138, 52);
+
+  doc.setFont('helvetica','normal');
+  doc.text(rubriqueLabels[f.type_frais] || f.type_frais, 10, 58);
+  doc.text(f.libelle || '—', 10, 64);
+  doc.text('Montant total :', 10, 76); doc.setFont('helvetica','bold');
+  doc.text(fmt(f.montant_total || f.montant), 138, 76, { align:'right' });
+  doc.setFont('helvetica','normal');
+  doc.text('Montant réglé :', 10, 83); doc.setFont('helvetica','bold');
+  doc.setTextColor(5,150,105);
+  doc.text(fmt(f.montant_paye), 138, 83, { align:'right' });
+  doc.setTextColor(0,0,0); doc.setFont('helvetica','normal');
+  const restant = (f.montant_total||f.montant||0) - (f.montant_paye||0);
+  if (restant > 0) {
+    doc.text('Reste dû :', 10, 90); doc.setFont('helvetica','bold');
+    doc.setTextColor(220,38,38);
+    doc.text(fmt(restant), 138, 90, { align:'right' });
+    doc.setTextColor(0,0,0);
+  }
+
+  // Statut
+  doc.setFontSize(10); doc.setFont('helvetica','bold');
+  const statLabel = f.statut === 'paye' ? 'SOLDÉ' : f.statut === 'partiel' ? 'RÈGLEMENT PARTIEL' : 'NON RÉGLÉ';
+  const statColor = f.statut === 'paye' ? [5,150,105] : f.statut === 'partiel' ? [217,119,6] : [220,38,38];
+  doc.setFillColor(...statColor);
+  doc.roundedRect(10, 98, 50, 8, 2, 2, 'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(8);
+  doc.text(statLabel, 35, 103, { align:'center' });
+
+  // Mode paiement
+  doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  if (f.mode_paiement) doc.text('Mode : ' + f.mode_paiement, 70, 103);
+
+  // Pied
+  doc.setFillColor(30,58,95);
+  doc.rect(0, 185, 148, 5, 'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(7);
+  doc.text('Document généré par EduLink Sup · LMD-CAMES', 74, 188.5, { align:'center' });
+
+  doc.save('Recu-' + ref + '.pdf');
+  toast('Reçu PDF généré ✓', 'success');
+}
+
 // ── Messages internes ────────────────────────────────────────────────────────
-function ouvrirModalMessage() {
+async function ouvrirModalMessage() {
   let o = document.getElementById('modal-message-overlay');
   if (!o) {
     o = document.createElement('div');
@@ -5297,10 +5512,8 @@ async function creerSessionsEvaluation(semId) {
     .select('id,type_session').eq('semestre_id', semId);
   const types = (exist||[]).map(s => s.type_session);
   const toCreate = [];
-  const today = new Date().toISOString().split('T')[0];
-    const in60  = new Date(Date.now()+60*864e5).toISOString().split('T')[0];
-    if (!types.includes('normale'))    toCreate.push({ semestre_id: semId, ecole_id: currentEcoleId, type_session: 'normale',    statut: 'ouverte',    date_debut: today, date_fin: in60 });
-    if (!types.includes('rattrapage')) toCreate.push({ semestre_id: semId, ecole_id: currentEcoleId, type_session: 'rattrapage', statut: 'planifiee',  date_debut: today, date_fin: in60 });
+  if (!types.includes('normale'))    toCreate.push({ semestre_id: semId, ecole_id: currentEcoleId, type_session: 'normale',    statut: 'ouverte' });
+  if (!types.includes('rattrapage')) toCreate.push({ semestre_id: semId, ecole_id: currentEcoleId, type_session: 'rattrapage', statut: 'planifiee' });
   if (!toCreate.length) { toast('Sessions déjà créées', 'info'); return; }
   const { error } = await db.from('sessions_evaluation').insert(toCreate);
   if (error) { toast('Erreur : ' + error.message, 'error'); return; }
@@ -6534,7 +6747,8 @@ async function chargerSuiviAbsences(semId) {
         <tbody>
           ${ue.etudiants.map(a => {
             const taux = parseFloat(a.taux_absence_pct)||0;
-            const risk = taux >= 30 ? 'red' : taux >= 15 ? 'amber' : 'green';
+            const seuilAbs = _reglesCache?.seuil_absence_pct ?? 30;
+            const risk = taux >= seuilAbs ? 'red' : taux >= seuilAbs/2 ? 'amber' : 'green';
             return `<tr>
               <td>
                 <div style="font-size:13px;font-weight:600">${esc(a.etudiant_nom||'—')} ${esc(a.etudiant_prenom||'')}</div>
@@ -6554,7 +6768,7 @@ async function chargerSuiviAbsences(semId) {
               <td style="text-align:center">
                 ${a.est_exclu
                   ? '<span class="badge red">Exclu</span>'
-                  : taux >= 30
+                  : taux >= (_reglesCache?.seuil_absence_pct ?? 30)
                     ? '<span class="badge amber">À risque</span>'
                     : '<span class="badge green">OK</span>'}
               </td>
@@ -6569,10 +6783,11 @@ async function chargerExclusions(semId) {
   const el = document.getElementById('exclusions-content');
   el.innerHTML = '<div class="loading">Chargement...</div>';
 
-  // Absences à risque (taux >= 20%)
+  // Absences à risque (seuil configurable)
+  const seuilExcl = _reglesCache?.seuil_absence_pct ?? 30;
   const { data: absences } = await db.from('v_absences_ue')
     .select('*').eq('semestre_id', semId)
-    .gte('taux_absence_pct', 20)
+    .gte('taux_absence_pct', seuilExcl)
     .order('taux_absence_pct', { ascending: false });
 
   // Exclusions existantes
@@ -6590,7 +6805,7 @@ async function chargerExclusions(semId) {
         <div class="c-ico">⚠️</div>
         <div class="c-val">${nbRisque}</div>
         <div class="c-lbl">Étudiants à risque</div>
-        <div class="c-sub">Taux absence ≥ 20%</div>
+        <div class="c-sub">Taux absence ≥ ${seuilExcl}%</div>
       </div>
       <div class="card">
         <div class="c-ico">🚫</div>
@@ -6634,7 +6849,7 @@ async function chargerExclusions(semId) {
           </tr>`).join('')}
         </tbody>
       </table></div>
-    </div>` : '<div class="empty-state" style="padding:1.5rem"><div class="es-ico">✅</div><h3>Aucun étudiant à risque</h3><p>Tous les étudiants ont un taux d\'absence inférieur à 20%</p></div>'}
+    </div>` : '<div class="empty-state" style="padding:1.5rem"><div class="es-ico">✅</div><h3>Aucun étudiant à risque</h3><p>Tous les étudiants ont un taux d\'absence inférieur à ${seuilExcl}%</p></div>'}
 
     <!-- Exclusions actives -->
     ${nbExclus > 0 ? `
