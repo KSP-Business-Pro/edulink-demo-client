@@ -5852,7 +5852,7 @@ async function exporterReleve(etudiantId, semId) {
     // Tableau UE
     doc.autoTable({
       startY: y,
-      head: [["Code UE", "Unité d'Enseignement", 'Crédits', 'Moyenne', 'Crédits acquis', 'Résultat']],
+      head: [["Code UE", "Unité d'Enseignement", 'Crédits', 'Moyenne', 'Crédits', 'Résultat']],
       body: (snap.resultats_ue || []).map(ue => [
         ue.ue_code || '—',
         ue.ue_intitule || '—',
