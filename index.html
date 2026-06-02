@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
 <style>
 /* ══════════════════════════════════════════════
    BASE — EduLink Sup LMD
@@ -357,6 +358,9 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
   <a data-page="resultats">
     <span class="ico">📋</span> <span>Résultats</span>
   </a>
+  <a data-page="deliberations">
+    <span class="ico">⚖️</span> <span>Délibérations</span>
+  </a>
   <a data-page="releves">
     <span class="ico">📄</span> <span>Relevés</span>
   </a>
@@ -609,6 +613,30 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
   </div>
 </div>
 
+<!-- DÉLIBÉRATIONS -->
+<div class="page" id="page-deliberations">
+  <div class="top">
+    <div>
+      <h2>Délibérations</h2>
+      <p class="page-subtitle">Jury LMD-CAMES — validation officielle des résultats</p>
+    </div>
+    <div class="top-actions" id="delib-actions"></div>
+  </div>
+  <div class="filters" style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+    <select id="delib-semestre" onchange="chargerDeliberation()" style="min-width:220px">
+      <option value="">— Sélectionner un semestre —</option>
+    </select>
+    <span id="delib-session-badge" style="display:none"></span>
+  </div>
+  <div id="deliberation-content">
+    <div class="empty-state">
+      <div class="es-ico">⚖️</div>
+      <h3>Sélectionnez un semestre</h3>
+      <p>Calculez les résultats, ajustez les décisions du jury, puis validez la délibération officielle.</p>
+    </div>
+  </div>
+</div>
+
 <!-- RELEVÉS -->
 <div class="page" id="page-releves">
   <div class="top">
@@ -764,6 +792,7 @@ function showPage(p) {
     'saisie-notes': initSaisieNotes,
     'presences':    initPresences,
     'resultats':    initResultats,
+    'deliberations': initDeliberations,
     'releves':      initReleves,
     'enseignants':  chargerEnseignants,
     'paiements':    chargerPaiements,
@@ -1224,6 +1253,7 @@ async function chargerPromotions()   { await _chargerPromotions(); }
 async function chargerEtudiants()    { await _chargerEtudiants(); }
 async function initSaisieNotes()  { await peuplerSelectSemestre('saisie-semestre'); }
 async function initResultats()    { await peuplerSelectSemestre('resultats-semestre'); }
+async function initDeliberations() { await peuplerSelectSemestre('delib-semestre'); }
 async function initReleves()      { await peuplerSelectSemestre('releves-semestre'); }
 
 async function peuplerSelectSemestre(selId) {
@@ -5461,6 +5491,399 @@ async function voirReleve(etudiantId, semestreaId) {
     <div style="font-size:11px;color:#9ca3af;margin-top:1rem">Publié le ${new Date(r.publie_le).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'})}</div>`);
 }
 
+
+// ══════════════════════════════════════════════
+//  MODULE DÉLIBÉRATIONS LMD-CAMES
+// ══════════════════════════════════════════════
+let _juryOverrides = {};
+let _delibSession  = null;
+
+async function chargerDeliberation() {
+  const semId = document.getElementById('delib-semestre').value;
+  const el = document.getElementById('deliberation-content');
+  if (!semId) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">⚖️</div><h3>Sélectionnez un semestre</h3><p>Calculez les résultats, ajustez les décisions du jury, puis validez.</p></div>';
+    document.getElementById('delib-actions').innerHTML = '';
+    document.getElementById('delib-session-badge').style.display = 'none';
+    return;
+  }
+  _juryOverrides = {};
+  el.innerHTML = '<div class="loading">Chargement délibération…</div>';
+
+  // Session statut
+  const { data: sessions } = await db.from('sessions_evaluation')
+    .select('id,type_session,statut').eq('semestre_id', semId).eq('ecole_id', currentEcoleId);
+  _delibSession = (sessions || []).find(s => s.type_session === 'normale') || null;
+  const isLocked = _delibSession?.statut === 'cloture';
+
+  // Badge session
+  const badge = document.getElementById('delib-session-badge');
+  badge.style.display = '';
+  badge.innerHTML = isLocked
+    ? '<span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600">🔒 SESSION CLÔTURÉE</span>'
+    : '<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600">✓ SESSION OUVERTE</span>';
+
+  // Boutons actions
+  document.getElementById('delib-actions').innerHTML = isLocked
+    ? `<button class="btn-outline" onclick="genererPV('${semId}')">📄 Télécharger PV</button>`
+    : `<button class="btn-blue" onclick="calculerResultatsBatch('${semId}')">⚙ Calculer résultats</button>
+       <button onclick="validerDeliberation('${semId}')"
+         style="background:#dc2626;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:500;cursor:pointer">
+         🔒 Valider délibération
+       </button>`;
+
+  // Données
+  const [{ data: ins }, { data: cache }] = await Promise.all([
+    db.from('inscriptions_semestre')
+      .select('etudiant_id, etudiants(id,nom,prenom,matricule,filiere)')
+      .eq('semestre_id', semId).eq('ecole_id', currentEcoleId).eq('statut', 'active'),
+    db.from('resultats_cache')
+      .select('*').eq('semestre_id', semId).eq('ecole_id', currentEcoleId)
+  ]);
+
+  const etudiants = (ins || []).map(i => i.etudiants).filter(Boolean)
+    .sort((a, b) => a.nom.localeCompare(b.nom));
+  const cacheMap = {};
+  (cache || []).forEach(c => { cacheMap[c.etudiant_id] = c; });
+
+  if (!etudiants.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">👥</div><h3>Aucun étudiant inscrit</h3></div>';
+    return;
+  }
+
+  const nbAdmis = etudiants.filter(e => cacheMap[e.id]?.decision === 'admis').length;
+  const taux = Math.round(nbAdmis / etudiants.length * 100);
+  const MENTION_FR = { tres_bien: 'Très Bien', bien: 'Bien', assez_bien: 'Assez Bien', passable: 'Passable', insuffisant: 'Insuffisant' };
+  const MENTION_COLOR = { tres_bien: '#7c3aed', bien: '#059669', assez_bien: '#1d4ed8', passable: '#6b7280', insuffisant: '#dc2626' };
+  const DEC_CSS = { 'admis': '#d1fae5|#065f46', 'ajourné': '#fef3c7|#92400e', 'redoublant': '#fee2e2|#991b1b' };
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.25rem">
+      <div class="card" style="padding:1rem;text-align:center">
+        <div style="font-size:28px;font-weight:800;color:#1e3a5f">${etudiants.length}</div>
+        <div style="font-size:11px;color:#9ca3af">Étudiants</div>
+      </div>
+      <div class="card" style="padding:1rem;text-align:center">
+        <div style="font-size:28px;font-weight:800;color:#059669">${nbAdmis}</div>
+        <div style="font-size:11px;color:#9ca3af">Admis</div>
+      </div>
+      <div class="card" style="padding:1rem;text-align:center">
+        <div style="font-size:28px;font-weight:800;color:#f97316">${taux}%</div>
+        <div style="font-size:11px;color:#9ca3af">Taux de réussite</div>
+      </div>
+    </div>
+    <div style="overflow-x:auto"><table class="table">
+      <thead><tr>
+        <th>Matricule</th><th>Étudiant</th>
+        <th style="text-align:center">Crédits</th>
+        <th style="text-align:center">Moy.</th>
+        <th style="text-align:center">Mention</th>
+        <th style="text-align:center">Décision auto</th>
+        <th style="text-align:center">${isLocked ? 'Décision jury' : 'Override jury'}</th>
+      </tr></thead>
+      <tbody>
+        ${etudiants.map(et => {
+          const c = cacheMap[et.id];
+          const dec = c?.decision || null;
+          const moy = (c?.moyenne_semestre !== null && c?.moyenne_semestre !== undefined) ? Number(c.moyenne_semestre).toFixed(2) : null;
+          const mention = c?.mention || null;
+          const credits = c?.credits_valides ?? null;
+          const [dcBg, dcFg] = (DEC_CSS[dec] || '#f3f4f6|#6b7280').split('|');
+          const moyColor = moy !== null ? (parseFloat(moy) >= 10 ? '#059669' : '#dc2626') : '#9ca3af';
+          const overrideCell = isLocked
+            ? (dec ? `<span style="background:${dcBg};color:${dcFg};padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600">${dec.charAt(0).toUpperCase()+dec.slice(1)}</span>` : '—')
+            : `<select id="ovr-${et.id}" onchange="_juryOverrides['${et.id}']=this.value"
+                style="padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px">
+                <option value="">— auto —</option>
+                <option value="admis">Admis</option>
+                <option value="ajourné">Ajourné</option>
+                <option value="redoublant">Redoublant</option>
+              </select>`;
+          return `<tr>
+            <td style="font-size:11px;color:#6b7280">${esc(et.matricule||'—')}</td>
+            <td style="font-weight:500">${esc(et.nom)} ${esc(et.prenom)}</td>
+            <td style="text-align:center;font-weight:600;color:#1e3a5f">${credits !== null ? credits + ' CECT' : '<span style="color:#d1d5db">—</span>'}</td>
+            <td style="text-align:center;font-weight:600;color:${moyColor}">${moy !== null ? moy + '/20' : '<span style="color:#d1d5db">—</span>'}</td>
+            <td style="text-align:center;font-weight:500;color:${MENTION_COLOR[mention]||'#9ca3af'}">${mention ? MENTION_FR[mention] : '—'}</td>
+            <td style="text-align:center">${dec ? `<span style="background:${dcBg};color:${dcFg};padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600">${dec.charAt(0).toUpperCase()+dec.slice(1)}</span>` : '<span style="color:#d1d5db">—</span>'}</td>
+            <td style="text-align:center">${overrideCell}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+async function validerDeliberation(semId) {
+  const nbOverrides = Object.values(_juryOverrides).filter(v => v).length;
+  const msg = `Valider la délibération ?\n\n` +
+    `${nbOverrides > 0 ? '• ' + nbOverrides + ' décision(s) jury appliquée(s)\n' : ''}` +
+    `• Session clôturée (plus de modifications)\n• Action irréversible`;
+  if (!confirm(msg)) return;
+  try {
+    toast('Validation en cours…', 'info');
+    // Appliquer overrides dans resultats_cache
+    const overrides = Object.entries(_juryOverrides).filter(([, v]) => v);
+    for (const [etuId, dec] of overrides) {
+      await db.from('resultats_cache').update({ decision: dec })
+        .eq('etudiant_id', etuId).eq('semestre_id', semId).eq('ecole_id', currentEcoleId);
+    }
+    // Clôturer session normale
+    if (_delibSession?.id) {
+      await db.from('sessions_evaluation').update({ statut: 'cloture' }).eq('id', _delibSession.id);
+    }
+    toast(`Délibération validée ✓${nbOverrides > 0 ? ' — ' + nbOverrides + ' override(s) appliqué(s)' : ''}`, 'success');
+    await chargerDeliberation();
+  } catch (err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+  }
+}
+
+// ── PV PDF officiel ──────────────────────────────────────────────────────────
+async function genererPV(semId) {
+  toast('Génération du PV…', 'info');
+  try {
+    const { data: sem } = await db.from('semestres')
+      .select('*, programmes_lmd(intitule,grade), annees_academiques(libelle)')
+      .eq('id', semId).single();
+    const [{ data: ins }, { data: cache }] = await Promise.all([
+      db.from('inscriptions_semestre')
+        .select('etudiant_id, etudiants(id,nom,prenom,matricule,filiere)')
+        .eq('semestre_id', semId).eq('ecole_id', currentEcoleId).eq('statut', 'active'),
+      db.from('resultats_cache')
+        .select('*').eq('semestre_id', semId).eq('ecole_id', currentEcoleId)
+    ]);
+    const etudiants = (ins || []).map(i => i.etudiants).filter(Boolean)
+      .sort((a, b) => a.nom.localeCompare(b.nom));
+    const cacheMap = {};
+    (cache || []).forEach(c => { cacheMap[c.etudiant_id] = c; });
+    const nbAdmis = etudiants.filter(e => cacheMap[e.id]?.decision === 'admis').length;
+    const taux = etudiants.length ? Math.round(nbAdmis / etudiants.length * 100) : 0;
+    const dateStr = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const MENTION_FR = { tres_bien: 'Très Bien', bien: 'Bien', assez_bien: 'Assez Bien', passable: 'Passable', insuffisant: 'Insuffisant' };
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = 210, M = 15;
+
+    // En-tête navy
+    doc.setFillColor(30, 58, 95);
+    doc.rect(0, 0, W, 28, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+    doc.text('PROCÈS-VERBAL DE DÉLIBÉRATION', W / 2, 13, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    doc.text('Système EduLink Sup · LMD-CAMES', W / 2, 21, { align: 'center' });
+
+    // Info bloc
+    let y = 35;
+    doc.setTextColor(17, 24, 39);
+    const infoItems = [
+      ['Programme',         sem?.programmes_lmd?.intitule || '—'],
+      ['Semestre',          sem?.libelle || '—'],
+      ['Année académique',  sem?.annees_academiques?.libelle || '—'],
+      ['Date délibération', dateStr],
+      ['Effectif total',    String(etudiants.length) + ' étudiants'],
+    ];
+    doc.setFontSize(9);
+    infoItems.forEach(([lbl, val]) => {
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(107, 114, 128);
+      doc.text(lbl.toUpperCase(), M, y);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(17, 24, 39);
+      doc.text(val, M + 55, y);
+      y += 6;
+    });
+    y += 3;
+
+    // Tableau résultats
+    doc.autoTable({
+      startY: y,
+      head: [['N°', 'Matricule', 'Nom & Prénom', 'Crédits', 'Moy.', 'Mention', 'Décision']],
+      body: etudiants.map((et, i) => {
+        const c = cacheMap[et.id];
+        return [
+          String(i + 1),
+          et.matricule || '—',
+          et.nom + ' ' + et.prenom,
+          c ? c.credits_valides + ' CECT' : '—',
+          (c?.moyenne_semestre !== null && c?.moyenne_semestre !== undefined) ? Number(c.moyenne_semestre).toFixed(2) : '—',
+          c?.mention ? (MENTION_FR[c.mention] || c.mention) : '—',
+          c?.decision ? (c.decision.charAt(0).toUpperCase() + c.decision.slice(1)) : '—'
+        ];
+      }),
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 9 }, 1: { cellWidth: 28 }, 2: { cellWidth: 55 },
+        3: { cellWidth: 20, halign: 'center' }, 4: { cellWidth: 18, halign: 'center' },
+        5: { cellWidth: 26, halign: 'center' }, 6: { cellWidth: 22, halign: 'center' }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 6) {
+          const d = (data.cell.raw || '').toLowerCase();
+          if (d === 'admis') data.cell.styles.textColor = [5, 150, 105];
+          else if (d.includes('journ')) data.cell.styles.textColor = [180, 83, 9];
+          else if (d === 'redoublant') data.cell.styles.textColor = [220, 38, 38];
+        }
+      },
+      margin: { left: M, right: M }
+    });
+
+    // Bilan
+    const fy = doc.lastAutoTable.finalY + 7;
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(M, fy, W - M * 2, 14, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(17, 24, 39);
+    doc.text(`BILAN : ${nbAdmis} admis / ${etudiants.length} étudiants · Taux de réussite : ${taux}%`, W / 2, fy + 9, { align: 'center' });
+
+    // Signatures
+    const sigY = fy + 24;
+    if (sigY < 258) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(107, 114, 128);
+      const sigLabels = ['Président du jury', 'Membre du jury', 'Membre du jury'];
+      const sigX = [M + 20, W / 2, W - M - 20];
+      sigLabels.forEach((lbl, i) => {
+        doc.text(lbl, sigX[i], sigY, { align: 'center' });
+        doc.setDrawColor(200, 200, 200);
+        doc.line(sigX[i] - 20, sigY + 14, sigX[i] + 20, sigY + 14);
+      });
+    }
+
+    // Pied de page
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(156, 163, 175);
+    doc.text(`EduLink Sup · LMD-CAMES · Généré le ${dateStr}`, W / 2, 290, { align: 'center' });
+
+    const nomFichier = `PV-${(sem?.libelle || 'Deliberation').replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().getFullYear()}.pdf`;
+    doc.save(nomFichier);
+    toast('PV téléchargé ✓', 'success');
+  } catch (err) {
+    toast('Erreur PV : ' + (err.message || err), 'error');
+    console.error(err);
+  }
+}
+
+// ── Génération QR code (canvas → PNG data URL) ───────────────────────────────
+function _genQR(text) {
+  return new Promise(resolve => {
+    try {
+      const div = document.createElement('div');
+      div.style.cssText = 'position:absolute;left:-9999px;top:0;width:100px;height:100px';
+      document.body.appendChild(div);
+      new QRCode(div, { text, width: 100, height: 100, correctLevel: QRCode.CorrectLevel.M });
+      setTimeout(() => {
+        const canvas = div.querySelector('canvas');
+        resolve(canvas ? canvas.toDataURL('image/png') : null);
+        document.body.removeChild(div);
+      }, 120);
+    } catch (e) { resolve(null); }
+  });
+}
+
+// ── Relevé PDF officiel avec QR code (remplace window.open) ─────────────────
+async function exporterReleve(etudiantId, semId) {
+  const { data: r } = await db.from('releves_notes')
+    .select('*, etudiants(nom,prenom,matricule,filiere)').eq('etudiant_id', etudiantId).eq('semestre_id', semId).single();
+  if (!r) { toast('Relevé non publié', 'error'); return; }
+  toast('Génération du relevé PDF…', 'info');
+  try {
+    const snap = r.snapshot_notes || {};
+    const et = r.etudiants || {};
+    const verifyUrl = `https://app.edulink.bj/verify/${etudiantId.substring(0,8)}`;
+    const numReleve = r.numero_releve || ('REL-' + Date.now().toString(36).toUpperCase());
+    const qrDataUrl = await _genQR(verifyUrl);
+    const MENTION_FR = { tres_bien: 'Très Bien', bien: 'Bien', assez_bien: 'Assez Bien', passable: 'Passable', insuffisant: 'Insuffisant' };
+    const MENTION_COLOR = { tres_bien: [124,58,237], bien: [5,150,105], assez_bien: [29,78,216], passable: [107,114,128], insuffisant: [220,38,38] };
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = 210, M = 15;
+
+    // En-tête
+    doc.setFillColor(30, 58, 95);
+    doc.rect(0, 0, W, 30, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+    doc.text('RELEVÉ DE NOTES OFFICIEL', W / 2, 13, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    doc.text('N° ' + numReleve, W / 2, 22, { align: 'center' });
+
+    // QR code (coin haut-droit)
+    if (qrDataUrl) doc.addImage(qrDataUrl, 'PNG', W - M - 26, 2, 24, 24);
+
+    // Bloc étudiant
+    let y = 38;
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(M, y, W - M * 2, 26, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(30, 58, 95);
+    doc.text((et.prenom || '') + ' ' + (et.nom || ''), M + 5, y + 9);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(107, 114, 128);
+    doc.text('Matricule : ' + (et.matricule || '—') + '   ·   Filière : ' + (et.filiere || '—'), M + 5, y + 17);
+    doc.text('Semestre : ' + (snap.semestre_libelle || '—') + '   ·   Année : ' + (snap.annee_libelle || '—'), M + 5, y + 23);
+    y += 33;
+
+    // 3 badges résumé
+    const blocs = [
+      { val: String(r.credits_valides || 0), lbl: 'Crédits CECT', color: [30, 58, 95] },
+      { val: (r.moyenne_semestre !== null && r.moyenne_semestre !== undefined) ? Number(r.moyenne_semestre).toFixed(2) + '/20' : '—', lbl: 'Moyenne générale', color: [5, 150, 105] },
+      { val: MENTION_FR[r.mention] || r.mention || '—', lbl: 'Mention', color: MENTION_COLOR[r.mention] || [107, 114, 128] }
+    ];
+    const bW = (W - M * 2 - 8) / 3;
+    blocs.forEach((b, i) => {
+      const bx = M + i * (bW + 4);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(bx, y, bW, 20, 3, 3, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...b.color);
+      doc.text(b.val, bx + bW / 2, y + 12, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(156, 163, 175);
+      doc.text(b.lbl, bx + bW / 2, y + 18, { align: 'center' });
+    });
+    y += 28;
+
+    // Tableau UE
+    doc.autoTable({
+      startY: y,
+      head: [["Code UE", "Unité d'Enseignement", 'Crédits', 'Moyenne', 'Crédits acquis', 'Résultat']],
+      body: (snap.resultats_ue || []).map(ue => [
+        ue.ue_code || '—',
+        ue.ue_intitule || '—',
+        String(ue.ue_credits || 0),
+        ue.moyenne_ue !== null ? Number(ue.moyenne_ue).toFixed(2) : '—',
+        String(ue.credits_acquis || 0),
+        ue.ue_validee ? 'Validée' : (ue.est_exclu ? 'Exclue' : 'Non validée')
+      ]),
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 22 }, 1: { cellWidth: 74 },
+        2: { cellWidth: 18, halign: 'center' }, 3: { cellWidth: 22, halign: 'center' },
+        4: { cellWidth: 26, halign: 'center' }, 5: { cellWidth: 24, halign: 'center' }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 5) {
+          const v = data.cell.raw;
+          if (v === 'Validée') data.cell.styles.textColor = [5, 150, 105];
+          else if (v === 'Non validée') data.cell.styles.textColor = [220, 38, 38];
+          else data.cell.styles.textColor = [107, 114, 128];
+        }
+      },
+      margin: { left: M, right: M }
+    });
+
+    // Pied de page
+    const footY = doc.lastAutoTable.finalY + 8;
+    const pubDate = r.publie_le
+      ? new Date(r.publie_le).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(156, 163, 175);
+    doc.text('Publié le ' + pubDate + ' · Système EduLink Sup · LMD-CAMES', W / 2, footY, { align: 'center' });
+    doc.text('Vérification : ' + verifyUrl, W / 2, footY + 5, { align: 'center' });
+
+    doc.save('Releve-' + (et.nom || 'etudiant') + '-' + (et.matricule || '') + '.pdf');
+    toast('Relevé PDF généré ✓', 'success');
+  } catch (err) {
+    toast('Erreur PDF : ' + (err.message || err), 'error');
+    console.error(err);
+  }
+}
 
 // ══════════════════════════════════════════════
 //  MODULE PRÉSENCES LMD
