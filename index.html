@@ -565,9 +565,12 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
     <div class="top-actions" id="resultats-actions-ann" style="display:none">
       <button class="btn-blue" onclick="calculerResultatsAnnuelsBatch()">⚙ Calculer résultats annuels</button>
     </div>
+    <div class="top-actions" id="resultats-actions-ratt" style="display:none">
+      <button class="btn-blue" onclick="calculerRattrapageBatch(document.getElementById('ratt-semestre').value)">⚙ Calculer résultats rattrapage</button>
+    </div>
   </div>
 
-  <!-- Tabs Semestriel / Annuel -->
+  <!-- Tabs Semestriel / Annuel / Rattrapage -->
   <div style="display:flex;gap:6px;padding:.5rem 0 .85rem;border-bottom:1px solid #f3f4f6;margin-bottom:.75rem">
     <button id="tab-res-sem" onclick="switchResTab('semestre')"
       style="padding:5px 14px;border-radius:999px;border:1.5px solid #1e3a5f;background:#1e3a5f;color:#fff;font-size:12px;font-weight:500;cursor:pointer">
@@ -576,6 +579,10 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
     <button id="tab-res-ann" onclick="switchResTab('annuel')"
       style="padding:5px 14px;border-radius:999px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer">
       🎓 Annuel LMD
+    </button>
+    <button id="tab-res-ratt" onclick="switchResTab('rattrapage')"
+      style="padding:5px 14px;border-radius:999px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer">
+      🔄 Rattrapage
     </button>
   </div>
 
@@ -608,6 +615,21 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
         <div class="es-ico">🎓</div>
         <h3>Sélectionnez une année académique</h3>
         <p>Les résultats annuels agrègent les semestres et appliquent la règle de compensation configurée</p>
+      </div>
+    </div>
+  <!-- Vue Rattrapage (nouvelle) -->
+  <div id="res-view-rattrapage" style="display:none">
+    <div class="filters" style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <select id="ratt-semestre" onchange="chargerResultatsRattrapage()" style="min-width:220px">
+        <option value="">— Sélectionner un semestre —</option>
+      </select>
+      <span id="ratt-stats" style="font-size:12px;color:#6b7280"></span>
+    </div>
+    <div id="resultats-rattrapage-content">
+      <div class="empty-state">
+        <div class="es-ico">🔄</div>
+        <h3>Sélectionnez un semestre</h3>
+        <p>Affiche les étudiants ajournés et calcule les résultats après rattrapage (max normale/ratt).</p>
       </div>
     </div>
   </div>
@@ -3817,17 +3839,56 @@ function exporterEtudiants() {
 }
 // ── Sprint 5 — Calcul résultats ──────────────────────────────────────────────
 async function _calculerUnEtudiant(etudiantId, semId) {
+  // ── Règles LMD de l'école (cachées pour éviter N requêtes en batch) ──
+  if (!_reglesCache) {
+    const { data: r } = await db.from('regles_ecole')
+      .select('seuil_validation_ue,note_plancher_active,seuil_note_plancher,compensation_active')
+      .eq('ecole_id', currentEcoleId).maybeSingle();
+    _reglesCache = r || {};
+  }
+  const seuilUE       = _reglesCache.seuil_validation_ue  ?? 10;
+  const plancherActif = _reglesCache.note_plancher_active  ?? false;
+  const seuilPlancher = _reglesCache.seuil_note_plancher   ?? 5;
+
+  // ── Résultats semestriels depuis fn_resultats_semestre ──
   const { data: res, error } = await db.rpc('fn_resultats_semestre', {
     p_etudiant_id: etudiantId, p_semestre_id: semId
   });
   if (error || !res?.length) return null;
-  const credits_valides = res.reduce((s,r) => s + (r.ue_validee ? (r.credits_acquis||0) : 0), 0);
-  const oblig = res.filter(r => r.obligatoire);
+
+  let ueResults = [...res];
+
+  // ── Application note plancher ──────────────────────────────────────────────
+  if (plancherActif && seuilPlancher > 0) {
+    const { data: violations } = await db.rpc('fn_check_plancher', {
+      p_etudiant_id: etudiantId, p_semestre_id: semId, p_seuil: seuilPlancher
+    });
+    if (violations?.length) {
+      const vSet = new Set(violations.map(v => v.ue_id));
+      ueResults = ueResults.map(ue =>
+        vSet.has(ue.ue_id)
+          ? { ...ue, ue_validee: false, credits_acquis: 0 }
+          : ue
+      );
+    }
+  }
+
+  // ── Application seuil_validation_ue (remplace hardcoded >= 10) ────────────
+  ueResults = ueResults.map(ue => {
+    if (!ue.est_exclu && ue.moyenne_ue !== null && ue.moyenne_ue < seuilUE && ue.ue_validee) {
+      return { ...ue, ue_validee: false, credits_acquis: 0 };
+    }
+    return ue;
+  });
+
+  // ── Recalcul des totaux ────────────────────────────────────────────────────
+  const credits_valides = ueResults.reduce((s, r) => s + (r.ue_validee ? (r.credits_acquis || 0) : 0), 0);
+  const oblig = ueResults.filter(r => r.obligatoire);
   const semestre_valide = oblig.length > 0
     ? oblig.every(r => r.ue_validee)
-    : res.every(r => r.ue_validee);
+    : ueResults.every(r => r.ue_validee);
   let totalN = 0, totalW = 0;
-  res.forEach(r => {
+  ueResults.forEach(r => {
     if (r.moyenne_ue !== null) {
       totalN += r.moyenne_ue * (r.ue_credits || 1);
       totalW += (r.ue_credits || 1);
@@ -3835,17 +3896,187 @@ async function _calculerUnEtudiant(etudiantId, semId) {
   });
   const moyenne = totalW > 0 ? Math.round(totalN / totalW * 100) / 100 : null;
   const mention = moyenne === null ? null
-    : moyenne >= 16 ? 'tres_bien'
-    : moyenne >= 14 ? 'bien'
-    : moyenne >= 12 ? 'assez_bien'
-    : moyenne >= 10 ? 'passable' : 'insuffisant';
+    : moyenne >= 16      ? 'tres_bien'
+    : moyenne >= 14      ? 'bien'
+    : moyenne >= 12      ? 'assez_bien'
+    : moyenne >= seuilUE ? 'passable'
+    :                      'insuffisant';
   const decision = semestre_valide ? 'admis' : 'ajourné';
+
   const { error: uErr } = await db.from('resultats_cache').upsert({
     etudiant_id: etudiantId, semestre_id: semId, ecole_id: currentEcoleId,
-    credits_valides, semestre_valide, moyenne_semestre: moyenne,
-    mention, decision
+    credits_valides, semestre_valide, moyenne_semestre: moyenne, mention, decision
   }, { onConflict: 'etudiant_id,semestre_id' });
-  return uErr ? null : { credits_valides, semestre_valide, moyenne, mention };
+
+  return uErr ? null : { credits_valides, semestre_valide, moyenne, mention, ueResults };
+}
+
+// ── MODULE RATTRAPAGE LMD-CAMES ───────────────────────────────────────────────
+async function chargerResultatsRattrapage() {
+  const semId = document.getElementById('ratt-semestre').value;
+  const el    = document.getElementById('resultats-rattrapage-content');
+  if (!semId) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">🔄</div><h3>Sélectionnez un semestre</h3></div>';
+    document.getElementById('ratt-stats').textContent = '';
+    return;
+  }
+  el.innerHTML = '<div class="loading">Chargement…</div>';
+
+  const [{ data: cache }, { data: ins }] = await Promise.all([
+    db.from('resultats_cache').select('etudiant_id,decision,moyenne_semestre,credits_valides,semestre_valide')
+      .eq('semestre_id', semId).eq('ecole_id', currentEcoleId),
+    db.from('inscriptions_semestre').select('etudiant_id, etudiants(id,nom,prenom,matricule,filiere)')
+      .eq('semestre_id', semId).eq('ecole_id', currentEcoleId).eq('statut', 'active')
+  ]);
+
+  const etuMap = {};
+  (ins || []).forEach(i => { if (i.etudiants) etuMap[i.etudiant_id] = i.etudiants; });
+  const cacheMap = {};
+  (cache || []).forEach(c => { cacheMap[c.etudiant_id] = c; });
+
+  const ajournes = Object.values(etuMap).filter(e => {
+    const d = cacheMap[e.id]?.decision;
+    return d === 'ajourné' || d === 'redoublant';
+  }).sort((a, b) => a.nom.localeCompare(b.nom));
+
+  const total = Object.keys(etuMap).length;
+  const nbAj  = ajournes.length;
+  document.getElementById('ratt-stats').textContent =
+    `${total} étudiants · ${nbAj} ajourné(s) éligibles au rattrapage`;
+
+  if (!ajournes.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">🎉</div><h3>Aucun étudiant ajourné</h3><p>Tous les étudiants ont validé leur semestre.</p></div>';
+    return;
+  }
+
+  el.innerHTML = `
+    <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem;font-size:13px;color:#92400e">
+      ⚖️ <strong>Règle appliquée :</strong> Max(note normale, note rattrapage) par UE · Seuil validation : ${_reglesCache?.seuil_validation_ue ?? 10}/20
+    </div>
+    <div style="overflow-x:auto"><table class="table">
+      <thead><tr>
+        <th>Matricule</th><th>Étudiant</th>
+        <th style="text-align:center">Moy. normale</th>
+        <th style="text-align:center">Décision normale</th>
+        <th style="text-align:center">Notes ratt. saisies</th>
+        <th style="text-align:center">Décision finale</th>
+      </tr></thead>
+      <tbody id="ratt-tbody">
+        ${ajournes.map(et => {
+          const c = cacheMap[et.id];
+          const moy = c?.moyenne_semestre !== null && c?.moyenne_semestre !== undefined
+            ? Number(c.moyenne_semestre).toFixed(2) + '/20' : '—';
+          return `<tr id="ratt-row-${et.id}">
+            <td style="font-size:11px;color:#6b7280">${esc(et.matricule || '—')}</td>
+            <td style="font-weight:500">${esc(et.nom)} ${esc(et.prenom)}</td>
+            <td style="text-align:center;color:#dc2626;font-weight:600">${moy}</td>
+            <td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600">Ajourné</span></td>
+            <td style="text-align:center" id="ratt-notes-${et.id}"><span style="color:#9ca3af;font-size:12px">—</span></td>
+            <td style="text-align:center" id="ratt-dec-${et.id}"><span style="color:#9ca3af;font-size:12px">Non calculé</span></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>`;
+
+  // Vérifier si des notes rattrapage existent déjà
+  _checkRattrapageNotes(semId, ajournes.map(e => e.id));
+}
+
+async function _checkRattrapageNotes(semId, etuIds) {
+  for (const etuId of etuIds) {
+    const { data: rattMoy } = await db.rpc('fn_moy_ue_rattrapage', {
+      p_etudiant_id: etuId, p_semestre_id: semId
+    });
+    const hasNotes = rattMoy?.length > 0;
+    const cell = document.getElementById('ratt-notes-' + etuId);
+    if (cell) {
+      cell.innerHTML = hasNotes
+        ? `<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:999px;font-size:11px">${rattMoy.length} UE saisie(s)</span>`
+        : '<span style="color:#9ca3af;font-size:12px">Pas de notes</span>';
+    }
+  }
+}
+
+async function calculerRattrapageBatch(semId) {
+  if (!semId) { toast('Sélectionnez un semestre', 'error'); return; }
+  if (!_reglesCache) {
+    const { data: r } = await db.from('regles_ecole')
+      .select('seuil_validation_ue,note_plancher_active,seuil_note_plancher')
+      .eq('ecole_id', currentEcoleId).maybeSingle();
+    _reglesCache = r || {};
+  }
+  const seuilUE = _reglesCache.seuil_validation_ue ?? 10;
+  const btn = document.querySelector('[onclick*="calculerRattrapageBatch"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Calcul en cours…'; }
+  toast('Calcul rattrapage en cours…', 'info');
+
+  // Étudiants ajournés
+  const { data: ajournes } = await db.from('resultats_cache')
+    .select('etudiant_id').eq('semestre_id', semId).eq('ecole_id', currentEcoleId)
+    .in('decision', ['ajourné', 'redoublant']);
+
+  let nbAmeliorations = 0;
+  for (const row of (ajournes || [])) {
+    const etuId = row.etudiant_id;
+
+    // Notes rattrapage par UE
+    const { data: rattMoy } = await db.rpc('fn_moy_ue_rattrapage', {
+      p_etudiant_id: etuId, p_semestre_id: semId
+    });
+    if (!rattMoy?.length) continue; // pas de notes ratt pour cet étudiant
+
+    // Résultats normaux
+    const { data: normRes } = await db.rpc('fn_resultats_semestre', {
+      p_etudiant_id: etuId, p_semestre_id: semId
+    });
+    if (!normRes?.length) continue;
+
+    const rattMap = {};
+    (rattMoy || []).forEach(r => { rattMap[r.ue_id] = parseFloat(r.moy_rattrapage); });
+
+    // Combiner : max(normale, rattrapage) par UE
+    const finalRes = normRes.map(ue => {
+      const mRatt = rattMap[ue.ue_id];
+      if (mRatt !== undefined) {
+        const mFinal = Math.max(parseFloat(ue.moyenne_ue) || 0, mRatt);
+        const validee = mFinal >= seuilUE;
+        return { ...ue, moyenne_ue: Math.round(mFinal * 100) / 100, ue_validee: validee, credits_acquis: validee ? ue.ue_credits : 0 };
+      }
+      return ue;
+    });
+
+    // Recalculer totaux
+    const credits_valides = finalRes.reduce((s, r) => s + (r.ue_validee ? (r.credits_acquis || 0) : 0), 0);
+    const oblig = finalRes.filter(r => r.obligatoire);
+    const semestre_valide = oblig.length > 0 ? oblig.every(r => r.ue_validee) : finalRes.every(r => r.ue_validee);
+    let totalN = 0, totalW = 0;
+    finalRes.forEach(r => {
+      if (r.moyenne_ue !== null) { totalN += r.moyenne_ue * (r.ue_credits || 1); totalW += (r.ue_credits || 1); }
+    });
+    const moyenne = totalW > 0 ? Math.round(totalN / totalW * 100) / 100 : null;
+    const mention = moyenne === null ? null
+      : moyenne >= 16 ? 'tres_bien' : moyenne >= 14 ? 'bien' : moyenne >= 12 ? 'assez_bien'
+      : moyenne >= seuilUE ? 'passable' : 'insuffisant';
+    const decision = semestre_valide ? 'admis' : 'redoublant';
+
+    await db.from('resultats_cache').upsert({
+      etudiant_id: etuId, semestre_id: semId, ecole_id: currentEcoleId,
+      credits_valides, semestre_valide, moyenne_semestre: moyenne, mention, decision
+    }, { onConflict: 'etudiant_id,semestre_id' });
+
+    if (semestre_valide) nbAmeliorations++;
+
+    // Mise à jour ligne UI
+    const decCell = document.getElementById('ratt-dec-' + etuId);
+    if (decCell) {
+      const [bg, fg] = semestre_valide ? ['#d1fae5', '#065f46'] : ['#fee2e2', '#991b1b'];
+      decCell.innerHTML = `<span style="background:${bg};color:${fg};padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600">${semestre_valide ? 'Admis ✅' : 'Redoublant'}</span>`;
+    }
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '⚙ Calculer résultats rattrapage'; }
+  toast(`Rattrapage calculé — ${nbAmeliorations} étudiant(s) admis après rattrapage ✓`, 'success');
+  document.getElementById('ratt-stats').textContent += ` · ${nbAmeliorations} admis après rattrapage`;
 }
 
 async function recalculerEtudiant(etudiantId, semId) {
@@ -5049,22 +5280,42 @@ async function ajouterEvaluation(matiereId, sessionId, categorie) {
   await chargerGrilleNotes();
 }
 
-// ── RÉSULTATS — tabs semestriel / annuel ──────────────────────────────────
+// ── RÉSULTATS — tabs semestriel / annuel / rattrapage ─────────────────────────
+let _reglesCache = null;   // cache regles_ecole pour éviter requêtes répétées
+
 function switchResTab(tab) {
-  const isSem = tab === 'semestre';
-  document.getElementById('res-view-semestre').style.display = isSem ? '' : 'none';
-  document.getElementById('res-view-annuel').style.display   = isSem ? 'none' : '';
-  document.getElementById('resultats-actions-sem').style.display = isSem ? '' : 'none';
-  document.getElementById('resultats-actions-ann').style.display = isSem ? 'none' : '';
-  const btnSem = document.getElementById('tab-res-sem');
-  const btnAnn = document.getElementById('tab-res-ann');
-  btnSem.style.background = isSem ? '#1e3a5f' : '#fff';
-  btnSem.style.color      = isSem ? '#fff'    : '#6b7280';
-  btnSem.style.borderColor = isSem ? '#1e3a5f' : '#e5e7eb';
-  btnAnn.style.background = isSem ? '#fff'    : '#1e3a5f';
-  btnAnn.style.color      = isSem ? '#6b7280' : '#fff';
-  btnAnn.style.borderColor = isSem ? '#e5e7eb' : '#1e3a5f';
-  if (!isSem) _peuplerSelectAnnees();
+  const defs = [
+    { key: 'semestre',   btnId: 'tab-res-sem',  viewId: 'res-view-semestre',  actId: 'resultats-actions-sem'  },
+    { key: 'annuel',     btnId: 'tab-res-ann',  viewId: 'res-view-annuel',    actId: 'resultats-actions-ann'  },
+    { key: 'rattrapage', btnId: 'tab-res-ratt', viewId: 'res-view-rattrapage', actId: 'resultats-actions-ratt' },
+  ];
+  defs.forEach(({ key, btnId, viewId, actId }) => {
+    const active = key === tab;
+    const el = document.getElementById(viewId);
+    const btn = document.getElementById(btnId);
+    const act = document.getElementById(actId);
+    if (el)  el.style.display  = active ? '' : 'none';
+    if (act) act.style.display = active ? '' : 'none';
+    if (btn) {
+      btn.style.background  = active ? '#1e3a5f' : '#fff';
+      btn.style.color       = active ? '#fff'    : '#6b7280';
+      btn.style.borderColor = active ? '#1e3a5f' : '#e5e7eb';
+    }
+  });
+  if (tab === 'annuel')    _peuplerSelectAnnees();
+  if (tab === 'rattrapage') _peuplerSelectRattrapage();
+}
+
+async function _peuplerSelectRattrapage() {
+  const sel = document.getElementById('ratt-semestre');
+  if (!sel || sel.options.length > 1) return;
+  const { data: sems } = await db.from('semestres')
+    .select('id,libelle').eq('ecole_id', currentEcoleId).order('libelle', { ascending: false });
+  (sems || []).forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.id; o.textContent = s.libelle;
+    sel.appendChild(o);
+  });
 }
 
 async function _peuplerSelectAnnees() {
