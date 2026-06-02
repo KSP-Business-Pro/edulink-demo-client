@@ -340,6 +340,9 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
   <a data-page="promotions">
     <span class="ico">👥</span> <span>Promotions</span>
   </a>
+  <a data-page="annees">
+    <span class="ico">📆</span> <span>Années acad.</span>
+  </a>
   <a data-page="etudiants">
     <span class="ico">🧑‍🎓</span> <span>Étudiants</span>
   </a>
@@ -450,6 +453,20 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
     </div>
   </div>
   <div id="promotions-content"><div class="loading">Chargement…</div></div>
+</div>
+
+<!-- ANNÉES ACADÉMIQUES -->
+<div class="page" id="page-annees">
+  <div class="top">
+    <div>
+      <h2>Années Académiques</h2>
+      <p class="page-subtitle">Calendrier académique — une seule année peut être « en cours »</p>
+    </div>
+    <div class="top-actions">
+      <button onclick="ouvrirModalAnnee()">+ Année académique</button>
+    </div>
+  </div>
+  <div id="annees-content"><div class="loading">Chargement…</div></div>
 </div>
 
 <!-- ÉTUDIANTS -->
@@ -706,6 +723,7 @@ function showPage(p) {
     'programmes':   chargerProgrammes,
     'semestres':    chargerSemestres,
     'promotions':   chargerPromotions,
+    'annees':       chargerAnneesAcademiques,
     'etudiants':    chargerEtudiants,
     'saisie-notes': initSaisieNotes,
     'presences':    initPresences,
@@ -4222,6 +4240,198 @@ async function _chargerPromotions() {
           </div>`;}).join('')}
       </div>`;
 }
+
+// ── CRUD Années Académiques ──────────────────────────────────────────────────
+let _editAnneeId = null;
+
+function fermerModalAnnee() {
+  document.getElementById('modal-annee-overlay')?.classList.remove('open');
+  _editAnneeId = null;
+}
+
+function _anneeAutoLibelle() {
+  const debut = document.getElementById('annee-debut').value;
+  if (debut) {
+    const y = parseInt(debut.substring(0, 4));
+    const sug = y + '-' + (y + 1);
+    const lib = document.getElementById('annee-libelle');
+    if (lib && !lib._manualEdit) lib.value = sug;
+  }
+}
+
+async function soumettreModalAnnee(e) {
+  e.preventDefault();
+  const btn = document.getElementById('annee-submit-btn');
+  btn.disabled = true;
+  btn.textContent = _editAnneeId ? 'Enregistrement…' : 'Création…';
+  const estCourante = document.getElementById('annee-courante').checked;
+  const payload = {
+    ecole_id:     currentEcoleId,
+    libelle:      document.getElementById('annee-libelle').value.trim(),
+    date_debut:   document.getElementById('annee-debut').value || null,
+    date_fin:     document.getElementById('annee-fin').value   || null,
+    est_courante: estCourante
+  };
+  try {
+    if (estCourante) {
+      await db.from('annees_academiques').update({ est_courante: false }).eq('ecole_id', currentEcoleId);
+    }
+    let error;
+    if (_editAnneeId) {
+      ({ error } = await db.from('annees_academiques').update(payload).eq('id', _editAnneeId));
+    } else {
+      ({ error } = await db.from('annees_academiques').insert(payload));
+    }
+    if (error) throw error;
+    fermerModalAnnee();
+    await chargerAnneesAcademiques();
+    await chargerDonneesGlobales();
+    toast(_editAnneeId ? 'Année académique modifiée ✓' : 'Année académique créée ✓', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+    btn.disabled = false;
+    btn.textContent = _editAnneeId ? 'Enregistrer' : "Créer l'année →";
+  }
+}
+
+async function modifierAnnee(id) {
+  const { data: a } = await db.from('annees_academiques').select('*').eq('id', id).single();
+  if (!a) { toast('Année introuvable', 'error'); return; }
+  _editAnneeId = id;
+  await ouvrirModalAnnee();
+  setTimeout(() => {
+    document.getElementById('annee-libelle').value    = a.libelle    || '';
+    document.getElementById('annee-debut').value      = a.date_debut || '';
+    document.getElementById('annee-fin').value        = a.date_fin   || '';
+    document.getElementById('annee-courante').checked = !!a.est_courante;
+    document.getElementById('annee-modal-title').textContent = "Modifier l'année académique";
+    document.getElementById('annee-submit-btn').textContent  = 'Enregistrer';
+  }, 80);
+}
+
+async function supprimerAnnee(id) {
+  const { data: a } = await db.from('annees_academiques').select('libelle').eq('id', id).single();
+  if (!confirm('Supprimer "' + (a?.libelle || id) + '" ?\nAttention : les semestres et promotions liés seront affectés.')) return;
+  try {
+    const { error } = await db.from('annees_academiques').delete().eq('id', id);
+    if (error) throw error;
+    await chargerAnneesAcademiques();
+    await chargerDonneesGlobales();
+    toast('Année supprimée', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+  }
+}
+
+async function definirAnneeCourante(id) {
+  try {
+    await db.from('annees_academiques').update({ est_courante: false }).eq('ecole_id', currentEcoleId);
+    const { error } = await db.from('annees_academiques').update({ est_courante: true }).eq('id', id);
+    if (error) throw error;
+    await chargerAnneesAcademiques();
+    await chargerDonneesGlobales();
+    toast('Année courante définie ✓', 'success');
+  } catch(err) {
+    toast('Erreur : ' + (err.message || err), 'error');
+  }
+}
+
+async function ouvrirModalAnnee() {
+  let o = document.getElementById('modal-annee-overlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'modal-annee-overlay';
+    o.className = 'modal-overlay';
+    o.innerHTML = `
+      <div class="modal" style="width:480px;padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem">
+          <h3 id="annee-modal-title" style="margin:0;font-size:15px;font-weight:700;color:#111827">+ Nouvelle Année Académique</h3>
+          <button class="btn-ghost btn-sm" onclick="fermerModalAnnee()">✕</button>
+        </div>
+        <form id="form-annee" onsubmit="soumettreModalAnnee(event)">
+          <div class="form-group">
+            <label>Libellé <span style="color:#dc2626">*</span></label>
+            <input id="annee-libelle" type="text" placeholder="ex. 2024-2025" required
+              oninput="this._manualEdit=true">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="form-group">
+              <label>Date de début</label>
+              <input id="annee-debut" type="date" oninput="_anneeAutoLibelle()">
+            </div>
+            <div class="form-group">
+              <label>Date de fin</label>
+              <input id="annee-fin" type="date">
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.6rem;padding:.75rem;background:#f0fdf4;border-radius:8px;margin-top:.5rem">
+            <input id="annee-courante" type="checkbox" style="width:16px;height:16px;cursor:pointer">
+            <label for="annee-courante" style="font-size:13px;font-weight:500;color:#065f46;cursor:pointer;margin:0">
+              Définir comme année courante
+              <span style="font-size:11px;color:#6b7280">(désactive la précédente)</span>
+            </label>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.4rem">
+            <button type="button" class="btn-ghost" onclick="fermerModalAnnee()">Annuler</button>
+            <button type="submit" id="annee-submit-btn">Créer l'année →</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(o);
+    o.addEventListener('click', e => { if (e.target === o) fermerModalAnnee(); });
+  }
+  if (!_editAnneeId) {
+    document.getElementById('form-annee')?.reset();
+    delete document.getElementById('annee-libelle')._manualEdit;
+    document.getElementById('annee-modal-title').textContent = '+ Nouvelle Année Académique';
+    document.getElementById('annee-submit-btn').textContent  = "Créer l'année →";
+    document.getElementById('annee-submit-btn').disabled     = false;
+  }
+  o.classList.add('open');
+  setTimeout(() => document.getElementById('annee-libelle')?.focus(), 100);
+}
+
+// ── PAGE ANNÉES ACADÉMIQUES ──────────────────────────────────────────────────
+async function _chargerAnneesAcademiques() {
+  const el = document.getElementById('annees-content');
+  el.innerHTML = '<div class="loading">Chargement...</div>';
+  if (!currentEcoleId) { el.innerHTML = '<div class="empty-state"><p>Sélectionnez une école</p></div>'; return; }
+  const { data: annees, error } = await db.from('annees_academiques')
+    .select('*').eq('ecole_id', currentEcoleId).order('libelle', { ascending: false });
+  if (error || !annees?.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">📆</div><h3>Aucune année académique</h3><p>Commencez par créer l\'année en cours.</p></div>';
+    return;
+  }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">
+    ${annees.map(a => {
+      const bg     = a.est_courante ? '#f0fdf4' : '#f9fafb';
+      const border = a.est_courante ? '2px solid #059669' : '1px solid #f3f4f6';
+      const periode = (a.date_debut && a.date_fin)
+        ? (a.date_debut.substring(0,10) + ' → ' + a.date_fin.substring(0,10))
+        : (a.date_debut ? 'Début : ' + a.date_debut.substring(0,10) : '');
+      return `<div class="card" style="padding:1.2rem;background:${bg};border:${border}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.75rem">
+          <div style="flex:1">
+            <div style="font-size:20px;font-weight:800;color:#1e3a5f">${esc(a.libelle)}</div>
+            ${periode ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">${periode}</div>` : ''}
+          </div>
+          ${a.est_courante ? '<span style="background:#d1fae5;color:#065f46;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;flex-shrink:0">EN COURS</span>' : ''}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:.75rem;border-top:1px solid #e5e7eb">
+          ${!a.est_courante
+            ? `<button class="btn-outline btn-sm" onclick="definirAnneeCourante('${a.id}')">✓ Définir courante</button>`
+            : '<span style="font-size:11px;color:#059669;font-weight:500">✓ Année active</span>'}
+          <div style="display:flex;gap:4px">
+            <button class="btn-ghost btn-sm" onclick="modifierAnnee('${a.id}')" title="Modifier"><i class="ti ti-edit" aria-hidden="true"></i></button>
+            <button class="btn-ghost btn-sm" style="color:#dc2626" onclick="supprimerAnnee('${a.id}')" title="Supprimer"><i class="ti ti-trash" aria-hidden="true"></i></button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+async function chargerAnneesAcademiques() { await _chargerAnneesAcademiques(); }
 
 // ── PAGE ÉTUDIANTS ────────────────────────────
 let _tousEtudiants = [];
