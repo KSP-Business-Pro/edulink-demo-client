@@ -1607,13 +1607,6 @@ async function chargerParametres() {
             <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6">
               <div>
                 <div style="font-size:13px;font-weight:600;color:#111827">Règle rattrapage</div>
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:.85rem 0;border-top:1px solid #f3f4f6">
-  <div>
-    <div style="font-weight:500;color:#374151">Seuil exclusion absences</div>
-    <div style="font-size:12px;color:#9ca3af">Taux d'absence déclenchant le signalement</div>
-  </div>
-  <span class="badge amber">${regles.seuil_absence_pct ?? 30}%</span>
-</div>
                 <div style="font-size:11px;color:#9ca3af">Session normale vs rattrapage</div>
               </div>
               <span class="badge blue">${regles.regle_rattrapage==='max'?'Max des deux sessions':'Écrase la normale'}</span>
@@ -3707,10 +3700,11 @@ async function soumettreFactureMasse(evt) {
     const dejaTrait = new Set((existing||[]).map(f => f.etudiant_id));
     const toCreate = ins
       .filter(i => !dejaTrait.has(i.etudiant_id))
-      .map(i => ({
+      .map((i, idx) => ({
         ecole_id: currentEcoleId, etudiant_id: i.etudiant_id,
         type_frais: type, libelle, montant_total: montant,
-        montant_paye: 0, statut: 'en_attente', annee_scolaire: annee
+        montant_paye: 0, statut: 'en_attente', annee_scolaire: annee,
+        reference: type.substring(0,3).toUpperCase()+'-'+Date.now()+'-'+String(idx+1).padStart(3,'0')
       }));
 
     if (!toCreate.length) throw new Error('Toutes les factures existent déjà pour cette combinaison type/année');
