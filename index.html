@@ -552,23 +552,59 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
   <div class="top">
     <div>
       <h2>Résultats</h2>
-      <p class="page-subtitle">Tableau de bord des résultats semestriels</p>
+      <p class="page-subtitle" id="resultats-subtitle">Tableau de bord des résultats semestriels</p>
     </div>
-    <div class="top-actions">
+    <div class="top-actions" id="resultats-actions-sem">
       <button class="btn-blue" onclick="calculerResultatsBatch(document.getElementById('resultats-semestre').value)">⚙ Calculer résultats</button>
       <button class="btn-outline" onclick="exporterResultats()">⬇ Export PDF</button>
     </div>
+    <div class="top-actions" id="resultats-actions-ann" style="display:none">
+      <button class="btn-blue" onclick="calculerResultatsAnnuelsBatch()">⚙ Calculer résultats annuels</button>
+    </div>
   </div>
-  <div class="filters">
-    <select id="resultats-semestre" onchange="chargerResultats()">
-      <option value="">Sélectionner un semestre…</option>
-    </select>
+
+  <!-- Tabs Semestriel / Annuel -->
+  <div style="display:flex;gap:6px;padding:.5rem 0 .85rem;border-bottom:1px solid #f3f4f6;margin-bottom:.75rem">
+    <button id="tab-res-sem" onclick="switchResTab('semestre')"
+      style="padding:5px 14px;border-radius:999px;border:1.5px solid #1e3a5f;background:#1e3a5f;color:#fff;font-size:12px;font-weight:500;cursor:pointer">
+      📊 Semestriel
+    </button>
+    <button id="tab-res-ann" onclick="switchResTab('annuel')"
+      style="padding:5px 14px;border-radius:999px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer">
+      🎓 Annuel LMD
+    </button>
   </div>
-  <div id="resultats-content">
-    <div class="empty-state">
-      <div class="es-ico">📋</div>
-      <h3>Sélectionnez un semestre</h3>
-      <p>Choisissez un semestre pour afficher les résultats</p>
+
+  <!-- Vue Semestrielle (existante) -->
+  <div id="res-view-semestre">
+    <div class="filters">
+      <select id="resultats-semestre" onchange="chargerResultats()">
+        <option value="">Sélectionner un semestre…</option>
+      </select>
+    </div>
+    <div id="resultats-content">
+      <div class="empty-state">
+        <div class="es-ico">📋</div>
+        <h3>Sélectionnez un semestre</h3>
+        <p>Choisissez un semestre pour afficher les résultats</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vue Annuelle LMD (nouvelle) -->
+  <div id="res-view-annuel" style="display:none">
+    <div class="filters" style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <select id="resultats-annee" onchange="chargerResultatsAnnuels()" style="min-width:180px">
+        <option value="">— Sélectionner une année —</option>
+      </select>
+      <span id="res-ann-stats" style="font-size:12px;color:#6b7280"></span>
+    </div>
+    <div id="resultats-annuels-content">
+      <div class="empty-state">
+        <div class="es-ico">🎓</div>
+        <h3>Sélectionnez une année académique</h3>
+        <p>Les résultats annuels agrègent les semestres et appliquent la règle de compensation configurée</p>
+      </div>
     </div>
   </div>
 </div>
@@ -4981,6 +5017,188 @@ async function ajouterEvaluation(matiereId, sessionId, categorie) {
   if (error) { toast('Erreur: ' + error.message, 'error'); return; }
   toast('Évaluation créée', 'success');
   await chargerGrilleNotes();
+}
+
+// ── RÉSULTATS — tabs semestriel / annuel ──────────────────────────────────
+function switchResTab(tab) {
+  const isSem = tab === 'semestre';
+  document.getElementById('res-view-semestre').style.display = isSem ? '' : 'none';
+  document.getElementById('res-view-annuel').style.display   = isSem ? 'none' : '';
+  document.getElementById('resultats-actions-sem').style.display = isSem ? '' : 'none';
+  document.getElementById('resultats-actions-ann').style.display = isSem ? 'none' : '';
+  const btnSem = document.getElementById('tab-res-sem');
+  const btnAnn = document.getElementById('tab-res-ann');
+  btnSem.style.background = isSem ? '#1e3a5f' : '#fff';
+  btnSem.style.color      = isSem ? '#fff'    : '#6b7280';
+  btnSem.style.borderColor = isSem ? '#1e3a5f' : '#e5e7eb';
+  btnAnn.style.background = isSem ? '#fff'    : '#1e3a5f';
+  btnAnn.style.color      = isSem ? '#6b7280' : '#fff';
+  btnAnn.style.borderColor = isSem ? '#e5e7eb' : '#1e3a5f';
+  if (!isSem) _peuplerSelectAnnees();
+}
+
+async function _peuplerSelectAnnees() {
+  const sel = document.getElementById('resultats-annee');
+  if (!sel || sel.options.length > 1) return;
+  const { data: annees } = await db.from('annees_academiques')
+    .select('id,libelle,est_courante').eq('ecole_id', currentEcoleId).order('libelle', { ascending: false });
+  (annees || []).forEach(a => {
+    const o = document.createElement('option');
+    o.value = a.id;
+    o.textContent = a.libelle + (a.est_courante ? ' ★' : '');
+    sel.appendChild(o);
+    if (a.est_courante && sel.value === '') sel.value = a.id;
+  });
+  if (sel.value) chargerResultatsAnnuels();
+}
+
+const MENTION_LBL = {
+  tres_bien: 'Très Bien', bien: 'Bien', assez_bien: 'Assez Bien',
+  passable: 'Passable', insuffisant: 'Insuffisant'
+};
+const MENTION_CSS = {
+  tres_bien: '#7c3aed', bien: '#059669', assez_bien: '#1d4ed8',
+  passable: '#6b7280', insuffisant: '#dc2626'
+};
+const DECISION_LBL = {
+  admis: 'Admis', 'ajourné': 'Ajourné', redoublant: 'Redoublant', non_calcule: 'Non calculé'
+};
+const DECISION_CSS = {
+  admis: '#d1fae5|#065f46', 'ajourné': '#fef3c7|#92400e', redoublant: '#fee2e2|#991b1b',
+  non_calcule: '#f3f4f6|#6b7280'
+};
+
+async function chargerResultatsAnnuels() {
+  const anneeId = document.getElementById('resultats-annee').value;
+  const el = document.getElementById('resultats-annuels-content');
+  if (!anneeId) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">🎓</div><h3>Sélectionnez une année académique</h3></div>';
+    return;
+  }
+  el.innerHTML = '<div class="loading">Chargement des résultats annuels…</div>';
+
+  // Récupérer semestres de l'année
+  const { data: semestres } = await db.from('semestres')
+    .select('id').eq('annee_academique_id', anneeId).eq('ecole_id', currentEcoleId);
+  if (!semestres?.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">📅</div><h3>Aucun semestre pour cette année</h3><p>Créez d\'abord des semestres liés à cette année académique.</p></div>';
+    return;
+  }
+  const semIds = semestres.map(s => s.id);
+
+  // Étudiants inscrits dans au moins un semestre de l'année
+  const { data: ins } = await db.from('inscriptions_semestre')
+    .select('etudiant_id, etudiants(id,nom,prenom,matricule,filiere)')
+    .in('semestre_id', semIds).eq('ecole_id', currentEcoleId).eq('statut', 'active');
+  const etuMap = {};
+  (ins || []).forEach(i => {
+    if (i.etudiants && !etuMap[i.etudiant_id]) etuMap[i.etudiant_id] = i.etudiants;
+  });
+  const etudiants = Object.values(etuMap).sort((a, b) => a.nom.localeCompare(b.nom));
+
+  if (!etudiants.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">👥</div><h3>Aucun étudiant inscrit cette année</h3></div>';
+    return;
+  }
+
+  // Récupérer les résultats annuels depuis resultats_cache (agrégés)
+  const { data: cache } = await db.from('resultats_cache')
+    .select('etudiant_id, semestre_id, credits_valides, semestre_valide, moyenne_semestre')
+    .in('semestre_id', semIds).eq('ecole_id', currentEcoleId);
+
+  // Construire un résumé par étudiant côté JS (sans attendre la SQL fn qui sera dispo après migration)
+  const { data: regles } = await db.from('regles_ecole').select('compensation_active,seuil_validation_ue').eq('ecole_id', currentEcoleId).maybeSingle();
+  const compActive = regles?.compensation_active ?? false;
+  const seuilUE    = regles?.seuil_validation_ue ?? 10;
+
+  const rows = etudiants.map(etu => {
+    const mySems = (cache || []).filter(c => c.etudiant_id === etu.id);
+    if (!mySems.length) return { ...etu, decision: 'non_calcule', moyenne: null, credits: 0, total: semIds.length * 30, semVal: 0, nbSem: semIds.length, comp: false };
+    const credits  = mySems.reduce((s, c) => s + (c.credits_valides || 0), 0);
+    const total    = mySems.length * 30;
+    const semVal   = mySems.filter(c => c.semestre_valide).length;
+    const nbSem    = mySems.length;
+    const moyArr   = mySems.filter(c => c.moyenne_semestre !== null).map(c => c.moyenne_semestre);
+    const moyenne  = moyArr.length ? Math.round(moyArr.reduce((a, b) => a + b, 0) / moyArr.length * 100) / 100 : null;
+    let valide     = semVal === nbSem;
+    let comp       = false;
+    if (!valide && compActive && moyenne !== null && moyenne >= seuilUE && (nbSem - semVal) <= 1) {
+      valide = true; comp = true;
+    }
+    const mention  = moyenne === null ? null : moyenne >= 16 ? 'tres_bien' : moyenne >= 14 ? 'bien' : moyenne >= 12 ? 'assez_bien' : moyenne >= 10 ? 'passable' : 'insuffisant';
+    const decision = valide ? 'admis' : (moyenne !== null && moyenne >= 8) ? 'ajourné' : 'redoublant';
+    return { ...etu, decision, mention, moyenne, credits, total, semVal, nbSem, comp };
+  });
+
+  // Stats résumé
+  const nbAdmis = rows.filter(r => r.decision === 'admis').length;
+  const nbTot   = rows.length;
+  document.getElementById('res-ann-stats').textContent =
+    `${nbTot} étudiant${nbTot > 1 ? 's' : ''} · ${nbAdmis} admis · Taux ${Math.round(nbAdmis / nbTot * 100)}%`;
+
+  el.innerHTML = `<div style="overflow-x:auto"><table class="table">
+    <thead><tr>
+      <th>Étudiant</th><th>Matricule</th><th>Filière</th>
+      <th style="text-align:center">Crédits</th>
+      <th style="text-align:center">Moy. annuelle</th>
+      <th style="text-align:center">Mention</th>
+      <th style="text-align:center">Décision</th>
+    </tr></thead>
+    <tbody>
+      ${rows.map(r => {
+        const [dcBg, dcFg] = (DECISION_CSS[r.decision] || '#f3f4f6|#6b7280').split('|');
+        const moy = r.moyenne !== null ? r.moyenne.toFixed(2) + '/20' : '—';
+        const mLabel = r.mention ? MENTION_LBL[r.mention] : '—';
+        const mColor = r.mention ? MENTION_CSS[r.mention] : '#9ca3af';
+        return `<tr>
+          <td style="font-weight:500">${esc(r.nom)} ${esc(r.prenom)}</td>
+          <td style="font-size:11px;color:#6b7280">${esc(r.matricule || '—')}</td>
+          <td style="font-size:11px">${esc(r.filiere || '—')}</td>
+          <td style="text-align:center">
+            <span style="font-weight:600;color:#1e3a5f">${r.credits}/${r.total}</span>
+            <div style="font-size:10px;color:#9ca3af">${r.semVal}/${r.nbSem} sem.</div>
+          </td>
+          <td style="text-align:center;font-weight:600;color:${r.moyenne !== null && r.moyenne >= seuilUE ? '#059669' : '#dc2626'}">${moy}</td>
+          <td style="text-align:center;font-weight:500;color:${mColor}">${mLabel}</td>
+          <td style="text-align:center">
+            <span style="background:${dcBg};color:${dcFg};padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600">${DECISION_LBL[r.decision] || r.decision}</span>
+            ${r.comp ? '<div style="font-size:10px;color:#d97706;margin-top:2px">⚖ Compensation</div>' : ''}
+          </td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+async function calculerResultatsAnnuelsBatch() {
+  const anneeId = document.getElementById('resultats-annee').value;
+  if (!anneeId) { toast('Sélectionnez une année académique', 'error'); return; }
+  const btn = document.querySelector('[onclick="calculerResultatsAnnuelsBatch()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Calcul en cours…'; }
+
+  // Récupérer semestres de l'année
+  const { data: semestres } = await db.from('semestres')
+    .select('id').eq('annee_academique_id', anneeId).eq('ecole_id', currentEcoleId);
+  if (!semestres?.length) { toast('Aucun semestre pour cette année', 'error'); if (btn) { btn.disabled = false; btn.textContent = '⚙ Calculer résultats annuels'; } return; }
+
+  // Étudiants inscrits
+  const semIds = semestres.map(s => s.id);
+  const { data: ins } = await db.from('inscriptions_semestre')
+    .select('etudiant_id, semestre_id').in('semestre_id', semIds).eq('ecole_id', currentEcoleId).eq('statut', 'active');
+
+  // Calculer chaque combinaison étudiant × semestre
+  let done = 0;
+  const pairs = (ins || []).map(i => ({ etuId: i.etudiant_id, semId: i.semestre_id }));
+  const unique = [...new Map(pairs.map(p => [p.etuId + p.semId, p])).values()];
+  for (const { etuId, semId } of unique) {
+    await _calculerUnEtudiant(etuId, semId);
+    done++;
+    if (btn) btn.textContent = `Calcul… ${done}/${unique.length}`;
+  }
+
+  await chargerResultatsAnnuels();
+  if (btn) { btn.disabled = false; btn.textContent = '⚙ Calculer résultats annuels'; }
+  toast(`Résultats annuels calculés pour ${[...new Set(pairs.map(p => p.etuId))].length} étudiant(s) ✓`, 'success');
 }
 
 // ── RÉSULTATS ─────────────────────────────────
