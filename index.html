@@ -1771,7 +1771,7 @@ async function sauvegarderRegles(evt) {
     seuil_note_plancher:  parseFloat(document.getElementById('regles-plancher').value)   || 5,
     compensation_active:  document.getElementById('regles-compensation').checked,
     note_plancher_active: document.getElementById('regles-plancher-active').checked,
-    regle_rattrapage:     document.getElementById('regles-rattrapage').value
+    regle_rattrapage:     document.getElementById('regles-rattrapage').value || 'automatique'
   };
   const { error } = await db.from('regles_ecole').upsert(payload, { onConflict: 'ecole_id' });
   if (error) { toast('Erreur : ' + error.message, 'error'); btn.disabled=false; btn.textContent='Enregistrer →'; return; }
