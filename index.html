@@ -5852,6 +5852,7 @@ async function exporterReleve(etudiantId, semId) {
     // Tableau UE
     doc.autoTable({
       startY: y,
+      tableWidth: 170,
       head: [["Code UE", "Unité d'Enseignement", 'Crédits', 'Moyenne', 'Acquis', 'Résultat']],
       body: (snap.resultats_ue || []).map(ue => [
         ue.ue_code || '—',
@@ -5861,12 +5862,12 @@ async function exporterReleve(etudiantId, semId) {
         String(ue.credits_acquis || 0),
         ue.ue_validee ? 'Validée' : (ue.est_exclu ? 'Exclue' : 'Non validée')
       ]),
-      styles: { fontSize: 8, cellPadding: 2 },
+      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
       headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold', fontSize: 8 },
       columnStyles: {
-        0: { cellWidth: 26 }, 1: { cellWidth: 66 },
-        2: { cellWidth: 17, halign: 'center' }, 3: { cellWidth: 20, halign: 'center' },
-        4: { cellWidth: 17, halign: 'center' }, 5: { cellWidth: 24, halign: 'center' }
+        0: { cellWidth: 25 }, 1: { cellWidth: 65 },
+        2: { cellWidth: 16, halign: 'center' }, 3: { cellWidth: 20, halign: 'center' },
+        4: { cellWidth: 16, halign: 'center' }, 5: { cellWidth: 28, halign: 'center' }
       },
       didParseCell: (data) => {
         if (data.section === 'body' && data.column.index === 5) {
