@@ -1618,6 +1618,13 @@ async function chargerParametres() {
               </div>
               <span class="badge teal">${regles.seuil_validation_ue}/20</span>
             </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#111827">Blocage relevé si impayés</div>
+                <div style="font-size:11px;color:#9ca3af">Publication conditionnée au paiement</div>
+              </div>
+              <span class="badge ${regles.blocage_releve_impaye?'red':'gray'}">${regles.blocage_releve_impaye?(regles.tolerance_impaye_releve>0?"Activé · tol. "+(regles.tolerance_impaye_releve).toLocaleString("fr-FR")+" FCFA":"Activé"):"Désactivé"}</span>
+            </div>
           </div>` : '<p style="color:#9ca3af;font-size:13px">Règles non configurées</p>'}
       </div>
 
@@ -1787,6 +1794,20 @@ async function ouvrirEditRegles() {
             <input type="number" id="regles-seuil-absence" style="width:100%;margin-top:4px" min="0" max="100" step="5" placeholder="30">
             <div style="font-size:11px;color:#9ca3af;margin-top:3px">Au-delà de ce taux d'absence, l'étudiant est signalé ou exclu</div>
           </div>
+          <div style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.2rem">
+            <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.75rem;background:#f9fafb;border-radius:8px">
+              <input type="checkbox" id="regles-blocage-impaye" style="width:16px;height:16px">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#111827">Bloquer le relevé si impayés</div>
+                <div style="font-size:11px;color:#9ca3af">Empêche la publication du relevé tant que l'étudiant a un solde dû</div>
+              </div>
+            </label>
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Tolérance d'impayé (FCFA)</label>
+            <input type="number" id="regles-tolerance-impaye" style="width:100%;margin-top:4px" min="0" step="1000" placeholder="0">
+            <div style="font-size:11px;color:#9ca3af;margin-top:3px">Publication autorisée tant que le solde dû reste inférieur ou égal à ce montant</div>
+          </div>
           <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
             <button type="button" class="btn-ghost" onclick="document.getElementById('modal-edit-regles').classList.remove('open')">Annuler</button>
             <button type="submit" class="btn-blue" id="regles-submit-btn">Enregistrer →</button>
@@ -1802,6 +1823,8 @@ async function ouvrirEditRegles() {
   document.getElementById('regles-plancher-active').checked = r?.note_plancher_active   ?? false;
   document.getElementById('regles-rattrapage').value        = r?.regle_rattrapage       || 'max';
   document.getElementById('regles-seuil-absence').value     = r?.seuil_absence_pct      ?? 30;
+  document.getElementById('regles-blocage-impaye').checked  = r?.blocage_releve_impaye  ?? false;
+  document.getElementById('regles-tolerance-impaye').value  = r?.tolerance_impaye_releve ?? 0;
   document.getElementById('regles-submit-btn').disabled = false;
   document.getElementById('regles-submit-btn').textContent = 'Enregistrer →';
   o.classList.add('open');
@@ -1818,11 +1841,14 @@ async function sauvegarderRegles(evt) {
     compensation_active:  document.getElementById('regles-compensation').checked,
     note_plancher_active: document.getElementById('regles-plancher-active').checked,
     regle_rattrapage:     document.getElementById('regles-rattrapage').value || 'max',
-    seuil_absence_pct:    parseInt(document.getElementById('regles-seuil-absence').value) || 30
+    seuil_absence_pct:    parseInt(document.getElementById('regles-seuil-absence').value) || 30,
+    blocage_releve_impaye:   document.getElementById('regles-blocage-impaye').checked,
+    tolerance_impaye_releve: parseFloat(document.getElementById('regles-tolerance-impaye').value) || 0
   };
   const { error } = await db.from('regles_ecole').upsert(payload, { onConflict: 'ecole_id' });
   if (error) { toast('Erreur : ' + error.message, 'error'); btn.disabled=false; btn.textContent='Enregistrer →'; return; }
   document.getElementById('modal-edit-regles').classList.remove('open');
+  _blocageCache = null;
   await chargerParametres();
   toast('Règles LMD mises à jour ✓', 'success');
 }
@@ -5866,7 +5892,25 @@ async function chargerReleves() {
   (releves||[]).forEach(r => { relevesMap[r.etudiant_id] = r; });
 
   _tousReleves = (inscriptions||[]).map(i=>i.etudiants).filter(Boolean).sort((a,b)=>a.nom.localeCompare(b.nom));
-  renderTableauReleves(_tousReleves, relevesMap, semId);
+
+  // Soldes pour le blocage relevé — une seule requête groupée
+  const bloc = await _getBlocageRegles();
+  let soldesMap = null, tolerance = 0;
+  if (bloc.blocage_releve_impaye) {
+    tolerance = Number(bloc.tolerance_impaye_releve) || 0;
+    soldesMap = {};
+    const ids = _tousReleves.map(e => e.id);
+    if (ids.length) {
+      const { data: facs } = await db.from('factures')
+        .select('etudiant_id,montant_total,montant,montant_paye,statut').in('etudiant_id', ids);
+      (facs||[]).forEach(f => {
+        if (f.statut === 'annule') return;
+        const du = Math.max((f.montant_total ?? f.montant ?? 0) - (f.montant_paye || 0), 0);
+        soldesMap[f.etudiant_id] = (soldesMap[f.etudiant_id] || 0) + du;
+      });
+    }
+  }
+  renderTableauReleves(_tousReleves, relevesMap, semId, soldesMap, tolerance);
 }
 
 function filtrerReleves() {
@@ -5875,13 +5919,17 @@ function filtrerReleves() {
   chargerReleves();
 }
 
-function renderTableauReleves(etudiants, relevesMap, semId) {
+function renderTableauReleves(etudiants, relevesMap, semId, soldesMap, tolerance) {
   const el = document.getElementById('releves-content');
   const nbPublies = Object.keys(relevesMap).length;
   const nbTotal   = etudiants.length;
+  const tol = Number(tolerance) || 0;
+  const nbBloques = soldesMap
+    ? etudiants.filter(et => !relevesMap[et.id] && (soldesMap[et.id]||0) > tol).length
+    : 0;
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;padding:.85rem 1rem;background:#f9fafb;border-radius:10px;border:1px solid #e5e7eb">
-      <div style="flex:1;font-size:13px;color:#374151">${nbPublies} / ${nbTotal} relevés publiés</div>
+      <div style="flex:1;font-size:13px;color:#374151">${nbPublies} / ${nbTotal} relevés publiés${nbBloques?` · <span style="color:#dc2626;font-weight:600">${nbBloques} bloqué(s) pour impayés</span>`:''}</div>
       <div class="prog-bar" style="width:150px"><div class="prog-fill" style="width:${nbTotal?Math.round(nbPublies/nbTotal*100):0}%"></div></div>
       <button onclick="publierTousReleves('${semId}')" class="btn-green btn-sm">Publier tous</button>
     </div>
@@ -5897,6 +5945,8 @@ function renderTableauReleves(etudiants, relevesMap, semId) {
       <tbody>
         ${etudiants.map(et => {
           const r = relevesMap[et.id];
+          const solde = soldesMap ? (soldesMap[et.id]||0) : 0;
+          const bloqueImpaye = !r && soldesMap && solde > tol;
           return `<tr>
             <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">${esc(et.matricule||'—')}</code></td>
             <td><strong>${esc(et.nom)} ${esc(et.prenom)}</strong></td>
@@ -5904,25 +5954,49 @@ function renderTableauReleves(etudiants, relevesMap, semId) {
             <td style="text-align:center">${r ? badgeMention(r.mention) : '<span class="badge gray">—</span>'}</td>
             <td style="text-align:center">${r ? `<span class="badge teal">${r.credits_valides} CECT</span>` : '—'}</td>
             <td style="text-align:center">${r ? `<span class="badge ${r.decision==='admis'?'green':'amber'}">${r.decision}</span>` : '—'}</td>
-            <td style="text-align:center">${r ? `<span class="badge green">Publié</span>` : '<span class="badge gray">En attente</span>'}</td>
+            <td style="text-align:center">${r ? `<span class="badge green">Publié</span>` : (bloqueImpaye ? `<span class="badge red" title="Solde dû : ${solde.toLocaleString('fr-FR')} FCFA">🔒 Impayé</span>` : '<span class="badge gray">En attente</span>')}</td>
             <td>
               ${r
                 ? `<div style="display:flex;gap:4px;justify-content:center">
                   <button class="btn-outline btn-sm" onclick="voirReleve('${et.id}','${semId}')">Voir</button>
                   <button class="btn-outline btn-sm" style="color:#1e3a5f;border-color:#1e3a5f" onclick="exporterReleve('${et.id}','${semId}')">📄 PDF</button>
                 </div>`
-                : `<button class="btn-sm btn-sm" onclick="publierReleve('${et.id}','${semId}')">Publier</button>`}
+                : (bloqueImpaye
+                  ? `<button class="btn-sm" disabled title="Solde dû : ${solde.toLocaleString('fr-FR')} FCFA — régler avant publication" style="opacity:.5;cursor:not-allowed">🔒 ${solde.toLocaleString('fr-FR')} FCFA</button>`
+                  : `<button class="btn-sm btn-sm" onclick="publierReleve('${et.id}','${semId}')">Publier</button>`)}
             </td>
           </tr>`;}).join('')}
       </tbody>
     </table></div>`;
 }
 
-async function publierReleve(etudiantId, semestreId) {
+let _blocageCache = null;
+async function _getBlocageRegles() {
+  if (_blocageCache) return _blocageCache;
+  const { data } = await db.from('regles_ecole')
+    .select('blocage_releve_impaye,tolerance_impaye_releve')
+    .eq('ecole_id', currentEcoleId).maybeSingle();
+  _blocageCache = data || { blocage_releve_impaye:false, tolerance_impaye_releve:0 };
+  return _blocageCache;
+}
+
+async function publierReleve(etudiantId, semestreId, silent) {
+  // Garde — blocage si impayés (configurable dans Paramètres → Règles)
+  const bloc = await _getBlocageRegles();
+  if (bloc.blocage_releve_impaye) {
+    const { data: solde, error: soldeErr } = await db.rpc('fn_solde_etudiant', { p_etudiant_id: etudiantId });
+    if (!soldeErr && solde !== null) {
+      const tol = Number(bloc.tolerance_impaye_releve) || 0;
+      if (Number(solde) > tol) {
+        if (!silent) toast("Relevé bloqué — solde dû de " + Number(solde).toLocaleString("fr-FR") + " FCFA (tolérance " + tol.toLocaleString("fr-FR") + ")", "error");
+        return { blocked:true, solde:Number(solde) };
+      }
+    }
+  }
   const { data: session } = await db.from('sessions_evaluation')
     .select('id').eq('semestre_id', semestreId).eq('type_session','normale').single();
-  if (!session) { toast('Aucune session normale trouvée', 'error'); return; }
-  toast('Publication en cours...', 'info');
+  if (!session) { if (!silent) toast('Aucune session normale trouvée', 'error'); return { success:false }; }
+  if (!silent) toast('Publication en cours...', 'info');
   try {
     const res = await fetch('https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve', {
       method: 'POST',
@@ -5931,23 +6005,35 @@ async function publierReleve(etudiantId, semestreId) {
     });
     const data = await res.json();
     if (data.success) {
-      toast(`Relevé publié — ${data.mention||'Résultat calculé'}`, 'success');
-      await chargerReleves();
+      if (!silent) { toast(`Relevé publié — ${data.mention||'Résultat calculé'}`, 'success'); await chargerReleves(); }
+      return { success:true };
     } else {
-      toast('Erreur: ' + (data.error||'Inconnue'), 'error');
+      if (!silent) toast('Erreur: ' + (data.error||'Inconnue'), 'error');
+      return { success:false };
     }
-  } catch(e) { toast('Erreur réseau: ' + e.message, 'error'); }
+  } catch(e) { if (!silent) toast('Erreur réseau: ' + e.message, 'error'); return { success:false }; }
 }
 
 async function publierTousReleves(semestreId) {
   if (!confirm('Publier les relevés de tous les étudiants sans relevé ? Cette action enverra un email à chacun.')) return;
-  const rows = document.querySelectorAll('#releves-content button[onclick^="publierReleve"]');
-  let count = 0;
-  for (const btn of rows) {
-    const match = btn.getAttribute('onclick').match(/publierReleve\('([^']+)','([^']+)'\)/);
-    if (match) { await publierReleve(match[1], match[2]); count++; }
+  _blocageCache = null; // recharger la config à jour
+  const targets = [];
+  document.querySelectorAll('#releves-content button[onclick^="publierReleve"]').forEach(btn => {
+    const m = btn.getAttribute('onclick').match(/publierReleve\('([^']+)','([^']+)'\)/);
+    if (m) targets.push([m[1], m[2]]);
+  });
+  let count = 0, blocked = 0, failed = 0;
+  for (const [etu, sem] of targets) {
+    const r = await publierReleve(etu, sem, true);
+    if (r?.blocked) blocked++;
+    else if (r?.success) count++;
+    else failed++;
   }
-  toast(`${count} relevés publiés`, 'success');
+  let msg = `${count} relevé(s) publié(s)`;
+  if (blocked) msg += ` · ${blocked} bloqué(s) pour impayés`;
+  if (failed)  msg += ` · ${failed} échec(s)`;
+  toast(msg, (blocked || failed) ? 'info' : 'success');
+  await chargerReleves();
 }
 
 async function exporterReleve(etudiantId, semId) {
