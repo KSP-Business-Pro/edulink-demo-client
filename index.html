@@ -2011,6 +2011,7 @@ function renderComptaTableau(liste, fmt) {
       <th style="text-align:right">Attendu</th>
       <th style="text-align:right">Encaissé</th>
       <th style="text-align:right">Reste</th>
+      <th style="text-align:center">Échéance</th>
       <th style="text-align:center">Statut</th>
       <th></th>
     </tr></thead>
@@ -2031,6 +2032,12 @@ function renderComptaTableau(liste, fmt) {
           <td style="text-align:right;font-weight:600;font-size:13px">${fmt(e.attendu)}</td>
           <td style="text-align:right;font-weight:600;font-size:13px;color:#059669">${fmt(e.encaisse)}</td>
           <td style="text-align:right;font-weight:600;font-size:13px;color:${restant>0?'#dc2626':'#059669'}">${fmt(restant)}</td>
+          <td style="text-align:center;font-size:11px;color:#6b7280">
+            ${(() => {
+              const fDate = e.factures?.filter(f=>f.date_echeance).sort((a,b)=>new Date(a.date_echeance)-new Date(b.date_echeance))[0]?.date_echeance;
+              return fDate ? new Date(fDate).toLocaleDateString('fr-FR') : '—';
+            })()}
+          </td>
           <td style="text-align:center">
             <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
               <span class="badge ${statutColor[statut]||'gray'}">${statut}</span>
