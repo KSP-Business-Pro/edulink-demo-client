@@ -3704,7 +3704,7 @@ async function soumettreFactureMasse(evt) {
         ecole_id: currentEcoleId, etudiant_id: i.etudiant_id,
         type_frais: type, libelle, montant_total: montant,
         montant_paye: 0, statut: 'en_attente', annee_scolaire: annee,
-        reference: type.substring(0,3).toUpperCase()+'-'+Date.now()+'-'+String(idx+1).padStart(3,'0')
+        reference: crypto.randomUUID().replace(/-/g,'').substring(0,12).toUpperCase()
       }));
 
     if (!toCreate.length) throw new Error('Toutes les factures existent déjà pour cette combinaison type/année');
