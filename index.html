@@ -6894,6 +6894,8 @@ async function chargerExclusions(semId) {
 
   const nbRisque   = (absences||[]).filter(a => !a.est_exclu).length;
   const nbExclus   = (exclusions||[]).length;
+  const nbAuto     = (exclusions||[]).filter(e => e.source === 'auto').length;
+  const nbManuel   = nbExclus - nbAuto;
 
   el.innerHTML = `
     <!-- Résumé -->
@@ -6908,7 +6910,7 @@ async function chargerExclusions(semId) {
         <div class="c-ico">🚫</div>
         <div class="c-val">${nbExclus}</div>
         <div class="c-lbl">Exclusions actives</div>
-        <div class="c-sub">Ce semestre</div>
+        <div class="c-sub">${nbAuto > 0 ? nbAuto+' auto · '+nbManuel+' man.' : 'Ce semestre'}</div>
       </div>
       <div class="card">
         <div class="c-ico">📋</div>
@@ -6916,6 +6918,13 @@ async function chargerExclusions(semId) {
         <div class="c-lbl">Cas recensés</div>
         <div class="c-sub">Taux ≥ 20%</div>
       </div>
+    </div>
+
+    <!-- Actions auto-exclusion -->
+    <div style="display:flex;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center;padding:.85rem 1rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px">
+      <div style="flex:1;font-size:12px;color:#065f46">Seuil : <strong>${seuilExcl}%</strong> d'absences injustifiées — configurable dans Paramètres → Règles</div>
+      <button class="btn-sm btn-blue" onclick="appliquerExclusionsAuto('${semId}')">⚡ Appliquer exclusions auto</button>
+      <button class="btn-sm btn-outline" onclick="recalculerExclusionsAuto('${semId}')">🔄 Recalculer</button>
     </div>
 
     <!-- Étudiants à risque -->
@@ -6963,7 +6972,7 @@ async function chargerExclusions(semId) {
               <div style="font-size:11px;color:#9ca3af">${esc(ex.etudiants?.matricule||'—')}</div>
             </td>
             <td><span class="badge red">${esc(ex.unites_enseignement?.code||'?')}</span> ${esc(ex.unites_enseignement?.intitule||'—')}</td>
-            <td style="font-size:12px;color:#6b7280">${esc(ex.motif||'—')}</td>
+            <td style="font-size:12px;color:#6b7280">${esc(ex.motif||'—')}${ex.source==='auto'?' <span class="badge blue" style="font-size:9px;padding:1px 5px;margin-left:4px">auto</span>':''}</td>
             <td style="font-size:12px;color:#6b7280">${formatDate(ex.date_exclusion)}</td>
             <td><button class="btn-sm btn-secondary" onclick="leverExclusion('${ex.id}','${semId}')">Lever</button></td>
           </tr>`).join('')}
@@ -6996,6 +7005,28 @@ async function leverExclusion(exclusionId, semId) {
   const { error } = await db.from('exclusions_ue').delete().eq('id', exclusionId);
   if (error) { toast('Erreur: ' + error.message, 'error'); return; }
   toast('Exclusion levée', 'success');
+  chargerExclusions(semId);
+}
+
+async function appliquerExclusionsAuto(semId) {
+  if (!confirm("Exclure automatiquement tous les étudiants dont le taux d'absence dépasse le seuil configuré ?\nCette action peut être annulée en levant les exclusions individuellement.")) return;
+  const { data: count, error } = await db.rpc('fn_auto_exclure_absences', { p_semestre_id: semId });
+  if (error) { toast('Erreur: ' + error.message, 'error'); return; }
+  if (!count) toast('Aucune nouvelle exclusion — tous les cas sont déjà traités', 'info');
+  else toast(count + ' exclusion(s) automatique(s) appliquée(s) ✓', 'success');
+  chargerExclusions(semId);
+}
+
+async function recalculerExclusionsAuto(semId) {
+  if (!confirm("Recalculer les exclusions automatiques ?\nLes exclusions auto dont le taux est repassé sous le seuil seront levées, puis les nouveaux cas seront ajoutés.")) return;
+  const { data: nLeve, error: e1 } = await db.rpc('fn_lever_exclusions_auto', { p_semestre_id: semId });
+  if (e1) { toast('Erreur: ' + e1.message, 'error'); return; }
+  const { data: nNouveau, error: e2 } = await db.rpc('fn_auto_exclure_absences', { p_semestre_id: semId });
+  if (e2) { toast('Erreur: ' + e2.message, 'error'); return; }
+  let msg = 'Recalcul terminé';
+  if (nLeve)    msg += ' · ' + nLeve    + ' levée(s)';
+  if (nNouveau) msg += ' · ' + nNouveau + ' nouvelle(s)';
+  toast(msg + ' ✓', 'success');
   chargerExclusions(semId);
 }
 
