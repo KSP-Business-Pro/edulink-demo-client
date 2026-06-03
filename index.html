@@ -3684,7 +3684,8 @@ async function soumettreFactureMasse(evt) {
   const type    = document.getElementById('masse-type').value;
   const montant = parseFloat(document.getElementById('masse-montant').value);
   const libelle = document.getElementById('masse-libelle').value.trim();
-  const annee   = document.getElementById('masse-annee').value.trim() || null;
+  const annee    = document.getElementById('masse-annee').value.trim() || null;
+  const echeance = document.getElementById('masse-echeance')?.value || null;
 
   try {
     // Récupérer étudiants inscrits
