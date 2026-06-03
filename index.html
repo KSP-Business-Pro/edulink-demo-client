@@ -758,7 +758,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 const SUPABASE_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-const WEBHOOK_SECRET = 'ab680f52-881c-4e89-a299-0aeec8c13da1-44cebc6c-d38c-446c-98ba-4390a4bffee8';  //
+
 // ── État global ──────────────────────────────────────────────────────────
 let currentEcoleId = null, currentUserNom = '', currentUserRole = 'admin', _ficheEtuId = null, _ficheEtuNom = '';
 let currentRole      = 'admin';
@@ -1648,6 +1648,13 @@ async function chargerParametres() {
               </div>
               <span class="badge ${regles.blocage_releve_impaye?'red':'gray'}">${regles.blocage_releve_impaye?(regles.tolerance_impaye_releve>0?"Activé · tol. "+(regles.tolerance_impaye_releve).toLocaleString("fr-FR")+" FCFA":"Activé"):"Désactivé"}</span>
             </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#111827">Contrôle crédits inscription</div>
+                <div style="font-size:11px;color:#9ca3af">Seuil par semestre</div>
+              </div>
+              <span class="badge ${regles.controle_credits_actif?'blue':'gray'}">${regles.controle_credits_actif?"Activé · seuil "+(regles.seuil_credits_avancement??24)+"/30":"Désactivé"}</span>
+            </div>
           </div>` : '<p style="color:#9ca3af;font-size:13px">Règles non configurées</p>'}
       </div>
 
@@ -1831,6 +1838,20 @@ async function ouvrirEditRegles() {
             <input type="number" id="regles-tolerance-impaye" style="width:100%;margin-top:4px" min="0" step="1000" placeholder="0">
             <div style="font-size:11px;color:#9ca3af;margin-top:3px">Publication autorisée tant que le solde dû reste inférieur ou égal à ce montant</div>
           </div>
+          <div style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.2rem">
+            <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.75rem;background:#f9fafb;border-radius:8px">
+              <input type="checkbox" id="regles-controle-credits" style="width:16px;height:16px">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#111827">Contrôle crédits à l'inscription</div>
+                <div style="font-size:11px;color:#9ca3af">Avertit (avec override admin) si crédits insuffisants pour avancer au semestre suivant</div>
+              </div>
+            </label>
+          </div>
+          <div style="margin-bottom:1.2rem">
+            <label>Seuil crédits par semestre (sur 30)</label>
+            <input type="number" id="regles-seuil-credits" style="width:100%;margin-top:4px" min="0" max="30" step="3" placeholder="24">
+            <div style="font-size:11px;color:#9ca3af;margin-top:3px">Crédits minimum du semestre précédent requis pour inscription (défaut : 24/30 = 80 %)</div>
+          </div>
           <div style="display:flex;justify-content:flex-end;gap:.5rem;padding-top:.85rem;border-top:1px solid #f3f4f6">
             <button type="button" class="btn-ghost" onclick="document.getElementById('modal-edit-regles').classList.remove('open')">Annuler</button>
             <button type="submit" class="btn-blue" id="regles-submit-btn">Enregistrer →</button>
@@ -1848,6 +1869,8 @@ async function ouvrirEditRegles() {
   document.getElementById('regles-seuil-absence').value     = r?.seuil_absence_pct      ?? 30;
   document.getElementById('regles-blocage-impaye').checked  = r?.blocage_releve_impaye  ?? false;
   document.getElementById('regles-tolerance-impaye').value  = r?.tolerance_impaye_releve ?? 0;
+  document.getElementById('regles-controle-credits').checked = r?.controle_credits_actif   ?? false;
+  document.getElementById('regles-seuil-credits').value      = r?.seuil_credits_avancement  ?? 24;
   document.getElementById('regles-submit-btn').disabled = false;
   document.getElementById('regles-submit-btn').textContent = 'Enregistrer →';
   o.classList.add('open');
@@ -1866,7 +1889,9 @@ async function sauvegarderRegles(evt) {
     regle_rattrapage:     document.getElementById('regles-rattrapage').value || 'max',
     seuil_absence_pct:    parseInt(document.getElementById('regles-seuil-absence').value) || 30,
     blocage_releve_impaye:   document.getElementById('regles-blocage-impaye').checked,
-    tolerance_impaye_releve: parseFloat(document.getElementById('regles-tolerance-impaye').value) || 0
+    tolerance_impaye_releve: parseFloat(document.getElementById('regles-tolerance-impaye').value) || 0,
+    controle_credits_actif:   document.getElementById('regles-controle-credits').checked,
+    seuil_credits_avancement: parseInt(document.getElementById('regles-seuil-credits').value)  || 24
   };
   const { error } = await db.from('regles_ecole').upsert(payload, { onConflict: 'ecole_id' });
   if (error) { toast('Erreur : ' + error.message, 'error'); btn.disabled=false; btn.textContent='Enregistrer →'; return; }
@@ -2989,6 +3014,31 @@ async function soumettreInscription(e) {
   const { data: existing } = await db.from('inscriptions_semestre')
     .select('id').eq('etudiant_id', _inscrEtuId).eq('semestre_id', semId).maybeSingle();
   if (existing) { toast('Déjà inscrit à ce semestre', 'info'); btn.disabled=false; btn.textContent='Inscrire →'; return; }
+
+  // ── Contrôle crédits bloquant (configurable dans Paramètres → Règles) ──
+  const reglesCtrl = _reglesCache || (await db.from('regles_ecole')
+    .select('controle_credits_actif,seuil_credits_avancement')
+    .eq('ecole_id', currentEcoleId).maybeSingle()).data;
+  if (reglesCtrl?.controle_credits_actif) {
+    const { data: semCible } = await db.from('semestres')
+      .select('id,numero,libelle,programme_id').eq('id', semId).single();
+    if (semCible && semCible.numero > 1) {
+      const { data: semPrev } = await db.from('semestres')
+        .select('id,libelle').eq('programme_id', semCible.programme_id)
+        .eq('numero', semCible.numero - 1).maybeSingle();
+      if (semPrev) {
+        const { data: cachePrev } = await db.from('resultats_cache')
+          .select('credits_valides').eq('etudiant_id', _inscrEtuId)
+          .eq('semestre_id', semPrev.id).maybeSingle();
+        const creditsPrev = cachePrev?.credits_valides ?? null;
+        const seuil = reglesCtrl?.seuil_credits_avancement ?? 24;
+        if (creditsPrev !== null && creditsPrev < seuil) {
+          const ok = confirm("⚠️ Contrôle crédits LMD\n" + _inscrEtuNom + " a validé " + creditsPrev + "/30 crédits en " + semPrev.libelle + " (seuil requis : " + seuil + "/30).\n\nInscrire quand même ?");
+          if (!ok) { btn.disabled=false; btn.textContent='Inscrire →'; return; }
+        }
+      }
+    }
+  }
 
   const { error } = await db.from('inscriptions_semestre').insert({
     ecole_id:             currentEcoleId,
@@ -5113,6 +5163,20 @@ async function voirFicheEtudiant(id) {
   if (!e) return;
   const { data: ins } = await db.from('inscriptions_semestre')
     .select('*, semestres(libelle,niveau,programmes_lmd(intitule))').eq('etudiant_id', id).order('created_at', { ascending:false });
+  const { data: cacheEtu } = await db.from('resultats_cache')
+    .select('credits_valides,semestre_valide').eq('etudiant_id', id).eq('ecole_id', currentEcoleId);
+  const totalCredits = (cacheEtu||[]).reduce((s,c)=>s+(c.credits_valides||0), 0);
+  const semValides   = (cacheEtu||[]).filter(c=>c.semestre_valide).length;
+  const pctLicence   = Math.min(Math.round(totalCredits/180*100), 100);
+  const progressHtml = (cacheEtu||[]).length > 0 ? `
+    <div style="padding:.75rem 1rem;background:#f0fdf4;border-radius:10px;margin-bottom:1rem;border:1px solid #bbf7d0">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+        <span style="font-size:12px;font-weight:600;color:#065f46">Progression LMD</span>
+        <span style="font-size:13px;font-weight:700;color:#1e3a5f">${totalCredits} CECT</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pctLicence}%"></div></div>
+      <div style="font-size:11px;color:#6b7280;margin-top:.3rem">${semValides} semestre(s) validé(s) · ${totalCredits}/180 CECT Licence · ${pctLicence}%</div>
+    </div>` : '';
   const insHtml = (ins||[]).length === 0
     ? '<p style="color:#9ca3af;font-size:13px;padding:.5rem 0">Aucune inscription semestrielle</p>'
     : (ins||[]).map(i => `
@@ -5149,6 +5213,7 @@ async function voirFicheEtudiant(id) {
       <div class="info-item"><div class="ii-label">Statut</div><div class="ii-val">${esc(e.statut||'—')}</div></div>
     </div>
     <div style="font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.75rem">Inscriptions semestrielles</div>
+    ${progressHtml}
     ${insHtml}`, _ficheFooter);
 }
 
