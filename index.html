@@ -3482,6 +3482,7 @@ async function soumettreModalPaiement(e) {
     }).eq('id', factureId);
     if (error) throw error;
     document.getElementById('modal-paiement-overlay').classList.remove('open');
+    document.getElementById('modal-info-overlay')?.classList.remove('open');
     await chargerPaiements();
     toast('Paiement enregistré ✓', 'success');
   } catch(err) {
@@ -3724,7 +3725,7 @@ async function genererRecuPDF(factureId, nomEtudiant) {
   if (!f) { toast('Facture introuvable', 'error'); return; }
   const { data: ecole } = await db.from('ecoles').select('nom,ville,email').eq('id', currentEcoleId).single();
 
-  const fmt = n => Math.round(n||0).toLocaleString('fr-FR') + ' FCFA';
+  const fmt = n => Math.round(n||0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA';
   const rubriqueLabels = {
     scolarite:'Frais de scolarité', inscription:"Frais d'inscription",
     examen:"Frais d'examen", bibliotheque:'Bibliothèque', autre:'Autres frais'
