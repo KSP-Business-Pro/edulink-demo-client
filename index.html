@@ -2008,9 +2008,6 @@ function renderComptaTableau(liste, fmt) {
   return `<div class="table-wrap"><table>
     <thead><tr>
       <th>Étudiant</th><th>Filière / Niveau</th>
-      ${['scolarite','inscription','examen','bibliotheque','autre'].map(r =>
-        `<th style="text-align:center;font-size:10px">Scolarité</th>`
-      ).slice(0,1).join('')}
       <th style="text-align:right">Attendu</th>
       <th style="text-align:right">Encaissé</th>
       <th style="text-align:right">Reste</th>
@@ -3440,7 +3437,7 @@ function ouvrirPaiement(factureId, restant) {
           <input type="hidden" id="paiement-facture-id">
           <div style="margin-bottom:.85rem">
             <label>Montant payé (FCFA) *</label>
-            <input type="number" id="paiement-montant" style="width:100%;margin-top:4px" min="1" step="100" required>
+            <input type="number" id="paiement-montant" style="width:100%;margin-top:4px" min="1" step="any" required>
           </div>
           <div style="margin-bottom:1.2rem">
             <label>Mode de paiement *</label>
@@ -3535,7 +3532,7 @@ async function ouvrirModalFacture() {
             </div>
             <div>
               <label>Montant (FCFA) *</label>
-              <input type="number" id="fact-montant" style="width:100%;margin-top:4px" min="1" step="100" required>
+              <input type="number" id="fact-montant" style="width:100%;margin-top:4px" min="1" step="any" required>
             </div>
           </div>
           <div style="margin-bottom:1.2rem">
@@ -3704,7 +3701,7 @@ async function soumettreFactureMasse(evt) {
         ecole_id: currentEcoleId, etudiant_id: i.etudiant_id,
         type_frais: type, libelle, montant_total: montant,
         montant_paye: 0, statut: 'en_attente', annee_scolaire: annee,
-        reference: crypto.randomUUID().replace(/-/g,'').substring(0,12).toUpperCase()
+        reference: type.substring(0,3).toUpperCase()+'-'+Date.now()+'-'+String(idx+1).padStart(3,'0')
       }));
 
     if (!toCreate.length) throw new Error('Toutes les factures existent déjà pour cette combinaison type/année');
