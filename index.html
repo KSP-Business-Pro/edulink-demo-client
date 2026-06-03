@@ -1080,18 +1080,41 @@ async function chargerDashboard() {
       db.from('unites_enseignement').select('id,credits_cect,type_ue').eq('ecole_id', currentEcoleId),
       db.from('enseignants').select('id,statut').eq('ecole_id', currentEcoleId),
       db.from('inscriptions_semestre').select('id,statut,semestre_id').eq('ecole_id', currentEcoleId),
-      db.from('resultats_cache').select('semestre_valide,credits_valides').eq('ecole_id', currentEcoleId),
+      db.from('resultats_cache').select('etudiant_id,semestre_id,semestre_valide,credits_valides,moyenne_semestre').eq('ecole_id', currentEcoleId),
       db.from('annees_academiques').select('libelle').eq('ecole_id', currentEcoleId).eq('est_courante', true).single()
     ]);
+    const { data: regles } = await db.from('regles_ecole').select('compensation_active,seuil_validation_ue').eq('ecole_id', currentEcoleId).maybeSingle();
 
     // KPIs
-    const nbEtudiants    = etudiants?.length || 0;
+    const nbEtudiants       = etudiants?.length || 0;
     const nbSemestresActifs = semestres?.filter(s => s.statut === 'en_cours').length || 0;
-    const nbUE           = ues?.length || 0;
-    const nbInscrits     = inscriptions?.filter(i => i.statut === 'active').length || 0;
-    const nbValides      = cache?.filter(c => c.semestre_valide).length || 0;
+    const nbUE              = ues?.length || 0;
+    const nbInscrits        = inscriptions?.filter(i => i.statut === 'active').length || 0;
+
+    // Taux de validation — même logique que Résultats Annuel LMD
+    // (filtrage par semestres actifs + compensation)
+    const compActive   = regles?.compensation_active ?? false;
+    const seuilUE      = regles?.seuil_validation_ue ?? 10;
+    const semActifsIds = new Set((semestres||[]).filter(s => s.statut === 'en_cours').map(s => s.id));
+    const cacheActif   = (cache||[]).filter(c => semActifsIds.has(c.semestre_id));
+    const parEtu = {};
+    cacheActif.forEach(c => {
+      if (!parEtu[c.etudiant_id]) parEtu[c.etudiant_id] = [];
+      parEtu[c.etudiant_id].push(c);
+    });
+    const nbValides = Object.values(parEtu).filter(rows => {
+      const semVal = rows.filter(r => r.semestre_valide).length;
+      const nbSem  = rows.length;
+      if (semVal === nbSem) return true;
+      if (compActive) {
+        const moys = rows.filter(r => r.moyenne_semestre !== null).map(r => r.moyenne_semestre);
+        const moy  = moys.length ? moys.reduce((a, b) => a + b, 0) / moys.length : null;
+        if (moy !== null && moy >= seuilUE && (nbSem - semVal) <= 1) return true;
+      }
+      return false;
+    }).length;
     const tauxValidation = nbInscrits > 0 ? Math.round(nbValides / nbInscrits * 100) : 0;
-    const creditsTotal   = cache?.reduce((s, c) => s + (c.credits_valides || 0), 0) || 0;
+    const creditsTotal   = cacheActif.reduce((s, c) => s + (c.credits_valides || 0), 0);
 
     // Semestres en cours
     const semEn = semestres?.filter(s => s.statut === 'en_cours') || [];
