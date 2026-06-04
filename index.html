@@ -1015,7 +1015,7 @@ async function chargerDonneesGlobales() {
   STATE.programmes = prog || [];
   // Année courante
   const { data: annee } = await db.from('annees_academiques')
-    .select('id,libelle').eq('ecole_id', currentEcoleId).eq('est_courante', true).single();
+    .select('id,libelle').eq('ecole_id', currentEcoleId).eq('est_courante', true).maybeSingle();
   STATE.anneeAcademiqueId = annee?.id || null;
   if (annee) document.getElementById('dash-annee').textContent = annee.libelle;
   // Semestres de l'année courante
@@ -1081,7 +1081,7 @@ async function chargerDashboard() {
       db.from('enseignants').select('id,statut').eq('ecole_id', currentEcoleId),
       db.from('inscriptions_semestre').select('id,statut,semestre_id').eq('ecole_id', currentEcoleId),
       db.from('resultats_cache').select('etudiant_id,semestre_id,semestre_valide,credits_valides,moyenne_semestre').eq('ecole_id', currentEcoleId),
-      db.from('annees_academiques').select('libelle').eq('ecole_id', currentEcoleId).eq('est_courante', true).single()
+      db.from('annees_academiques').select('libelle').eq('ecole_id', currentEcoleId).eq('est_courante', true).maybeSingle()
     ]);
     const { data: regles } = await db.from('regles_ecole').select('compensation_active,seuil_validation_ue').eq('ecole_id', currentEcoleId).maybeSingle();
 
@@ -1574,7 +1574,7 @@ async function chargerParametres() {
   const [{ data: ecole }, { data: regles }, { data: annee }] = await Promise.all([
     db.from('ecoles').select('*').eq('id', currentEcoleId).single(),
     db.from('regles_ecole').select('*').eq('ecole_id', currentEcoleId).single(),
-    db.from('annees_academiques').select('*').eq('ecole_id', currentEcoleId).eq('est_courante', true).single()
+    db.from('annees_academiques').select('*').eq('ecole_id', currentEcoleId).eq('est_courante', true).maybeSingle()
   ]);
 
   el.innerHTML = `
