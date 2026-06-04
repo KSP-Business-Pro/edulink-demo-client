@@ -6017,6 +6017,7 @@ function renderTableauReleves(etudiants, relevesMap, semId, soldesMap, tolerance
       <div style="flex:1;font-size:13px;color:#374151">${nbPublies} / ${nbTotal} relevés publiés${nbBloques?` · <span style="color:#dc2626;font-weight:600">${nbBloques} bloqué(s) pour impayés</span>`:''}</div>
       <div class="prog-bar" style="width:150px"><div class="prog-fill" style="width:${nbTotal?Math.round(nbPublies/nbTotal*100):0}%"></div></div>
       <button onclick="publierTousReleves('${semId}')" class="btn-green btn-sm">Publier tous</button>
+      <button onclick="republierTousReleves('${semId}')" class="btn-outline btn-sm" style="color:#6b7280" title="Recalculer et republier tous les relevés déjà publiés">🔄 Republier tous</button>
     </div>
     <div class="table-wrap"><table>
       <thead><tr>
@@ -6108,6 +6109,27 @@ async function republierReleve(etudiantId, semestreId) {
   const res = await publierReleve(etudiantId, semestreId);
   if (res?.blocked) return;
   if (res?.success) toast(`Relevé de ${nom} republié ✓`, "success");
+}
+
+async function republierTousReleves(semestreId) {
+  if (!confirm("Recalculer et republier TOUS les relevés déjà publiés ?\nLes snapshots seront mis à jour avec les notes actuelles.\nCela peut prendre quelques instants.")) return;
+  _blocageCache = null;
+  const { data: releves } = await db.from("releves_notes")
+    .select("etudiant_id").eq("semestre_id", semestreId);
+  if (!releves?.length) { toast("Aucun relevé publié à republier", "info"); return; }
+  let count = 0, blocked = 0, failed = 0;
+  toast(`Republication de ${releves.length} relevé(s) en cours…`, "info");
+  for (const r of releves) {
+    const res = await publierReleve(r.etudiant_id, semestreId, true);
+    if (res?.blocked) blocked++;
+    else if (res?.success) count++;
+    else failed++;
+  }
+  let msg = `${count} relevé(s) republié(s)`;
+  if (blocked) msg += ` · ${blocked} bloqué(s) impayés`;
+  if (failed)  msg += ` · ${failed} échec(s)`;
+  toast(msg, (blocked || failed) ? "info" : "success");
+  await chargerReleves();
 }
 
 async function publierTousReleves(semestreId) {
