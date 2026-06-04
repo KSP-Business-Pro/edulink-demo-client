@@ -1092,20 +1092,17 @@ async function chargerDashboard() {
     const nbInscrits        = inscriptions?.filter(i => i.statut === 'active').length || 0;
 
     // Taux de validation — même logique que Résultats Annuel LMD
-    // (filtrage par semestres actifs + compensation)
     const compActive   = regles?.compensation_active ?? false;
     const seuilUE      = regles?.seuil_validation_ue ?? 10;
-    const semActifsIds = new Set((semestres||[]).filter(s => s.statut === 'en_cours').map(s => s.id));
-    const cacheActif   = (cache||[]).filter(c => semActifsIds.has(c.semestre_id));
     const parEtu = {};
-    cacheActif.forEach(c => {
+    (cache||[]).forEach(c => {
       if (!parEtu[c.etudiant_id]) parEtu[c.etudiant_id] = [];
       parEtu[c.etudiant_id].push(c);
     });
     const nbValides = Object.values(parEtu).filter(rows => {
       const semVal = rows.filter(r => r.semestre_valide).length;
       const nbSem  = rows.length;
-      if (semVal === nbSem) return true;
+      if (semVal === nbSem && nbSem > 0) return true;
       if (compActive) {
         const moys = rows.filter(r => r.moyenne_semestre !== null).map(r => r.moyenne_semestre);
         const moy  = moys.length ? moys.reduce((a, b) => a + b, 0) / moys.length : null;
@@ -1114,7 +1111,7 @@ async function chargerDashboard() {
       return false;
     }).length;
     const tauxValidation = nbInscrits > 0 ? Math.round(nbValides / nbInscrits * 100) : 0;
-    const creditsTotal   = cacheActif.reduce((s, c) => s + (c.credits_valides || 0), 0);
+    const creditsTotal   = (cache||[]).reduce((s, c) => s + (c.credits_valides || 0), 0);
 
     // Semestres en cours
     const semEn = semestres?.filter(s => s.statut === 'en_cours') || [];
