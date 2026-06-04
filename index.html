@@ -757,7 +757,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 // ── Config Supabase ──────────────────────────────────────────────────────
 const SUPABASE_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
-const WEBHOOK_SECRET = 'ab680f52-881c-4e89-a299-0aeec8c13da1-44cebc6c-d38c-446c-98ba-4390a4bffee8'; // ← Supabase Dashboard → Edge Functions → Secrets → WEBHOOK_SECRET
+const WEBHOOK_SECRET = 'REMPLACER_PAR_LA_VALEUR_SUPABASE_SECRET'; // ← Supabase Dashboard → Edge Functions → Secrets → WEBHOOK_SECRET
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── État global ──────────────────────────────────────────────────────────
@@ -5148,9 +5148,20 @@ function renderTableauEtudiants(liste) {
 function filtrerEtudiants() {
   _etuPage = 0;
   const s = (document.getElementById('search-etudiants')?.value||'').toLowerCase();
+  const p = document.getElementById('filter-programme')?.value||'';
   const n = document.getElementById('filter-niveau')?.value||'';
   let l = _tousEtudiants;
   if (s) l = l.filter(e => (e.nom+' '+e.prenom+' '+(e.matricule||'')).toLowerCase().includes(s));
+  if (p) {
+    const prog = (STATE.programmes||[]).find(pr => pr.id === p);
+    if (prog) {
+      const titre = prog.intitule.toLowerCase();
+      l = l.filter(e => {
+        const fil = (e.filiere||'').toLowerCase();
+        return fil && (titre.includes(fil) || fil.includes(titre));
+      });
+    }
+  }
   if (n) l = l.filter(e => e.niveau === n);
   renderTableauEtudiants(l);
 }
