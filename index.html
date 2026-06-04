@@ -3254,8 +3254,9 @@ async function supprimerEtudiant(id) {
   const nom = e ? e.prenom + ' ' + e.nom : id;
   if (!confirm('Supprimer "' + nom + '" ? Cette action est irréversible.')) return;
   try {
-    const { error } = await db.from('etudiants').delete().eq('id', id);
+    const { data: deleted, error } = await db.from('etudiants').delete().eq('id', id).select('id');
     if (error) throw error;
+    if (!deleted?.length) throw new Error("Suppression bloquée — vérifiez les permissions ou les données liées à cet étudiant.");
     await chargerEtudiants();
     toast('Étudiant supprimé', 'success');
   } catch(err) {
