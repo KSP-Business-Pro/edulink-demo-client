@@ -990,7 +990,14 @@ async function chargerEtudiantLie() {
     etudiant = data;
   }
   currentEtudiant = etudiant;
-  if (etudiant) currentEcoleId = etudiant.ecole_id;
+  if (etudiant) {
+    currentEcoleId = etudiant.ecole_id;
+    // Charger le nom de l'école pour le PDF relevé
+    if (etudiant.ecole_id) {
+      const { data: ecole } = await db.from('ecoles').select('nom').eq('id', etudiant.ecole_id).single();
+      if (ecole) currentEtudiant.ecole_nom = ecole.nom;
+    }
+  }
   await resoudreClasseEtudiant();
 }
 
