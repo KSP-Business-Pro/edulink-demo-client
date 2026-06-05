@@ -7106,10 +7106,8 @@ async function chargerExclusions(semId) {
     .gte('taux_absence_pct', seuilExcl)
     .order('taux_absence_pct', { ascending: false });
 
-  // Exclusions existantes
-  const { data: exclusions } = await db.from('exclusions_ue')
-    .select('*, unites_enseignement(code,intitule), etudiants(nom,prenom,matricule)')
-    .eq('semestre_id', semId);
+  // Exclusions existantes — via RPC SECURITY DEFINER (contourne get_user_ecole_id=null)
+  const { data: exclusions } = await db.rpc('fn_exclusions_semestre', { p_semestre_id: semId });
 
   const nbRisque   = (absences||[]).filter(a => !a.est_exclu).length;
   const nbExclus   = (exclusions||[]).length;
@@ -7174,7 +7172,7 @@ async function chargerExclusions(semId) {
           </tr>`).join('')}
         </tbody>
       </table></div>
-    </div>` : '<div class="empty-state" style="padding:1.5rem"><div class="es-ico">✅</div><h3>Aucun étudiant à risque</h3><p>Tous les étudiants ont un taux d\'absence inférieur à ${seuilExcl}%</p></div>'}
+    </div>` : `<div class="empty-state" style="padding:1.5rem"><div class="es-ico">✅</div><h3>Aucun étudiant à risque</h3><p>Tous les étudiants ont un taux d'absence inférieur à ${seuilExcl}%</p></div>`}
 
     <!-- Exclusions actives -->
     ${nbExclus > 0 ? `
@@ -7187,10 +7185,10 @@ async function chargerExclusions(semId) {
         <tbody>
           ${(exclusions||[]).map(ex => `<tr>
             <td>
-              <div style="font-size:13px;font-weight:600">${esc(ex.etudiants?.nom||'—')} ${esc(ex.etudiants?.prenom||'')}</div>
-              <div style="font-size:11px;color:#9ca3af">${esc(ex.etudiants?.matricule||'—')}</div>
+              <div style="font-size:13px;font-weight:600">${esc(ex.etudiant_nom||'—')} ${esc(ex.etudiant_prenom||'')}</div>
+              <div style="font-size:11px;color:#9ca3af">${esc(ex.matricule||'—')}</div>
             </td>
-            <td><span class="badge red">${esc(ex.unites_enseignement?.code||'?')}</span> ${esc(ex.unites_enseignement?.intitule||'—')}</td>
+            <td><span class="badge red">${esc(ex.ue_code||'?')}</span> ${esc(ex.ue_intitule||'—')}</td>
             <td style="font-size:12px;color:#6b7280">${esc(ex.motif||'—')}${ex.source==='auto'?' <span class="badge blue" style="font-size:9px;padding:1px 5px;margin-left:4px">auto</span>':''}</td>
             <td style="font-size:12px;color:#6b7280">${formatDate(ex.date_exclusion)}</td>
             <td><button class="btn-sm btn-secondary" onclick="leverExclusion('${ex.id}','${semId}')">Lever</button></td>
@@ -7219,8 +7217,8 @@ async function exclureEtudiant(etudiantId, ueId, semId, nom, ueNom) {
 }
 
 async function leverExclusion(exclusionId, semId) {
-  if (!confirm('Lever cette exclusion ? L\'étudiant pourra à nouveau bénéficier de la compensation.')) return;
-  const { error } = await db.from('exclusions_ue').delete().eq('id', exclusionId);
+  if (!confirm("Lever cette exclusion ? L'étudiant pourra à nouveau bénéficier de la compensation.")) return;
+  const { error } = await db.rpc('fn_lever_exclusion_ue', { p_exclusion_id: exclusionId });
   if (error) { toast('Erreur: ' + error.message, 'error'); return; }
   toast('Exclusion levée', 'success');
   chargerExclusions(semId);
