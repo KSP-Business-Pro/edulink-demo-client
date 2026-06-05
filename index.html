@@ -1677,6 +1677,33 @@ async function chargerParametres() {
         </div>
       </div>
 
+      <!-- Notifications email -->
+      <div class="dash-block" style="grid-column:1/-1">
+        <div class="block-title" style="display:flex;justify-content:space-between;align-items:center">
+          📬 Notifications email
+          <button class="btn-ghost btn-sm" onclick="ouvrirEditNotifications()">✏ Modifier</button>
+        </div>
+        ${regles ? `
+        <div style="display:flex;flex-direction:column;gap:.75rem">
+          ${[
+            { key:'releve',   label:'Publication de relevé',  icon:'📋', desc:'Envoyé automatiquement lors de la publication d\'un relevé officiel',   sujet: regles.notif_releve_sujet   ?? 'Relevé de notes — {semestre}',   actif: regles.notif_releve_active   ?? true  },
+            { key:'paiement', label:'Confirmation de paiement', icon:'💳', desc:'Envoyé après enregistrement d\'un paiement ou génération d\'un reçu',  sujet: regles.notif_paiement_sujet ?? 'Confirmation de paiement — {etablissement}', actif: regles.notif_paiement_active ?? true  },
+            { key:'absence',  label:'Alerte absences',         icon:'⚠️',  desc:'Envoyé quand le taux d\'absence d\'un étudiant dépasse le seuil configuré', sujet: regles.notif_absence_sujet  ?? 'Alerte absences — {ue}',          actif: regles.notif_absence_active  ?? false },
+          ].map(n => `
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:.85rem 1rem;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6">
+              <div style="display:flex;gap:.75rem;align-items:flex-start;flex:1;min-width:0">
+                <span style="font-size:20px;margin-top:1px">${n.icon}</span>
+                <div style="min-width:0">
+                  <div style="font-size:13px;font-weight:600;color:#111827">${n.label}</div>
+                  <div style="font-size:11px;color:#9ca3af;margin-top:2px">${n.desc}</div>
+                  <div style="font-size:11px;color:#6b7280;margin-top:4px;font-family:monospace;background:#fff;padding:3px 8px;border-radius:4px;border:1px solid #e5e7eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.sujet)}</div>
+                </div>
+              </div>
+              <span class="badge ${n.actif ? 'green' : 'gray'}" style="flex-shrink:0;margin-top:2px">${n.actif ? 'Activée' : 'Désactivée'}</span>
+            </div>`).join('')}
+        </div>` : '<p style="color:#9ca3af;font-size:13px">Règles non configurées</p>'}
+      </div>
+
     </div>`;
 }
 
@@ -1897,6 +1924,74 @@ async function sauvegarderRegles(evt) {
   _blocageCache = null;
   await chargerParametres();
   toast('Règles LMD mises à jour ✓', 'success');
+}
+
+// ── Notifications email ───────────────────────────────────────────────────────
+async function ouvrirEditNotifications() {
+  const { data: r } = await db.from('regles_ecole').select('*').eq('ecole_id', currentEcoleId).single();
+  const html = `
+    <div class="modal-overlay open" id="modal-edit-notifs" onclick="if(event.target===this)this.classList.remove('open')">
+      <div class="modal" style="max-width:540px" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <h3 style="margin:0;font-size:15px;font-weight:700;color:#111827">📬 Notifications email</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-edit-notifs').classList.remove('open')">✕</button>
+        </div>
+        <form id="form-notifs" onsubmit="sauvegarderNotifications(event)" autocomplete="off">
+          <div class="modal-body" style="display:flex;flex-direction:column;gap:1.2rem">
+            <p style="font-size:12px;color:#6b7280;margin:0">Variables disponibles dans le sujet : <code>{semestre}</code> <code>{etudiant}</code> <code>{etablissement}</code> <code>{ue}</code></p>
+
+            ${[
+              { key:'releve',   label:'Publication de relevé',    icon:'📋', defSujet:"Relevé de notes — {semestre}" },
+              { key:'paiement', label:'Confirmation de paiement', icon:'💳', defSujet:"Confirmation de paiement — {etablissement}" },
+              { key:'absence',  label:'Alerte absences',          icon:'⚠️', defSujet:"Alerte absences — {ue}" },
+            ].map(n => `
+              <div style="border:1px solid #e5e7eb;border-radius:10px;padding:.85rem 1rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                  <div style="display:flex;align-items:center;gap:.5rem">
+                    <span>${n.icon}</span>
+                    <span style="font-size:13px;font-weight:600;color:#111827">${n.label}</span>
+                  </div>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#374151">
+                    <input type="checkbox" id="notif-${n.key}-active" ${(r?.[`notif_${n.key}_active`] ?? (n.key !== 'absence')) ? 'checked' : ''}>
+                    Activée
+                  </label>
+                </div>
+                <label style="font-size:12px;color:#374151;font-weight:500">Sujet de l'email</label>
+                <input type="text" id="notif-${n.key}-sujet"
+                  value="${esc(r?.[`notif_${n.key}_sujet`] || n.defSujet)}"
+                  placeholder="${n.defSujet}"
+                  style="width:100%;margin-top:4px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;box-sizing:border-box">
+              </div>`).join('')}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" onclick="document.getElementById('modal-edit-notifs').classList.remove('open')">Annuler</button>
+            <button type="submit" id="notifs-submit-btn" class="btn-primary">Enregistrer →</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function sauvegarderNotifications(evt) {
+  evt.preventDefault();
+  const btn = document.getElementById('notifs-submit-btn');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+  const payload = {
+    ecole_id:              currentEcoleId,
+    notif_releve_active:   document.getElementById('notif-releve-active').checked,
+    notif_releve_sujet:    document.getElementById('notif-releve-sujet').value.trim() || "Relevé de notes — {semestre}",
+    notif_paiement_active: document.getElementById('notif-paiement-active').checked,
+    notif_paiement_sujet:  document.getElementById('notif-paiement-sujet').value.trim() || "Confirmation de paiement — {etablissement}",
+    notif_absence_active:  document.getElementById('notif-absence-active').checked,
+    notif_absence_sujet:   document.getElementById('notif-absence-sujet').value.trim() || "Alerte absences — {ue}",
+  };
+  const { error } = await db.from('regles_ecole').upsert(payload, { onConflict: 'ecole_id' });
+  if (error) { toast('Erreur : ' + error.message, 'error'); btn.disabled=false; btn.textContent='Enregistrer →'; return; }
+  document.getElementById('modal-edit-notifs').remove();
+  _reglesCache = null;
+  await chargerParametres();
+  toast('Notifications mises à jour ✓', 'success');
 }
 
 
