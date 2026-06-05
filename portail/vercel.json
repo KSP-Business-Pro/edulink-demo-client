@@ -1,5 +1,10 @@
 {
   "rewrites": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "portail.edulink.bj" }],
+      "destination": "/portail/index.html"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
