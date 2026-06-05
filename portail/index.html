@@ -1058,11 +1058,13 @@ async function chargerNotes() {
 // ── S5 Portail : Relevés officiels LMD ──────────────────────────────────────
 async function chargerReleves() {
   if (!currentEtudiant) { tousReleves = []; return; }
-  const { data } = await db.from('releves_notes')
-    .select('id,semestre_id,snapshot_notes,moyenne_semestre,credits_valides,credits_tentes,mention,decision,publie_le,numero_releve,verrouille,semestres(libelle,niveau)')
-    .eq('etudiant_id', currentEtudiant.id)
-    .order('publie_le', { ascending: false });
-  tousReleves = data || [];
+  const { data, error } = await db.rpc('fn_releves_etudiant', { p_etudiant_id: currentEtudiant.id });
+  if (error) { console.error('chargerReleves:', error.message); tousReleves = []; return; }
+  // Normaliser la forme pour afficherReleves (semestres imbriqués → plat)
+  tousReleves = (data || []).map(r => ({
+    ...r,
+    semestres: { libelle: r.semestre_libelle, niveau: r.semestre_niveau }
+  }));
   // Badge nav
   const badge = document.getElementById('nav-releves-badge');
   if (badge) badge.textContent = tousReleves.length > 0 ? tousReleves.length : '';
@@ -2420,7 +2422,7 @@ function pdfSafePortail(str) {
     .replace(/Ô|Ö/g, 'O')
     .replace(/Ù|Û|Ü/g, 'U')
     .replace(/Ç/g, 'C')
-    .replace(/[- ]/g, '');
+    .replace(/[-￿]/g, '');
 }
 
 function labelPeriodePDF(p) {
