@@ -337,13 +337,19 @@ Deno.serve(async (req: Request) => {
     //       → on ne recalcule pas le snapshot ; on renvoie l'email seulement si demandé.
     if (existant && !republish) {
       let emailEnvoye = false;
+      let emailDebug = "not_attempted";
       if (send_email) {
         const { etudiant, semestre, ecole } = await loadContexteEmail();
+        emailDebug = `email_auth=${etudiant?.email_auth ?? "null"} | ecole=${ecole?.nom ?? "null"}`;
         if (etudiant?.email_auth) {
           try {
             await envoyerEmailReleve(etudiant, ecole, semestre, existant.snapshot_notes as SnapshotNotes);
             emailEnvoye = true;
-          } catch (e) { console.error("Brevo error:", e); }
+            emailDebug = "sent_ok";
+          } catch (e) {
+            emailDebug = `brevo_error: ${e instanceof Error ? e.message : String(e)}`;
+            console.log("Brevo error detail:", emailDebug);
+          }
         }
       }
       return Response.json({
@@ -352,6 +358,7 @@ Deno.serve(async (req: Request) => {
         mention: existant.mention,
         deja_publie: true,
         email_envoye: emailEnvoye,
+        email_debug: emailDebug,
       }, { headers: CORS_HEADERS });
     }
 
