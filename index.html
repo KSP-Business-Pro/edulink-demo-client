@@ -5976,6 +5976,10 @@ async function voirResultatsEtudiant(etudiantId, semesterId, nom) {
 
 let _tousReleves = [];
 let _relevesSendEmail = true;   // S5 : toggle "envoyer l'email à la publication"
+let _relevesMap = {};           // reg3 : cache pour filtre client-side
+let _relevesSoldesMap = null;   // reg3 : cache soldes
+let _relevesTolerance = 0;      // reg3 : cache tolérance
+let _relevesSemId = '';         // reg3 : semestre courant
 
 async function chargerReleves() {
   const semId = document.getElementById('releves-semestre').value;
@@ -5991,6 +5995,8 @@ async function chargerReleves() {
   (releves||[]).forEach(r => { relevesMap[r.etudiant_id] = r; });
 
   _tousReleves = (inscriptions||[]).map(i=>i.etudiants).filter(Boolean).sort((a,b)=>a.nom.localeCompare(b.nom));
+  _relevesSemId = semId;
+  _relevesMap = relevesMap;
 
   // Soldes pour le blocage relevé — une seule requête groupée
   const bloc = await _getBlocageRegles();
@@ -6009,13 +6015,21 @@ async function chargerReleves() {
       });
     }
   }
+  _relevesSoldesMap = soldesMap;
+  _relevesTolerance = tolerance;
   renderTableauReleves(_tousReleves, relevesMap, semId, soldesMap, tolerance);
 }
 
 function filtrerReleves() {
-  const s = (document.getElementById('search-releves')?.value||'').toLowerCase();
-  // Recharger pour avoir relevesMap frais -- simplifié
-  chargerReleves();
+  if (!_tousReleves.length) return;
+  const s = (document.getElementById('search-releves')?.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const liste = s
+    ? _tousReleves.filter(e => {
+        const hay = `${e.nom} ${e.prenom} ${e.matricule||''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        return hay.includes(s);
+      })
+    : _tousReleves;
+  renderTableauReleves(liste, _relevesMap, _relevesSemId, _relevesSoldesMap, _relevesTolerance);
 }
 
 function renderTableauReleves(etudiants, relevesMap, semId, soldesMap, tolerance) {
