@@ -7201,20 +7201,19 @@ async function chargerExclusions(semId) {
 }
 
 async function exclureEtudiant(etudiantId, ueId, semId, nom, ueNom) {
-  const motif = prompt(`Motif d'exclusion de ${nom} de l'UE "${ueNom}" :\n(Ce motif sera enregistré et bloquera la compensation)`, 'Taux d\'absence excessif');
+  const motif = prompt(`Motif d'exclusion de ${nom} de l'UE "${ueNom}" :\n(Ce motif sera enregistré et bloquera la compensation)`, "Taux d'absence excessif");
   if (!motif) return;
 
-  const { error } = await db.from('exclusions_ue').insert({
-    etudiant_id:    etudiantId,
-    ue_id:          ueId,
-    semestre_id:    semId,
-    ecole_id:       currentEcoleId,
-    motif,
-    date_exclusion: new Date().toISOString().split('T')[0],
-    decide_par:     currentUserId
+  const { error } = await db.rpc('fn_exclure_etudiant_ue', {
+    p_etudiant_id: etudiantId,
+    p_ue_id:       ueId,
+    p_semestre_id: semId,
+    p_ecole_id:    currentEcoleId,
+    p_motif:       motif,
+    p_decide_par:  currentUserId
   });
 
-  if (error) { toast('Erreur: ' + error.message, 'error'); return; }
+  if (error) { toast("Erreur: " + error.message, 'error'); return; }
   toast(`${nom} exclu(e) de l'UE ${ueNom}`, 'success');
   chargerExclusions(semId);
 }
