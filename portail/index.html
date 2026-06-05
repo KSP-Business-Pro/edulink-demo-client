@@ -1060,12 +1060,10 @@ async function chargerReleves() {
   if (!currentEtudiant) { tousReleves = []; return; }
   const { data, error } = await db.rpc('fn_releves_etudiant', { p_etudiant_id: currentEtudiant.id });
   if (error) { console.error('chargerReleves:', error.message); tousReleves = []; return; }
-  // Normaliser la forme pour afficherReleves (semestres imbriqués → plat)
   tousReleves = (data || []).map(r => ({
     ...r,
     semestres: { libelle: r.semestre_libelle, niveau: r.semestre_niveau }
   }));
-  // Badge nav
   const badge = document.getElementById('nav-releves-badge');
   if (badge) badge.textContent = tousReleves.length > 0 ? tousReleves.length : '';
 }
@@ -1105,7 +1103,7 @@ function afficherReleves() {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:12px">
         <div>
           <div style="font-size:14px;font-weight:600;color:#111827">${sem}</div>
-          <div style="font-size:12px;color:#6b7280;margin-top:2px">${niv}${r.numero_releve ? ' · N° '+r.numero_releve : ''}</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">${niv}</div>
         </div>
         <span style="font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500;white-space:nowrap;background:${admis?'#d1fae5':'#fef3c7'};color:${admis?'#065f46':'#92400e'}">${dec}</span>
       </div>
@@ -1181,7 +1179,6 @@ async function telechargerReleveOfficiel(releveId) {
     doc.setTextColor(255,255,255); doc.setFontSize(8);
     doc.text('N° ' + releve.numero_releve, pw - 14, 29, { align:'right' });
   }
-
   let y = 44;
 
   // ── Bloc étudiant ──
