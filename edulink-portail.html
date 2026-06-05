@@ -823,6 +823,7 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
   </script>
   <div class="page active" id="page-accueil"></div>
   <div class="page" id="page-notes"></div>
+  <div class="page" id="page-releves"></div>
   <div class="page" id="page-absences"></div>
   <div class="page" id="page-paiements"></div>
   <div class="page" id="page-messages"></div>
@@ -844,6 +845,11 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
     <button class="nav-item" id="nav-notes" onclick="showPage('notes')">
       <span class="nav-ico">📊</span>
       <span class="nav-lbl">Notes</span>
+    </button>
+    <button class="nav-item" id="nav-releves" onclick="showPage('releves')">
+      <span class="nav-ico">📋</span>
+      <span class="nav-lbl">Relevés</span>
+      <span class="nav-badge" id="nav-releves-badge"></span>
     </button>
     <button class="nav-item" id="nav-absences" onclick="showPage('absences')">
       <span class="nav-ico">✅</span>
@@ -899,6 +905,7 @@ let currentProfile = null;
 let currentEtudiant = null;
 let currentEcoleId = null;
 let toutesNotes = [];
+let tousReleves = [];   // S5 portail : relevés officiels LMD
 let toutesAbsences = [];
 let toutesFactures = [];
 let tousMessages = [];
@@ -1026,7 +1033,7 @@ function lancerApp() {
 }
 
 async function chargerTout() {
-  await Promise.all([chargerNotes(), chargerAbsences(), chargerFactures(), chargerMessages(), chargerExamensPortail(), chargerEnseignantsPortail(), chargerNotifsPortail(), chargerEmploiPortail(), chargerCertificatsPortailData()]);
+  await Promise.all([chargerNotes(), chargerReleves(), chargerAbsences(), chargerFactures(), chargerMessages(), chargerExamensPortail(), chargerEnseignantsPortail(), chargerNotifsPortail(), chargerEmploiPortail(), chargerCertificatsPortailData()]);
   initRealtime(); // Abonner aux mises à jour en temps réel
   afficherAccueil();
 }
@@ -1046,6 +1053,232 @@ async function chargerNotes() {
   if (!currentEtudiant) { toutesNotes = []; return; }
   const { data } = await db.from('notes').select('*').eq('etudiant_id', currentEtudiant.id).order('created_at',{ascending:false});
   toutesNotes = data || [];
+}
+
+// ── S5 Portail : Relevés officiels LMD ──────────────────────────────────────
+async function chargerReleves() {
+  if (!currentEtudiant) { tousReleves = []; return; }
+  const { data } = await db.from('releves_notes')
+    .select('id,semestre_id,snapshot_notes,moyenne_semestre,credits_valides,credits_tentes,mention,decision,publie_le,numero_releve,verrouille,semestres(libelle,niveau)')
+    .eq('etudiant_id', currentEtudiant.id)
+    .order('publie_le', { ascending: false });
+  tousReleves = data || [];
+  // Badge nav
+  const badge = document.getElementById('nav-releves-badge');
+  if (badge) badge.textContent = tousReleves.length > 0 ? tousReleves.length : '';
+}
+
+function afficherReleves() {
+  const page = document.getElementById('page-releves');
+  if (!page) return;
+  const labelMention = { tres_bien:'Très Bien', bien:'Bien', assez_bien:'Assez Bien', passable:'Passable' };
+  const labelDecision = { admis:'Admis', 'ajourné':'Ajourné', ajourne:'Ajourné' };
+
+  if (!tousReleves.length) {
+    page.innerHTML = `<div class="page-pad">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1.2rem">
+        <span style="font-size:22px">📋</span>
+        <div><div style="font-size:16px;font-weight:600">Relevés officiels</div>
+        <div style="font-size:12px;color:#6b7280">Relevés de notes semestriels LMD-CAMES</div></div>
+      </div>
+      <div style="text-align:center;padding:3rem 1rem;color:#9ca3af">
+        <div style="font-size:36px;margin-bottom:12px">📋</div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:4px">Aucun relevé disponible</div>
+        <div style="font-size:12px">Vos relevés apparaîtront ici après publication par votre établissement.</div>
+      </div>
+    </div>`;
+    return;
+  }
+
+  const cartes = tousReleves.map(r => {
+    const snap = r.snapshot_notes || {};
+    const sem = r.semestres?.libelle || snap.semestre_libelle || '—';
+    const niv = r.semestres?.niveau || snap.niveau || '';
+    const moy = r.moyenne_semestre !== null ? Number(r.moyenne_semestre).toFixed(2) : '—';
+    const men = labelMention[r.mention] || r.mention || '—';
+    const dec = labelDecision[r.decision] || r.decision || '—';
+    const admis = r.decision === 'admis';
+    const date = r.publie_le ? new Date(r.publie_le).toLocaleDateString('fr-FR') : '—';
+    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:12px">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#111827">${sem}</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">${niv}${r.numero_releve ? ' · N° '+r.numero_releve : ''}</div>
+        </div>
+        <span style="font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500;white-space:nowrap;background:${admis?'#d1fae5':'#fef3c7'};color:${admis?'#065f46':'#92400e'}">${dec}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="text-align:center;background:#f9fafb;border-radius:8px;padding:8px 4px">
+          <div style="font-size:18px;font-weight:700;color:#0f6e56">${moy}</div>
+          <div style="font-size:10px;color:#6b7280;margin-top:1px">Moyenne / 20</div>
+        </div>
+        <div style="text-align:center;background:#f9fafb;border-radius:8px;padding:8px 4px">
+          <div style="font-size:18px;font-weight:700;color:#1e3a5f">${r.credits_valides ?? snap.credits_valides ?? '—'}<span style="font-size:11px;font-weight:400"> CECT</span></div>
+          <div style="font-size:10px;color:#6b7280;margin-top:1px">Crédits validés</div>
+        </div>
+        <div style="text-align:center;background:#f9fafb;border-radius:8px;padding:8px 4px">
+          <div style="font-size:14px;font-weight:600;color:#374151;margin-top:2px">${men}</div>
+          <div style="font-size:10px;color:#6b7280;margin-top:1px">Mention</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;color:#9ca3af">Publié le ${date}${r.verrouille?' · 🔒 Officiel':''}</span>
+        <button onclick="telechargerReleveOfficiel('${r.id}')" style="background:linear-gradient(135deg,#0f6e56,#047857);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px">
+          ⬇️ Télécharger PDF
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  page.innerHTML = `<div class="page-pad">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1.2rem">
+      <span style="font-size:22px">📋</span>
+      <div><div style="font-size:16px;font-weight:600">Relevés officiels</div>
+      <div style="font-size:12px;color:#6b7280">${tousReleves.length} relevé(s) disponible(s)</div></div>
+    </div>
+    ${cartes}
+  </div>`;
+}
+
+async function telechargerReleveOfficiel(releveId) {
+  const JsPDF = getJsPDFPortail();
+  if (!JsPDF) { showToast('jsPDF non chargé — réessayez', 'error'); return; }
+  const releve = tousReleves.find(r => r.id === releveId);
+  if (!releve) { showToast('Relevé introuvable', 'error'); return; }
+  const snap = releve.snapshot_notes;
+  if (!snap) { showToast('Snapshot manquant pour ce relevé', 'error'); return; }
+  showToast('Génération du relevé officiel…', 'info');
+
+  const TEAL  = [15, 110, 86];
+  const NAVY  = [30, 58, 95];
+  const LIGHT = [225, 245, 238];
+  const GREEN = [5, 150, 105];
+  const RED   = [220, 38, 38];
+  const AMBER = [217, 119, 6];
+  const GRAY  = [107, 114, 128];
+
+  const doc = new JsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const pw = doc.internal.pageSize.getWidth();
+  const labelMen = { tres_bien:'Très Bien', bien:'Bien', assez_bien:'Assez Bien', passable:'Passable' };
+  const safe = s => (s||'').replace(/[^\x00-\x7E]/g, c => c.normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+
+  // ── Entête ──
+  doc.setFillColor(...TEAL);
+  doc.rect(0, 0, pw, 36, 'F');
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 36, pw, 2.5, 'F');
+
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text(safe(currentEtudiant?.ecole_nom || 'Etablissement'), 14, 14);
+  doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('RELEVE DE NOTES OFFICIEL — LMD CAMES', 14, 22);
+  doc.setTextColor(200,235,225); doc.setFontSize(8);
+  doc.text('Publie le ' + (releve.publie_le ? new Date(releve.publie_le).toLocaleDateString('fr-FR') : '—'), 14, 29);
+  if (releve.numero_releve) {
+    doc.setTextColor(255,255,255); doc.setFontSize(8);
+    doc.text('N° ' + releve.numero_releve, pw - 14, 29, { align:'right' });
+  }
+
+  let y = 44;
+
+  // ── Bloc étudiant ──
+  doc.setFillColor(...LIGHT);
+  doc.roundedRect(14, y, pw - 28, 30, 3, 3, 'F');
+  doc.setDrawColor(...TEAL); doc.setLineWidth(0.3);
+  doc.roundedRect(14, y, pw - 28, 30, 3, 3, 'S');
+
+  doc.setTextColor(...NAVY); doc.setFontSize(12); doc.setFont('helvetica','bold');
+  doc.text(safe((currentEtudiant?.nom||'') + ' ' + (currentEtudiant?.prenom||'')), 22, y + 9);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...GRAY);
+  doc.text('Matricule : ' + (currentEtudiant?.matricule || '—'), 22, y + 16);
+  doc.text(safe('Semestre : ' + (snap.semestre_libelle||'—') + '  |  Niveau : ' + (snap.niveau||'—')), 22, y + 22);
+  doc.text(safe('Programme : ' + (snap.programme_intitule||'—')), 22, y + 28);
+
+  // Résultat badge
+  const admis = snap.semestre_valide;
+  doc.setFillColor(...(admis ? GREEN : RED));
+  doc.roundedRect(pw - 50, y + 3, 36, 24, 3, 3, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(18); doc.setFont('helvetica','bold');
+  doc.text(snap.moyenne_semestre !== null ? Number(snap.moyenne_semestre).toFixed(2) : '—', pw - 32, y + 13, { align:'center' });
+  doc.setFontSize(7); doc.setFont('helvetica','normal');
+  doc.text('/ 20', pw - 32, y + 18, { align:'center' });
+  doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.text(admis ? 'VALIDE' : 'AJOURNE', pw - 32, y + 24, { align:'center' });
+
+  y += 36;
+
+  // ── Récapitulatif ──
+  doc.setTextColor(...TEAL); doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.text('Recapitulatif semestriel', 14, y); y += 5;
+  doc.autoTable({
+    startY: y,
+    head: [['Crédits validés', 'Crédits tentés', 'Moyenne générale', 'Mention', 'Décision']],
+    body: [[
+      (snap.credits_valides ?? '—') + ' / 30 CECT',
+      (snap.credits_tentes ?? '—') + ' CECT',
+      snap.moyenne_semestre !== null ? Number(snap.moyenne_semestre).toFixed(2) + ' / 20' : '—',
+      safe(labelMen[snap.mention] || snap.mention || '—'),
+      safe(admis ? 'Semestre validé ✓' : 'Semestre non validé'),
+    ]],
+    styles: { fontSize: 9, cellPadding: 4 },
+    headStyles: { fillColor: TEAL, textColor: [255,255,255], fontStyle:'bold' },
+    bodyStyles: { textColor: NAVY },
+    alternateRowStyles: { fillColor: [245,250,248] },
+    margin: { left: 14, right: 14 },
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  // ── Tableau UEs ──
+  doc.setTextColor(...TEAL); doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.text('Detail par Unite d\'Enseignement', 14, y); y += 5;
+  const ues = (snap.resultats_ue || []).map(ue => [
+    safe(ue.ue_code || ''),
+    safe(ue.ue_intitule || ''),
+    ue.type_ue || '',
+    ue.moyenne_ue !== null ? Number(ue.moyenne_ue).toFixed(2) : '—',
+    (ue.credits_acquis ?? 0) + ' / ' + (ue.ue_credits ?? 0),
+    ue.ue_validee ? 'Valide' : ue.est_exclu ? 'Exclu' : 'Non valide',
+  ]);
+  doc.autoTable({
+    startY: y,
+    head: [['Code', 'Intitulé UE', 'Type', 'Moy.', 'Crédits', 'Statut']],
+    body: ues,
+    styles: { fontSize: 8, cellPadding: 3 },
+    headStyles: { fillColor: NAVY, textColor: [255,255,255], fontStyle:'bold' },
+    columnStyles: {
+      0: { cellWidth: 22 },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 18, halign:'center' },
+      3: { cellWidth: 16, halign:'center' },
+      4: { cellWidth: 20, halign:'center' },
+      5: { cellWidth: 22, halign:'center' },
+    },
+    alternateRowStyles: { fillColor: [248,250,252] },
+    didParseCell(data) {
+      if (data.section === 'body' && data.column.index === 5) {
+        const v = data.cell.text[0];
+        if (v === 'Valide') data.cell.styles.textColor = GREEN;
+        else if (v === 'Non valide') data.cell.styles.textColor = RED;
+        else data.cell.styles.textColor = AMBER;
+      }
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  // ── Pied de page ──
+  const py = doc.internal.pageSize.getHeight() - 14;
+  doc.setDrawColor(...TEAL); doc.setLineWidth(0.3);
+  doc.line(14, py - 6, pw - 14, py - 6);
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...GRAY);
+  doc.text('EduLink Sup — Systeme LMD-CAMES — Document officiel', 14, py);
+  doc.text('app.edulink.bj', pw - 14, py, { align:'right' });
+
+  // ── Téléchargement ──
+  const sem = safe(snap.semestre_libelle || 'releve').replace(/\s+/g, '_');
+  doc.save('Releve_' + sem + '_' + (currentEtudiant?.matricule || '') + '.pdf');
+  showToast('Relevé téléchargé ✓', 'success');
 }
 async function chargerAbsences() {
   if (!currentEtudiant) { toutesAbsences = []; return; }
@@ -1134,6 +1367,7 @@ function showPage(p) {
   const renderers = {
     accueil: afficherAccueil,
     notes: afficherNotes,
+    releves: afficherReleves,
     absences: afficherAbsences,
     paiements: afficherPaiements,
     messages: afficherMessages,
@@ -1192,6 +1426,13 @@ function afficherAccueil() {
           <div>
             <div class="stat-val" style="color:#7c3aed">${(()=>{const t=new Date().toISOString().split('T')[0];return tousExamens.filter(e=>e.date_examen>=t&&e.statut!=='annule').length;})()||0}</div>
             <div class="stat-lbl">Examens à venir</div>
+          </div>
+        </div>
+        <div class="stat-card" onclick="showPage('releves')">
+          <div class="stat-ico teal">📋</div>
+          <div>
+            <div class="stat-val" style="color:#0f6e56">${tousReleves.length || '—'}</div>
+            <div class="stat-lbl">Relevé(s) officiel(s)</div>
           </div>
         </div>
       </div>
