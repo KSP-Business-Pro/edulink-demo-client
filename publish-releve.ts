@@ -77,6 +77,11 @@ function calculMention(moyenne: number | null): string | null {
   return null;
 }
 
+// Substitue {semestre}, {etudiant}, {etablissement}, {ue} dans un template de sujet
+function substituerVariables(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
+}
+
 function labelMention(mention: string | null): string {
   const labels: Record<string, string> = {
     tres_bien: "Très Bien", bien: "Bien",
@@ -93,7 +98,8 @@ async function envoyerEmailReleve(
   etudiant: { nom: string; prenom: string; email_auth: string },
   ecole: { nom: string; logo_url: string | null },
   semestre: { libelle: string; niveau: string },
-  snapshot: SnapshotNotes
+  snapshot: SnapshotNotes,
+  sujetEmail?: string
 ): Promise<void> {
   const mention = labelMention(snapshot.mention);
   const statutSemestre = snapshot.semestre_valide ? "✅ Semestre validé" : "❌ Semestre non validé";
@@ -164,7 +170,7 @@ async function envoyerEmailReleve(
     body: JSON.stringify({
       sender: { name: ecole.nom, email: "contact@afryx.io" },
       to: [{ email: etudiant.email_auth, name: `${etudiant.prenom} ${etudiant.nom}` }],
-      subject: `Relevé de notes — ${semestre.libelle}`,
+      subject: sujetEmail ?? `Relevé de notes — ${semestre.libelle}`,
       htmlContent,
     }),
   });
@@ -260,9 +266,16 @@ Deno.serve(async (req: Request) => {
       if (!etudiant?.email_auth) {
         return Response.json({ success: true, email_envoye: false, detail: "no_email" }, { headers: CORS_HEADERS });
       }
+      // Sujet depuis les règles de l'école
+      const { data: reglesResend } = await supabase.from("regles_ecole")
+        .select("notif_releve_sujet").eq("ecole_id", etudiant.ecole_id).maybeSingle();
+      const sujetResend = substituerVariables(
+        reglesResend?.notif_releve_sujet ?? "Relevé de notes — {semestre}",
+        { semestre: semestre?.libelle ?? "", etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole?.nom ?? "" }
+      );
       let emailEnvoye = false;
       try {
-        await envoyerEmailReleve(etudiant, ecole, semestre, releve.snapshot_notes as SnapshotNotes);
+        await envoyerEmailReleve(etudiant, ecole, semestre, releve.snapshot_notes as SnapshotNotes, sujetResend);
         emailEnvoye = true;
       } catch (e) {
         console.error("Brevo resend error:", e);
@@ -295,32 +308,30 @@ Deno.serve(async (req: Request) => {
       return Response.json({ error: "session_id requis pour la publication" }, { status: 400, headers: CORS_HEADERS });
     }
 
-    // 0. GARDE — blocage relevé si impayés (inviolable côté serveur)
-    {
-      const { data: etuGarde, error: errEtuGarde } = await supabase
-        .from("etudiants").select("ecole_id").eq("id", etudiant_id).single();
-      if (errEtuGarde) throw new Error(`etudiants (garde): ${errEtuGarde.message}`);
+    // 0. GARDE — blocage relevé si impayés + chargement règles école
+    const { data: etuGarde, error: errEtuGarde } = await supabase
+      .from("etudiants").select("ecole_id").eq("id", etudiant_id).single();
+    if (errEtuGarde) throw new Error(`etudiants (garde): ${errEtuGarde.message}`);
 
-      const { data: regles } = await supabase
-        .from("regles_ecole")
-        .select("blocage_releve_impaye, tolerance_impaye_releve")
-        .eq("ecole_id", etuGarde.ecole_id).maybeSingle();
+    const { data: regles } = await supabase
+      .from("regles_ecole")
+      .select("blocage_releve_impaye, tolerance_impaye_releve, notif_releve_active, notif_releve_sujet")
+      .eq("ecole_id", etuGarde.ecole_id).maybeSingle();
 
-      if (regles?.blocage_releve_impaye) {
-        const { data: solde, error: errSolde } = await supabase
-          .rpc("fn_solde_etudiant", { p_etudiant_id: etudiant_id });
-        if (errSolde) throw new Error(`fn_solde_etudiant: ${errSolde.message}`);
+    if (regles?.blocage_releve_impaye) {
+      const { data: solde, error: errSolde } = await supabase
+        .rpc("fn_solde_etudiant", { p_etudiant_id: etudiant_id });
+      if (errSolde) throw new Error(`fn_solde_etudiant: ${errSolde.message}`);
 
-        const soldeDu = Number(solde) || 0;
-        const tolerance = Number(regles.tolerance_impaye_releve) || 0;
-        if (soldeDu > tolerance) {
-          return Response.json({
-            error: "Relevé bloqué — solde impayé",
-            detail: "solde_impaye",
-            solde_du: soldeDu,
-            tolerance,
-          }, { status: 402, headers: CORS_HEADERS });
-        }
+      const soldeDu = Number(solde) || 0;
+      const tolerance = Number(regles.tolerance_impaye_releve) || 0;
+      if (soldeDu > tolerance) {
+        return Response.json({
+          error: "Relevé bloqué — solde impayé",
+          detail: "solde_impaye",
+          solde_du: soldeDu,
+          tolerance,
+        }, { status: 402, headers: CORS_HEADERS });
       }
     }
 
@@ -340,8 +351,12 @@ Deno.serve(async (req: Request) => {
       if (send_email) {
         const { etudiant, semestre, ecole } = await loadContexteEmail();
         if (etudiant?.email_auth) {
+          const sujetResolu = substituerVariables(
+            regles?.notif_releve_sujet ?? "Relevé de notes — {semestre}",
+            { semestre: semestre?.libelle ?? "", etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole?.nom ?? "" }
+          );
           try {
-            await envoyerEmailReleve(etudiant, ecole, semestre, existant.snapshot_notes as SnapshotNotes);
+            await envoyerEmailReleve(etudiant, ecole, semestre, existant.snapshot_notes as SnapshotNotes, sujetResolu);
             emailEnvoye = true;
           } catch (e) { console.error("Brevo error:", e); }
         }
@@ -414,8 +429,12 @@ Deno.serve(async (req: Request) => {
     // 5. Email Brevo — UNIQUEMENT si demandé explicitement
     let emailEnvoye = false;
     if (send_email && etudiant.email_auth) {
+      const sujetResolu = substituerVariables(
+        regles?.notif_releve_sujet ?? "Relevé de notes — {semestre}",
+        { semestre: semestre.libelle, etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole.nom }
+      );
       try {
-        await envoyerEmailReleve(etudiant, ecole, semestre, snapshot);
+        await envoyerEmailReleve(etudiant, ecole, semestre, snapshot, sujetResolu);
         emailEnvoye = true;
       } catch (e) {
         console.error("Brevo error:", e);
