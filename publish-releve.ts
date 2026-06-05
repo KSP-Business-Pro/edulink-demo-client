@@ -1,6 +1,11 @@
 // =============================================================================
 // EduLink Sup — Phase 2 — Edge Function : publish-releve
-// Version 4 — Garde serveur "blocage relevé si impayés" (inviolable)
+// Version 5 — Multi-modes (publish / resend / lock / unlock)
+//   • send_email : flag explicite (défaut false) → fini l'envoi systématique
+//   • republish  : recalcule le snapshot seulement si demandé explicitement
+//   • verrouille : snapshot figé (refus serveur + backstop trigger DB)
+//   • resend     : ré-expédie l'email à partir du snapshot existant, sans recalcul
+// Conserve la garde "blocage relevé si impayés" (inviolable côté serveur).
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -10,12 +15,17 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // Types
 // ---------------------------------------------------------------------------
 
+type Mode = "publish" | "resend" | "lock" | "unlock";
+
 interface PublishPayload {
   etudiant_id: string;
   semestre_id: string;
-  session_id: string;
+  session_id?: string;
   publie_par?: string;
   webhook_secret?: string;
+  mode?: Mode;
+  send_email?: boolean;
+  republish?: boolean;
 }
 
 interface ResultatUE {
@@ -48,7 +58,7 @@ interface SnapshotNotes {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helpers calcul
 // ---------------------------------------------------------------------------
 
 function calculMoyenneSemestre(resultats: ResultatUE[]): number | null {
@@ -76,7 +86,7 @@ function labelMention(mention: string | null): string {
 }
 
 // ---------------------------------------------------------------------------
-// Email Brevo
+// Email Brevo (inchangé sur le fond — réutilisé par publish ET resend)
 // ---------------------------------------------------------------------------
 
 async function envoyerEmailReleve(
@@ -182,7 +192,7 @@ Deno.serve(async (req: Request) => {
     return Response.json({ error: "Method not allowed" }, { status: 405, headers: CORS_HEADERS });
   }
 
-  // Parser le body en premier — avant toute autre chose
+  // Parser le body en premier
   let payload: PublishPayload;
   try {
     payload = await req.json();
@@ -190,33 +200,102 @@ Deno.serve(async (req: Request) => {
     return Response.json({ error: "Invalid JSON" }, { status: 400, headers: CORS_HEADERS });
   }
 
-  // Vérifier le secret depuis le body
+  // Vérifier le secret
   const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
   const secret = payload.webhook_secret || req.headers.get("x-webhook-secret");
-
-  console.log("Secret reçu:", secret ? secret.substring(0, 8) + "..." : "undefined");
-  console.log("Secret attendu:", WEBHOOK_SECRET ? WEBHOOK_SECRET.substring(0, 8) + "..." : "undefined");
-
   if (!secret || secret !== WEBHOOK_SECRET) {
     return Response.json({ error: "Unauthorized", detail: "secret_mismatch" }, { status: 401, headers: CORS_HEADERS });
   }
 
-  const { etudiant_id, semestre_id, session_id, publie_par } = payload;
-  if (!etudiant_id || !semestre_id || !session_id) {
-    return Response.json({ error: "Champs requis manquants" }, { status: 400, headers: CORS_HEADERS });
+  const {
+    etudiant_id,
+    semestre_id,
+    session_id,
+    publie_par,
+    mode = "publish",
+    send_email = false,
+    republish = false,
+  } = payload;
+
+  if (!etudiant_id || !semestre_id) {
+    return Response.json({ error: "Champs requis manquants (etudiant_id, semestre_id)" }, { status: 400, headers: CORS_HEADERS });
   }
 
-  // Client service_role (bypass RLS)
+  // Client service_role (bypass RLS — mais PAS les triggers)
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Charge le relevé existant (le plus récent si session_id absent)
+  async function loadReleve() {
+    let q = supabase.from("releves_notes").select("*")
+      .eq("etudiant_id", etudiant_id).eq("semestre_id", semestre_id);
+    if (session_id) q = q.eq("session_id", session_id);
+    const { data } = await q.order("publie_le", { ascending: false }).limit(1).maybeSingle();
+    return data;
+  }
+
+  // Charge étudiant + semestre + école (pour l'email)
+  async function loadContexteEmail() {
+    const { data: etudiant } = await supabase.from("etudiants")
+      .select("nom, prenom, email_auth, ecole_id").eq("id", etudiant_id).single();
+    const { data: semestre } = await supabase.from("semestres")
+      .select("libelle, niveau, programme_id").eq("id", semestre_id).single();
+    const { data: ecole } = await supabase.from("ecoles")
+      .select("nom, logo_url").eq("id", etudiant?.ecole_id).single();
+    return { etudiant, semestre, ecole };
+  }
+
   try {
+    // =========================================================================
+    // MODE resend — ré-expédie l'email depuis le snapshot existant (zéro recalcul)
+    // =========================================================================
+    if (mode === "resend") {
+      const releve = await loadReleve();
+      if (!releve) {
+        return Response.json({ error: "Aucun relevé publié à renvoyer" }, { status: 404, headers: CORS_HEADERS });
+      }
+      const { etudiant, semestre, ecole } = await loadContexteEmail();
+      if (!etudiant?.email_auth) {
+        return Response.json({ success: true, email_envoye: false, detail: "no_email" }, { headers: CORS_HEADERS });
+      }
+      let emailEnvoye = false;
+      try {
+        await envoyerEmailReleve(etudiant, ecole, semestre, releve.snapshot_notes as SnapshotNotes);
+        emailEnvoye = true;
+      } catch (e) {
+        console.error("Brevo resend error:", e);
+      }
+      return Response.json({ success: true, mode: "resend", email_envoye: emailEnvoye }, { headers: CORS_HEADERS });
+    }
+
+    // =========================================================================
+    // MODE lock / unlock — bascule le verrou (aucun recalcul, aucun email)
+    // =========================================================================
+    if (mode === "lock" || mode === "unlock") {
+      const releve = await loadReleve();
+      if (!releve) {
+        return Response.json({ error: "Aucun relevé à verrouiller" }, { status: 404, headers: CORS_HEADERS });
+      }
+      const verrou = mode === "lock";
+      const { error: errLock } = await supabase.from("releves_notes").update({
+        verrouille: verrou,
+        verrouille_le: verrou ? new Date().toISOString() : null,
+        verrouille_par: verrou ? (publie_par ?? null) : null,
+      }).eq("id", releve.id);
+      if (errLock) throw new Error(`verrouillage: ${errLock.message}`);
+      return Response.json({ success: true, verrouille: verrou }, { headers: CORS_HEADERS });
+    }
+
+    // =========================================================================
+    // MODE publish (défaut)
+    // =========================================================================
+    if (!session_id) {
+      return Response.json({ error: "session_id requis pour la publication" }, { status: 400, headers: CORS_HEADERS });
+    }
+
     // 0. GARDE — blocage relevé si impayés (inviolable côté serveur)
-    //    Récupère l'école de l'étudiant, lit la règle, et refuse la publication
-    //    si le solde dû dépasse la tolérance configurée. Backstop du contrôle
-    //    déjà fait côté client : protège aussi les appels directs (portail, scripts).
     {
       const { data: etuGarde, error: errEtuGarde } = await supabase
         .from("etudiants").select("ecole_id").eq("id", etudiant_id).single();
@@ -243,6 +322,37 @@ Deno.serve(async (req: Request) => {
           }, { status: 402, headers: CORS_HEADERS });
         }
       }
+    }
+
+    // 0bis. GARDE — immuabilité : refus si déjà verrouillé
+    const existant = await loadReleve();
+    if (existant?.verrouille) {
+      return Response.json({
+        error: "Relevé verrouillé — déverrouillez-le avant toute republication",
+        detail: "verrouille",
+      }, { status: 409, headers: CORS_HEADERS });
+    }
+
+    // 0ter. Idempotence : relevé déjà publié et republication NON demandée
+    //       → on ne recalcule pas le snapshot ; on renvoie l'email seulement si demandé.
+    if (existant && !republish) {
+      let emailEnvoye = false;
+      if (send_email) {
+        const { etudiant, semestre, ecole } = await loadContexteEmail();
+        if (etudiant?.email_auth) {
+          try {
+            await envoyerEmailReleve(etudiant, ecole, semestre, existant.snapshot_notes as SnapshotNotes);
+            emailEnvoye = true;
+          } catch (e) { console.error("Brevo error:", e); }
+        }
+      }
+      return Response.json({
+        success: true,
+        releve_id: existant.id,
+        mention: existant.mention,
+        deja_publie: true,
+        email_envoye: emailEnvoye,
+      }, { headers: CORS_HEADERS });
     }
 
     // 1. Résultats LMD
@@ -284,7 +394,7 @@ Deno.serve(async (req: Request) => {
       mention,
     };
 
-    // 4. Upsert releves_notes
+    // 4. Upsert releves_notes (verrouille:false explicite — un nouveau snapshot n'est jamais verrouillé)
     const { data: releve, error: errReleve } = await supabase.from("releves_notes").upsert({
       etudiant_id, semestre_id, session_id,
       ecole_id: etudiant.ecole_id,
@@ -296,13 +406,14 @@ Deno.serve(async (req: Request) => {
       decision: semestreValide ? "admis" : "ajourné",
       publie_le: new Date().toISOString(),
       publie_par: publie_par ?? null,
+      verrouille: false,
     }, { onConflict: "etudiant_id,semestre_id,session_id" }).select().single();
 
     if (errReleve) throw new Error(`releves_notes: ${errReleve.message}`);
 
-    // 5. Email Brevo
+    // 5. Email Brevo — UNIQUEMENT si demandé explicitement
     let emailEnvoye = false;
-    if (etudiant.email_auth) {
+    if (send_email && etudiant.email_auth) {
       try {
         await envoyerEmailReleve(etudiant, ecole, semestre, snapshot);
         emailEnvoye = true;
@@ -319,6 +430,7 @@ Deno.serve(async (req: Request) => {
       credits_valides: creditsValides,
       semestre_valide: semestreValide,
       mention,
+      republie: !!existant,
       email_envoye: emailEnvoye,
     }, { headers: CORS_HEADERS });
 
