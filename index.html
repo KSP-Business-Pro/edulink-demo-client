@@ -757,7 +757,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 // ── Config Supabase ──────────────────────────────────────────────────────
 const SUPABASE_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
-const WEBHOOK_SECRET = 'REMPLACER_PAR_LA_VALEUR_SUPABASE_SECRET'; // ← Supabase Dashboard → Edge Functions → Secrets → WEBHOOK_SECRET
+const WEBHOOK_SECRET = 'ab680f52-881c-4e89-a299-0aeec8c13da1-44cebc6c-d38c-446c-98ba-4390a4bffee8'; // ← Supabase Dashboard → Edge Functions → Secrets → WEBHOOK_SECRET
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── État global ──────────────────────────────────────────────────────────
@@ -5975,6 +5975,7 @@ async function voirResultatsEtudiant(etudiantId, semesterId, nom) {
 // ── RELEVÉS ───────────────────────────────────
 
 let _tousReleves = [];
+let _relevesSendEmail = true;   // S5 : toggle "envoyer l'email à la publication"
 
 async function chargerReleves() {
   const semId = document.getElementById('releves-semestre').value;
@@ -6029,6 +6030,9 @@ function renderTableauReleves(etudiants, relevesMap, semId, soldesMap, tolerance
     <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;padding:.85rem 1rem;background:#f9fafb;border-radius:10px;border:1px solid #e5e7eb">
       <div style="flex:1;font-size:13px;color:#374151">${nbPublies} / ${nbTotal} relevés publiés${nbBloques?` · <span style="color:#dc2626;font-weight:600">${nbBloques} bloqué(s) pour impayés</span>`:''}</div>
       <div class="prog-bar" style="width:150px"><div class="prog-fill" style="width:${nbTotal?Math.round(nbPublies/nbTotal*100):0}%"></div></div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;white-space:nowrap" title="Envoyer automatiquement le relevé par email lors de la publication">
+        <input type="checkbox" id="releves-send-email" ${_relevesSendEmail?'checked':''} onchange="_relevesSendEmail=this.checked"> 📧 Email à la publication
+      </label>
       <button onclick="publierTousReleves('${semId}')" class="btn-green btn-sm">Publier tous</button>
       <button onclick="republierTousReleves('${semId}')" class="btn-outline btn-sm" style="color:#6b7280" title="Recalculer et republier tous les relevés déjà publiés">🔄 Republier tous</button>
     </div>
@@ -6053,13 +6057,19 @@ function renderTableauReleves(etudiants, relevesMap, semId, soldesMap, tolerance
             <td style="text-align:center">${r ? badgeMention(r.mention) : '<span class="badge gray">—</span>'}</td>
             <td style="text-align:center">${r ? `<span class="badge teal">${r.credits_valides} CECT</span>` : '—'}</td>
             <td style="text-align:center">${r ? `<span class="badge ${r.decision==='admis'?'green':'amber'}">${r.decision}</span>` : '—'}</td>
-            <td style="text-align:center">${r ? `<span class="badge green">Publié</span>` : (bloqueImpaye ? `<span class="badge red" title="Solde dû : ${solde.toLocaleString('fr-FR')} FCFA">🔒 Impayé</span>` : '<span class="badge gray">En attente</span>')}</td>
+            <td style="text-align:center">${r ? `<span class="badge green">Publié${r.verrouille?' 🔒':''}</span>` : (bloqueImpaye ? `<span class="badge red" title="Solde dû : ${solde.toLocaleString('fr-FR')} FCFA">🔒 Impayé</span>` : '<span class="badge gray">En attente</span>')}</td>
             <td>
               ${r
-                ? `<div style="display:flex;gap:4px;justify-content:center">
+                ? `<div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
                   <button class="btn-outline btn-sm" onclick="voirReleve('${et.id}','${semId}')">Voir</button>
                   <button class="btn-outline btn-sm" style="color:#1e3a5f;border-color:#1e3a5f" onclick="exporterReleve('${et.id}','${semId}')">📄 PDF</button>
-                  <button class="btn-outline btn-sm" style="color:#6b7280;font-size:11px" title="Recalculer et republier avec les notes actuelles" onclick="republierReleve('${et.id}','${semId}')">🔄</button>
+                  ${et.email_auth
+                    ? `<button class="btn-outline btn-sm" style="color:#7c3aed;border-color:#7c3aed;font-size:11px" title="Renvoyer le relevé par email à ${esc(et.email_auth)}" onclick="renvoyerEmailReleve('${et.id}','${semId}')">📧</button>`
+                    : `<button class="btn-outline btn-sm" style="font-size:11px;opacity:.4;cursor:not-allowed" disabled title="Aucune adresse email enregistrée">📧</button>`}
+                  ${r.verrouille
+                    ? `<button class="btn-outline btn-sm" style="color:#b45309;border-color:#b45309;font-size:11px" title="Relevé verrouillé (définitif) — cliquer pour déverrouiller" onclick="deverrouillerReleve('${et.id}','${semId}')">🔒</button>`
+                    : `<button class="btn-outline btn-sm" style="color:#6b7280;font-size:11px" title="Recalculer et republier avec les notes actuelles" onclick="republierReleve('${et.id}','${semId}')">🔄</button>
+                       <button class="btn-outline btn-sm" style="color:#9ca3af;font-size:11px" title="Verrouiller (rendre le relevé définitif)" onclick="verrouillerReleve('${et.id}','${semId}')">🔓</button>`}
                 </div>`
                 : (bloqueImpaye
                   ? `<button class="btn-sm" disabled title="Solde dû : ${solde.toLocaleString('fr-FR')} FCFA — régler avant publication" style="opacity:.5;cursor:not-allowed">🔒 ${solde.toLocaleString('fr-FR')} FCFA</button>`
@@ -6080,7 +6090,12 @@ async function _getBlocageRegles() {
   return _blocageCache;
 }
 
-async function publierReleve(etudiantId, semestreId, silent) {
+async function publierReleve(etudiantId, semestreId, silent, opts) {
+  opts = opts || {};
+  // send_email : prend la valeur du toggle si non précisé ; republish : false par défaut
+  const sendEmail = (opts.sendEmail !== undefined) ? opts.sendEmail : _relevesSendEmail;
+  const republish = !!opts.republish;
+
   // Garde — blocage si impayés (configurable dans Paramètres → Règles)
   const bloc = await _getBlocageRegles();
   if (bloc.blocage_releve_impaye) {
@@ -6101,13 +6116,22 @@ async function publierReleve(etudiantId, semestreId, silent) {
     const res = await fetch('https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'x-webhook-secret': WEBHOOK_SECRET },
-      body: JSON.stringify({ etudiant_id: etudiantId, semestre_id: semestreId, session_id: session.id, publie_par: currentUserId })
+      body: JSON.stringify({
+        etudiant_id: etudiantId, semestre_id: semestreId, session_id: session.id,
+        publie_par: currentUserId, mode: 'publish', send_email: sendEmail, republish
+      })
     });
     const data = await res.json();
     if (data.success) {
-      if (!silent) { toast(`Relevé publié — ${data.mention||'Résultat calculé'}`, 'success'); await chargerReleves(); }
-      return { success:true };
+      if (!silent) {
+        let suffix = '';
+        if (sendEmail) suffix = data.email_envoye ? ' · 📧 envoyé' : ' · ⚠️ email non envoyé';
+        toast(`Relevé publié — ${data.mention||'Résultat calculé'}${suffix}`, 'success');
+        await chargerReleves();
+      }
+      return { success:true, email_envoye:data.email_envoye };
     } else {
+      if (data.detail === 'verrouille') { if (!silent) toast("Relevé verrouillé — déverrouillez-le pour republier", 'error'); return { success:false, verrouille:true }; }
       if (!silent) toast('Erreur: ' + (data.error||'Inconnue'), 'error');
       return { success:false };
     }
@@ -6115,13 +6139,60 @@ async function publierReleve(etudiantId, semestreId, silent) {
 }
 
 async function republierReleve(etudiantId, semestreId) {
-  if (!confirm("Republier le relevé de cet étudiant ?\nLe snapshot sera recalculé avec les notes et règles actuelles.\nLa décision et les crédits peuvent changer.")) return;
+  if (!confirm("Republier le relevé de cet étudiant ?\nLe snapshot sera recalculé avec les notes et règles actuelles.\nLa décision et les crédits peuvent changer.\nAucun email ne sera envoyé (utilisez 📧 pour renvoyer).")) return;
   const { data: et } = await db.from("etudiants").select("nom,prenom").eq("id", etudiantId).single();
   const nom = et ? `${et.prenom} ${et.nom}` : "l'étudiant";
   toast(`Republication de ${nom} en cours…`, "info");
-  const res = await publierReleve(etudiantId, semestreId);
-  if (res?.blocked) return;
+  const res = await publierReleve(etudiantId, semestreId, false, { republish:true, sendEmail:false });
+  if (res?.blocked || res?.verrouille) return;
   if (res?.success) toast(`Relevé de ${nom} republié ✓`, "success");
+}
+
+// ── S5 : renvoi email & verrouillage ────────────────────────────────────────
+const _RELEVE_FN_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve';
+function _releveHeaders() { return { 'Content-Type':'application/json', 'x-webhook-secret': WEBHOOK_SECRET }; }
+
+async function renvoyerEmailReleve(etudiantId, semestreId) {
+  const { data: et } = await db.from('etudiants').select('nom,prenom,email_auth').eq('id', etudiantId).single();
+  if (!et?.email_auth) { toast("Aucune adresse email enregistrée pour cet étudiant", "error"); return; }
+  if (!confirm(`Renvoyer le relevé par email à ${et.prenom} ${et.nom} ?\n${et.email_auth}`)) return;
+  const { data: session } = await db.from('sessions_evaluation')
+    .select('id').eq('semestre_id', semestreId).eq('type_session','normale').single();
+  toast("Envoi de l'email…", "info");
+  try {
+    const res = await fetch(_RELEVE_FN_URL, {
+      method:'POST', headers:_releveHeaders(),
+      body: JSON.stringify({ etudiant_id:etudiantId, semestre_id:semestreId, session_id:session?.id, mode:'resend' })
+    });
+    const data = await res.json();
+    if (data.success && data.email_envoye) toast(`📧 Relevé renvoyé à ${et.prenom} ${et.nom} ✓`, "success");
+    else if (data.success && data.detail === 'no_email') toast("Aucune adresse email pour cet étudiant", "error");
+    else toast("Échec de l'envoi : " + (data.error || "email non parti"), "error");
+  } catch(e) { toast("Erreur réseau : " + e.message, "error"); }
+}
+
+async function verrouillerReleve(etudiantId, semestreId) {
+  if (!confirm("Verrouiller ce relevé ?\nIl deviendra définitif : plus aucune republication ne sera possible tant qu'il n'est pas déverrouillé. Le renvoi par email reste possible.")) return;
+  await _basculerVerrouReleve(etudiantId, semestreId, 'lock', "Relevé verrouillé 🔒");
+}
+
+async function deverrouillerReleve(etudiantId, semestreId) {
+  if (!confirm("Déverrouiller ce relevé ?\nIl redeviendra modifiable (republication possible).")) return;
+  await _basculerVerrouReleve(etudiantId, semestreId, 'unlock', "Relevé déverrouillé 🔓");
+}
+
+async function _basculerVerrouReleve(etudiantId, semestreId, mode, okMsg) {
+  const { data: session } = await db.from('sessions_evaluation')
+    .select('id').eq('semestre_id', semestreId).eq('type_session','normale').single();
+  try {
+    const res = await fetch(_RELEVE_FN_URL, {
+      method:'POST', headers:_releveHeaders(),
+      body: JSON.stringify({ etudiant_id:etudiantId, semestre_id:semestreId, session_id:session?.id, mode, publie_par: currentUserId })
+    });
+    const data = await res.json();
+    if (data.success) { toast(okMsg, "success"); await chargerReleves(); }
+    else toast("Erreur : " + (data.error || "inconnue"), "error");
+  } catch(e) { toast("Erreur réseau : " + e.message, "error"); }
 }
 
 async function republierTousReleves(semestreId) {
@@ -6130,23 +6201,26 @@ async function republierTousReleves(semestreId) {
   const { data: releves } = await db.from("releves_notes")
     .select("etudiant_id").eq("semestre_id", semestreId);
   if (!releves?.length) { toast("Aucun relevé publié à republier", "info"); return; }
-  let count = 0, blocked = 0, failed = 0;
+  let count = 0, blocked = 0, failed = 0, locked = 0;
   toast(`Republication de ${releves.length} relevé(s) en cours…`, "info");
   for (const r of releves) {
-    const res = await publierReleve(r.etudiant_id, semestreId, true);
+    const res = await publierReleve(r.etudiant_id, semestreId, true, { republish:true, sendEmail:false });
     if (res?.blocked) blocked++;
+    else if (res?.verrouille) locked++;
     else if (res?.success) count++;
     else failed++;
   }
   let msg = `${count} relevé(s) republié(s)`;
+  if (locked)  msg += ` · ${locked} verrouillé(s)`;
   if (blocked) msg += ` · ${blocked} bloqué(s) impayés`;
   if (failed)  msg += ` · ${failed} échec(s)`;
-  toast(msg, (blocked || failed) ? "info" : "success");
+  toast(msg, (blocked || failed || locked) ? "info" : "success");
   await chargerReleves();
 }
 
 async function publierTousReleves(semestreId) {
-  if (!confirm('Publier les relevés de tous les étudiants sans relevé ? Cette action enverra un email à chacun.')) return;
+  const withEmail = _relevesSendEmail;
+  if (!confirm("Publier les relevés de tous les étudiants sans relevé ?" + (withEmail ? "\nUn email sera envoyé à chaque étudiant disposant d'une adresse." : "\nAucun email ne sera envoyé (option décochée)."))) return;
   _blocageCache = null; // recharger la config à jour
   const targets = [];
   document.querySelectorAll('#releves-content button[onclick^="publierReleve"]').forEach(btn => {
