@@ -308,6 +308,21 @@ Deno.serve(async (req: Request) => {
       return Response.json({ error: "session_id requis pour la publication" }, { status: 400, headers: CORS_HEADERS });
     }
 
+    // 0. GARDE — session clôturée (délibération validée → publication impossible)
+    {
+      const { data: sess } = await supabase
+        .from("sessions_evaluation")
+        .select("statut")
+        .eq("id", session_id)
+        .maybeSingle();
+      if (sess?.statut === "cloture") {
+        return Response.json({
+          error: "Session clôturée — délibération validée, publication impossible",
+          detail: "session_cloturee",
+        }, { status: 409, headers: CORS_HEADERS });
+      }
+    }
+
     // 0. GARDE — blocage relevé si impayés + chargement règles école
     const { data: etuGarde, error: errEtuGarde } = await supabase
       .from("etudiants").select("ecole_id").eq("id", etudiant_id).single();

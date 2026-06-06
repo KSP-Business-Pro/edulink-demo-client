@@ -6556,7 +6556,9 @@ async function validerDeliberation(semId) {
     if (_delibSession?.id) {
       await db.from('sessions_evaluation').update({ statut: 'cloture' }).eq('id', _delibSession.id);
     }
-    toast(`Délibération validée ✓${nbOverrides > 0 ? ' — ' + nbOverrides + ' override(s) appliqué(s)' : ''}`, 'success');
+    // Verrouiller tous les relevés publiés du semestre
+    const { data: nbVerrouilles } = await db.rpc('fn_verrouiller_releves_semestre', { p_semestre_id: semId });
+    toast(`Délibération validée ✓ — ${nbVerrouilles || 0} relevé(s) verrouillé(s)${nbOverrides > 0 ? ' · ' + nbOverrides + ' override(s)' : ''}`, 'success');
     await chargerDeliberation();
   } catch (err) {
     toast('Erreur : ' + (err.message || err), 'error');
