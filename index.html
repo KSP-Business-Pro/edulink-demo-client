@@ -4341,6 +4341,30 @@ async function _calculerUnEtudiant(etudiantId, semId) {
     return ue;
   });
 
+  // ── Application compensation LMD-CAMES ────────────────────────────────────
+  // Règle : si compensation_active ET moy semestrielle provisoire >= seuil_validation_ue
+  // alors toute UE non validée dont la note >= seuil_note_plancher est compensée (validée)
+  // Les exclus ne bénéficient jamais de la compensation (art. exclusion CAMES)
+  if (_reglesCache.compensation_active) {
+    let tmpN = 0, tmpW = 0;
+    ueResults.forEach(r => {
+      if (r.moyenne_ue !== null && !r.est_exclu) {
+        tmpN += r.moyenne_ue * (r.ue_credits || 1);
+        tmpW += (r.ue_credits || 1);
+      }
+    });
+    const moyProv = tmpW > 0 ? tmpN / tmpW : null;
+    if (moyProv !== null && moyProv >= seuilUE) {
+      ueResults = ueResults.map(ue => {
+        if (!ue.ue_validee && !ue.est_exclu
+            && ue.moyenne_ue !== null && ue.moyenne_ue >= seuilPlancher) {
+          return { ...ue, ue_validee: true, credits_acquis: ue.ue_credits || 0, compensee: true };
+        }
+        return ue;
+      });
+    }
+  }
+
   // ── Recalcul des totaux ────────────────────────────────────────────────────
   const credits_valides = ueResults.reduce((s, r) => s + (r.ue_validee ? (r.credits_acquis || 0) : 0), 0);
   const oblig = ueResults.filter(r => r.obligatoire);
@@ -4461,11 +4485,12 @@ async function calculerRattrapageBatch(semId) {
   if (!semId) { toast('Sélectionnez un semestre', 'error'); return; }
   if (!_reglesCache) {
     const { data: r } = await db.from('regles_ecole')
-      .select('seuil_validation_ue,note_plancher_active,seuil_note_plancher')
+      .select('seuil_validation_ue,note_plancher_active,seuil_note_plancher,compensation_active')
       .eq('ecole_id', currentEcoleId).maybeSingle();
     _reglesCache = r || {};
   }
-  const seuilUE = _reglesCache.seuil_validation_ue ?? 10;
+  const seuilUE       = _reglesCache.seuil_validation_ue ?? 10;
+  const seuilPlancher = _reglesCache.seuil_note_plancher  ?? 5;
   const btn = document.querySelector('[onclick*="calculerRattrapageBatch"]');
   if (btn) { btn.disabled = true; btn.textContent = 'Calcul en cours…'; }
   toast('Calcul rattrapage en cours…', 'info');
@@ -4495,7 +4520,7 @@ async function calculerRattrapageBatch(semId) {
     (rattMoy || []).forEach(r => { rattMap[r.ue_id] = parseFloat(r.moy_rattrapage); });
 
     // Combiner : max(normale, rattrapage) par UE
-    const finalRes = normRes.map(ue => {
+    let finalRes = normRes.map(ue => {
       const mRatt = rattMap[ue.ue_id];
       if (mRatt !== undefined) {
         const mFinal = Math.max(parseFloat(ue.moyenne_ue) || 0, mRatt);
@@ -4504,6 +4529,27 @@ async function calculerRattrapageBatch(semId) {
       }
       return ue;
     });
+
+    // ── Compensation post-rattrapage ──────────────────────────────────────────
+    if (_reglesCache.compensation_active) {
+      let tmpN = 0, tmpW = 0;
+      finalRes.forEach(r => {
+        if (r.moyenne_ue !== null && !r.est_exclu) {
+          tmpN += r.moyenne_ue * (r.ue_credits || 1);
+          tmpW += (r.ue_credits || 1);
+        }
+      });
+      const moyProv = tmpW > 0 ? tmpN / tmpW : null;
+      if (moyProv !== null && moyProv >= seuilUE) {
+        finalRes = finalRes.map(ue => {
+          if (!ue.ue_validee && !ue.est_exclu
+              && ue.moyenne_ue !== null && ue.moyenne_ue >= seuilPlancher) {
+            return { ...ue, ue_validee: true, credits_acquis: ue.ue_credits || 0, compensee: true };
+          }
+          return ue;
+        });
+      }
+    }
 
     // Recalculer totaux
     const credits_valides = finalRes.reduce((s, r) => s + (r.ue_validee ? (r.credits_acquis || 0) : 0), 0);
