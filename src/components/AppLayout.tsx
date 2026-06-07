@@ -76,7 +76,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
                 return (
                   <a
                     key={item.id}
-                    href={isReact ? item.href : `/index_legacy.html`}
+                    href={isReact ? item.href : (window.location.hostname === 'localhost' ? 'https://app.edulink.bj' : '/index_legacy.html')}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '7px 10px', borderRadius: 8, textDecoration: 'none',

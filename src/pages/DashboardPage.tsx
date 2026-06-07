@@ -97,24 +97,45 @@ function DonutChart({ programmes }: { programmes: DashboardData['programmes'] })
 // ── Page principale ────────────────────────────────────────────────────────
 
 export function DashboardPage() {
-  const { user } = useAuth();
-  const [data,    setData]    = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
+  const { user, isSuperAdmin } = useAuth();
+  const [data,       setData]       = useState<DashboardData | null>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState<string | null>(null);
+  const [ecoles,     setEcoles]     = useState<{id:string;nom:string}[]>([]);
+  const [ecoleId,    setEcoleId]    = useState<string | null>(user?.ecole_id ?? null);
+
+  // Super-admin : charger la liste des écoles
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    import('../services/supabase').then(({ supabase }) => {
+      supabase.from('ecoles').select('id,nom').order('nom').then(({ data: ec }) => {
+        if (ec?.length) {
+          setEcoles(ec);
+          if (!ecoleId) setEcoleId(ec[0].id); // HEMEC par défaut
+        }
+      });
+    });
+  }, [isSuperAdmin]);
 
   useEffect(() => {
-    if (!user?.ecole_id) { setLoading(false); return; }
-    loadDashboard(user.ecole_id)
+    const eid = ecoleId ?? user?.ecole_id;
+    if (!eid) { setLoading(false); return; }
+    setLoading(true);
+    loadDashboard(eid)
       .then(d => { setData(d); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
-  }, [user?.ecole_id]);
+  }, [ecoleId, user?.ecole_id]);
 
-  if (!user?.ecole_id) return (
-    <div style={styles.centered}>
-      <div style={{ fontSize: 32, marginBottom: 8 }}>🏫</div>
-      <p style={{ color: '#64748b' }}>Sélectionnez une école pour afficher le tableau de bord.</p>
-    </div>
-  );
+  // Sélecteur école pour super-admin
+  const ecoleSelector = isSuperAdmin && ecoles.length > 0 ? (
+    <select
+      value={ecoleId ?? ''}
+      onChange={e => setEcoleId(e.target.value)}
+      style={{ fontSize: 13, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', cursor: 'pointer' }}
+    >
+      {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+    </select>
+  ) : null;
 
   if (loading) return (
     <div style={styles.centered}>
@@ -141,7 +162,7 @@ export function DashboardPage() {
           <h1 style={styles.h1}>Tableau de bord</h1>
           <p style={styles.subtitle}>Vue générale LMD</p>
         </div>
-        <span style={styles.annee}>{kpis.anneeLibelle}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>{ecoleSelector}<span style={styles.annee}>{kpis.anneeLibelle}</span></div>
       </div>
 
       {/* KPIs */}
