@@ -755,10 +755,29 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 ══════════════════════════════════════════════ -->
 <script>
 // ── Config Supabase ──────────────────────────────────────────────────────
-const SUPABASE_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
-const WEBHOOK_SECRET = 'ab680f52-881c-4e89-a299-0aeec8c13da1-44cebc6c-d38c-446c-98ba-4390a4bffee8'; // ← Supabase Dashboard → Edge Functions → Secrets → WEBHOOK_SECRET
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+// ── Configuration chargée depuis Vercel Environment Variables ──────────────
+// Les valeurs sont injectées via /api/config (serverless function Vercel)
+// WEBHOOK_SECRET n'est plus exposé côté client — proxy via /api/releve
+let SUPABASE_URL   = 'https://kcfpvnrgutkhakogbjip.supabase.co'; // fallback dev
+let SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc'; // fallback dev
+let db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// Charger la config depuis Vercel en production
+(async () => {
+  try {
+    const r = await fetch('/api/config');
+    if (r.ok) {
+      const cfg = await r.json();
+      if (cfg.supabaseUrl && cfg.supabaseAnon) {
+        SUPABASE_URL  = cfg.supabaseUrl;
+        SUPABASE_ANON = cfg.supabaseAnon;
+        db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+      }
+    }
+  } catch(e) { /* fallback dev local */ }
+})();
+
+// WEBHOOK_SECRET supprimé du client — les appels publish-releve passent par /api/releve
 
 // ── État global ──────────────────────────────────────────────────────────
 let currentEcoleId = null, currentUserNom = '', currentUserRole = 'admin', _ficheEtuId = null, _ficheEtuNom = '';
@@ -6278,9 +6297,9 @@ async function publierReleve(etudiantId, semestreId, silent, opts) {
   if (!session) { if (!silent) toast('Aucune session normale trouvée', 'error'); return { success:false }; }
   if (!silent) toast('Publication en cours...', 'info');
   try {
-    const res = await fetch('https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve', {
+    const res = await fetch('/api/releve', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'x-webhook-secret': WEBHOOK_SECRET },
+      headers: { 'Content-Type':'application/json' }, // secret géré par le proxy
       body: JSON.stringify({
         etudiant_id: etudiantId, semestre_id: semestreId, session_id: session.id,
         publie_par: currentUserId, mode: 'publish', send_email: sendEmail, republish
@@ -6314,8 +6333,8 @@ async function republierReleve(etudiantId, semestreId) {
 }
 
 // ── S5 : renvoi email & verrouillage ────────────────────────────────────────
-const _RELEVE_FN_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve';
-function _releveHeaders() { return { 'Content-Type':'application/json', 'x-webhook-secret': WEBHOOK_SECRET }; }
+const _RELEVE_FN_URL = '/api/releve'; // Proxy Vercel — WEBHOOK_SECRET côté serveur
+function _releveHeaders() { return { 'Content-Type':'application/json' }; } // secret géré par /api/releve
 
 async function renvoyerEmailReleve(etudiantId, semestreId) {
   const { data: et } = await db.from('etudiants').select('nom,prenom,email_auth').eq('id', etudiantId).single();
