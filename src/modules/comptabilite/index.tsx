@@ -1,0 +1,1 @@
+export default function ModulePage(){return(<div style={{padding:"2rem",textAlign:"center",color:"#64748b"}}><div style={{fontSize:40}}>🔧</div><p>Module en migration</p><a href="https://app.edulink.bj" style={{color:"#1e3a5f",fontWeight:600}}>Accéder au back-office →</a></div>)}

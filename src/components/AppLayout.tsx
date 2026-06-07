@@ -11,30 +11,32 @@ interface AppLayoutProps {
 export function AppLayout({ children, currentPage }: AppLayoutProps) {
   const { user, logout, isSuperAdmin } = useAuth();
 
+  const legacy = window.location.hostname === 'localhost' ? 'https://app.edulink.bj' : '/index_legacy.html';
+
   const navItems = [
     { group: 'TABLEAU DE BORD', items: [
       { id: 'dashboard', label: 'Dashboard', ico: '🏠', href: '/dashboard' },
     ]},
     { group: 'PÉDAGOGIE LMD', items: [
-      { id: 'programmes', label: 'Programmes & UE', ico: '🎓', href: '/index_legacy.html' },
-      { id: 'semestres',  label: 'Semestres',       ico: '📅', href: '/index_legacy.html' },
-      { id: 'promotions', label: 'Promotions',      ico: '👥', href: '/index_legacy.html' },
-      { id: 'etudiants',  label: 'Étudiants',       ico: '🧑‍🎓', href: '/index_legacy.html' },
+      { id: 'programmes', label: 'Programmes & UE', ico: '🎓', href: legacy },
+      { id: 'semestres',  label: 'Semestres',       ico: '📅', href: legacy },
+      { id: 'promotions', label: 'Promotions',      ico: '👥', href: legacy },
+      { id: 'etudiants',  label: 'Étudiants',       ico: '🧑‍🎓', href: '/etudiants' },
     ]},
     { group: 'ÉVALUATION', items: [
-      { id: 'saisie-notes', label: 'Saisie des notes', ico: '✏️', href: '/index_legacy.html' },
-      { id: 'presences',    label: 'Présences',        ico: '📋', href: '/index_legacy.html' },
-      { id: 'resultats',    label: 'Résultats',        ico: '📊', href: '/index_legacy.html' },
-      { id: 'deliberations',label: 'Délibérations',   ico: '⚖️', href: '/index_legacy.html' },
-      { id: 'releves',      label: 'Relevés',          ico: '📄', href: '/index_legacy.html' },
+      { id: 'saisie-notes', label: 'Saisie des notes', ico: '✏️', href: '/saisie-notes' },
+      { id: 'presences',    label: 'Présences',        ico: '📋', href: '/presences' },
+      { id: 'resultats',    label: 'Résultats',        ico: '📊', href: '/resultats' },
+      { id: 'deliberations',label: 'Délibérations',   ico: '⚖️', href: '/deliberations' },
+      { id: 'releves',      label: 'Relevés',          ico: '📄', href: '/releves' },
     ]},
     { group: 'ÉTABLISSEMENT', items: [
-      { id: 'enseignants',  label: 'Enseignants',  ico: '👨‍🏫', href: '/index_legacy.html' },
-      { id: 'comptabilite', label: 'Comptabilité', ico: '💰', href: '/index_legacy.html' },
-      { id: 'messages',     label: 'Messages',     ico: '💬', href: '/index_legacy.html' },
+      { id: 'enseignants',  label: 'Enseignants',  ico: '👨‍🏫', href: '/enseignants' },
+      { id: 'comptabilite', label: 'Comptabilité', ico: '💰', href: '/comptabilite' },
+      { id: 'messages',     label: 'Messages',     ico: '💬', href: legacy },
     ]},
     { group: 'SYSTÈME', items: [
-      { id: 'parametres', label: 'Paramètres', ico: '⚙️', href: '/index_legacy.html' },
+      { id: 'parametres', label: 'Paramètres', ico: '⚙️', href: '/parametres' },
     ]},
   ];
 
@@ -76,7 +78,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
                 return (
                   <a
                     key={item.id}
-                    href={isReact ? item.href : (window.location.hostname === 'localhost' ? 'https://app.edulink.bj' : '/index_legacy.html')}
+                    href={item.href}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '7px 10px', borderRadius: 8, textDecoration: 'none',

@@ -1,10 +1,48 @@
 // src/App.tsx
+// Router principal avec lazy loading par module
+// Chaque module est chargé à la demande — bundle splitting automatique
+
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+
+// ── Lazy loading par module ────────────────────────────────────────────────
+const EtudiantsPage    = lazy(() => import('./modules/etudiants'));
+const ResultatsPage    = lazy(() => import('./modules/resultats'));
+const RelevesPage      = lazy(() => import('./modules/releves'));
+const SaisieNotesPage  = lazy(() => import('./modules/saisie-notes'));
+const PresencesPage    = lazy(() => import('./modules/presences'));
+const DeliberationsPage= lazy(() => import('./modules/deliberations'));
+const EnseignantsPage  = lazy(() => import('./modules/enseignants'));
+const ComptabilitePage = lazy(() => import('./modules/comptabilite'));
+const ParametresPage   = lazy(() => import('./modules/parametres'));
+
+// ── Spinner de chargement lazy ─────────────────────────────────────────────
+function PageLoader() {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+      <div style={{ width: 28, height: 28, border: '3px solid #e2e8f0', borderTopColor: '#1e3a5f', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+// ── HOC route protégée avec layout ─────────────────────────────────────────
+function AppRoute({ page, children }: { page: string; children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <AppLayout currentPage={page}>
+        <Suspense fallback={<PageLoader />}>
+          {children}
+        </Suspense>
+      </AppLayout>
+    </ProtectedRoute>
+  );
+}
 
 export default function App() {
   return (
@@ -14,19 +52,25 @@ export default function App() {
           {/* Route publique */}
           <Route path="/login" element={<LoginPage />} />
 
-          {/* Dashboard protégé */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <AppLayout currentPage="dashboard">
-                  <DashboardPage />
-                </AppLayout>
-              </ProtectedRoute>
-            }
-          />
+          {/* Dashboard */}
+          <Route path="/dashboard" element={
+            <AppRoute page="dashboard"><DashboardPage /></AppRoute>
+          } />
 
-          {/* Redirect racine */}
+          {/* Modules pédagogie */}
+          <Route path="/etudiants"    element={<AppRoute page="etudiants">   <EtudiantsPage /></AppRoute>} />
+          <Route path="/resultats"    element={<AppRoute page="resultats">   <ResultatsPage /></AppRoute>} />
+          <Route path="/releves"      element={<AppRoute page="releves">     <RelevesPage /></AppRoute>} />
+          <Route path="/saisie-notes" element={<AppRoute page="saisie-notes"><SaisieNotesPage /></AppRoute>} />
+          <Route path="/presences"    element={<AppRoute page="presences">   <PresencesPage /></AppRoute>} />
+          <Route path="/deliberations"element={<AppRoute page="deliberations"><DeliberationsPage /></AppRoute>} />
+
+          {/* Établissement */}
+          <Route path="/enseignants"  element={<AppRoute page="enseignants"> <EnseignantsPage /></AppRoute>} />
+          <Route path="/comptabilite" element={<AppRoute page="comptabilite"><ComptabilitePage /></AppRoute>} />
+          <Route path="/parametres"   element={<AppRoute page="parametres">  <ParametresPage /></AppRoute>} />
+
+          {/* Redirects */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
