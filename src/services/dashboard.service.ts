@@ -12,6 +12,7 @@ export interface DashboardKPIs {
   anneeLibelle:    string;
   tauxValidation:  number;
   nbValides:       number;
+  creditsTotal:    number;
 }
 
 export interface SemestreEnCours {
@@ -126,12 +127,14 @@ export async function loadDashboard(ecoleId: string): Promise<DashboardData> {
       color: COLORS[i % COLORS.length],
     }));
 
+  const creditsTotal = (cache ?? []).reduce((s, c) => s + (c.credits_valides || 0), 0);
+
   return {
     kpis: {
       nbEtudiants, nbInscrits, nbSemestresActifs,
       nbProgrammes: progMap.size,
       nbUE, anneeLibelle: annee?.libelle ?? '—',
-      tauxValidation, nbValides,
+      tauxValidation, nbValides, creditsTotal,
     },
     semestres: semestresEnCours,
     programmes,

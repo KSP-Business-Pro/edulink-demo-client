@@ -94,6 +94,84 @@ function DonutChart({ programmes }: { programmes: DashboardData['programmes'] })
   );
 }
 
+
+// ── Accès rapides ──────────────────────────────────────────────────────────
+const QUICK_LINKS = [
+  { ico: '✏️', label: 'Saisie notes', href: 'https://app.edulink.bj', color: '#dbeafe' },
+  { ico: '📋', label: 'Résultats',    href: 'https://app.edulink.bj', color: '#dcfce7' },
+  { ico: '📄', label: 'Relevés',      href: 'https://app.edulink.bj', color: '#ede9fe' },
+  { ico: '👥', label: 'Promotions',   href: 'https://app.edulink.bj', color: '#fef9c3' },
+  { ico: '🧑‍🎓', label: 'Étudiants',  href: 'https://app.edulink.bj', color: '#ffedd5' },
+  { ico: '👨‍🏫', label: 'Enseignants', href: 'https://app.edulink.bj', color: '#ccfbf1' },
+];
+
+function QuickAccess() {
+  return (
+    <div style={styles.block}>
+      <div style={styles.blockTitle}>⚡ Accès rapides</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {QUICK_LINKS.map(link => (
+          <a
+            key={link.label}
+            href={link.href}
+            style={{
+              background: link.color, borderRadius: 10, padding: '0.85rem',
+              textAlign: 'center', cursor: 'pointer', textDecoration: 'none',
+              transition: 'opacity .15s', display: 'block',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+          >
+            <div style={{ fontSize: 22, marginBottom: 4 }}>{link.ico}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>{link.label}</div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Crédits CAMES ──────────────────────────────────────────────────────────
+function CreditsCAMES({ kpis }: { kpis: DashboardData['kpis'] }) {
+  const hasData = kpis.creditsTotal > 0;
+  return (
+    <div style={styles.block}>
+      <div style={styles.blockTitle}>🏅 Crédits CAMES validés</div>
+      {hasData ? (
+        <>
+          <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+            <div style={{ fontSize: 48, fontWeight: 800, color: '#1e3a5f', lineHeight: 1 }}>
+              {kpis.creditsTotal}
+            </div>
+            <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
+              crédits CECT validés au total
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 8 }}>
+            {[
+              { val: kpis.nbValides,                   label: 'Validés',     color: '#059669' },
+              { val: kpis.nbInscrits - kpis.nbValides, label: 'Non validés', color: '#dc2626' },
+              { val: `${kpis.tauxValidation}%`,        label: 'Taux',        color: '#7c3aed' },
+            ].map(({ val, label, color }) => (
+              <div key={label} style={{ textAlign: 'center', background: '#f9fafb', borderRadius: 10, padding: '0.75rem', border: '1px solid #f3f4f6' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color }}>{val}</div>
+                <div style={{ fontSize: 10.5, color: '#6b7280' }}>{label}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div style={{ ...styles.empty, padding: '1.5rem' }}>
+          <p>Aucune note saisie pour l'instant</p>
+          <a href="https://app.edulink.bj" style={{ display: 'inline-block', marginTop: 8, fontSize: 13, color: '#1e3a5f' }}>
+            Commencer la saisie →
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page principale ────────────────────────────────────────────────────────
 
 export function DashboardPage() {
@@ -207,6 +285,12 @@ export function DashboardPage() {
           </button>
         </div>
 
+      </div>
+
+      {/* Ligne 2 — Accès rapides + Crédits CAMES */}
+      <div style={styles.grid}>
+        <QuickAccess />
+        <CreditsCAMES kpis={kpis} />
       </div>
 
       {/* Lien back-office */}
