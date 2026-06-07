@@ -36,7 +36,18 @@ export default function EtudiantsPage() {
   const [page,      setPage]      = useState(0);
   const [ficheId,   setFicheId]   = useState<string | null>(null);
 
-  const ecoleId = user?.ecole_id ?? null;
+  // Super-admin : récupérer ecole_id depuis le Dashboard (localStorage)
+  const [ecoleId, setEcoleId] = useState<string | null>(user?.ecole_id ?? null);
+
+  useEffect(() => {
+    if (user?.ecole_id) { setEcoleId(user.ecole_id); return; }
+    // Super-admin : charger la première école disponible
+    import('../../services/supabase').then(({ supabase }) => {
+      supabase.from('ecoles').select('id,nom').order('nom').limit(1).maybeSingle().then(({ data }) => {
+        if (data?.id) setEcoleId(data.id);
+      });
+    });
+  }, [user?.ecole_id]);
 
   // Chargement
   const load = async () => {
@@ -52,7 +63,7 @@ export default function EtudiantsPage() {
     }
   };
 
-  useEffect(() => { load(); }, [ecoleId]);
+  useEffect(() => { if (ecoleId) load(); }, [ecoleId]);
 
   // Filtrage
   const filtered = useMemo(() => {
