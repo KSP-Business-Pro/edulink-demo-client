@@ -2,6 +2,7 @@
 // Layout principal — sidebar + contenu — réplique fidèle du legacy
 
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -10,6 +11,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, currentPage }: AppLayoutProps) {
   const { user, logout, isSuperAdmin } = useAuth();
+  const { visibleModules } = usePermissions();
 
   const legacy = window.location.hostname === 'localhost' ? 'https://app.edulink.bj' : '/index_legacy.html';
 
@@ -73,6 +75,8 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
                 {group.group}
               </div>
               {group.items.map(item => {
+                // Masquer si permission insuffisante
+                if (!visibleModules.includes(item.id)) return null;
                 const isActive = currentPage === item.id;
                 const isReact  = item.href === '/dashboard';
                 return (

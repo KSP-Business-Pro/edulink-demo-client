@@ -4,15 +4,19 @@
 
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import type { UserRole } from '../types/auth.types';
+import type { Permissions } from '../services/permissions';
 
 interface ProtectedRouteProps {
-  children:      React.ReactNode;
-  allowedRoles?: UserRole[];   // si absent → tout utilisateur connecté passe
+  children:       React.ReactNode;
+  allowedRoles?:  UserRole[];          // si absent → tout utilisateur connecté passe
+  requiredPerm?:  keyof Permissions;   // permission spécifique requise
 }
 
-export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, allowedRoles, requiredPerm }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
+  const { can } = usePermissions();
   const location = useLocation();
 
   // Pendant la vérification de session — spinner sobre
@@ -49,6 +53,23 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
         <h2 style={{ margin: 0 }}>Accès refusé</h2>
         <p style={{ color: '#64748b', margin: 0 }}>
           Votre rôle <strong>{user.role}</strong> ne permet pas d'accéder à cette page.
+        </p>
+      </div>
+    );
+  }
+
+  // Permission spécifique insuffisante
+  if (requiredPerm && !can(requiredPerm)) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', height: '100vh', gap: 12,
+        fontFamily: 'Segoe UI, sans-serif', color: '#1e293b',
+      }}>
+        <div style={{ fontSize: 48 }}>🔒</div>
+        <h2 style={{ margin: 0 }}>Permission insuffisante</h2>
+        <p style={{ color: '#64748b', margin: 0 }}>
+          Votre rôle <strong>{user?.role}</strong> ne permet pas cette action.
         </p>
       </div>
     );
