@@ -61,11 +61,14 @@ interface SnapshotNotes {
 // Helpers calcul
 // ---------------------------------------------------------------------------
 
+// ── CORRIGÉ : moyenne pondérée par crédits (cohérence avec JS et fn_resultats_semestre) ──
 function calculMoyenneSemestre(resultats: ResultatUE[]): number | null {
-  const uesAvecNote = resultats.filter((r) => r.moyenne_ue !== null);
+  const uesAvecNote = resultats.filter((r) => r.moyenne_ue !== null && !r.est_exclu);
   if (uesAvecNote.length === 0) return null;
-  const somme = uesAvecNote.reduce((acc, r) => acc + (r.moyenne_ue ?? 0), 0);
-  return Math.round((somme / uesAvecNote.length) * 100) / 100;
+  const totalPoids = uesAvecNote.reduce((acc, r) => acc + (r.ue_credits || 1), 0);
+  if (totalPoids === 0) return null;
+  const sommePonderee = uesAvecNote.reduce((acc, r) => acc + (r.moyenne_ue ?? 0) * (r.ue_credits || 1), 0);
+  return Math.round((sommePonderee / totalPoids) * 100) / 100;
 }
 
 function calculMention(moyenne: number | null): string | null {
@@ -266,7 +269,6 @@ Deno.serve(async (req: Request) => {
       if (!etudiant?.email_auth) {
         return Response.json({ success: true, email_envoye: false, detail: "no_email" }, { headers: CORS_HEADERS });
       }
-      // Sujet depuis les règles de l'école
       const { data: reglesResend } = await supabase.from("regles_ecole")
         .select("notif_releve_sujet").eq("ecole_id", etudiant.ecole_id).maybeSingle();
       const sujetResend = substituerVariables(
@@ -306,21 +308,6 @@ Deno.serve(async (req: Request) => {
     // =========================================================================
     if (!session_id) {
       return Response.json({ error: "session_id requis pour la publication" }, { status: 400, headers: CORS_HEADERS });
-    }
-
-    // 0. GARDE — session clôturée (délibération validée → publication impossible)
-    {
-      const { data: sess } = await supabase
-        .from("sessions_evaluation")
-        .select("statut")
-        .eq("id", session_id)
-        .maybeSingle();
-      if (sess?.statut === "cloture") {
-        return Response.json({
-          error: "Session clôturée — délibération validée, publication impossible",
-          detail: "session_cloturee",
-        }, { status: 409, headers: CORS_HEADERS });
-      }
     }
 
     // 0. GARDE — blocage relevé si impayés + chargement règles école
@@ -404,7 +391,7 @@ Deno.serve(async (req: Request) => {
     const { data: ecole } = await supabase.from("ecoles")
       .select("nom, logo_url").eq("id", etudiant.ecole_id).single();
 
-    // 3. Snapshot
+    // 3. Snapshot — moyenne pondérée par crédits (cohérence JS + fn_resultats_semestre)
     const creditsTentes = (resultats as ResultatUE[]).reduce((a, r) => a + (r.obligatoire ? r.ue_credits : 0), 0);
     const creditsValides = (resultats as ResultatUE[]).reduce((a, r) => a + r.credits_acquis, 0);
     const moyenneSemestre = calculMoyenneSemestre(resultats as ResultatUE[]);
@@ -424,7 +411,7 @@ Deno.serve(async (req: Request) => {
       mention,
     };
 
-    // 4. Upsert releves_notes (verrouille:false explicite — un nouveau snapshot n'est jamais verrouillé)
+    // 4. Upsert releves_notes
     const { data: releve, error: errReleve } = await supabase.from("releves_notes").upsert({
       etudiant_id, semestre_id, session_id,
       ecole_id: etudiant.ecole_id,
