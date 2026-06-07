@@ -4302,7 +4302,7 @@ async function _calculerUnEtudiant(etudiantId, semId) {
   // ── Règles LMD de l'école (cachées pour éviter N requêtes en batch) ──
   if (!_reglesCache) {
     const { data: r } = await db.from('regles_ecole')
-      .select('seuil_validation_ue,note_plancher_active,seuil_note_plancher,compensation_active')
+      .select('seuil_validation_ue,note_plancher_active,seuil_note_plancher,compensation_active,regle_rattrapage')
       .eq('ecole_id', currentEcoleId).maybeSingle();
     _reglesCache = r || {};
   }
@@ -4435,7 +4435,7 @@ async function chargerResultatsRattrapage() {
 
   el.innerHTML = `
     <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem;font-size:13px;color:#92400e">
-      ⚖️ <strong>Règle appliquée :</strong> Max(note normale, note rattrapage) par UE · Seuil validation : ${_reglesCache?.seuil_validation_ue ?? 10}/20
+      ⚖️ <strong>Règle appliquée :</strong> ${_reglesCache?.regle_rattrapage === 'remplacement' ? 'Note rattrapage remplace la normale' : 'Max(note normale, note rattrapage)'} par UE · Seuil validation : ${_reglesCache?.seuil_validation_ue ?? 10}/20
     </div>
     <div style="overflow-x:auto"><table class="table">
       <thead><tr>
@@ -4485,7 +4485,7 @@ async function calculerRattrapageBatch(semId) {
   if (!semId) { toast('Sélectionnez un semestre', 'error'); return; }
   if (!_reglesCache) {
     const { data: r } = await db.from('regles_ecole')
-      .select('seuil_validation_ue,note_plancher_active,seuil_note_plancher,compensation_active')
+      .select('seuil_validation_ue,note_plancher_active,seuil_note_plancher,compensation_active,regle_rattrapage')
       .eq('ecole_id', currentEcoleId).maybeSingle();
     _reglesCache = r || {};
   }
@@ -4519,11 +4519,13 @@ async function calculerRattrapageBatch(semId) {
     const rattMap = {};
     (rattMoy || []).forEach(r => { rattMap[r.ue_id] = parseFloat(r.moy_rattrapage); });
 
-    // Combiner : max(normale, rattrapage) par UE
+    // Combiner selon regle_rattrapage : max ou remplacement
+    const regleRatt = _reglesCache.regle_rattrapage || 'max';
     let finalRes = normRes.map(ue => {
       const mRatt = rattMap[ue.ue_id];
       if (mRatt !== undefined) {
-        const mFinal = Math.max(parseFloat(ue.moyenne_ue) || 0, mRatt);
+        const mNorm = parseFloat(ue.moyenne_ue) || 0;
+        const mFinal = regleRatt === 'remplacement' ? mRatt : Math.max(mNorm, mRatt);
         const validee = mFinal >= seuilUE;
         return { ...ue, moyenne_ue: Math.round(mFinal * 100) / 100, ue_validee: validee, credits_acquis: validee ? ue.ue_credits : 0 };
       }
@@ -5598,6 +5600,10 @@ async function sauvegarderNote(input, etudiantId, evaluationId) {
   }
   input.style.borderColor = '#059669';
   input.disabled = true;
+  // Lire note existante AVANT upsert pour historique fidèle
+  const { data: noteExist } = await db.from('notes_lmd')
+    .select('valeur').eq('etudiant_id', etudiantId).eq('evaluation_id', evaluationId).maybeSingle();
+  const ancienneValeur = noteExist?.valeur ?? null;
 
   // Récupérer session_id et ecole_id
   const { data: ev } = await db.from('evaluations').select('session_id').eq('id', evaluationId).single();
@@ -5619,7 +5625,7 @@ async function sauvegarderNote(input, etudiantId, evaluationId) {
   } else {
     setTimeout(() => { input.style.borderColor = '#e5e7eb'; }, 1500);
     // Journalisation silencieuse
-    _logNote(etudiantId, evaluationId, null, valeur);
+    _logNote(etudiantId, evaluationId, ancienneValeur, valeur);
     // Recharger la grille pour recalculer les moyennes
     await chargerGrilleNotes();
   }
@@ -5770,6 +5776,8 @@ async function lancerImportNotes() {
 // ── Notes — fonctions complémentaires ────────────────────────────────────────
 async function toggleAbsent(etudiantId, evaluationId, isAbsent) {
   const { data: ev } = await db.from('evaluations').select('session_id').eq('id', evaluationId).single();
+  const { data: noteExist } = await db.from('notes_lmd')
+    .select('valeur').eq('etudiant_id', etudiantId).eq('evaluation_id', evaluationId).maybeSingle();
   const { error } = await db.from('notes_lmd').upsert({
     etudiant_id:   etudiantId,
     evaluation_id: evaluationId,
@@ -5779,6 +5787,8 @@ async function toggleAbsent(etudiantId, evaluationId, isAbsent) {
     valeur:        null
   }, { onConflict: 'etudiant_id,evaluation_id' });
   if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+  // Journaliser le passage en absent (valeur → null)
+  if (!isAbsent) _logNote(etudiantId, evaluationId, noteExist?.valeur ?? null, null);
   await chargerGrilleNotes();
 }
 
