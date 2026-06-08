@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduLink Sup — Guide Administrateur</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; color: #1e293b; background: #f8fafc; line-height: 1.6; }
+  .layout { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  nav { width: 260px; background: #1e3a5f; color: #fff; padding: 1.5rem 1rem; position: fixed; height: 100vh; overflow-y: auto; flex-shrink: 0; }
+  nav .logo { font-size: 20px; font-weight: 700; margin-bottom: .25rem; }
+  nav .logo span { color: #d97706; }
+  nav .subtitle { font-size: 11px; color: #94a3b8; margin-bottom: 1.5rem; }
+  nav .section-title { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .08em; margin: 1rem 0 .4rem; padding-left: 8px; }
+  nav a { display: block; padding: 6px 8px; color: #cbd5e1; font-size: 12.5px; text-decoration: none; border-radius: 6px; margin-bottom: 2px; }
+  nav a:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+  /* Main */
+  main { margin-left: 260px; padding: 2rem 3rem; max-width: 960px; }
+  h1 { font-size: 28px; font-weight: 700; color: #1e3a5f; margin-bottom: .5rem; }
+  h2 { font-size: 20px; font-weight: 700; color: #1e3a5f; margin: 2.5rem 0 1rem; padding-bottom: .5rem; border-bottom: 2px solid #e2e8f0; }
+  h3 { font-size: 15px; font-weight: 600; color: #334155; margin: 1.5rem 0 .75rem; }
+  h4 { font-size: 13px; font-weight: 600; color: #475569; margin: 1rem 0 .5rem; }
+  p { font-size: 13.5px; color: #475569; margin-bottom: .75rem; }
+  ul, ol { padding-left: 1.5rem; margin-bottom: .75rem; }
+  li { font-size: 13.5px; color: #475569; margin-bottom: .3rem; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; color: #0f172a; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 1rem 1.25rem; border-radius: 10px; overflow-x: auto; margin: .75rem 0 1rem; font-size: 12px; line-height: 1.7; }
+  pre code { background: none; color: inherit; padding: 0; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge-blue   { background: #dbeafe; color: #1e40af; }
+  .badge-green  { background: #dcfce7; color: #166534; }
+  .badge-amber  { background: #fef3c7; color: #92400e; }
+  .badge-red    { background: #fee2e2; color: #991b1b; }
+  .badge-purple { background: #ede9fe; color: #5b21b6; }
+  .callout { padding: 1rem 1.25rem; border-radius: 10px; margin: 1rem 0; font-size: 13px; }
+  .callout-info    { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e40af; }
+  .callout-warning { background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; }
+  .callout-success { background: #f0fdf4; border-left: 4px solid #22c55e; color: #166534; }
+  .callout-error   { background: #fff1f2; border-left: 4px solid #f43f5e; color: #9f1239; }
+  table { width: 100%; border-collapse: collapse; margin: .75rem 0 1rem; font-size: 13px; }
+  th { background: #f1f5f9; padding: 8px 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+  tr:hover td { background: #f8fafc; }
+  .hero { background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%); color: #fff; padding: 2.5rem; border-radius: 16px; margin-bottom: 2rem; }
+  .hero h1 { color: #fff; }
+  .hero p { color: #bfdbfe; font-size: 14px; }
+  .step { display: flex; gap: 1rem; margin-bottom: 1.25rem; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; background: #1e3a5f; color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .step-body { flex: 1; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; }
+  .card h4 { margin-top: 0; color: #1e3a5f; }
+  @media print { nav { display: none; } main { margin-left: 0; } }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- Sidebar navigation -->
+<nav>
+  <div class="logo">EduLink <span>Sup</span></div>
+  <div class="subtitle">Guide Administrateur v1.0</div>
+
+  <div class="section-title">Introduction</div>
+  <a href="#presentation">Présentation</a>
+  <a href="#acces">Accès & connexion</a>
+  <a href="#roles">Rôles & permissions</a>
+
+  <div class="section-title">Pédagogie LMD</div>
+  <a href="#programmes">Programmes & UE</a>
+  <a href="#semestres">Semestres</a>
+  <a href="#promotions">Promotions</a>
+  <a href="#etudiants">Étudiants</a>
+
+  <div class="section-title">Évaluation</div>
+  <a href="#saisie">Saisie des notes</a>
+  <a href="#presences">Présences</a>
+  <a href="#resultats">Résultats</a>
+  <a href="#deliberations">Délibérations</a>
+  <a href="#releves">Relevés de notes</a>
+
+  <div class="section-title">Établissement</div>
+  <a href="#enseignants">Enseignants</a>
+  <a href="#comptabilite">Comptabilité</a>
+  <a href="#messages">Messages</a>
+
+  <div class="section-title">Système</div>
+  <a href="#parametres">Paramètres</a>
+  <a href="#monitoring">Monitoring</a>
+  <a href="#sauvegarde">Sauvegarde</a>
+  <a href="#faq">FAQ & dépannage</a>
+</nav>
+
+<!-- Main content -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Guide Administrateur — EduLink Sup</h1>
+    <p>Système de gestion pédagogique LMD-CAMES · Version 1.0 · Juin 2026</p>
+    <p style="margin-top:.5rem;font-size:12px;color:#93c5fd;">Ce guide couvre l'ensemble des modules du back-office app.edulink.bj</p>
+  </div>
+
+  <!-- PRÉSENTATION -->
+  <h2 id="presentation">1. Présentation de EduLink Sup</h2>
+  <p>EduLink Sup est un système de gestion académique conçu spécifiquement pour les universités privées LMD-CAMES du Bénin. Il couvre l'intégralité du cycle académique : de la structuration des programmes à la publication des relevés officiels.</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <h4>🌐 URLs de production</h4>
+      <ul>
+        <li><strong>Back-office :</strong> app.edulink.bj</li>
+        <li><strong>Portail étudiant :</strong> portail.edulink.bj</li>
+        <li><strong>Landing page :</strong> edulink.bj</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>🛠 Stack technique</h4>
+      <ul>
+        <li><strong>Frontend :</strong> React 18 + TypeScript + Vite</li>
+        <li><strong>Backend :</strong> Supabase (PostgreSQL + Auth)</li>
+        <li><strong>Déploiement :</strong> Vercel</li>
+        <li><strong>Emails :</strong> Brevo</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ACCÈS -->
+  <h2 id="acces">2. Accès & connexion</h2>
+  <p>Rendez-vous sur <code>app.edulink.bj</code> et connectez-vous avec votre adresse email et mot de passe.</p>
+
+  <div class="callout callout-warning">
+    <strong>⚠️ Première connexion :</strong> Si c'est votre première connexion, vérifiez votre boîte email pour le lien de confirmation Supabase Auth. Le mot de passe peut être réinitialisé depuis la page de connexion.
+  </div>
+
+  <h3>Récupération de mot de passe</h3>
+  <div class="step"><div class="step-num">1</div><div class="step-body">Cliquez sur <em>"Mot de passe oublié"</em> sur la page de connexion</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body">Entrez votre adresse email institutionnelle</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body">Suivez le lien reçu par email (valable 1 heure)</div></div>
+
+  <!-- RÔLES -->
+  <h2 id="roles">3. Rôles & permissions</h2>
+  <p>EduLink Sup distingue 7 rôles avec des niveaux d'accès différenciés :</p>
+
+  <table>
+    <thead><tr><th>Rôle</th><th>Description</th><th>Modules accessibles</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-red">admin</span></td><td>Super-administrateur réseau</td><td>Tous modules + monitoring + toutes écoles</td></tr>
+      <tr><td><span class="badge badge-purple">direction</span></td><td>Direction de l'établissement</td><td>Tous modules sauf monitoring</td></tr>
+      <tr><td><span class="badge badge-blue">scolarite</span></td><td>Service scolarité</td><td>Étudiants, notes, résultats, relevés, présences</td></tr>
+      <tr><td><span class="badge badge-green">enseignant</span></td><td>Corps enseignant</td><td>Saisie notes (ses matières), présences</td></tr>
+      <tr><td><span class="badge badge-amber">comptable</span></td><td>Service comptabilité</td><td>Comptabilité uniquement</td></tr>
+      <tr><td><span class="badge badge-blue">etudiant</span></td><td>Étudiant (portail)</td><td>Portail étudiant uniquement</td></tr>
+      <tr><td><span class="badge badge-blue">parent</span></td><td>Parent/tuteur</td><td>Portail famille uniquement</td></tr>
+    </tbody>
+  </table>
+
+  <!-- PROGRAMMES -->
+  <h2 id="programmes">4. Programmes & Unités d'Enseignement</h2>
+
+  <h3>4.1 Créer un programme LMD</h3>
+  <div class="step"><div class="step-num">1</div><div class="step-body">Aller dans <strong>Programmes & UE</strong> → cliquer <strong>+ Programme</strong></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body">Choisir le grade (Licence / Master / Doctorat) — les crédits totaux et la durée se remplissent automatiquement selon CAMES</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body">Saisir l'intitulé, la filière, et activer le programme</div></div>
+
+  <div class="callout callout-info">
+    <strong>ℹ️ Standard CAMES :</strong> Licence = 180 crédits (3 ans), Master = 120 crédits (2 ans), Doctorat = 180 crédits (3 ans).
+  </div>
+
+  <h3>4.2 Créer une Unité d'Enseignement (UE)</h3>
+  <p>Depuis l'onglet <strong>Unités d'Enseignement</strong>, cliquer <strong>+ UE</strong>. Chaque UE requiert :</p>
+  <ul>
+    <li>Un code unique (ex : <code>ACG-M1-UE1</code>)</li>
+    <li>Des crédits CECT (en multiples de 3 généralement)</li>
+    <li>La pondération CC / Examen (total doit = 100%)</li>
+    <li>Le semestre d'appartenance</li>
+  </ul>
+
+  <h3>4.3 Ajouter des matières à une UE</h3>
+  <p>Depuis le panneau d'une UE, cliquer <strong>+ Matière</strong>. Chaque matière peut être assignée à un enseignant et avoir un coefficient CM/TD.</p>
+
+  <!-- SEMESTRES -->
+  <h2 id="semestres">5. Semestres & Années académiques</h2>
+
+  <h3>5.1 Créer une année académique</h3>
+  <p>Dans <strong>Semestres</strong> → onglet <strong>Années académiques</strong> → <strong>+ Année</strong>. Cocher <em>Année courante</em> pour l'année en cours.</p>
+
+  <div class="callout callout-warning">
+    <strong>⚠️ Une seule année courante :</strong> Marquer une année comme courante désactive automatiquement l'ancienne. Cette valeur est utilisée dans les calculs et l'affichage des résultats.
+  </div>
+
+  <h3>5.2 Créer un semestre</h3>
+  <p>Cliquer <strong>+ Semestre</strong> et renseigner :</p>
+  <table>
+    <thead><tr><th>Champ</th><th>Valeur</th></tr></thead>
+    <tbody>
+      <tr><td>Libellé</td><td>ex : S1 — Licence GFC 2025-2026</td></tr>
+      <tr><td>Numéro</td><td>1 à 8 (LMD = 6 semestres Licence, 4 Master)</td></tr>
+      <tr><td>Statut</td><td><span class="badge badge-amber">planifié</span> → <span class="badge badge-green">en cours</span> → <span class="badge badge-blue">clôturé</span></td></tr>
+      <tr><td>Programme</td><td>Programme LMD associé</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.3 Sessions d'évaluation</h3>
+  <p>Chaque semestre peut avoir deux sessions : <strong>normale</strong> et <strong>rattrapage</strong>. Activer le rattrapage depuis le tableau des sessions du semestre.</p>
+
+  <!-- PROMOTIONS -->
+  <h2 id="promotions">6. Promotions</h2>
+  <p>Une promotion regroupe les étudiants d'un même niveau et programme pour une année académique donnée.</p>
+
+  <div class="step"><div class="step-num">1</div><div class="step-body">Cliquer <strong>+ Promotion</strong></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body">Sélectionner le programme et le niveau — le nom se génère automatiquement</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body">Définir l'effectif maximum et le responsable pédagogique</div></div>
+
+  <!-- ÉTUDIANTS -->
+  <h2 id="etudiants">7. Étudiants</h2>
+
+  <h3>7.1 Ajouter un étudiant</h3>
+  <div class="step"><div class="step-num">1</div><div class="step-body">Cliquer <strong>+ Étudiant</strong> → remplir le formulaire (Nom, Prénom, Date naissance, Filière, Niveau)</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body">Le matricule est généré automatiquement au format <code>hemec-GFC-0031</code></div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body">Inscrire l'étudiant à un semestre depuis sa fiche</div></div>
+
+  <h3>7.2 Import en masse (CSV/Excel)</h3>
+  <p>Depuis le bouton <strong>Importer</strong>, téléverser un fichier CSV ou Excel avec les colonnes :</p>
+  <pre><code>nom, prenom, date_naissance, filiere, niveau, email_auth, telephone</code></pre>
+
+  <div class="callout callout-info">
+    <strong>ℹ️ Colonnes obligatoires :</strong> <code>nom</code> et <code>prenom</code>. Les autres colonnes sont optionnelles. L'ordre des colonnes n'importe pas — la détection est automatique.
+  </div>
+
+  <!-- SAISIE DES NOTES -->
+  <h2 id="saisie">8. Saisie des notes</h2>
+
+  <h3>8.1 Flux de saisie</h3>
+  <div class="step"><div class="step-num">1</div><div class="step-body">Sélectionner le semestre et la session (normale / rattrapage)</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body">Choisir la matière dans la liste — la grille des étudiants s'affiche</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body">Saisir les notes CC et Examen — sauvegarde automatique au changement de champ</div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-body">Marquer ABS pour les absents — leur moyenne sera NULL</div></div>
+
+  <h3>8.2 Import notes Excel</h3>
+  <p>Cliquer <strong>Importer Excel</strong> → uploader un fichier avec colonnes <code>matricule</code>, <code>cc</code>, <code>examen</code>. Les notes existantes sont écrasées après confirmation.</p>
+
+  <h3>8.3 Verrouillage des notes</h3>
+  <p>Après délibération, le responsable pédagogique peut <strong>clôturer la session</strong>. Les notes ne sont plus modifiables sauf déverrouillage explicite par la direction.</p>
+
+  <div class="callout callout-warning">
+    <strong>⚠️ Note plancher :</strong> Si activé dans Paramètres, une note inférieure au seuil plancher bloque la validation de l'UE même si la moyenne compensatoire est atteinte.
+  </div>
+
+  <!-- PRÉSENCES -->
+  <h2 id="presences">9. Présences</h2>
+
+  <h3>9.1 Créer une séance</h3>
+  <p>Dans <strong>Présences</strong> → onglet <strong>Saisie séance</strong> → remplir matière, date, type (CM/TD/TP/Examen) et horaires → cliquer <strong>Créer la séance et saisir les présences</strong>.</p>
+
+  <h3>9.2 Saisir les présences</h3>
+  <p>Dans le modal de saisie, cliquer sur le statut de chaque étudiant : <span class="badge badge-green">✅ Présent</span> <span class="badge badge-amber">⏰ Retard</span> <span class="badge badge-red">❌ Absent</span> <span class="badge badge-purple">📄 Justifié</span>. La sauvegarde est immédiate.</p>
+
+  <h3>9.3 Exclusions pour absences</h3>
+  <p>Le seuil d'exclusion est configurable dans <strong>Paramètres → Règles LMD</strong> (défaut : 30%). Les étudiants dépassant ce seuil apparaissent dans l'onglet <strong>Exclusions</strong>. Le bouton <strong>Appliquer exclusions auto</strong> traite tous les cas en un clic.</p>
+
+  <div class="callout callout-error">
+    <strong>🔴 Impact sur les résultats :</strong> Un étudiant exclu d'une UE obtient automatiquement une moyenne NULL pour cette UE — il ne peut pas être admis ni compensé sur cette UE.
+  </div>
+
+  <!-- RÉSULTATS -->
+  <h2 id="resultats">10. Résultats LMD-CAMES</h2>
+
+  <h3>10.1 Calcul des résultats</h3>
+  <div class="step"><div class="step-num">1</div><div class="step-body">Aller dans <strong>Résultats</strong> → sélectionner le semestre</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body">Cliquer <strong>Calculer résultats</strong> — le calcul LMD-CAMES s'effectue pour tous les étudiants</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body">Vérifier les résultats dans le tableau — colonne <em>Décision</em> indique Admis / Ajourné</div></div>
+
+  <h3>10.2 Logique de calcul CAMES</h3>
+  <table>
+    <thead><tr><th>Règle</th><th>Description</th><th>Configuration</th></tr></thead>
+    <tbody>
+      <tr><td>Moyenne UE</td><td>Moyenne pondérée CC/Examen par crédits</td><td>Pondération dans UE</td></tr>
+      <tr><td>Seuil validation UE</td><td>Minimum pour valider une UE</td><td>Paramètres → Règles (défaut 10/20)</td></tr>
+      <tr><td>Compensation</td><td>La moyenne générale compense les UE faibles</td><td>Activable par école</td></tr>
+      <tr><td>Note plancher</td><td>Minimum absolu à l'examen</td><td>Activable + seuil configurable</td></tr>
+      <tr><td>Rattrapage</td><td>Max des deux sessions ou remplacement</td><td>Paramètres → <code>max</code> / <code>ecrase</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>10.3 Mentions officielles</h3>
+  <table>
+    <thead><tr><th>Mention</th><th>Seuil</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-purple">Très Bien</span></td><td>≥ 16/20</td></tr>
+      <tr><td><span class="badge badge-green">Bien</span></td><td>≥ 14/20</td></tr>
+      <tr><td><span class="badge badge-blue">Assez Bien</span></td><td>≥ 12/20</td></tr>
+      <tr><td>Passable</td><td>≥ 10/20</td></tr>
+      <tr><td><span class="badge badge-red">Ajourné</span></td><td>&lt; 10/20</td></tr>
+    </tbody>
+  </table>
+
+  <!-- DÉLIBÉRATIONS -->
+  <h2 id="deliberations">11. Délibérations</h2>
+
+  <h3>11.1 Processus de délibération</h3>
+  <div class="step"><div class="step-num">1</div><div class="step-body">Aller dans <strong>Délibérations</strong> → sélectionner école + semestre</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body">Vérifier les décisions calculées automatiquement</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body">Modifier manuellement les décisions si le jury décide autrement (override)</div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-body">Cliquer <strong>Clôturer le semestre</strong> pour verrouiller définitivement</div></div>
+  <div class="step"><div class="step-num">5</div><div class="step-body">Cliquer <strong>Publier tous les relevés</strong> pour envoyer les relevés aux étudiants</div></div>
+
+  <div class="callout callout-warning">
+    <strong>⚠️ Clôture irréversible :</strong> Une fois le semestre clôturé, les notes ne peuvent plus être modifiées. Seul le super-admin peut déverrouiller en cas d'erreur.
+  </div>
+
+  <!-- RELEVÉS -->
+  <h2 id="releves">12. Relevés de notes</h2>
+
+  <h3>12.1 Publication individuelle</h3>
+  <p>Dans <strong>Relevés</strong>, cliquer <strong>Publier</strong> en face d'un étudiant. Le relevé est calculé, archivé et envoyé par email si l'option est activée.</p>
+
+  <h3>12.2 Publication en masse</h3>
+  <p>Cliquer <strong>Publier tous</strong> pour traiter tous les étudiants sans relevé. Cocher <em>Email à la publication</em> pour envoyer automatiquement.</p>
+
+  <h3>12.3 Verrouillage</h3>
+  <p>Cliquer 🔓 pour verrouiller un relevé — il devient définitif. Le 🔒 déverrouille. Un relevé verrouillé ne peut pas être republié.</p>
+
+  <h3>12.4 Blocage pour impayés</h3>
+  <p>Si activé dans Paramètres, un étudiant avec un solde dû supérieur à la tolérance ne peut pas recevoir son relevé. Le solde apparaît en rouge dans la colonne Actions.</p>
+
+  <!-- ENSEIGNANTS -->
+  <h2 id="enseignants">13. Enseignants</h2>
+  <p>Gérez le corps enseignant depuis <strong>Enseignants</strong>. Les grades CAMES disponibles sont : Assistant, Maître-Assistant, Maître de Conférences, Professeur.</p>
+  <p>Le bouton <strong>Matières</strong> affiche les matières LMD assignées à chaque enseignant (assignation depuis le module Programmes & UE).</p>
+
+  <!-- COMPTABILITÉ -->
+  <h2 id="comptabilite">14. Comptabilité</h2>
+
+  <h3>14.1 Créer une facture</h3>
+  <p>Cliquer <strong>+ Facture</strong> → sélectionner l'étudiant, le type de frais, le montant et l'échéance.</p>
+
+  <h3>14.2 Facturation en masse</h3>
+  <p>Cliquer <strong>Facturer une promotion</strong> → choisir le semestre et le type de frais → les factures sont créées pour tous les étudiants inscrits (doublons ignorés automatiquement).</p>
+
+  <h3>14.3 Enregistrer un paiement</h3>
+  <p>Depuis la <strong>Fiche</strong> d'un étudiant → cliquer <strong>+ Enregistrer un paiement</strong> → saisir le montant et le mode (Espèces / Virement / Mobile Money / Chèque).</p>
+
+  <h3>14.4 Statuts des factures</h3>
+  <table>
+    <thead><tr><th>Statut</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-red">en_attente</span></td><td>Aucun paiement reçu</td></tr>
+      <tr><td><span class="badge badge-amber">partiel</span></td><td>Paiement partiel reçu</td></tr>
+      <tr><td><span class="badge badge-green">paye</span></td><td>Facture soldée</td></tr>
+      <tr><td>annule</td><td>Facture annulée</td></tr>
+    </tbody>
+  </table>
+
+  <!-- PARAMÈTRES -->
+  <h2 id="parametres">15. Paramètres</h2>
+
+  <h3>15.1 Règles LMD CAMES</h3>
+  <p>Depuis <strong>Paramètres → ✏️ Modifier</strong> dans la section Règles :</p>
+  <ul>
+    <li><strong>Seuil validation UE :</strong> note minimale pour valider une UE (défaut 10/20)</li>
+    <li><strong>Compensation :</strong> active/désactive la compensation inter-UE</li>
+    <li><strong>Note plancher :</strong> seuil minimum absolu à l'examen</li>
+    <li><strong>Règle rattrapage :</strong> <code>max</code> (meilleure des deux sessions) ou <code>ecrase</code> (le rattrapage remplace)</li>
+    <li><strong>Seuil absences :</strong> pourcentage déclenchant une alerte/exclusion (défaut 30%)</li>
+    <li><strong>Blocage relevé :</strong> empêche la publication si solde impayé</li>
+  </ul>
+
+  <h3>15.2 Notifications email</h3>
+  <p>Configurer les 3 types de notifications et leur sujet :</p>
+  <ul>
+    <li><strong>Publication de relevé :</strong> envoyé à chaque publication individuelle</li>
+    <li><strong>Confirmation de paiement :</strong> envoyé après enregistrement d'un paiement</li>
+    <li><strong>Alerte absences :</strong> envoyé quand le seuil d'absence est dépassé</li>
+  </ul>
+  <p>Variables disponibles dans les sujets : <code>{semestre}</code> <code>{etudiant}</code> <code>{etablissement}</code> <code>{ue}</code></p>
+
+  <!-- MONITORING -->
+  <h2 id="monitoring">16. Monitoring (super-admin)</h2>
+  <p>Le dashboard <strong>Monitoring</strong> est accessible uniquement au super-administrateur réseau. Il affiche :</p>
+  <ul>
+    <li>KPIs réseau : écoles actives, étudiants, semestres en cours, relevés publiés</li>
+    <li>Alertes automatiques : impayés critiques (≥ 500 000 FCFA), exclusions en cours (≥ 3)</li>
+    <li>Tableau santé par école avec statut OK / Attention / Critique</li>
+    <li>Liens directs vers Supabase, Vercel et Brevo</li>
+  </ul>
+  <p>L'auto-refresh toutes les 5 minutes peut être activé depuis le bouton en haut de page.</p>
+
+  <!-- SAUVEGARDE -->
+  <h2 id="sauvegarde">17. Sauvegarde & restauration</h2>
+
+  <h3>17.1 Sauvegarde automatique Supabase</h3>
+  <p>Supabase effectue des sauvegardes automatiques quotidiennes (plan Pro). Pour accéder aux backups :</p>
+  <div class="step"><div class="step-num">1</div><div class="step-body">Aller sur <code>supabase.com/dashboard/project/kcfpvnrgutkhakogbjip</code></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-body">Section <strong>Database → Backups</strong></div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-body">Cliquer <strong>Download</strong> sur le backup souhaité</div></div>
+
+  <h3>17.2 Export manuel</h3>
+  <p>Pour exporter manuellement la base de données :</p>
+  <pre><code>pg_dump "postgresql://postgres:[PASSWORD]@db.kcfpvnrgutkhakogbjip.supabase.co:5432/postgres" \
+  --format=custom \
+  --file=edulink_backup_$(date +%Y%m%d).dump</code></pre>
+
+  <div class="callout callout-info">
+    <strong>ℹ️ Fréquence recommandée :</strong> Export manuel mensuel + backup Supabase automatique quotidien. Conserver les backups manuels dans un stockage externe (Google Drive, OneDrive).
+  </div>
+
+  <h3>17.3 Restauration</h3>
+  <pre><code>pg_restore --clean --if-exists \
+  -d "postgresql://postgres:[PASSWORD]@db.kcfpvnrgutkhakogbjip.supabase.co:5432/postgres" \
+  edulink_backup_20260608.dump</code></pre>
+
+  <div class="callout callout-error">
+    <strong>🔴 Attention :</strong> La restauration écrase toutes les données existantes. Effectuer un export avant toute restauration.
+  </div>
+
+  <!-- FAQ -->
+  <h2 id="faq">18. FAQ & Dépannage</h2>
+
+  <h3>❓ Le calcul des résultats ne se lance pas</h3>
+  <p>Vérifier que le semestre est en statut <span class="badge badge-green">en cours</span> et qu'une session normale existe. Aller dans <strong>Semestres</strong> pour créer la session si nécessaire.</p>
+
+  <h3>❓ Un relevé ne peut pas être publié</h3>
+  <p>Deux causes possibles :</p>
+  <ul>
+    <li><strong>Impayé :</strong> le blocage relevé est actif et l'étudiant a un solde dû. Aller dans Comptabilité pour régulariser ou désactiver le blocage dans Paramètres.</li>
+    <li><strong>Session manquante :</strong> aucune session normale n'existe pour ce semestre.</li>
+  </ul>
+
+  <h3>❓ La compensation ne s'applique pas</h3>
+  <p>Vérifier dans <strong>Paramètres → Règles LMD</strong> que <em>Compensation entre UE</em> est activée. Relancer le calcul après activation.</p>
+
+  <h3>❓ Les emails de relevés ne sont pas reçus</h3>
+  <p>Vérifier :</p>
+  <ul>
+    <li>L'adresse email de l'étudiant est renseignée dans sa fiche</li>
+    <li>La notification <em>Publication de relevé</em> est activée dans Paramètres</li>
+    <li>Le tableau de bord Brevo (<code>app.brevo.com</code>) pour voir les logs d'envoi</li>
+  </ul>
+
+  <h3>❓ Comment réinitialiser le mot de passe d'un utilisateur ?</h3>
+  <p>Via le dashboard Supabase → <strong>Authentication → Users</strong> → sélectionner l'utilisateur → <strong>Send password reset</strong>. L'utilisateur recevra un email de réinitialisation.</p>
+
+  <h3>❓ Un étudiant a été exclu par erreur</h3>
+  <p>Aller dans <strong>Présences → Exclusions</strong> → cliquer <strong>Lever</strong> en face de l'étudiant concerné. Relancer le calcul des résultats ensuite.</p>
+
+  <div style="margin-top: 3rem; padding: 1.5rem; background: #f1f5f9; border-radius: 12px; text-align: center;">
+    <p style="font-size: 12px; color: #64748b;">EduLink Sup — Guide Administrateur v1.0 · Juin 2026 · Afryx.io</p>
+    <p style="font-size: 12px; color: #94a3b8;">Support : ssadambi1@gmail.com</p>
+  </div>
+
+</main>
+</div>
+</body>
+</html>
