@@ -932,6 +932,8 @@ async function ouvrirApp(user) {
     document.getElementById('nav-ecole-nom').textContent = 'Toutes les écoles';
     document.getElementById('nav-ecole-type').textContent = 'Super-admin';
     await chargerSelecteurEcoles();
+    const navMon = document.getElementById('nav-monitoring');
+    if (navMon) navMon.style.display = '';
   }
   // Appliquer permissions selon rôle
   appliquerPermissions(currentRole);
@@ -948,9 +950,7 @@ function appliquerPermissions(role) {
   // Admin et directeur voient tout
   // Enseignant : masquer certaines pages
   if (role === 'enseignant') {
-    ['promotions','paiements','prospects','parametres','monitoring'].forEach(p => {
-    const navMon = document.getElementById('nav-monitoring');
-    if (navMon && currentEcoleId === null) navMon.style.display = '';
+    ['promotions','paiements','prospects','parametres'].forEach(p => {
       const a = document.querySelector(`nav a[data-page="${p}"]`);
       if (a) a.style.display = 'none';
     });
