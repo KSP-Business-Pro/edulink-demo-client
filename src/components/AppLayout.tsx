@@ -35,7 +35,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     { group: 'ÉTABLISSEMENT', items: [
       { id: 'enseignants',  label: 'Enseignants',  ico: '👨‍🏫', href: '/enseignants' },
       { id: 'comptabilite', label: 'Comptabilité', ico: '💰', href: '/comptabilite' },
-      { id: 'messages',     label: 'Messages',     ico: '💬', href: legacy },
+      { id: 'messages',     label: 'Messages',     ico: '💬', href: '/messages' },
     ]},
     { group: 'SYSTÈME', items: [
       { id: 'parametres', label: 'Paramètres', ico: '⚙️', href: '/parametres' },
