@@ -737,8 +737,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
     <div><h2>Monitoring</h2><p class="page-subtitle">Santé production — réseau EduLink Sup</p></div>
     <div class="top-actions">
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer">
-        <input type="checkbox" id="monitoring-autorefresh" onchange="toggleMonitoringAutoRefresh(this.checked)" style="width:14px;height:14px">
-        Auto-refresh 5 min
+        <input type="checkbox" id="monitoring-autorefresh" onchange="toggleMonitoringAutoRefresh(this.checked)" style="width:14px;height:14px"> Auto-refresh 5 min
       </label>
       <button class="btn-ghost btn-sm" onclick="chargerMonitoring()" id="monitoring-refresh-btn">🔄 Actualiser</button>
     </div>
@@ -951,7 +950,7 @@ function appliquerPermissions(role) {
   if (role === 'enseignant') {
     ['promotions','paiements','prospects','parametres','monitoring'].forEach(p => {
     const navMon = document.getElementById('nav-monitoring');
-    if (navMon && isSuperAdmin) navMon.style.display = '';
+    if (navMon && currentEcoleId === null) navMon.style.display = '';
       const a = document.querySelector(`nav a[data-page="${p}"]`);
       if (a) a.style.display = 'none';
     });
