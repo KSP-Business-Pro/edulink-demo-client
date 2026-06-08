@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build && copy index_legacy.html dist\\index_legacy.html && copy edulink-portail.html dist\\edulink-portail.html",
     "preview": "vite preview",
     "test": "node edulink_tests.mjs"
   },
