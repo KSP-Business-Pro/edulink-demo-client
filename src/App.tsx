@@ -12,6 +12,7 @@ import { DashboardPage } from './pages/DashboardPage';
 
 // ── Lazy loading par module ────────────────────────────────────────────────
 const EtudiantsPage    = lazy(() => import('./modules/etudiants'));
+const ProgrammesPage   = lazy(() => import('./modules/programmes/ProgrammesPage'));
 const ResultatsPage    = lazy(() => import('./modules/resultats'));
 const RelevesPage      = lazy(() => import('./modules/releves'));
 const SaisieNotesPage  = lazy(() => import('./modules/saisie-notes'));
@@ -59,6 +60,7 @@ export default function App() {
 
           {/* Modules pédagogie */}
           <Route path="/etudiants"    element={<AppRoute page="etudiants">   <EtudiantsPage /></AppRoute>} />
+          <Route path="/programmes" element={<AppRoute page="programmes"><ProgrammesPage /></AppRoute>} />
           <Route path="/resultats"    element={<AppRoute page="resultats">   <ResultatsPage /></AppRoute>} />
           <Route path="/releves"      element={<AppRoute page="releves">     <RelevesPage /></AppRoute>} />
           <Route path="/saisie-notes" element={<AppRoute page="saisie-notes"><SaisieNotesPage /></AppRoute>} />

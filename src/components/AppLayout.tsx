@@ -20,7 +20,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
       { id: 'dashboard', label: 'Dashboard', ico: '🏠', href: '/dashboard' },
     ]},
     { group: 'PÉDAGOGIE LMD', items: [
-      { id: 'programmes', label: 'Programmes & UE', ico: '🎓', href: legacy },
+      { id: 'programmes', label: 'Programmes & UE', ico: '🎓', href: '/programmes' },
       { id: 'semestres',  label: 'Semestres',       ico: '📅', href: legacy },
       { id: 'promotions', label: 'Promotions',      ico: '👥', href: legacy },
       { id: 'etudiants',  label: 'Étudiants',       ico: '🧑‍🎓', href: '/etudiants' },
