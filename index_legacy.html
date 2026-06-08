@@ -7050,7 +7050,6 @@ async function recalculerExclusionsAuto(semId) {
   chargerExclusions(semId);
 }
 
-
 // ── MODULE MONITORING — à ajouter dans index_legacy.html avant </script> final ──────────────────
 
 let _monitoringInterval = null;
@@ -7219,6 +7218,7 @@ function toggleMonitoringAutoRefresh(active) {
   if (_monitoringInterval) { clearInterval(_monitoringInterval); _monitoringInterval = null; }
   if (active) _monitoringInterval = setInterval(chargerMonitoring, 5 * 60 * 1000);
 }
+
 
 </script>
 
