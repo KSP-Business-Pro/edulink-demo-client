@@ -21,7 +21,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     ]},
     { group: 'PÉDAGOGIE LMD', items: [
       { id: 'programmes', label: 'Programmes & UE', ico: '🎓', href: '/programmes' },
-      { id: 'semestres',  label: 'Semestres',       ico: '📅', href: legacy },
+      { id: 'semestres',  label: 'Semestres',       ico: '📅', href: '/semestres' },
       { id: 'promotions', label: 'Promotions',      ico: '👥', href: legacy },
       { id: 'etudiants',  label: 'Étudiants',       ico: '🧑‍🎓', href: '/etudiants' },
     ]},
