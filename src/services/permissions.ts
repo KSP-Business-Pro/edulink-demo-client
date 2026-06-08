@@ -22,6 +22,7 @@ export interface Permissions {
   voir_messages:        boolean;
   voir_parametres:      boolean;
   voir_prospects:       boolean;
+  voir_monitoring:      boolean;
 
   // Actions critiques
   modifier_notes:       boolean;
@@ -45,7 +46,7 @@ const MATRIX: Record<UserRole, Permissions> = {
     voir_semestres: true, voir_promotions: true, voir_saisie_notes: true,
     voir_presences: true, voir_resultats: true, voir_deliberations: true,
     voir_releves: true, voir_enseignants: true, voir_comptabilite: true,
-    voir_messages: true, voir_parametres: true, voir_prospects: true,
+    voir_messages: true, voir_parametres: true, voir_prospects: true, voir_monitoring: true,
     modifier_notes: true, publier_releves: true, verrouiller_releves: true,
     gerer_utilisateurs: true, gerer_ecole: true, voir_toutes_ecoles: true,
     exporter_donnees: true, supprimer_etudiant: true, valider_paiements: true,
@@ -58,7 +59,7 @@ const MATRIX: Record<UserRole, Permissions> = {
     voir_semestres: true, voir_promotions: true, voir_saisie_notes: false,
     voir_presences: true, voir_resultats: true, voir_deliberations: true,
     voir_releves: true, voir_enseignants: true, voir_comptabilite: true,
-    voir_messages: true, voir_parametres: false, voir_prospects: true,
+    voir_messages: true, voir_parametres: false, voir_prospects: true, voir_monitoring: false,
     modifier_notes: false, publier_releves: false, verrouiller_releves: true,
     gerer_utilisateurs: false, gerer_ecole: false, voir_toutes_ecoles: false,
     exporter_donnees: true, supprimer_etudiant: false, valider_paiements: false,
@@ -71,7 +72,7 @@ const MATRIX: Record<UserRole, Permissions> = {
     voir_semestres: true, voir_promotions: true, voir_saisie_notes: true,
     voir_presences: true, voir_resultats: true, voir_deliberations: true,
     voir_releves: true, voir_enseignants: true, voir_comptabilite: false,
-    voir_messages: true, voir_parametres: false, voir_prospects: false,
+    voir_messages: true, voir_parametres: false, voir_prospects: false, voir_monitoring: false,
     modifier_notes: true, publier_releves: true, verrouiller_releves: true,
     gerer_utilisateurs: false, gerer_ecole: false, voir_toutes_ecoles: false,
     exporter_donnees: true, supprimer_etudiant: false, valider_paiements: false,
@@ -84,7 +85,7 @@ const MATRIX: Record<UserRole, Permissions> = {
     voir_semestres: false, voir_promotions: false, voir_saisie_notes: true,
     voir_presences: true, voir_resultats: false, voir_deliberations: false,
     voir_releves: false, voir_enseignants: false, voir_comptabilite: false,
-    voir_messages: true, voir_parametres: false, voir_prospects: false,
+    voir_messages: true, voir_parametres: false, voir_prospects: false, voir_monitoring: false,
     modifier_notes: true, publier_releves: false, verrouiller_releves: false,
     gerer_utilisateurs: false, gerer_ecole: false, voir_toutes_ecoles: false,
     exporter_donnees: false, supprimer_etudiant: false, valider_paiements: false,
@@ -97,7 +98,7 @@ const MATRIX: Record<UserRole, Permissions> = {
     voir_semestres: false, voir_promotions: false, voir_saisie_notes: false,
     voir_presences: false, voir_resultats: false, voir_deliberations: false,
     voir_releves: false, voir_enseignants: false, voir_comptabilite: true,
-    voir_messages: true, voir_parametres: false, voir_prospects: false,
+    voir_messages: true, voir_parametres: false, voir_prospects: false, voir_monitoring: false,
     modifier_notes: false, publier_releves: false, verrouiller_releves: false,
     gerer_utilisateurs: false, gerer_ecole: false, voir_toutes_ecoles: false,
     exporter_donnees: true, supprimer_etudiant: false, valider_paiements: true,
@@ -110,7 +111,7 @@ const MATRIX: Record<UserRole, Permissions> = {
     voir_semestres: false, voir_promotions: false, voir_saisie_notes: false,
     voir_presences: false, voir_resultats: false, voir_deliberations: false,
     voir_releves: true, voir_enseignants: false, voir_comptabilite: false,
-    voir_messages: false, voir_parametres: false, voir_prospects: false,
+    voir_messages: false, voir_parametres: false, voir_prospects: false, voir_monitoring: false,
     modifier_notes: false, publier_releves: false, verrouiller_releves: false,
     gerer_utilisateurs: false, gerer_ecole: false, voir_toutes_ecoles: false,
     exporter_donnees: false, supprimer_etudiant: false, valider_paiements: false,
@@ -123,7 +124,7 @@ const MATRIX: Record<UserRole, Permissions> = {
     voir_semestres: false, voir_promotions: false, voir_saisie_notes: false,
     voir_presences: false, voir_resultats: false, voir_deliberations: false,
     voir_releves: true, voir_enseignants: false, voir_comptabilite: false,
-    voir_messages: false, voir_parametres: false, voir_prospects: false,
+    voir_messages: false, voir_parametres: false, voir_prospects: false, voir_monitoring: false,
     modifier_notes: false, publier_releves: false, verrouiller_releves: false,
     gerer_utilisateurs: false, gerer_ecole: false, voir_toutes_ecoles: false,
     exporter_donnees: false, supprimer_etudiant: false, valider_paiements: false,
@@ -136,7 +137,7 @@ const MATRIX: Record<UserRole, Permissions> = {
     voir_semestres: false, voir_promotions: false, voir_saisie_notes: false,
     voir_presences: false, voir_resultats: false, voir_deliberations: false,
     voir_releves: false, voir_enseignants: false, voir_comptabilite: false,
-    voir_messages: false, voir_parametres: false, voir_prospects: false,
+    voir_messages: false, voir_parametres: false, voir_prospects: false, voir_monitoring: false,
     modifier_notes: false, publier_releves: false, verrouiller_releves: false,
     gerer_utilisateurs: false, gerer_ecole: false, voir_toutes_ecoles: false,
     exporter_donnees: false, supprimer_etudiant: false, valider_paiements: false,
@@ -173,5 +174,6 @@ export function getVisibleModules(role: UserRole): string[] {
   if (p.voir_messages)     modules.push('messages');
   if (p.voir_parametres)   modules.push('parametres');
   if (p.voir_prospects)    modules.push('prospects');
+  if (p.voir_monitoring)   modules.push('monitoring');
   return modules;
 }

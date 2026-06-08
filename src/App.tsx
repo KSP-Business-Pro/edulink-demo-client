@@ -12,6 +12,7 @@ import { DashboardPage } from './pages/DashboardPage';
 
 // ── Lazy loading par module ────────────────────────────────────────────────
 const EtudiantsPage    = lazy(() => import('./modules/etudiants'));
+const MonitoringPage   = lazy(() => import('./modules/monitoring'));
 const ProspectsPage    = lazy(() => import('./modules/prospects'));
 const PromotionsPage   = lazy(() => import('./modules/promotions'));
 const MessagesPage     = lazy(() => import('./modules/messages'));
@@ -75,6 +76,7 @@ export default function App() {
           {/* Établissement */}
           <Route path="/enseignants"  element={<AppRoute page="enseignants"> <EnseignantsPage /></AppRoute>} />
           <Route path="/comptabilite" element={<AppRoute page="comptabilite"><ComptabilitePage /></AppRoute>} />
+          <Route path="/monitoring" element={<AppRoute page="monitoring"><MonitoringPage /></AppRoute>} />
           <Route path="/prospects" element={<AppRoute page="prospects"><ProspectsPage /></AppRoute>} />
           <Route path="/promotions" element={<AppRoute page="promotions"><PromotionsPage /></AppRoute>} />
           <Route path="/messages" element={<AppRoute page="messages"><MessagesPage /></AppRoute>} />
