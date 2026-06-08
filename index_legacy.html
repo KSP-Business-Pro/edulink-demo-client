@@ -377,6 +377,9 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
   </a>
 
   <div class="nav-section">Système</div>
+  <a data-page="monitoring" id="nav-monitoring" style="display:none">
+    <span class="ico">📡</span> <span>Monitoring</span>
+  </a>
   <a data-page="prospects">
     <span class="ico">🎯</span> <span>Prospects</span>
     <span class="nav-badge" id="badge-prospects" style="display:none"></span>
@@ -728,6 +731,21 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
   <div id="messages-content"><div class="loading">Chargement…</div></div>
 </div>
 
+<!-- MONITORING -->
+<div class="page" id="page-monitoring">
+  <div class="top">
+    <div><h2>Monitoring</h2><p class="page-subtitle">Santé production — réseau EduLink Sup</p></div>
+    <div class="top-actions">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer">
+        <input type="checkbox" id="monitoring-autorefresh" onchange="toggleMonitoringAutoRefresh(this.checked)" style="width:14px;height:14px">
+        Auto-refresh 5 min
+      </label>
+      <button class="btn-ghost btn-sm" onclick="chargerMonitoring()" id="monitoring-refresh-btn">🔄 Actualiser</button>
+    </div>
+  </div>
+  <div id="monitoring-content"><div class="loading">Chargement…</div></div>
+</div>
+
 <!-- PROSPECTS -->
 <div class="page" id="page-prospects">
   <div class="top">
@@ -833,6 +851,7 @@ function showPage(p) {
     'enseignants':  chargerEnseignants,
     'paiements':    chargerPaiements,
     'messages':     chargerMessages,
+    'monitoring':   chargerMonitoring,
     'prospects':    chargerProspects,
     'parametres':   chargerParametres,
   };
@@ -930,7 +949,9 @@ function appliquerPermissions(role) {
   // Admin et directeur voient tout
   // Enseignant : masquer certaines pages
   if (role === 'enseignant') {
-    ['promotions','paiements','prospects','parametres'].forEach(p => {
+    ['promotions','paiements','prospects','parametres','monitoring'].forEach(p => {
+    const navMon = document.getElementById('nav-monitoring');
+    if (navMon && isSuperAdmin) navMon.style.display = '';
       const a = document.querySelector(`nav a[data-page="${p}"]`);
       if (a) a.style.display = 'none';
     });
@@ -7027,6 +7048,176 @@ async function recalculerExclusionsAuto(semId) {
   if (nNouveau) msg += ' · ' + nNouveau + ' nouvelle(s)';
   toast(msg + ' ✓', 'success');
   chargerExclusions(semId);
+}
+
+
+// ── MODULE MONITORING — à ajouter dans index_legacy.html avant </script> final ──────────────────
+
+let _monitoringInterval = null;
+const SEUILS_MON = { impaye_critique: 500000, impaye_warning: 100000, exclusions_warning: 3 };
+
+async function chargerMonitoring() {
+  const el = document.getElementById('monitoring-content');
+  const btn = document.getElementById('monitoring-refresh-btn');
+  if (!el) return;
+  el.innerHTML = '<div class="loading">Chargement des métriques production…</div>';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Chargement…'; }
+
+  try {
+    const { data: ecoles } = await db.from('ecoles').select('id,nom').order('nom');
+    if (!ecoles?.length) { el.innerHTML = '<div class="empty-state"><p>Aucune école</p></div>'; return; }
+
+    const metriques = [];
+    const alertes = [];
+
+    for (const ecole of ecoles) {
+      const [
+        { count: nbEtu },
+        { count: nbSem },
+        { data: factures },
+        { data: dernierCalc },
+        { data: exclusions },
+      ] = await Promise.all([
+        db.from('etudiants').select('id', { count: 'exact', head: true }).eq('ecole_id', ecole.id).eq('statut', 'actif'),
+        db.from('semestres').select('id', { count: 'exact', head: true }).eq('ecole_id', ecole.id).eq('statut', 'en_cours'),
+        db.from('factures').select('montant_total,montant,montant_paye').eq('ecole_id', ecole.id).in('statut', ['en_attente', 'partiel']),
+        db.from('resultats_cache').select('created_at').eq('ecole_id', ecole.id).order('created_at', { ascending: false }).limit(1),
+        db.from('resultats_cache').select('etudiant_id').eq('ecole_id', ecole.id).eq('decision', 'ajourné').limit(50),
+      ]);
+
+      // Relevés via semestres
+      const { data: sems } = await db.from('semestres').select('id').eq('ecole_id', ecole.id).limit(100);
+      const semIds = (sems || []).map(s => s.id);
+      const { count: nbRel } = semIds.length
+        ? await db.from('releves_notes').select('id', { count: 'exact', head: true }).in('semestre_id', semIds)
+        : { count: 0 };
+
+      const montantImpaye = (factures || []).reduce((s, f) => {
+        return s + Math.max((f.montant_total || f.montant || 0) - (f.montant_paye || 0), 0);
+      }, 0);
+
+      metriques.push({
+        id: ecole.id, nom: ecole.nom,
+        nbEtudiants: nbEtu || 0, nbSemestresActifs: nbSem || 0,
+        nbReleves: nbRel || 0, nbExclusions: (exclusions || []).length,
+        montantImpaye, dernierCalcul: dernierCalc?.[0]?.created_at || null,
+      });
+
+      if (montantImpaye >= SEUILS_MON.impaye_critique)
+        alertes.push({ type: 'error', ecole: ecole.nom, msg: 'Impayés critiques', val: Math.round(montantImpaye).toLocaleString('fr-FR') + ' FCFA' });
+      else if (montantImpaye >= SEUILS_MON.impaye_warning)
+        alertes.push({ type: 'warning', ecole: ecole.nom, msg: 'Impayés élevés', val: Math.round(montantImpaye).toLocaleString('fr-FR') + ' FCFA' });
+      if ((exclusions || []).length >= SEUILS_MON.exclusions_warning)
+        alertes.push({ type: 'warning', ecole: ecole.nom, msg: 'Exclusions en cours', val: (exclusions || []).length + ' exclusion(s)' });
+      if (!nbSem)
+        alertes.push({ type: 'info', ecole: ecole.nom, msg: 'Aucun semestre en cours' });
+    }
+
+    const totalEtu = metriques.reduce((s, m) => s + m.nbEtudiants, 0);
+    const totalSem = metriques.reduce((s, m) => s + m.nbSemestresActifs, 0);
+    const totalRel = metriques.reduce((s, m) => s + m.nbReleves, 0);
+    const totalImp = metriques.reduce((s, m) => s + m.montantImpaye, 0);
+    const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    const alertColor = { error: '#dc2626', warning: '#d97706', info: '#1d4ed8' };
+    const alertBg    = { error: '#fee2e2', warning: '#fef3c7', info: '#dbeafe' };
+    const alertIcon  = { error: '🔴', warning: '🟡', info: '🔵' };
+
+    el.innerHTML = `
+      <div style="font-size:11px;color:#9ca3af;margin-bottom:1rem">Actualisé à ${now}</div>
+
+      <!-- KPIs globaux -->
+      <div class="cards" style="margin-bottom:1.5rem">
+        <div class="card"><div class="c-ico">🏫</div><div class="c-val">${ecoles.length}</div><div class="c-lbl">Écoles actives</div></div>
+        <div class="card"><div class="c-ico">🎓</div><div class="c-val" style="color:#059669">${totalEtu}</div><div class="c-lbl">Étudiants actifs</div></div>
+        <div class="card"><div class="c-ico">📅</div><div class="c-val" style="color:#7c3aed">${totalSem}</div><div class="c-lbl">Semestres en cours</div></div>
+        <div class="card"><div class="c-ico">📄</div><div class="c-val" style="color:#1d4ed8">${totalRel}</div><div class="c-lbl">Relevés publiés</div></div>
+      </div>
+
+      <!-- Alertes -->
+      ${alertes.length ? `
+        <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:.75rem">⚡ Alertes (${alertes.length})</div>
+        <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem">
+          ${alertes.map(a => `
+            <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:${alertBg[a.type]};border-radius:8px;border:1px solid ${alertColor[a.type]}22">
+              <span>${alertIcon[a.type]}</span>
+              <span style="font-size:12px;font-weight:600;color:${alertColor[a.type]};min-width:200px">${esc(a.ecole)}</span>
+              <span style="font-size:12px;color:${alertColor[a.type]};flex:1">${a.msg}</span>
+              ${a.val ? `<span style="font-size:12px;font-weight:700;color:${alertColor[a.type]}">${a.val}</span>` : ''}
+            </div>`).join('')}
+        </div>` : `
+        <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;margin-bottom:1.5rem">
+          <span>✅</span><span style="font-size:13px;color:#059669;font-weight:600">Tous les indicateurs sont nominaux</span>
+        </div>`}
+
+      <!-- Tableau par école -->
+      <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:.75rem">📊 Métriques par école</div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>École</th>
+          <th style="text-align:center">Étudiants</th>
+          <th style="text-align:center">Semestres actifs</th>
+          <th style="text-align:center">Relevés</th>
+          <th style="text-align:center">Exclusions</th>
+          <th style="text-align:center">Impayés</th>
+          <th style="text-align:center">Santé</th>
+        </tr></thead>
+        <tbody>
+          ${metriques.map(m => {
+            const sante = m.montantImpaye >= SEUILS_MON.impaye_critique ? 'error'
+              : m.montantImpaye >= SEUILS_MON.impaye_warning || m.nbExclusions >= SEUILS_MON.exclusions_warning ? 'warning' : 'ok';
+            const santeLabel = { ok:'✅ OK', warning:'⚠️ Attention', error:'🔴 Critique' }[sante];
+            const santeBadge = { ok:'green', warning:'amber', error:'red' }[sante];
+            return `<tr>
+              <td><strong>${esc(m.nom)}</strong></td>
+              <td style="text-align:center"><span class="badge teal">${m.nbEtudiants}</span></td>
+              <td style="text-align:center"><span class="badge ${m.nbSemestresActifs > 0 ? 'green' : 'gray'}">${m.nbSemestresActifs}</span></td>
+              <td style="text-align:center"><span class="badge blue">${m.nbReleves}</span></td>
+              <td style="text-align:center"><span class="badge ${m.nbExclusions >= SEUILS_MON.exclusions_warning ? 'amber' : 'gray'}">${m.nbExclusions}</span></td>
+              <td style="text-align:center">
+                ${m.montantImpaye > 0
+                  ? `<span class="badge ${m.montantImpaye >= SEUILS_MON.impaye_critique ? 'red' : 'amber'}">${Math.round(m.montantImpaye).toLocaleString('fr-FR')} FCFA</span>`
+                  : '<span class="badge green">Soldé</span>'}
+              </td>
+              <td style="text-align:center"><span class="badge ${santeBadge}">${santeLabel}</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>
+
+      <!-- Finances réseau -->
+      <div class="dash-grid" style="margin-top:1.5rem">
+        <div class="dash-block">
+          <div class="block-title">💰 Finances réseau</div>
+          <div style="display:flex;justify-content:space-between;padding:.6rem .75rem;background:#fef2f2;border-radius:7px;margin-bottom:.5rem">
+            <span style="font-size:12px;color:#dc2626">Total impayés réseau</span>
+            <span style="font-size:13px;font-weight:700;color:#dc2626">${Math.round(totalImp).toLocaleString('fr-FR')} FCFA</span>
+          </div>
+        </div>
+        <div class="dash-block">
+          <div class="block-title">🔗 Services externes</div>
+          <div style="display:flex;flex-direction:column;gap:.5rem">
+            ${[
+              { nom:'Supabase', url:'https://supabase.com/dashboard/project/kcfpvnrgutkhakogbjip', ico:'🗄️' },
+              { nom:'Vercel',   url:'https://vercel.com/dashboard', ico:'▲' },
+              { nom:'Brevo',    url:'https://app.brevo.com', ico:'📧' },
+            ].map(s => `<a href="${s.url}" target="_blank" style="display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:#f9fafb;border-radius:7px;text-decoration:none;color:#111827;font-size:12px;border:1px solid #e5e7eb">
+              <span>${s.ico}</span><span style="font-weight:600">${s.nom}</span><span style="margin-left:auto;color:#9ca3af">↗</span>
+            </a>`).join('')}
+          </div>
+        </div>
+      </div>`;
+
+  } catch(err) {
+    el.innerHTML = `<div class="empty-state"><p>Erreur : ${err.message}</p></div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Actualiser'; }
+  }
+}
+
+function toggleMonitoringAutoRefresh(active) {
+  if (_monitoringInterval) { clearInterval(_monitoringInterval); _monitoringInterval = null; }
+  if (active) _monitoringInterval = setInterval(chargerMonitoring, 5 * 60 * 1000);
 }
 
 </script>
