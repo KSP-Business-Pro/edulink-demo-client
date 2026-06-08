@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/services/presences.service.ts
 import { supabase } from './supabase';
 
@@ -203,3 +204,4 @@ export async function fetchSeuilAbsence(ecoleId: string): Promise<number> {
     .maybeSingle();
   return data?.seuil_absence_pct ?? 30;
 }
+

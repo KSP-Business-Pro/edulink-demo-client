@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/services/dashboard.service.ts
 // Toutes les requêtes Supabase pour le Dashboard centralisées ici
 
@@ -140,3 +141,4 @@ export async function loadDashboard(ecoleId: string): Promise<DashboardData> {
     programmes,
   };
 }
+

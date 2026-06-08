@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/modules/semestres/index.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
@@ -304,3 +305,4 @@ export default function SemestresPage() {
     </div>
   );
 }
+

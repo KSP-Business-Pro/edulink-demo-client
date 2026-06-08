@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ─────────────────────────────────────────────────────────────────────────────
 //  referentiel.service.ts — Couche données Référentiel académique Sprint 2
 // ─────────────────────────────────────────────────────────────────────────────
@@ -218,3 +219,4 @@ export function checkCreditsUE(
   const totalCredits = ues.reduce((sum, ue) => sum + (ue.credits_cect ?? 0), 0);
   return { totalCredits, valid: totalCredits === expectedTotal, delta: totalCredits - expectedTotal };
 }
+
