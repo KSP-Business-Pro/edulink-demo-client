@@ -3,10 +3,26 @@
   "outputDirectory": ".",
   "framework": null,
   "rewrites": [
-    { "source": "/api/(.*)",   "destination": "/api/$1" },
-    { "source": "/login",      "destination": "/dist/index.html" },
-    { "source": "/dashboard",  "destination": "/dist/index.html" },
-    { "source": "/admin/(.*)", "destination": "/dist/index.html" },
-    { "source": "/(.*)",       "destination": "/index_legacy.html" }
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/legacy",   "destination": "/index_legacy.html" },
+    { "source": "/dashboard",      "destination": "/dist/index.html" },
+    { "source": "/etudiants",      "destination": "/dist/index.html" },
+    { "source": "/programmes",     "destination": "/dist/index.html" },
+    { "source": "/semestres",      "destination": "/dist/index.html" },
+    { "source": "/promotions",     "destination": "/dist/index.html" },
+    { "source": "/saisie-notes",   "destination": "/dist/index.html" },
+    { "source": "/presences",      "destination": "/dist/index.html" },
+    { "source": "/resultats",      "destination": "/dist/index.html" },
+    { "source": "/deliberations",  "destination": "/dist/index.html" },
+    { "source": "/releves",        "destination": "/dist/index.html" },
+    { "source": "/enseignants",    "destination": "/dist/index.html" },
+    { "source": "/comptabilite",   "destination": "/dist/index.html" },
+    { "source": "/messages",       "destination": "/dist/index.html" },
+    { "source": "/monitoring",     "destination": "/dist/index.html" },
+    { "source": "/prospects",      "destination": "/dist/index.html" },
+    { "source": "/parametres",     "destination": "/dist/index.html" },
+    { "source": "/login",          "destination": "/dist/index.html" },
+    { "source": "/dist/(.*)",      "destination": "/dist/$1" },
+    { "source": "/(.*)",           "destination": "/index_legacy.html" }
   ]
 }
