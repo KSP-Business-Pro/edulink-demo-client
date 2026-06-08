@@ -38,6 +38,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
       { id: 'messages',     label: 'Messages',     ico: '💬', href: '/messages' },
     ]},
     { group: 'SYSTÈME', items: [
+      { id: 'prospects',  label: 'Prospects',  ico: '🎯', href: '/prospects' },
       { id: 'parametres', label: 'Paramètres', ico: '⚙️', href: '/parametres' },
     ]},
   ];
