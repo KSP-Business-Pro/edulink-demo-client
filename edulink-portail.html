@@ -959,12 +959,8 @@ async function seConnecter() {
 }
 
 async function chargerProfil() {
-  // Chercher directement l'étudiant par email_auth (plus de table profiles)
-  const { data: etudiant } = await db.from('etudiants')
-    .select('*')
-    .eq('email_auth', currentUser.email)
-    .maybeSingle();
-
+  // Chercher directement l'etudiant par email_auth
+  const { data: etudiant } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).maybeSingle();
   if (!etudiant) {
     await db.auth.signOut();
     const err = document.getElementById('login-error');
@@ -974,19 +970,11 @@ async function chargerProfil() {
     document.getElementById('login-btn').textContent = 'Se connecter →';
     return;
   }
-
-  // Créer un profil synthétique parent/étudiant
-  currentProfile = {
-    id: currentUser.id,
-    role: 'parent',
-    nom: etudiant.nom,
-    prenom: etudiant.prenom,
-    etudiant_id: etudiant.id,
-    ecole_id: etudiant.ecole_id,
-  };
+  currentProfile = { id: currentUser.id, role: 'parent', nom: etudiant.nom, prenom: etudiant.prenom, etudiant_id: etudiant.id, ecole_id: etudiant.ecole_id };
   currentEtudiant = etudiant;
   currentEcoleId  = etudiant.ecole_id;
-  await lancerApp();
+  await resoudreClasseEtudiant();
+  lancerApp();
 }
 
 async function chargerEtudiantLie() {
