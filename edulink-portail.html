@@ -976,15 +976,17 @@ async function chargerProfil() {
 
 async function chargerEtudiantLie() {
   let etudiant = null;
-  // 1. Via etudiant_id dans profiles
+  // 1. Via etudiant_id dans profiles — RPC SECURITY DEFINER (contourne RLS)
   if (currentProfile?.etudiant_id) {
-    const { data } = await db.from('etudiants').select('*').eq('id', currentProfile.etudiant_id).single();
-    etudiant = data;
+    const { data: rows, error } = await db.rpc('fn_get_etudiant_portail', { p_id: currentProfile.etudiant_id });
+    if (error) console.warn('[chargerEtudiantLie] RPC etudiant_id:', error.message);
+    etudiant = rows?.[0] ?? null;
   }
-  // 2. Via email_auth
+  // 2. Via email_auth — fallback direct (la RLS autorise la lecture par email_auth si politique en place)
   if (!etudiant) {
-    const { data } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).maybeSingle();
-    etudiant = data;
+    const { data, error } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).maybeSingle();
+    if (error) console.warn('[chargerEtudiantLie] email_auth fallback:', error.message);
+    etudiant = data ?? null;
   }
   currentEtudiant = etudiant;
   if (etudiant) currentEcoleId = etudiant.ecole_id;
@@ -1008,7 +1010,11 @@ function lancerApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-portail').style.display = 'block';
   // Header
-  const nom = currentProfile ? (currentProfile.prenom ? currentProfile.prenom + ' ' + currentProfile.nom : currentProfile.nom || currentUser.email) : currentUser.email;
+  const nom = currentProfile
+    ? (currentProfile.prenom
+        ? currentProfile.prenom + ' ' + (currentProfile.nom || '')
+        : currentProfile.nom || currentUser.email)
+    : currentUser.email;
   document.getElementById('greeting-nom').textContent = nom;
   document.getElementById('greeting-role').textContent = currentProfile?.role === 'parent' ? 'Espace parent' : 'Espace étudiant';
   if (currentEtudiant) {
@@ -1867,7 +1873,7 @@ async function envoyerMessage() {
   const objet   = document.getElementById('msg-objet')?.value.trim();
   const contenu = document.getElementById('msg-contenu')?.value.trim();
   if (!contenu) { showToast('Écrivez un message.', 'error'); return; }
-  const nom = currentProfile ? currentProfile.prenom + ' ' + currentProfile.nom : currentUser.email;
+  const nom = currentProfile ? ((currentProfile.prenom || '') + ' ' + (currentProfile.nom || '')).trim() || currentUser.email : currentUser.email;
   const { error } = await db.from('messages').insert([{
     ecole_id: currentEcoleId,
     expediteur_nom: nom,
@@ -2079,10 +2085,9 @@ async function connecterEtudiant(etudiant) {
   // À ce stade, db.auth.getUser() retourne l'utilisateur authentifié.
   // On recharge les données de l'étudiant depuis la base pour avoir les données fraîches.
   try {
-    const { data: etu } = await db.from('etudiants')
-      .select('*')
-      .eq('id', etudiant.id)
-      .single();
+    const { data: rows, error } = await db.rpc('fn_get_etudiant_portail', { p_id: etudiant.id });
+    if (error) console.warn('[Portail OTP] RPC rechargement étudiant:', error.message);
+    const etu = rows?.[0] ?? null;
     if (etu) etudiant = etu;
   } catch(e) {
     console.warn('[Portail] Rechargement étudiant échoué, on utilise le cache:', e);
@@ -2095,7 +2100,7 @@ async function connecterEtudiant(etudiant) {
 
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-portail').style.display  = 'block';
-  document.getElementById('greeting-nom').textContent   = 'Parent de ' + etudiant.prenom;
+  document.getElementById('greeting-nom').textContent   = 'Parent de ' + (etudiant.prenom || etudiant.nom || 'l\'étudiant');
   document.getElementById('greeting-role').textContent  = 'Espace parent';
   document.getElementById('student-pill-wrap').innerHTML =
     `<div class="student-pill">👨‍🎓 ${etudiant.nom} ${etudiant.prenom} · ${etudiant.filiere || ''} ${etudiant.niveau || ''}</div>`;
