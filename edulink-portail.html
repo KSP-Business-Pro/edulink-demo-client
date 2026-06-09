@@ -177,19 +177,20 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
   position:fixed;bottom:0;left:50%;transform:translateX(-50%);
   width:100%;max-width:500px;
   background:#fff;border-top:1px solid #e5e7eb;
-  display:flex;overflow-x:auto;overflow-y:hidden;
-  -webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;
+  display:flex;
+  overflow-x:scroll;overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
   z-index:100;
   box-shadow:0 -4px 20px rgba(0,0,0,.1);
-  scrollbar-width:none;
+  scrollbar-width:none;-ms-overflow-style:none;
   padding-bottom:env(safe-area-inset-bottom,0px);
 }
-.bottom-nav::-webkit-scrollbar{display:none}
+.bottom-nav::-webkit-scrollbar{display:none;height:0;width:0}
 .nav-item{
-  flex:0 0 64px;display:flex;flex-direction:column;align-items:center;
+  flex:0 0 68px;min-width:68px;display:flex;flex-direction:column;align-items:center;
   padding:10px 4px 8px;cursor:pointer;color:#9ca3af;transition:color .15s;
   border:none;background:transparent;font-family:'Poppins',sans-serif;
-  scroll-snap-align:start;
+  
 }
 .nav-item.active{color:#0f6e56}
 .nav-item .nav-ico{font-size:22px;margin-bottom:2px;line-height:1}
@@ -1438,10 +1439,10 @@ function afficherAccueil() {
             <div class="stat-lbl">Examens à venir</div>
           </div>
         </div>
-        <div class="stat-card" onclick="showPage('releves')">
+        <div class="stat-card" onclick="showPage('releves')" style="grid-column:1/-1">
           <div class="stat-ico teal">📋</div>
           <div>
-            <div class="stat-val" style="color:#0f6e56">${tousReleves.length || '—'}</div>
+            <div class="stat-val" style="color:#0f6e56;font-size:22px">${tousReleves.length || '—'}</div>
             <div class="stat-lbl">Relevé(s) officiel(s)</div>
           </div>
         </div>
