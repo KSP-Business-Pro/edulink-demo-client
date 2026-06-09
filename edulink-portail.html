@@ -2,65 +2,18 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<!-- (P1.8) Content Security Policy : bloque les scripts externes non autorisés (filet anti-XSS) -->
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://*.firebaseio.com https://*.googleapis.com https://js-de.sentry-cdn.com https://*.sentry-cdn.com https://browser.sentry-cdn.com;
-  style-src  'self' 'unsafe-inline' https://fonts.googleapis.com;
-  font-src   'self' data: https://fonts.gstatic.com;
-  img-src    'self' data: blob: https: ;
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io;
-  frame-src  'self';
-  object-src 'none';
-  base-uri   'self';
-  form-action 'self';
-">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>EduLink — Portail Famille</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest-portail.json">
 <meta name="theme-color" content="#0f6e56">
-<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="EduLink Famille">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230f6e56'/%3E%3Ctext x='50' y='68' font-size='60' text-anchor='middle' fill='%23fff' font-family='Arial' font-weight='bold'%3EE%3C/text%3E%3C/svg%3E">
-<!-- (P1.10) Subresource Integrity (SRI) : empêche l'exécution si le CDN est compromis. Versions figées. -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3" integrity="sha384-iWpUQPQzWsFiosLgsS8o+e6E8y3Gm+EW2m/vAAo7A2H3fuc4KOKEx+5CAord2H2z" crossorigin="anonymous"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js" integrity="sha384-MiR5OstmujbPpU5nzD986OTopb4Kveb2WX4EmKuqeCU1hCWlxMYL8gBBY7vDSYLF" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js" integrity="sha384-nQIZ6tIcczKARkLebcfqb6P67Pcv2p+KIX3NH6oGaIBc64j2HxDKerK6Efn4aeiY" crossorigin="anonymous"></script>
-
-<!-- (P3.4) Sentry Error Monitoring -->
-<script src="https://js-de.sentry-cdn.com/a77c651fc2868f9668a2d8151d73077e.min.js" crossorigin="anonymous"></script>
-<script>
-  window.sentryOnLoad = function() {
-    Sentry.init({
-      dsn: "https://a77c651fc2868f9668a2d8151d73077e@o4511350725476352.ingest.de.sentry.io/4511350732816464",
-      environment: location.hostname === 'edulink-demo-client.vercel.app' ? 'production' : 'development',
-      release: 'edulink-portail@2026.05',
-      sampleRate: 1.0,
-      replaysSessionSampleRate: 0,
-      replaysOnErrorSampleRate: 0,
-      tracesSampleRate: 0,
-      ignoreErrors: [
-        'Failed to fetch', 'NetworkError', 'Load failed', 'TypeError: Failed to fetch',
-        'ResizeObserver loop limit exceeded',
-        'ResizeObserver loop completed with undelivered notifications',
-        'Non-Error promise rejection captured',
-        /chrome-extension:\/\//, /moz-extension:\/\//,
-      ],
-      denyUrls: [/chrome-extension:\/\//, /moz-extension:\/\//],
-      beforeSend(event) {
-        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return null;
-        return event;
-      },
-    });
-    // Tag spécial pour distinguer le portail famille du back-office
-    Sentry.setTag('app', 'portail-famille');
-    console.log('[Sentry] ✅ Monitoring activé (portail famille)');
-  };
-</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
 <style>
 /* ══ BASE ══ */
 *{margin:0;box-sizing:border-box}
@@ -229,11 +182,6 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
 .badge.blue{background:#dbeafe;color:#1d4ed8}
 .badge.gray{background:#f3f4f6;color:#6b7280}
 .badge.teal{background:#e1f5ee;color:#0f6e56}
-.badge.purple{background:#ede9fe;color:#6d28d9}
-.badge.warning{background:#fef9c3;color:#d97706}
-.badge.info{background:#dbeafe;color:#1d4ed8}
-.badge.success{background:#dcfce7;color:#059669}
-.badge.error{background:#fee2e2;color:#dc2626}
 
 /* ══ LISTES ══ */
 .list-item{
@@ -420,19 +368,14 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
 .pn-ico-wrap{
   width:38px;height:38px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;
-  font-size:16px;line-height:1;flex-shrink:0;
+  font-size:16px;flex-shrink:0;
 }
-.pn-ico-wrap.blue   {background:#dbeafe}
-.pn-ico-wrap.green  {background:#dcfce7}
-.pn-ico-wrap.red    {background:#fee2e2}
-.pn-ico-wrap.amber  {background:#fef9c3}
-.pn-ico-wrap.purple {background:#ede9fe}
-.pn-ico-wrap.teal   {background:#e1f5ee}
-/* Sévérités (fallback si la BD utilise warning/info/success/error comme couleur) */
-.pn-ico-wrap.warning{background:#fef9c3}
-.pn-ico-wrap.info   {background:#dbeafe}
-.pn-ico-wrap.success{background:#dcfce7}
-.pn-ico-wrap.error  {background:#fee2e2}
+.pn-ico-wrap.blue  {background:#dbeafe}
+.pn-ico-wrap.green {background:#dcfce7}
+.pn-ico-wrap.red   {background:#fee2e2}
+.pn-ico-wrap.amber {background:#fef9c3}
+.pn-ico-wrap.purple{background:#ede9fe}
+.pn-ico-wrap.teal  {background:#e1f5ee}
 
 .pn-body{flex:1;min-width:0}
 .pn-titre{font-size:13px;font-weight:600;color:#111827;margin-bottom:2px}
@@ -713,7 +656,7 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
           <div class="phone-flag">
             <span class="flag">🇧🇯</span>
             <span class="prefix">+229</span>
-            <input type="tel" id="otp-phone" autocomplete="off" placeholder="01 97 09 81 17" maxlength="10"
+            <input type="tel" id="otp-phone" placeholder="01 97 09 81 17" maxlength="10"
               oninput="this.value=this.value.replace(/\D/g,'')"
               onkeypress="if(event.key==='Enter')envoyerOTP()">
           </div>
@@ -763,7 +706,6 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
     </div>
 
     <p class="login-back">Espace administration ? <a href="index.html">Back-office</a></p>
-
   </div>
 </div>
 
@@ -795,35 +737,8 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
 
   <!-- Pages -->
   <div id="push-permission-banner"></div>
-  <!-- Bouton flottant pour activer les notifications Push -->
-  <div id="notif-fab" onclick="demanderPermissionPush()" style="
-    position:fixed;bottom:80px;right:16px;z-index:999;
-    background:#1e3a5f;color:#fff;border-radius:50px;
-    padding:10px 16px;font-size:12px;font-weight:700;
-    box-shadow:0 4px 15px rgba(0,0,0,.3);cursor:pointer;
-    display:none;align-items:center;gap:6px;
-    font-family:'Poppins',sans-serif;transition:opacity .3s;
-  ">🔔 Activer les notifications</div>
-  <script>
-    // Mise à jour immédiate de l'état du bouton flottant, dès le HTML rendu
-    // (avant l'init Firebase qui n'est appelée qu'après 1,5s)
-    (function(){
-      var fab = document.getElementById('notif-fab');
-      if (!fab) return;
-      if (!('Notification' in window)) return; // reste caché
-      if (Notification.permission === 'granted') return; // reste caché
-      if (Notification.permission === 'denied') {
-        fab.innerHTML        = '🔕 Notifications bloquées — Autorisez dans les paramètres Chrome';
-        fab.style.background = '#6b7280';
-        fab.style.cursor     = 'help';
-        fab.dataset.blocked  = '1';
-      }
-      fab.style.display = 'flex';
-    })();
-  </script>
   <div class="page active" id="page-accueil"></div>
   <div class="page" id="page-notes"></div>
-  <div class="page" id="page-releves"></div>
   <div class="page" id="page-absences"></div>
   <div class="page" id="page-paiements"></div>
   <div class="page" id="page-messages"></div>
@@ -845,11 +760,6 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
     <button class="nav-item" id="nav-notes" onclick="showPage('notes')">
       <span class="nav-ico">📊</span>
       <span class="nav-lbl">Notes</span>
-    </button>
-    <button class="nav-item" id="nav-releves" onclick="showPage('releves')">
-      <span class="nav-ico">📋</span>
-      <span class="nav-lbl">Relevés</span>
-      <span class="nav-badge" id="nav-releves-badge"></span>
     </button>
     <button class="nav-item" id="nav-absences" onclick="showPage('absences')">
       <span class="nav-ico">✅</span>
@@ -894,8 +804,8 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
 
 <script>
 // ══ SUPABASE ══
-const SUPABASE_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_qRSHSH88vHxJ9pfXJMHksQ_iVawwupX';
+const SUPABASE_URL = 'https://wpexhfngdbagmgodgzzt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_8e4xKWS3YpfwGFAQlZ7lgQ_9hDx8ljQ';
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -905,7 +815,6 @@ let currentProfile = null;
 let currentEtudiant = null;
 let currentEcoleId = null;
 let toutesNotes = [];
-let tousReleves = [];   // S5 portail : relevés officiels LMD
 let toutesAbsences = [];
 let toutesFactures = [];
 let tousMessages = [];
@@ -975,46 +884,29 @@ async function chargerProfil() {
 }
 
 async function chargerEtudiantLie() {
+  // Si étudiant → chercher son profil dans la table étudiants via email
+  // Si parent → chercher via etudiant_id du profil
   let etudiant = null;
-  // 1. Via etudiant_id dans profiles — RPC SECURITY DEFINER (contourne RLS)
-  if (currentProfile?.etudiant_id) {
-    const { data: rows, error } = await db.rpc('fn_get_etudiant_portail', { p_id: currentProfile.etudiant_id });
-    if (error) console.warn('[chargerEtudiantLie] RPC etudiant_id:', error.message);
-    etudiant = rows?.[0] ?? null;
-  }
-  // 2. Via email_auth — fallback direct (la RLS autorise la lecture par email_auth si politique en place)
-  if (!etudiant) {
-    const { data, error } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).maybeSingle();
-    if (error) console.warn('[chargerEtudiantLie] email_auth fallback:', error.message);
-    etudiant = data ?? null;
+  if (currentProfile.role === 'etudiant') {
+    const { data } = await db.from('etudiants').select('*').eq('email', currentUser.email).single();
+    etudiant = data;
+  } else if (currentProfile.etudiant_id) {
+    const { data } = await db.from('etudiants').select('*').eq('id', currentProfile.etudiant_id).single();
+    etudiant = data;
+  } else {
+    // Fallback : chercher par email de l'user
+    const { data } = await db.from('etudiants').select('*').eq('email', currentUser.email).maybeSingle();
+    etudiant = data;
   }
   currentEtudiant = etudiant;
   if (etudiant) currentEcoleId = etudiant.ecole_id;
-  await resoudreClasseEtudiant();
-}
-async function resoudreClasseEtudiant() {
-  if (!currentEtudiant || !currentEtudiant.classe_id) return;
-  try {
-    const { data: cls } = await db.from('classes')
-      .select('nom, filiere, niveau')
-      .eq('id', currentEtudiant.classe_id).maybeSingle();
-    if (cls) {
-      currentEtudiant.classe_nom = cls.nom || ((cls.filiere || '') + ' ' + (cls.niveau || '')).trim();
-    }
-  } catch (e) {
-    console.warn('[Classe] Résolution échouée:', e.message);
-  }
 }
 
 function lancerApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-portail').style.display = 'block';
   // Header
-  const nom = currentProfile
-    ? (currentProfile.prenom
-        ? currentProfile.prenom + ' ' + (currentProfile.nom || '')
-        : currentProfile.nom || currentUser.email)
-    : currentUser.email;
+  const nom = currentProfile ? currentProfile.prenom + ' ' + currentProfile.nom : currentUser.email;
   document.getElementById('greeting-nom').textContent = nom;
   document.getElementById('greeting-role').textContent = currentProfile?.role === 'parent' ? 'Espace parent' : 'Espace étudiant';
   if (currentEtudiant) {
@@ -1031,15 +923,9 @@ function lancerApp() {
 }
 
 async function chargerTout() {
-  await Promise.all([chargerNotes(), chargerReleves(), chargerAbsences(), chargerFactures(), chargerMessages(), chargerExamensPortail(), chargerEnseignantsPortail(), chargerNotifsPortail(), chargerEmploiPortail(), chargerCertificatsPortailData()]);
-  initRealtime(); // Abonner aux mises à jour en temps réel
+  await Promise.all([chargerNotes(), chargerAbsences(), chargerFactures(), chargerMessages(), chargerExamensPortail(), chargerEnseignantsPortail(), chargerNotifsPortail(), chargerEmploiPortail(), chargerCertificatsPortailData()]);
   afficherAccueil();
 }
-
-
-// ══════════════════════════════════════════════
-//  (Mode démo supprimé — F-011 sécurité RLS)
-// ══════════════════════════════════════════════
 
 async function seDeconnecter() {
   await db.auth.signOut();
@@ -1052,232 +938,6 @@ async function chargerNotes() {
   const { data } = await db.from('notes').select('*').eq('etudiant_id', currentEtudiant.id).order('created_at',{ascending:false});
   toutesNotes = data || [];
 }
-
-// ── S5 Portail : Relevés officiels LMD ──────────────────────────────────────
-async function chargerReleves() {
-  if (!currentEtudiant) { tousReleves = []; return; }
-  const { data } = await db.from('releves_notes')
-    .select('id,semestre_id,snapshot_notes,moyenne_semestre,credits_valides,credits_tentes,mention,decision,publie_le,numero_releve,verrouille,semestres(libelle,niveau)')
-    .eq('etudiant_id', currentEtudiant.id)
-    .order('publie_le', { ascending: false });
-  tousReleves = data || [];
-  // Badge nav
-  const badge = document.getElementById('nav-releves-badge');
-  if (badge) badge.textContent = tousReleves.length > 0 ? tousReleves.length : '';
-}
-
-function afficherReleves() {
-  const page = document.getElementById('page-releves');
-  if (!page) return;
-  const labelMention = { tres_bien:'Très Bien', bien:'Bien', assez_bien:'Assez Bien', passable:'Passable' };
-  const labelDecision = { admis:'Admis', 'ajourné':'Ajourné', ajourne:'Ajourné' };
-
-  if (!tousReleves.length) {
-    page.innerHTML = `<div class="page-pad">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1.2rem">
-        <span style="font-size:22px">📋</span>
-        <div><div style="font-size:16px;font-weight:600">Relevés officiels</div>
-        <div style="font-size:12px;color:#6b7280">Relevés de notes semestriels LMD-CAMES</div></div>
-      </div>
-      <div style="text-align:center;padding:3rem 1rem;color:#9ca3af">
-        <div style="font-size:36px;margin-bottom:12px">📋</div>
-        <div style="font-size:14px;font-weight:500;margin-bottom:4px">Aucun relevé disponible</div>
-        <div style="font-size:12px">Vos relevés apparaîtront ici après publication par votre établissement.</div>
-      </div>
-    </div>`;
-    return;
-  }
-
-  const cartes = tousReleves.map(r => {
-    const snap = r.snapshot_notes || {};
-    const sem = r.semestres?.libelle || snap.semestre_libelle || '—';
-    const niv = r.semestres?.niveau || snap.niveau || '';
-    const moy = r.moyenne_semestre !== null ? Number(r.moyenne_semestre).toFixed(2) : '—';
-    const men = labelMention[r.mention] || r.mention || '—';
-    const dec = labelDecision[r.decision] || r.decision || '—';
-    const admis = r.decision === 'admis';
-    const date = r.publie_le ? new Date(r.publie_le).toLocaleDateString('fr-FR') : '—';
-    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:12px">
-        <div>
-          <div style="font-size:14px;font-weight:600;color:#111827">${sem}</div>
-          <div style="font-size:12px;color:#6b7280;margin-top:2px">${niv}${r.numero_releve ? ' · N° '+r.numero_releve : ''}</div>
-        </div>
-        <span style="font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500;white-space:nowrap;background:${admis?'#d1fae5':'#fef3c7'};color:${admis?'#065f46':'#92400e'}">${dec}</span>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-        <div style="text-align:center;background:#f9fafb;border-radius:8px;padding:8px 4px">
-          <div style="font-size:18px;font-weight:700;color:#0f6e56">${moy}</div>
-          <div style="font-size:10px;color:#6b7280;margin-top:1px">Moyenne / 20</div>
-        </div>
-        <div style="text-align:center;background:#f9fafb;border-radius:8px;padding:8px 4px">
-          <div style="font-size:18px;font-weight:700;color:#1e3a5f">${r.credits_valides ?? snap.credits_valides ?? '—'}<span style="font-size:11px;font-weight:400"> CECT</span></div>
-          <div style="font-size:10px;color:#6b7280;margin-top:1px">Crédits validés</div>
-        </div>
-        <div style="text-align:center;background:#f9fafb;border-radius:8px;padding:8px 4px">
-          <div style="font-size:14px;font-weight:600;color:#374151;margin-top:2px">${men}</div>
-          <div style="font-size:10px;color:#6b7280;margin-top:1px">Mention</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:11px;color:#9ca3af">Publié le ${date}${r.verrouille?' · 🔒 Officiel':''}</span>
-        <button onclick="telechargerReleveOfficiel('${r.id}')" style="background:linear-gradient(135deg,#0f6e56,#047857);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px">
-          ⬇️ Télécharger PDF
-        </button>
-      </div>
-    </div>`;
-  }).join('');
-
-  page.innerHTML = `<div class="page-pad">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1.2rem">
-      <span style="font-size:22px">📋</span>
-      <div><div style="font-size:16px;font-weight:600">Relevés officiels</div>
-      <div style="font-size:12px;color:#6b7280">${tousReleves.length} relevé(s) disponible(s)</div></div>
-    </div>
-    ${cartes}
-  </div>`;
-}
-
-async function telechargerReleveOfficiel(releveId) {
-  const JsPDF = getJsPDFPortail();
-  if (!JsPDF) { showToast('jsPDF non chargé — réessayez', 'error'); return; }
-  const releve = tousReleves.find(r => r.id === releveId);
-  if (!releve) { showToast('Relevé introuvable', 'error'); return; }
-  const snap = releve.snapshot_notes;
-  if (!snap) { showToast('Snapshot manquant pour ce relevé', 'error'); return; }
-  showToast('Génération du relevé officiel…', 'info');
-
-  const TEAL  = [15, 110, 86];
-  const NAVY  = [30, 58, 95];
-  const LIGHT = [225, 245, 238];
-  const GREEN = [5, 150, 105];
-  const RED   = [220, 38, 38];
-  const AMBER = [217, 119, 6];
-  const GRAY  = [107, 114, 128];
-
-  const doc = new JsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-  const pw = doc.internal.pageSize.getWidth();
-  const labelMen = { tres_bien:'Très Bien', bien:'Bien', assez_bien:'Assez Bien', passable:'Passable' };
-  const safe = s => (s||'').replace(/[^\x00-\x7E]/g, c => c.normalize('NFD').replace(/[\u0300-\u036f]/g,''));
-
-  // ── Entête ──
-  doc.setFillColor(...TEAL);
-  doc.rect(0, 0, pw, 36, 'F');
-  doc.setFillColor(...NAVY);
-  doc.rect(0, 36, pw, 2.5, 'F');
-
-  doc.setTextColor(255,255,255);
-  doc.setFontSize(16); doc.setFont('helvetica','bold');
-  doc.text(safe(currentEtudiant?.ecole_nom || 'Etablissement'), 14, 14);
-  doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.text('RELEVE DE NOTES OFFICIEL — LMD CAMES', 14, 22);
-  doc.setTextColor(200,235,225); doc.setFontSize(8);
-  doc.text('Publie le ' + (releve.publie_le ? new Date(releve.publie_le).toLocaleDateString('fr-FR') : '—'), 14, 29);
-  if (releve.numero_releve) {
-    doc.setTextColor(255,255,255); doc.setFontSize(8);
-    doc.text('N° ' + releve.numero_releve, pw - 14, 29, { align:'right' });
-  }
-
-  let y = 44;
-
-  // ── Bloc étudiant ──
-  doc.setFillColor(...LIGHT);
-  doc.roundedRect(14, y, pw - 28, 30, 3, 3, 'F');
-  doc.setDrawColor(...TEAL); doc.setLineWidth(0.3);
-  doc.roundedRect(14, y, pw - 28, 30, 3, 3, 'S');
-
-  doc.setTextColor(...NAVY); doc.setFontSize(12); doc.setFont('helvetica','bold');
-  doc.text(safe((currentEtudiant?.nom||'') + ' ' + (currentEtudiant?.prenom||'')), 22, y + 9);
-  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...GRAY);
-  doc.text('Matricule : ' + (currentEtudiant?.matricule || '—'), 22, y + 16);
-  doc.text(safe('Semestre : ' + (snap.semestre_libelle||'—') + '  |  Niveau : ' + (snap.niveau||'—')), 22, y + 22);
-  doc.text(safe('Programme : ' + (snap.programme_intitule||'—')), 22, y + 28);
-
-  // Résultat badge
-  const admis = snap.semestre_valide;
-  doc.setFillColor(...(admis ? GREEN : RED));
-  doc.roundedRect(pw - 50, y + 3, 36, 24, 3, 3, 'F');
-  doc.setTextColor(255,255,255);
-  doc.setFontSize(18); doc.setFont('helvetica','bold');
-  doc.text(snap.moyenne_semestre !== null ? Number(snap.moyenne_semestre).toFixed(2) : '—', pw - 32, y + 13, { align:'center' });
-  doc.setFontSize(7); doc.setFont('helvetica','normal');
-  doc.text('/ 20', pw - 32, y + 18, { align:'center' });
-  doc.setFontSize(8); doc.setFont('helvetica','bold');
-  doc.text(admis ? 'VALIDE' : 'AJOURNE', pw - 32, y + 24, { align:'center' });
-
-  y += 36;
-
-  // ── Récapitulatif ──
-  doc.setTextColor(...TEAL); doc.setFontSize(10); doc.setFont('helvetica','bold');
-  doc.text('Recapitulatif semestriel', 14, y); y += 5;
-  doc.autoTable({
-    startY: y,
-    head: [['Crédits validés', 'Crédits tentés', 'Moyenne générale', 'Mention', 'Décision']],
-    body: [[
-      (snap.credits_valides ?? '—') + ' / 30 CECT',
-      (snap.credits_tentes ?? '—') + ' CECT',
-      snap.moyenne_semestre !== null ? Number(snap.moyenne_semestre).toFixed(2) + ' / 20' : '—',
-      safe(labelMen[snap.mention] || snap.mention || '—'),
-      safe(admis ? 'Semestre validé ✓' : 'Semestre non validé'),
-    ]],
-    styles: { fontSize: 9, cellPadding: 4 },
-    headStyles: { fillColor: TEAL, textColor: [255,255,255], fontStyle:'bold' },
-    bodyStyles: { textColor: NAVY },
-    alternateRowStyles: { fillColor: [245,250,248] },
-    margin: { left: 14, right: 14 },
-  });
-  y = doc.lastAutoTable.finalY + 8;
-
-  // ── Tableau UEs ──
-  doc.setTextColor(...TEAL); doc.setFontSize(10); doc.setFont('helvetica','bold');
-  doc.text('Detail par Unite d\'Enseignement', 14, y); y += 5;
-  const ues = (snap.resultats_ue || []).map(ue => [
-    safe(ue.ue_code || ''),
-    safe(ue.ue_intitule || ''),
-    ue.type_ue || '',
-    ue.moyenne_ue !== null ? Number(ue.moyenne_ue).toFixed(2) : '—',
-    (ue.credits_acquis ?? 0) + ' / ' + (ue.ue_credits ?? 0),
-    ue.ue_validee ? 'Valide' : ue.est_exclu ? 'Exclu' : 'Non valide',
-  ]);
-  doc.autoTable({
-    startY: y,
-    head: [['Code', 'Intitulé UE', 'Type', 'Moy.', 'Crédits', 'Statut']],
-    body: ues,
-    styles: { fontSize: 8, cellPadding: 3 },
-    headStyles: { fillColor: NAVY, textColor: [255,255,255], fontStyle:'bold' },
-    columnStyles: {
-      0: { cellWidth: 22 },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 18, halign:'center' },
-      3: { cellWidth: 16, halign:'center' },
-      4: { cellWidth: 20, halign:'center' },
-      5: { cellWidth: 22, halign:'center' },
-    },
-    alternateRowStyles: { fillColor: [248,250,252] },
-    didParseCell(data) {
-      if (data.section === 'body' && data.column.index === 5) {
-        const v = data.cell.text[0];
-        if (v === 'Valide') data.cell.styles.textColor = GREEN;
-        else if (v === 'Non valide') data.cell.styles.textColor = RED;
-        else data.cell.styles.textColor = AMBER;
-      }
-    },
-    margin: { left: 14, right: 14 },
-  });
-
-  // ── Pied de page ──
-  const py = doc.internal.pageSize.getHeight() - 14;
-  doc.setDrawColor(...TEAL); doc.setLineWidth(0.3);
-  doc.line(14, py - 6, pw - 14, py - 6);
-  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...GRAY);
-  doc.text('EduLink Sup — Systeme LMD-CAMES — Document officiel', 14, py);
-  doc.text('app.edulink.bj', pw - 14, py, { align:'right' });
-
-  // ── Téléchargement ──
-  const sem = safe(snap.semestre_libelle || 'releve').replace(/\s+/g, '_');
-  doc.save('Releve_' + sem + '_' + (currentEtudiant?.matricule || '') + '.pdf');
-  showToast('Relevé téléchargé ✓', 'success');
-}
 async function chargerAbsences() {
   if (!currentEtudiant) { toutesAbsences = []; return; }
   const { data } = await db.from('absences').select('*').eq('etudiant_id', currentEtudiant.id).order('date_absence',{ascending:false});
@@ -1289,64 +949,11 @@ async function chargerFactures() {
   toutesFactures = data || [];
 }
 async function chargerMessages() {
-  // On charge plus large (60) car le filtre client va trier ensuite.
-  // Le filtre JS qui suit garde uniquement ce qui concerne le parent courant.
-  let q = db.from('messages').select('*').order('created_at',{ascending:false}).limit(60);
+  let q = db.from('messages').select('*').order('created_at',{ascending:false}).limit(20);
   if (currentEcoleId) q = q.eq('ecole_id', currentEcoleId);
   const { data } = await q;
-  const tous = data || [];
-
-  // ── FILTRE HÉRITAGE J-1 ────────────────────────────────────────────
-  // Le schéma `messages` n'a pas de etudiant_id : on filtre par heuristique.
-  // Le BO envoie au PARENT (destinataire_nom = etudiant.nom_parent), donc on
-  // matche essentiellement sur le nom_parent stocké sur l'étudiant courant.
-  //
-  // Un message est visible pour ce parent si :
-  //   1. C'est lui-même qui l'a envoyé (expediteur_role=parent + nom matchant)
-  //   2. Le destinataire_nom contient son nom de parent
-  //   3. Le destinataire_nom contient le nom OU prénom de l'étudiant (cas
-  //      historique où l'admin aurait écrit le nom de l'enfant)
-  //   4. C'est une annonce générale (destinataire_role=parent ET nom vide ou
-  //      mots-clés "tous"/"parents"/"famille")
-  // ────────────────────────────────────────────────────────────────────
-  const etu = currentEtudiant;
-  const nomParent = (etu?.nom_parent || '').toLowerCase().trim();
-  const etuNom    = (etu?.nom    || '').toLowerCase().trim();
-  const etuPrenom = (etu?.prenom || '').toLowerCase().trim();
-
-  // Tokens du nom_parent (ex "SANTANA René" → ["santana", "rené"])
-  // On exige un match sur un token >= 3 caractères pour éviter les faux positifs.
-  const tokensParent = nomParent.split(/\s+/).filter(t => t.length >= 3);
-
-  function meConcerne(m) {
-    const dest = (m.destinataire_nom || '').toLowerCase().trim();
-    const destRole = (m.destinataire_role || '').toLowerCase().trim();
-    const exp  = (m.expediteur_nom || '').toLowerCase().trim();
-    const expRole = (m.expediteur_role || '').toLowerCase().trim();
-
-    // Cas 1 : envoyé par ce parent lui-même
-    if (expRole === 'parent') {
-      if (nomParent && exp.includes(nomParent)) return true;
-      if (tokensParent.some(t => exp.includes(t))) return true;
-    }
-    // Cas 2 : nom_parent matche le destinataire (cas principal — messages groupés BO)
-    if (nomParent && dest.includes(nomParent)) return true;
-    // Match plus permissif sur tokens : tous les tokens du nom_parent doivent
-    // être présents dans le destinataire (ex "DAVI Job" ⊂ "DAVI Job Constant")
-    if (tokensParent.length && tokensParent.every(t => dest.includes(t))) return true;
-    // Cas 3 : nom/prénom étudiant dans destinataire (historique)
-    if (etuNom    && dest.includes(etuNom))    return true;
-    if (etuPrenom && dest.includes(etuPrenom)) return true;
-    // Cas 4 : annonce générale (destinataire_role=parent)
-    if (destRole === 'parent') {
-      if (!dest) return true;
-      if (/(parents|tous|famille|toutes les familles)/.test(dest)) return true;
-    }
-    return false;
-  }
-
-  tousMessages = tous.filter(meConcerne);
-  // Compter seulement les messages de l'admin/prof non lus
+  tousMessages = data || [];
+  // Compter seulement les messages de l'admin non lus
   const nonLus = tousMessages.filter(m =>
     (m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant') && !m.lu
   ).length;
@@ -1365,7 +972,6 @@ function showPage(p) {
   const renderers = {
     accueil: afficherAccueil,
     notes: afficherNotes,
-    releves: afficherReleves,
     absences: afficherAbsences,
     paiements: afficherPaiements,
     messages: afficherMessages,
@@ -1426,13 +1032,6 @@ function afficherAccueil() {
             <div class="stat-lbl">Examens à venir</div>
           </div>
         </div>
-        <div class="stat-card" onclick="showPage('releves')">
-          <div class="stat-ico teal">📋</div>
-          <div>
-            <div class="stat-val" style="color:#0f6e56">${tousReleves.length || '—'}</div>
-            <div class="stat-lbl">Relevé(s) officiel(s)</div>
-          </div>
-        </div>
       </div>
 
       <!-- Dernières notes -->
@@ -1479,13 +1078,13 @@ function afficherAccueil() {
       </div>` : ''}
 
       <!-- Factures en attente -->
-      ${toutesFactures.filter(f=>f.statut!=='paye' && f.statut!=='payée').length ? `
+      ${toutesFactures.filter(f=>f.statut!=='payée').length ? `
       <div class="card">
         <div class="card-header">
           <div class="card-title">💳 Paiements en attente</div>
           <span class="card-link" onclick="showPage('paiements')">Détails</span>
         </div>
-        ${toutesFactures.filter(f=>f.statut!=='paye' && f.statut!=='payée').slice(0,2).map(f => `
+        ${toutesFactures.filter(f=>f.statut!=='payée').slice(0,2).map(f => `
           <div class="list-item">
             <div class="li-ico" style="background:#fef9c3">💰</div>
             <div class="li-body">
@@ -1739,13 +1338,10 @@ function afficherPaiements() {
     <div class="card">
       ${toutesFactures.map(f => {
         const pct2 = f.montant_total > 0 ? Math.round((f.montant_paye||0)/f.montant_total*100) : 0;
-        // Statut BD côté back-office : 'paye' / 'partiel' / 'retard' / 'en_attente'
-        // (tolérance pour les anciens imports avec 'payée')
-        const estPaye = f.statut === 'paye' || f.statut === 'payée';
-        const sClass = estPaye ? 'green' : f.statut==='retard' ? 'red' : 'amber';
+        const sClass = f.statut==='payée'?'green':f.statut==='retard'?'red':'amber';
         return `<div class="list-item">
-          <div class="li-ico" style="background:${estPaye?'#dcfce7':'#fef9c3'}">
-            ${estPaye?'✅':'💰'}
+          <div class="li-ico" style="background:${f.statut==='payée'?'#dcfce7':'#fef9c3'}">
+            ${f.statut==='payée'?'✅':'💰'}
           </div>
           <div class="li-body">
             <div class="li-title">${f.description||f.type_frais||'Facture'}</div>
@@ -1873,7 +1469,7 @@ async function envoyerMessage() {
   const objet   = document.getElementById('msg-objet')?.value.trim();
   const contenu = document.getElementById('msg-contenu')?.value.trim();
   if (!contenu) { showToast('Écrivez un message.', 'error'); return; }
-  const nom = currentProfile ? ((currentProfile.prenom || '') + ' ' + (currentProfile.nom || '')).trim() || currentUser.email : currentUser.email;
+  const nom = currentProfile ? currentProfile.prenom + ' ' + currentProfile.nom : currentUser.email;
   const { error } = await db.from('messages').insert([{
     ecole_id: currentEcoleId,
     expediteur_nom: nom,
@@ -1892,12 +1488,10 @@ async function envoyerMessage() {
 }
 
 // ══ JOUR 9 — OTP SMS ══════════════════════════
-const EDGE_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/bright-handler';
-const SUPABASE_ANON = 'sb_publishable_qRSHSH88vHxJ9pfXJMHksQ_iVawwupX';
+const EDGE_URL = 'https://wpexhfngdbagmgodgzzt.supabase.co/functions/v1/bright-handler';
+const SUPABASE_ANON = 'sb_publishable_8e4xKWS3YpfwGFAQlZ7lgQ_9hDx8ljQ';
 let otpTimer = null;
-let otpExpiresAt = 0; // OTP-TIMER-UI (2026-05-18) : timestamp absolu d'expiration (ms)
 let otpTelephone = '';
-let otpEtudiantTrouve = null; // P2.9 : stocke l'étudiant trouvé à l'étape 1
 
 function switchLoginTab(tab) {
   document.getElementById('tab-sms').style.display   = tab === 'sms'   ? 'block' : 'none';
@@ -1913,74 +1507,34 @@ function showOTPError(step, msg) {
 }
 
 async function envoyerOTP() {
-  // ─── P2.9 (2026-05-11) : Recherche de l'étudiant par téléphone ───
   const phone = document.getElementById('otp-phone').value.trim();
   if (!phone || phone.length < 8) { showOTPError(1, 'Entrez un numéro valide (8 à 10 chiffres)'); return; }
-  // Normalisation : supprimer le préfixe 229 ou le zéro initial si l'utilisateur
-  // saisit son numéro en format local béninois (ex: 063237272 ou 22963237272)
-  let phoneClean = phone.replace(/^(\+?229|00229)/, '').replace(/^0/, '');
-  const tel  = '+229' + phoneClean;
-  const tel8 = phoneClean;
+  const tel = '+229' + phone;
   otpTelephone = tel;
   const btn = document.getElementById('btn-envoyer-otp');
-  btn.disabled = true; btn.textContent = 'Recherche en cours...';
-
-  // Rechercher l'étudiant par téléphone parent
-  // ─── RLS-01 (2026-05-18) : utilise RPC SECURITY DEFINER au lieu de SELECT direct ───
-  //     L'ancienne policy etudiants_anon_phone_lookup permettait à anon de scanner
-  //     toute la table. La RPC ne retourne que la ligne matchante.
-  try {
-    const { data: liste, error: rpcErr } = await db.rpc('lookup_etudiant_for_otp', { p_telephone: tel });
-    if (rpcErr) {
-      console.error('[OTP] Erreur RPC lookup:', rpcErr);
-      showOTPError(1, 'Erreur de connexion. Réessayez.');
-      btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
-      return;
-    }
-    if (!liste || liste.length === 0) {
-      showOTPError(1, 'Aucun enfant lié à ce numéro. Vérifiez ou contactez l\'administration.');
-      btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
-      return;
-    }
-    otpEtudiantTrouve = liste[0];
-    console.log('[OTP] Étudiant trouvé:', otpEtudiantTrouve.nom, otpEtudiantTrouve.prenom);
-  } catch(e) {
-    showOTPError(1, 'Erreur de connexion. Réessayez.');
-    btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
-    return;
-  }
-
-  // ─── 2026-05-12 : appel Edge Function bright-handler pour envoyer un vrai SMS ───
-  btn.textContent = 'Envoi du SMS...';
+  btn.disabled = true; btn.textContent = 'Envoi en cours...';
   try {
     const resp = await fetch(EDGE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'send', telephone: tel })
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON,
+        'Authorization': 'Bearer ' + SUPABASE_ANON
+      },
+      body: JSON.stringify({ action: 'envoyer', telephone: tel })
     });
-    const result = await resp.json();
-    if (!resp.ok || !result.success) {
-      console.error('[OTP] Échec envoi SMS:', result);
-      showOTPError(1, result.error || 'Erreur d\'envoi du SMS. Réessayez.');
-      btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
-      return;
-    }
-    console.log('[OTP] SMS envoyé (mode:', result.mode || '?', ')');
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'Échec envoi');
+    // Passer à l'étape 2
+    document.getElementById('otp-step1').style.display = 'none';
+    document.getElementById('otp-step2').style.display = 'block';
+    document.getElementById('otp-phone-display').textContent = tel;
+    document.getElementById('d0').focus();
+    lancerCompteur();
   } catch(e) {
-    console.error('[OTP] Erreur réseau Edge Function:', e);
-    showOTPError(1, 'Erreur réseau. Vérifiez votre connexion.');
+    showOTPError(1, 'Erreur : ' + e.message);
     btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
-    return;
   }
-
-  // Passer à l'étape 2
-  document.getElementById('otp-step1').style.display = 'none';
-  document.getElementById('otp-step2').style.display = 'block';
-  document.getElementById('otp-phone-display').textContent = tel;
-  document.getElementById('d0').focus();
-  otpExpiresAt = Date.now() + 5 * 60 * 1000; // OTP-TIMER-UI : référence temporelle absolue
-  lancerCompteur();
-  // Le hint démo 123456 n'est plus pertinent — vrai SMS envoyé
 }
 
 function otpNext(el, idx) {
@@ -1997,151 +1551,60 @@ async function verifierOTP() {
   if (code.length < 6) { showOTPError(2, 'Entrez les 6 chiffres du code.'); return; }
   const btn = document.getElementById('btn-verifier-otp');
   btn.disabled = true; btn.textContent = 'Vérification...';
-
-  if (!otpEtudiantTrouve) {
-    showOTPError(2, 'Session expirée. Recommencez depuis le début.');
-    btn.disabled = false; btn.textContent = '✅ Confirmer le code';
-    return;
-  }
-
-  // ─── 2026-05-12 : vérification de l'OTP via Edge Function bright-handler ───
   try {
     const resp = await fetch(EDGE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'verify', telephone: otpTelephone, code })
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON,
+        'Authorization': 'Bearer ' + SUPABASE_ANON
+      },
+      body: JSON.stringify({ action: 'verifier', telephone: otpTelephone, code })
     });
-    const result = await resp.json();
-    if (!resp.ok || !result.success) {
-      console.error('[OTP] Échec vérification:', result);
-      showOTPError(2, result.error || 'Code incorrect. Vérifiez et réessayez.');
-      btn.disabled = false; btn.textContent = '✅ Confirmer le code';
-      [0,1,2,3,4,5].forEach(i => { const d = document.getElementById('d'+i); d.value=''; d.classList.remove('filled'); });
-      document.getElementById('d0').focus();
-      return;
-    }
-    console.log('[OTP] ✅ Code vérifié par bright-handler');
-
-    // ─── Étape 4 (2026-05-14) : échange auth_token → session Supabase ───
-    // Le matricule ne quitte jamais le serveur. Le portail reçoit
-    // un auth_token temporaire (32 bytes, expire 5 min, usage unique)
-    // qu'il échange contre une vraie session Supabase Auth.
-    const authToken = result.auth_token;
-    if (!authToken) {
-      showOTPError(2, 'Token d\'authentification manquant. Contactez l\'administration.');
-      btn.disabled = false; btn.textContent = '✅ Confirmer le code';
-      return;
-    }
-
-    // Appel exchange : bright-handler vérifie le token et retourne la session
-    btn.textContent = 'Connexion...';
-    let exchangeResult;
-    try {
-      const exchResp = await fetch(EDGE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'exchange', auth_token: authToken })
-      });
-      exchangeResult = await exchResp.json();
-      if (!exchResp.ok || !exchangeResult.success) {
-        console.error('[OTP] Échec exchange:', exchangeResult);
-        showOTPError(2, exchangeResult.error || 'Erreur de connexion. Réessayez.');
-        btn.disabled = false; btn.textContent = '✅ Confirmer le code';
-        return;
-      }
-    } catch(exchErr) {
-      console.error('[OTP] Erreur réseau exchange:', exchErr);
-      showOTPError(2, 'Erreur réseau. Réessayez.');
-      btn.disabled = false; btn.textContent = '✅ Confirmer le code';
-      return;
-    }
-
-    // Initialiser la session Supabase avec les tokens reçus
-    const { error: sessionError } = await db.auth.setSession({
-      access_token:  exchangeResult.access_token,
-      refresh_token: exchangeResult.refresh_token,
-    });
-
-    if (sessionError) {
-      console.error('[OTP] Échec setSession:', sessionError.message);
-      showOTPError(2, 'Erreur de session. Contactez l\'administration.');
-      btn.disabled = false; btn.textContent = '✅ Confirmer le code';
-      return;
-    }
-
-    console.log('[OTP] ✅ Session Supabase initialisée via exchange:', exchangeResult.user?.id);
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'Code invalide');
     clearInterval(otpTimer);
-    await connecterEtudiant(otpEtudiantTrouve);
-
+    // Chercher l'étudiant lié à ce numéro de téléphone
+    await connecterParTelephone(otpTelephone);
   } catch(e) {
-    console.error('[OTP] Erreur inattendue:', e);
-    showOTPError(2, 'Erreur de connexion. Réessayez.');
+    showOTPError(2, e.message);
     btn.disabled = false; btn.textContent = '✅ Confirmer le code';
+    [0,1,2,3,4,5].forEach(i => { const d = document.getElementById('d'+i); d.value=''; d.classList.remove('filled'); });
+    document.getElementById('d0').focus();
   }
 }
 
-async function connecterEtudiant(etudiant) {
-  // ─── P2.9 (2026-05-11) : connexion avec vrai auth Supabase ───
-  // À ce stade, db.auth.getUser() retourne l'utilisateur authentifié.
-  // On recharge les données de l'étudiant depuis la base pour avoir les données fraîches.
-  try {
-    const { data: rows, error } = await db.rpc('fn_get_etudiant_portail', { p_id: etudiant.id });
-    if (error) console.warn('[Portail OTP] RPC rechargement étudiant:', error.message);
-    const etu = rows?.[0] ?? null;
-    if (etu) etudiant = etu;
-  } catch(e) {
-    console.warn('[Portail] Rechargement étudiant échoué, on utilise le cache:', e);
-  }
-
-  currentEtudiant = etudiant;
-  currentEcoleId  = etudiant.ecole_id;
-  currentProfile  = { role: 'parent', prenom: 'Parent', nom: etudiant.nom };
-  currentUser     = { email: etudiant.email_auth || etudiant.email_parent || etudiant.matricule };
-
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-portail').style.display  = 'block';
-  document.getElementById('greeting-nom').textContent   = 'Parent de ' + (etudiant.prenom || etudiant.nom || 'l\'étudiant');
-  document.getElementById('greeting-role').textContent  = 'Espace parent';
-  document.getElementById('student-pill-wrap').innerHTML =
-    `<div class="student-pill">👨‍🎓 ${etudiant.nom} ${etudiant.prenom} · ${etudiant.filiere || ''} ${etudiant.niveau || ''}</div>`;
-
-  await resoudreClasseEtudiant();
-  chargerTout();
-  chargerBrandingPortail();
-}
-
-// ─── ANCIENNE FONCTION CONSERVÉE POUR COMPATIBILITÉ (ne fait que rediriger) ───
 async function connecterParTelephone(tel) {
-  // P2.9 : cette fonction ne devrait plus être appelée directement
-  // Elle reste en place par sécurité au cas où d'autres parties du code l'appellent
-  console.warn('[Portail] connecterParTelephone() appelée — redirection vers connecterEtudiant');
-  if (otpEtudiantTrouve) {
-    await connecterEtudiant(otpEtudiantTrouve);
+  // Chercher l'étudiant via parent_tel OU parent_email correspondant
+  const { data: etudiants } = await db.from('etudiants').select('*').eq('parent_tel', tel);
+  if (etudiants && etudiants.length > 0) {
+    currentEtudiant = etudiants[0];
+    currentEcoleId  = etudiants[0].ecole_id;
+    currentProfile  = { role: 'parent', prenom: 'Parent', nom: '' };
+    currentUser     = { email: tel };
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-portail').style.display  = 'block';
+    document.getElementById('greeting-nom').textContent   = 'Parent de ' + etudiants[0].prenom;
+    document.getElementById('greeting-role').textContent  = 'Espace parent';
+    document.getElementById('student-pill-wrap').innerHTML =
+      `<div class="student-pill">👨‍🎓 ${etudiants[0].nom} ${etudiants[0].prenom} · ${etudiants[0].filiere} ${etudiants[0].niveau}</div>`;
+    chargerTout();
   } else {
-    showOTPError(2, 'Session expirée. Recommencez depuis le début.');
+    showOTPError(2, 'Aucun enfant lie a ce numero. Contactez l\'administration.');
+    document.getElementById('btn-verifier-otp').disabled = false;
+    document.getElementById('btn-verifier-otp').textContent = '✅ Confirmer le code';
   }
 }
-
-
 
 function lancerCompteur() {
-  // OTP-TIMER-UI (2026-05-18) : calcul depuis otpExpiresAt (timestamp absolu)
-  // → synchronisé avec l'expiration réelle serveur, résistant au drift setInterval
-  // → si retour arrière / re-appel, le temps restant est correct (pas de reset à 5:00)
+  let secs = 300;
   clearInterval(otpTimer);
   otpTimer = setInterval(() => {
-    const secs = Math.max(0, Math.round((otpExpiresAt - Date.now()) / 1000));
-    const m = Math.floor(secs / 60), s = secs % 60;
+    secs--;
+    const m = Math.floor(secs/60), s = secs%60;
     const el = document.getElementById('otp-countdown');
-    if (el) {
-      el.textContent = m + ':' + String(s).padStart(2, '0');
-      // Passer en rouge dans les 60 dernières secondes
-      el.style.color = secs <= 60 ? '#dc2626' : '';
-    }
-    if (secs <= 0) {
-      clearInterval(otpTimer);
-      if (el) { el.textContent = 'Expiré'; el.style.color = '#dc2626'; }
-    }
+    if (el) el.textContent = m + ':' + String(s).padStart(2,'0');
+    if (secs <= 0) { clearInterval(otpTimer); if(el) el.textContent = 'Expiré'; }
   }, 1000);
 }
 
@@ -2305,9 +1768,39 @@ async function rendreListeExamensPortail() {
 
 // ══ ENSEIGNANTS PORTAIL ★ JOUR 13 ══════════════════════════════
 
-// getProfPourMatiere : utilisée par afficherAccueil (notes) pour afficher le prof
+async function chargerEnseignantsPortail() {
+  if (!currentEcoleId) { tousEnseignantsPortail = []; return; }
+  const { data } = await db.from('enseignants').select('*')
+    .eq('ecole_id', currentEcoleId).eq('statut','actif');
+  tousEnseignantsPortail = data || [];
+}
+
 function getProfPourMatiere(matiere) {
   return tousEnseignantsPortail.find(p => (p.matieres||[]).includes(matiere));
+}
+
+function afficherEnseignantsPortail() {
+  const page = document.getElementById('page-enseignants');
+  if (!page) return;
+  if (!tousEnseignantsPortail.length) {
+    page.innerHTML = '<div class="page-pad"><div class="section-title">👨‍🏫 Mes Enseignants</div><div class="empty"><div class="e-ico">👨‍🏫</div><p>Aucun enseignant enregistré.</p></div></div>';
+    return;
+  }
+  page.innerHTML = `<div class="page-pad">
+    <div class="section-title">👨‍🏫 Mes Enseignants</div>
+    ${tousEnseignantsPortail.map(p => {
+      const initiales = ((p.prenom?.[0]||'')+(p.nom?.[0]||'')).toUpperCase();
+      return `<div class="prof-contact-card">
+        <div class="pcc-avatar">${initiales||'👤'}</div>
+        <div class="pcc-info">
+          <div class="pi-nom">${p.nom} ${p.prenom}${p.grade?' · <span style="opacity:.7;font-size:11px">'+p.grade+'</span>':''}</div>
+          <div class="pi-spec">${p.specialite||''}</div>
+          <div class="pi-mat">${(p.matieres||[]).slice(0,4).join(' · ')}</div>
+        </div>
+        ${p.email ? `<a href="mailto:${p.email}" style="margin-left:auto;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;padding:6px 12px;border-radius:8px;font-size:11.5px;font-weight:600;text-decoration:none">✉️ Email</a>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 
@@ -2315,41 +1808,9 @@ function getProfPourMatiere(matiere) {
 
 async function chargerEnseignantsPortail() {
   if (!currentEcoleId) { tousEnseignantsPortail = []; return; }
-
-  // Charger tous les enseignants de l'école.
-  // On ne filtre PAS strictement sur statut='actif' car certains enseignants
-  // peuvent avoir statut=null (import sans valeur ou ancien schéma) — ce qui
-  // ferait remonter 0 enseignant sans raison visible. On filtre côté JS pour
-  // exclure uniquement ceux qui sont explicitement marqués 'inactif'/'suspendu'.
-  const { data: tous, error } = await db.from('enseignants').select('*')
-    .eq('ecole_id', currentEcoleId).order('nom');
-  if (error) { console.warn('[Portail Enseignants] erreur:', error.message); tousEnseignantsPortail = []; return; }
-  const liste = (tous || []).filter(e => !e.statut || (e.statut !== 'inactif' && e.statut !== 'suspendu'));
-
-  // Filtrer aux enseignants qui interviennent dans la classe de l'étudiant
-  // (via la table programmes : classe_id → enseignant_id)
-  // Fallback école entière si :
-  //   - pas de classe_id sur l'étudiant
-  //   - aucun programme défini pour la classe
-  //   - aucun enseignant_id renseigné dans les programmes
-  //   - tous les enseignant_id du programme sont introuvables (données incohérentes)
-  const classeId = currentEtudiant?.classe_id;
-  if (!classeId) { tousEnseignantsPortail = liste; return; }
-
-  try {
-    const { data: progs } = await db.from('programmes')
-      .select('enseignant_id')
-      .eq('classe_id', classeId)
-      .not('enseignant_id', 'is', null);
-    const idsEns = [...new Set((progs || []).map(p => p.enseignant_id).filter(Boolean))];
-    if (!idsEns.length) { tousEnseignantsPortail = liste; return; }
-
-    const filtre = liste.filter(e => idsEns.includes(e.id));
-    tousEnseignantsPortail = filtre.length ? filtre : liste;
-  } catch (e) {
-    console.warn('[Enseignants] Filtre par programme échoué, fallback école:', e.message);
-    tousEnseignantsPortail = liste;
-  }
+  const { data } = await db.from('enseignants').select('*')
+    .eq('ecole_id', currentEcoleId).eq('statut','actif').order('nom');
+  tousEnseignantsPortail = data || [];
 }
 
 function afficherEnseignantsPortail() {
@@ -2359,15 +1820,8 @@ function afficherEnseignantsPortail() {
     return;
   }
 
-  // Mapping aligné sur le back-office (nouvelles valeurs canoniques + compat anciennes)
-  const gradeLabels = {
-    'Maître-Assistant':'Maître-Assistant', 'Maître de Conférences':'Maître de Conférences',
-    'Professeur Titulaire':'Professeur Titulaire', 'Docteur':'Docteur',
-    'Prof Agrégé':'Prof Agrégé', 'Chargé de Cours':'Chargé de Cours',
-    // Compat anciennes valeurs
-    vacataire:'Vacataire', contractuel:'Contractuel', permanent:'Permanent',
-    charge_cours:'Chargé de cours', maitre_conf:'Maître de conf.', professeur:'Professeur'
-  };
+  // Filtrer par matières de l'étudiant (filière/niveau)
+  const gradeLabels = { vacataire:'Vacataire', contractuel:'Contractuel', permanent:'Permanent', charge_cours:'Chargé de cours', maitre_conf:'Maître de conf.', professeur:'Professeur' };
 
   page.innerHTML = `<div class="page-pad">
     <div class="section-title">👨‍🏫 Nos Enseignants</div>
@@ -2431,22 +1885,6 @@ function labelPeriodePDF(p) {
   return p;
 }
 
-// ── BULLETIN-V2 (2026-05-17) : libellés types évaluation côté PDF portail ──
-function pdfTypeEvalLabelPortail(t) {
-  const map = {
-    interrogation:'Interro', devoir_surveille:'DS', partiel:'Partiel',
-    examen_final:'Examen', projet:'Projet', expose:'Expose', tp:'TP', rattrapage:'Rattrap.'
-  };
-  return map[t] || 'DS';
-}
-function pdfAppreciationPortail(moy) {
-  if (moy >= 16) return "Excellent semestre. Felicitations pour ce travail remarquable. Continuez sur cette voie d'excellence.";
-  if (moy >= 14) return "Tres bon semestre. L'eleve fait preuve de serieux et de constance. Encouragements.";
-  if (moy >= 12) return "Bon semestre dans l'ensemble. Quelques efforts a fournir pour viser la mention superieure.";
-  if (moy >= 10) return "Semestre passable. L'eleve doit redoubler d'efforts pour consolider ses acquis.";
-  return "Semestre insuffisant. Un soutien pedagogique est vivement recommande pour combler les lacunes.";
-}
-
 async function telechargerBulletinPDFPortail(periode) {
   const JsPDF = getJsPDFPortail();
   if (!JsPDF) { showToast('jsPDF non chargé — réessayez', 'error'); return; }
@@ -2457,69 +1895,12 @@ async function telechargerBulletinPDFPortail(periode) {
   const notes = periode ? toutesNotes.filter(n => n.periode === periode) : toutesNotes;
   if (!notes.length) { showToast('Aucune note pour cette période', 'error'); return; }
 
-  // ─── BULLETIN-V2 : enrichissement données ───
-  // Absences sur la période
-  const periodeRanges = {
-    S1:['2025-09-01','2026-01-31'], S2:['2026-02-01','2026-06-30'],
-    T1:['2025-09-01','2025-12-15'], T2:['2025-12-16','2026-03-31'], T3:['2026-04-01','2026-06-30']
-  };
-  const range = periodeRanges[periode] || ['2000-01-01','2099-12-31'];
-  const { data: abs } = await db.from('absences')
-    .select('statut,date_absence')
-    .eq('etudiant_id', currentEtudiant.id)
-    .gte('date_absence', range[0])
-    .lte('date_absence', range[1]);
-  const stats = { absent:0, retard:0, excuse:0 };
-  (abs||[]).forEach(a => { stats[a.statut] = (stats[a.statut]||0) + 1; });
-
-  // Rang
-  let rang = '-';
-  if (currentEtudiant?.filiere && currentEtudiant?.niveau && currentEtudiant?.ecole_id) {
-    const { data: classmates } = await db.from('etudiants')
-      .select('id')
-      .eq('ecole_id', currentEtudiant.ecole_id)
-      .eq('filiere', currentEtudiant.filiere)
-      .eq('niveau', currentEtudiant.niveau);
-    if (classmates?.length) {
-      const ids = classmates.map(c => c.id);
-      const { data: allNotes } = await db.from('notes')
-        .select('etudiant_id,note,coefficient')
-        .in('etudiant_id', ids)
-        .eq('periode', periode||'S1');
-      const moyParEtu = {};
-      (allNotes||[]).forEach(n => {
-        if (!moyParEtu[n.etudiant_id]) moyParEtu[n.etudiant_id] = { pts:0, coef:0 };
-        moyParEtu[n.etudiant_id].pts += n.note * (n.coefficient||1);
-        moyParEtu[n.etudiant_id].coef += (n.coefficient||1);
-      });
-      const classements = Object.entries(moyParEtu)
-        .map(([id,v]) => ({ id, moy: v.coef ? v.pts/v.coef : 0 }))
-        .sort((a,b) => b.moy - a.moy);
-      const idx = classements.findIndex(c => c.id === currentEtudiant.id);
-      const n  = ids.length;
-      if (idx === 0) rang = '1er/' + n;
-      else if (idx > 0) rang = (idx + 1) + 'e/' + n;
-    }
-  }
-
-  // Calculs
   let totalPts = 0, totalCoeff = 0;
   notes.forEach(n => { totalPts += n.note*(n.coefficient||1); totalCoeff += (n.coefficient||1); });
   const moy = totalCoeff > 0 ? totalPts/totalCoeff : 0;
 
-  // Regroupement par matière pour sous-totaux
-  const parMatiere = {};
-  notes.forEach(n => {
-    if (!parMatiere[n.matiere]) parMatiere[n.matiere] = { notes:[], pts:0, coef:0 };
-    parMatiere[n.matiere].notes.push(n);
-    parMatiere[n.matiere].pts += n.note * (n.coefficient||1);
-    parMatiere[n.matiere].coef += (n.coefficient||1);
-  });
-
-  // Palette teal portail
-  const NAVY  = [15, 110, 86];    // teal portail
+  const NAVY  = [15, 110, 86];   // teal portail
   const NAVY2 = [30, 58, 95];
-  const LIGHT = [225, 245, 238];
   const GREEN = [5, 150, 105];
   const RED   = [220, 38, 38];
   const AMBER = [217, 119, 6];
@@ -2559,105 +1940,62 @@ async function telechargerBulletinPDFPortail(periode) {
 
   let y = 48;
 
-  // Bloc étudiant — agrandi pour accueillir période et rang
-  doc.setFillColor(...LIGHT);
-  doc.roundedRect(14, y, pw-28, 36, 3, 3, 'F');
+  // Bloc étudiant
+  doc.setFillColor(225, 245, 238);
+  doc.roundedRect(14, y, pw-28, 28, 3, 3, 'F');
   doc.setDrawColor(...NAVY); doc.setLineWidth(0.4);
-  doc.roundedRect(14, y, pw-28, 36, 3, 3, 'S');
+  doc.roundedRect(14, y, pw-28, 28, 3, 3, 'S');
 
   doc.setTextColor(...NAVY2); doc.setFontSize(13); doc.setFont('helvetica','bold');
   doc.text(pdfSafePortail(currentEtudiant.nom+' '+currentEtudiant.prenom), 22, y+9);
   doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...GRAY);
   doc.text('Matricule : '+(currentEtudiant.matricule||'-'), 22, y+16);
-  doc.text(pdfSafePortail('Filiere : '+(currentEtudiant.filiere||'-')+'  |  Niveau : '+(currentEtudiant.niveau||'-')), 22, y+22);
-  doc.text('Periode : '+labelPeriodePDF(periode||'')+'  |  Rang : '+rang, 22, y+28);
+  doc.text('Filiere : '+(currentEtudiant.filiere||'-')+'  |  Niveau : '+(currentEtudiant.niveau||'-'), 22, y+22);
 
-  // Moyenne — carte plus haute pour intégrer mention
+  // Moyenne
   doc.setFillColor(...(moy>=10?GREEN:RED));
-  doc.roundedRect(pw-55, y+4, 41, 28, 3, 3, 'F');
-  doc.setTextColor(255,255,255); doc.setFontSize(20); doc.setFont('helvetica','bold');
-  doc.text(moy.toFixed(2), pw-34, y+16, { align:'center' });
+  doc.roundedRect(pw-55, y+4, 41, 20, 3, 3, 'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(17); doc.setFont('helvetica','bold');
+  doc.text(moy.toFixed(2)+'/20', pw-34, y+15, { align:'center' });
   doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.text('/ 20', pw-34, y+21, { align:'center' });
-  doc.setFontSize(9); doc.setFont('helvetica','bold');
-  doc.text(mentionLabel(moy).toUpperCase(), pw-34, y+28, { align:'center' });
+  doc.text(mentionLabel(moy), pw-34, y+21, { align:'center' });
 
-  y += 42;
+  y += 34;
 
   doc.setTextColor(...NAVY); doc.setFontSize(10); doc.setFont('helvetica','bold');
-  doc.text('Releve de notes - '+labelPeriodePDF(periode||''), 14, y); y += 4;
+  doc.text('Releve de notes - '+labelPeriodePDF(periode||''), 14, y); y += 5;
 
-  // Tableau notes — regroupé par matière avec sous-totaux
-  const rows = [];
-  Object.keys(parMatiere).sort().forEach(matiere => {
-    const grp = parMatiere[matiere];
-    rows.push([{ content: pdfSafePortail(matiere.toUpperCase()), colSpan: 5, styles: { fontStyle:'bold', fillColor: LIGHT, textColor: NAVY2, fontSize: 9 } }]);
-    grp.notes.forEach(n => {
-      rows.push([
-        '   ' + pdfSafePortail(n.commentaire || pdfTypeEvalLabelPortail(n.type_evaluation)),
-        pdfTypeEvalLabelPortail(n.type_evaluation),
-        n.note + '/20',
-        n.coefficient || 1,
-        (n.note*(n.coefficient||1)).toFixed(2)
-      ]);
-    });
-    const moyMat = grp.coef ? (grp.pts/grp.coef) : 0;
-    rows.push([
-      { content: pdfSafePortail('Sous-total ' + matiere), colSpan: 2, styles: { fontStyle:'italic', textColor: NAVY2 } },
-      { content: moyMat.toFixed(2)+'/20', styles: { fontStyle:'bold', textColor: mentionColor(moyMat) } },
-      { content: grp.coef, styles: { fontStyle:'bold' } },
-      { content: grp.pts.toFixed(2), styles: { fontStyle:'bold' } }
-    ]);
-  });
+  const rows = notes.map(n => [
+    n.matiere,
+    n.note+'/20',
+    n.coefficient||1,
+    (n.note*(n.coefficient||1)).toFixed(2),
+    mentionLabel(n.note)
+  ]);
   rows.push([
-    { content:'MOYENNE GENERALE', colSpan:2, styles:{ fontStyle:'bold', fillColor: LIGHT, textColor: NAVY2, fontSize:10 } },
-    { content:moy.toFixed(2)+'/20', styles:{ fontStyle:'bold', fillColor: LIGHT, textColor: mentionColor(moy), fontSize:11 } },
-    { content:totalCoeff, styles:{ fontStyle:'bold', fillColor: LIGHT } },
-    { content:totalPts.toFixed(2), styles:{ fontStyle:'bold', fillColor: LIGHT } }
+    'MOYENNE GÉNÉRALE',
+    { content:moy.toFixed(2)+'/20', styles:{ fontStyle:'bold', textColor:mentionColor(moy), fontSize:11 } },
+    totalCoeff,
+    totalPts.toFixed(2),
+    { content:mentionLabel(moy), styles:{ fontStyle:'bold', textColor:mentionColor(moy) } }
   ]);
 
   doc.autoTable({
     startY: y,
-    head: [['Epreuve / Matiere','Type','Note /20','Coeff.','Points']],
+    head: [['Matière','Note /20','Coeff.','Points','Mention']],
     body: rows,
     theme: 'grid',
     headStyles: { fillColor:NAVY, textColor:[255,255,255], fontSize:9, fontStyle:'bold', halign:'center' },
-    columnStyles: {
-      0:{ halign:'left', cellWidth:80 },
-      1:{ halign:'center', cellWidth:25 },
-      2:{ halign:'center', cellWidth:25 },
-      3:{ halign:'center', cellWidth:20 },
-      4:{ halign:'center' }
-    },
-    bodyStyles: { fontSize:8.5, textColor:[55,65,81] },
+    columnStyles: { 0:{halign:'left',cellWidth:68}, 1:{halign:'center'}, 2:{halign:'center'}, 3:{halign:'center'} },
+    bodyStyles: { fontSize:9, textColor:[55,65,81] },
+    alternateRowStyles: { fillColor:[225,245,238] },
+    didParseCell: (d) => { if(d.row.index===rows.length-1){ d.cell.styles.fillColor=[225,245,238]; d.cell.styles.fontStyle='bold'; } },
     margin: { left:14, right:14 }
   });
 
-  y = doc.lastAutoTable.finalY + 8;
+  y = doc.lastAutoTable.finalY + 15;
 
-  // Bloc Assiduité
-  if (y > 230) { doc.addPage(); y = 20; }
-  doc.setFillColor(...LIGHT);
-  doc.roundedRect(14, y, pw-28, 14, 2, 2, 'F');
-  doc.setTextColor(...NAVY2); doc.setFontSize(9); doc.setFont('helvetica','bold');
-  doc.text('ASSIDUITE', 18, y+5);
-  doc.setFont('helvetica','normal'); doc.setTextColor(...GRAY); doc.setFontSize(9);
-  doc.text(`${stats.absent||0} absence(s) · ${stats.retard||0} retard(s) · ${stats.excuse||0} absence(s) excusee(s)`, 18, y+11);
-  y += 18;
-
-  // Bloc Appréciation pédagogique
-  if (y > 235) { doc.addPage(); y = 20; }
-  doc.setFillColor(...LIGHT);
-  doc.roundedRect(14, y, pw-28, 22, 2, 2, 'F');
-  doc.setTextColor(...NAVY2); doc.setFontSize(9); doc.setFont('helvetica','bold');
-  doc.text('APPRECIATION PEDAGOGIQUE', 18, y+5);
-  doc.setFont('helvetica','italic'); doc.setTextColor(...GRAY); doc.setFontSize(9);
-  const apprLines = doc.splitTextToSize(pdfSafePortail(pdfAppreciationPortail(moy)), pw-36);
-  doc.text(apprLines, 18, y+11);
-  y += 26;
-
-  // Barre progression visuelle (signature visuelle du portail famille)
-  if (y > 250) { doc.addPage(); y = 20; }
+  // Barre progression visuelle
   const pct = Math.min(100, moy/20*100);
   doc.setFillColor(229,231,235);
   doc.roundedRect(14, y, pw-28, 6, 3, 3, 'F');
@@ -2665,11 +2003,11 @@ async function telechargerBulletinPDFPortail(periode) {
   doc.roundedRect(14, y, (pw-28)*pct/100, 6, 3, 3, 'F');
   doc.setFontSize(8); doc.setTextColor(...GRAY);
   doc.text('Progression : '+pct.toFixed(0)+'%', pw/2, y+11, { align:'center' });
-  y += 18;
+  y += 20;
 
   // Signatures
-  if (y > 250) { doc.addPage(); y = 20; }
-  ['Direction','Enseignant(e) referent(e)','Parent / Tuteur'].forEach((s,i) => {
+  if (y > 240) { doc.addPage(); y = 20; }
+  ['Direction','Enseignant(e) référent(e)','Parent / Tuteur'].forEach((s,i) => {
     const sx = 14+(pw-28)/3*i;
     doc.setDrawColor(200,200,200); doc.line(sx, y+16, sx+53, y+16);
     doc.setFontSize(8); doc.setTextColor(...GRAY);
@@ -2682,7 +2020,7 @@ async function telechargerBulletinPDFPortail(periode) {
   doc.rect(0, ph-12, pw, 12, 'F');
   doc.setFontSize(7.5); doc.setTextColor(...GRAY);
   doc.text('Bulletin genere via EduLink - Portail Famille', 14, ph-4);
-  doc.text(`Page ${doc.internal.getCurrentPageInfo().pageNumber}`, pw-14, ph-4, { align:'right' });
+  doc.text('Page 1', pw-14, ph-4, { align:'right' });
 
   const filename = `Bulletin_${currentEtudiant.nom}_${currentEtudiant.prenom}_${periode||'all'}.pdf`.replace(/\s+/g,'_');
   doc.save(filename);
@@ -2758,57 +2096,24 @@ function renderNotifsListe() {
   const el = document.getElementById('pn-liste');
   if (!el) return;
 
-  // Helper de détection (partagé avec le rendu) — extrait la catégorie métier
-  // depuis le titre/corps quand type est une sévérité (warning/info/...)
-  const _SEVERITES = ['warning','info','success','error','alert','urgent'];
-  const _detecterCat = (n) => {
-    const txt = ((n.titre || '') + ' ' + (n.corps || '')).toLowerCase();
-    if (/absen/i.test(txt))                        return 'absence';
-    if (/\bnote\b|moyenne|bulletin/i.test(txt))    return 'note';
-    if (/examen|composition|interrog/i.test(txt))  return 'examen';
-    if (/paiement|facture|scolarit[eé]|frais/i.test(txt)) return 'paiement';
-    if (/annonce|communiqué/i.test(txt))           return 'annonce';
-    if (/message|courrier/i.test(txt))             return 'message';
-    return null;
-  };
-  const _categorieDe = (n) => {
-    const t = n.type || '';
-    return _SEVERITES.includes(t) ? (_detecterCat(n) || t) : t;
-  };
-
   const liste = notifsFiltreActif === 'tous'
     ? toutesNotifsPortail
-    : toutesNotifsPortail.filter(n => _categorieDe(n) === notifsFiltreActif);
+    : toutesNotifsPortail.filter(n => n.type === notifsFiltreActif);
 
   if (!liste.length) {
     el.innerHTML = `<div class="pn-empty"><div class="pn-ico">🔔</div><p>Aucune alerte${notifsFiltreActif !== 'tous' ? ' dans cette catégorie' : ''}.</p></div>`;
     return;
   }
 
-  const ICONES   = {
-    annonce:'📢', absence:'🚫', note:'📊', examen:'📝', paiement:'💳',
-    message:'✉️', systeme:'🔔',
-    // Sévérités (fallback si la BD utilise warning/info/success/error comme type)
-    warning:'⚠️', info:'ℹ️', success:'✅', error:'⛔', alert:'⚠️', urgent:'🚨'
-  };
-  const COULEURS = {
-    annonce:'blue', absence:'red', note:'teal', examen:'purple', paiement:'amber',
-    message:'green', systeme:'blue',
-    warning:'amber', info:'blue', success:'green', error:'red', alert:'amber', urgent:'red'
-  };
-  const TYPE_LBL = {
-    annonce:'Annonce', absence:'Absence', note:'Note', examen:'Examen', paiement:'Paiement',
-    message:'Message', systeme:'Système',
-    warning:'Alerte', info:'Info', success:'Succès', error:'Erreur', alert:'Alerte', urgent:'Urgent'
-  };
+  const ICONES   = { annonce:'📢', absence:'🚫', note:'📊', examen:'📝', paiement:'💳', message:'✉️', systeme:'🔔' };
+  const COULEURS = { annonce:'blue', absence:'red', note:'teal', examen:'purple', paiement:'amber', message:'green', systeme:'blue' };
+  const TYPE_LBL = { annonce:'Annonce', absence:'Absence', note:'Note', examen:'Examen', paiement:'Paiement', message:'Message', systeme:'Système' };
 
   el.innerHTML = liste.map(n => {
-    const typeBrut    = n.type || '';
-    const categorie   = _categorieDe(n);
-    const ico         = ICONES[categorie]   || ICONES[typeBrut]   || '🔔';
-    const couleur     = COULEURS[categorie] || COULEURS[typeBrut] || 'blue';
-    const lbl         = TYPE_LBL[categorie] || TYPE_LBL[typeBrut] || (typeBrut ? typeBrut.charAt(0).toUpperCase()+typeBrut.slice(1) : '—');
-    const urgent      = n.priorite === 'high' || typeBrut === 'urgent';
+    const ico     = ICONES[n.type]   || '🔔';
+    const couleur = COULEURS[n.type] || 'blue';
+    const lbl     = TYPE_LBL[n.type] || n.type;
+    const urgent  = n.priorite === 'high';
     return `
     <div class="pn-item ${!n.lu ? 'unread' : ''} ${urgent ? 'high' : ''}"
          onclick="marquerLuePortail('${n.id}',this)">
@@ -2923,39 +2228,23 @@ let fcmPortailFirebaseCfg = null;
 
 // ── Init principale ──────────────────────────────────────────────────
 async function initFCMPortail() {
-  // Mettre à jour l'état du bouton flottant en TOUT premier (même en démo)
-  // pour qu'il reflète Notification.permission dès l'ouverture.
-  const _setFabState = () => {
-    const fab = document.getElementById('notif-fab');
-    if (!fab) return;
-    if (!('Notification' in window)) { fab.style.display = 'none'; return; }
-    if (Notification.permission === 'granted') {
-      fab.style.display = 'none';
-    } else if (Notification.permission === 'denied') {
-      fab.innerHTML        = '🔕 Notifications bloquées — Autorisez dans les paramètres Chrome';
-      fab.style.background = '#6b7280';
-      fab.style.cursor     = 'help';
-      fab.dataset.blocked  = '1';
-    }
-  };
-  _setFabState();
-
   if (typeof firebase === 'undefined')     return;
   if (!('serviceWorker' in navigator))     return;
   if (!('Notification' in window))         return;
 
   try {
-    // Config Firebase hardcodée (même que index.html)
-    fcmPortailFirebaseCfg = {
-      apiKey:            "AIzaSyBEdRgcfDi2ai23shWBf4TLBZiM16MpW-U",
-      authDomain:        "edulink-demo-client.firebaseapp.com",
-      projectId:         "edulink-demo-client",
-      storageBucket:     "edulink-demo-client.firebasestorage.app",
-      messagingSenderId: "988597670758",
-      appId:             "1:988597670758:web:86ee62dc5f96e2bf0caea7"
-    };
+    // 1. Charger config Firebase depuis Supabase
+    const { data } = await db.from('parametres')
+      .select('firebase_config')
+      .eq('ecole_id', currentEcoleId)
+      .maybeSingle();
+    if (!data?.firebase_config) {
+      console.warn('[FCM Portail] firebase_config absent dans parametres');
+      return;
+    }
+    fcmPortailFirebaseCfg = data.firebase_config;
 
-    // 2. Initialiser Firebase
+    // 2. Initialiser Firebase dans le thread principal
     if (!firebase.apps.length) {
       firebase.initializeApp(fcmPortailFirebaseCfg);
     }
@@ -2996,19 +2285,8 @@ async function initFCMPortail() {
       afficherBannierePermission();
     } else if (Notification.permission === 'granted') {
       await abonnerFCMPortail();
-      // Masquer le bouton flottant si permission déjà accordée
-      const fab = document.getElementById('notif-fab');
-      if (fab) fab.style.display = 'none';
-    } else if (Notification.permission === 'denied') {
-      // Mettre le FAB en mode "bloqué" dès le chargement
-      const fab = document.getElementById('notif-fab');
-      if (fab) {
-        fab.innerHTML       = '🔕 Notifications bloquées — Autorisez dans les paramètres Chrome';
-        fab.style.background = '#6b7280';
-        fab.style.cursor     = 'help';
-        fab.dataset.blocked  = '1';
-      }
     }
+    // Si 'denied' → on ne fait rien (l'utilisateur a refusé)
 
   } catch(err) {
     console.warn('[FCM Portail] Erreur init :', err.message);
@@ -3030,32 +2308,14 @@ function envoyerConfigAuSW(swReg) {
 
 // ── Demander permission et s'abonner ─────────────────────────────────
 async function demanderPermissionPush() {
-  // Si déjà refusé : un seul toast d'aide, pas de re-demande (Chrome ne re-prompt pas)
-  if (Notification.permission === 'denied') {
-    const fab = document.getElementById('notif-fab');
-    if (fab && !fab.dataset.toastShown) {
-      showToast('Notifications bloquées — débloquez-les dans les paramètres du navigateur', 'error');
-      fab.dataset.toastShown = '1';
-      setTimeout(() => { delete fab.dataset.toastShown; }, 5000);
-    }
-    return;
-  }
   try {
     const permission = await Notification.requestPermission();
     masquerBannierePermission();
-    const fab = document.getElementById('notif-fab');
     if (permission === 'granted') {
-      if (fab) fab.style.display = 'none';
       await abonnerFCMPortail();
       afficherBanniereNotif('🔔 Notifications activées !', 'Vous recevrez les alertes en temps réel.');
-    } else if (permission === 'denied') {
-      if (fab) {
-        fab.innerHTML       = '🔕 Notifications bloquées — Autorisez dans les paramètres Chrome';
-        fab.style.background = '#6b7280';
-        fab.style.cursor     = 'help';
-        fab.dataset.blocked  = '1';
-      }
-      showToast('Notifications refusées — Allez dans Paramètres Chrome → Notifications', 'error');
+    } else {
+      showToast('Notifications refusées par le navigateur', 'error');
     }
   } catch(err) {
     console.warn('[FCM Portail] Permission error :', err);
@@ -3065,31 +2325,33 @@ async function demanderPermissionPush() {
 // ── S'abonner et sauvegarder le token ────────────────────────────────
 async function abonnerFCMPortail() {
   try {
-    // VAPID hardcodée
-    const vapidKey = "BI749zTbOn-FCKlvFA73d3GV72SOYLGJivQCwzuSqlNdSw8OhF9TO9Rl_DCgU7_5Y2irpfaBpHDJyJFubtZ-4tQ";
+    // Récupérer VAPID key depuis Supabase
+    const { data } = await db.from('parametres')
+      .select('vapid_key').eq('ecole_id', currentEcoleId).maybeSingle();
+    const vapidKey = data?.vapid_key || localStorage.getItem('edulink_vapid_key');
+    if (!vapidKey) { console.warn('[FCM Portail] VAPID key manquante'); return; }
     if (!fcmPortailMessaging) return;
 
+    // FIX CRITIQUE : passer serviceWorkerRegistration à getToken()
     const tokenOptions = { vapidKey };
     if (fcmPortailSwReg) tokenOptions.serviceWorkerRegistration = fcmPortailSwReg;
 
     const token = await fcmPortailMessaging.getToken(tokenOptions);
     if (!token) { console.warn('[FCM Portail] Token vide'); return; }
     fcmPortailToken = token;
-    localStorage.setItem('edulink_fcm_token', token);
+    localStorage.setItem('edulink_fcm_token', token); // Cache local
 
     const role = currentProfile?.role || 'parent';
-    // Colonnes réelles : token, role, actif, plateforme, ecole_id
-    const payload = {
+    await db.from('push_tokens').upsert({
+      ecole_id:    currentEcoleId,
       token,
       role,
-      actif:      true,
-      plateforme: /Android/i.test(navigator.userAgent) ? 'android' : /iPhone|iPad/i.test(navigator.userAgent) ? 'ios' : 'web',
-    };
-    if (currentEcoleId) payload.ecole_id = currentEcoleId;
+      etudiant_id: currentEtudiant?.id || null,
+      user_agent:  navigator.userAgent.slice(0, 200),
+      updated_at:  new Date().toISOString()
+    }, { onConflict: 'token' });
 
-    const { error } = await db.from('push_tokens').upsert(payload, { onConflict: 'token' });
-    if (error) console.warn('[FCM Portail] Erreur upsert token:', error.message);
-    else console.log('[FCM Portail] ✅ Abonné — rôle:', role, '— token:', token.slice(0,20)+'...');
+    console.log('[FCM Portail] ✅ Abonné avec token :', token.slice(0, 20) + '...');
   } catch(err) {
     console.warn('[FCM Portail] Erreur abonnement :', err.message);
   }
@@ -3119,9 +2381,7 @@ function masquerBannierePermission() {
 // ── Bannière notification reçue (foreground) ─────────────────────────
 function afficherBanniereNotif(titre, message) {
   showToast('🔔 ' + titre + (message ? ' — ' + message : ''), 'info');
-  // Fix démo : injecterNotifPortail() n'est pas définie — le showToast ci-dessus suffit.
-  // Si on veut plus tard pousser la notif dans la liste Alertes, ajouter ici un push
-  // dans toutesNotifsPortail + appel à afficherNotifsPortail().
+  injecterNotifPortail(titre, message, 'annonce');
 }
 
 // ── Désinscription ────────────────────────────────────────────────────
@@ -3147,26 +2407,13 @@ const HEURES_EDT = ['07:00','08:00','09:00','10:00','11:00','12:00',
 async function chargerEmploiPortail() {
   if (!currentEcoleId) { edtPortailData = []; return; }
   try {
-    // Charger tous les créneaux de l'école
+    // Charger tous les créneaux de l'école sans filtre restrictif
     const { data } = await db.from('emploi_du_temps')
       .select('*')
       .eq('ecole_id', currentEcoleId)
       .order('jour')
       .order('heure_debut');
-    const tous = data || [];
-
-    // Filtrer par classe de l'étudiant si on la connaît
-    // - matching exact sur le nom textuel (BO sauve `c.nom || c.filiere+' '+c.niveau`)
-    // - les créneaux sans classe (transversaux) sont conservés
-    // - fallback : si rien ne match, on retombe sur tous les créneaux école
-    //   (évite l'EDT vide sur une donnée mal seedée)
-    const classe = currentEtudiant?.classe_nom;
-    if (classe) {
-      const filtre = tous.filter(c => !c.classe || c.classe === classe);
-      edtPortailData = filtre.length ? filtre : tous;
-    } else {
-      edtPortailData = tous;
-    }
+    edtPortailData = data || [];
   } catch(e) {
     edtPortailData = [];
     console.warn('[Emploi]', e.message);
@@ -3447,18 +2694,15 @@ async function telechargerCertPortailV2(id) {
 async function chargerBrandingPortail() {
   if (!currentEcoleId) return;
   try {
-    // ⚠ couleur_bg n'existe pas dans le schéma actuel — ne PAS la sélectionner
-    //    (un select sur une colonne inexistante => 400 sur toute la requête)
-    const { data, error } = await db.from('ecoles')
-      .select('nom, couleur_primaire, couleur_secondaire, couleur_accent, logo_url')
-      .eq('id', currentEcoleId).maybeSingle();
-    if (error) { console.warn('[Branding Portail] Supabase:', error.message || error); return; }
-    if (!data)  { console.warn('[Branding Portail] Aucune école pour id=', currentEcoleId); return; }
+    const { data } = await db.from('ecoles')
+      .select('nom, couleur_primaire, couleur_secondaire, couleur_accent, couleur_bg, logo_url, slogan')
+      .eq('id', currentEcoleId).single();
+    if (!data) return;
 
     const p  = data.couleur_primaire   || '#0f6e56';
     const s  = data.couleur_secondaire || '#1e3a5f';
     const a  = data.couleur_accent     || '#c97c1a';
-    const bg = '#f0f7f4'; // couleur_bg absente du schéma — fallback en dur
+    const bg = data.couleur_bg         || '#f0f7f4';
 
     // Injecter les CSS variables dans :root
     const root = document.documentElement;
@@ -3471,20 +2715,17 @@ async function chargerBrandingPortail() {
     // Mettre à jour le thème PWA
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', p);
 
-    // Mettre à jour le titre de l'onglet (toujours, même sans slogan)
-    if (data.nom) {
-      document.title = data.nom + ' — Portail Famille';
+    // Mettre à jour le titre si slogan
+    if (data.slogan) {
+      document.title = (data.nom || 'EduLink') + ' — Portail Famille';
     }
 
-    // Mettre à jour le header : nom de l'école toujours, logo en plus si dispo
-    const logoEl = document.querySelector('.header-logo');
-    if (logoEl && data.nom) {
-      const nomSafe = String(data.nom).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const logoSrc = data.logo_url ? String(data.logo_url).replace(/"/g, '&quot;') : null;
-      const visuel  = logoSrc
-        ? `<img src="${logoSrc}" style="height:28px;width:auto;object-fit:contain;border-radius:6px" onerror="this.style.display='none'">`
-        : '🎓';
-      logoEl.innerHTML = `${visuel} <span style="font-size:14px;font-weight:700;letter-spacing:.2px">${nomSafe}</span>`;
+    // Mettre à jour le logo dans le header si défini
+    if (data.logo_url) {
+      const logoEl = document.querySelector('.header-logo');
+      if (logoEl) {
+        logoEl.innerHTML = `<img src="${data.logo_url}" style="height:28px;width:auto;object-fit:contain;border-radius:6px" onerror="this.parentNode.innerHTML='🎓 EduLink'"> ${data.nom || 'EduLink'}`;
+      }
     }
 
     console.log('[Branding] Thème appliqué :', p, s, a);
@@ -3527,70 +2768,6 @@ function initOfflineModePortail() {
     await chargerProfil();
   }
 })();
-// ══ REALTIME — Mises à jour en temps réel ═══════════════════
-let realtimeChannel = null;
-
-function initRealtime() {
-  if (realtimeChannel) return; // Déjà abonné
-  if (!currentEcoleId) return;
-
-  realtimeChannel = db.channel('portail-realtime-' + currentEcoleId)
-
-    // Nouveau message du back-office
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'messages',
-      filter: 'ecole_id=eq.' + currentEcoleId
-    }, payload => {
-      console.log('[Realtime] Nouveau message:', payload.new);
-      chargerMessages();
-      // Afficher une alerte discrète
-      const nom = payload.new?.expediteur_nom || 'Administration';
-      showToastPortail('✉️ Nouveau message de ' + nom, 'info');
-    })
-
-    // Nouvelle note ajoutée
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'notes',
-      filter: 'etudiant_id=eq.' + (currentEtudiant?.id || 'none')
-    }, payload => {
-      console.log('[Realtime] Nouvelle note:', payload.new);
-      chargerNotes();
-      showToastPortail('📊 Nouvelle note enregistrée : ' + payload.new?.matiere, 'success');
-    })
-
-    // Nouvelle absence
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'absences',
-      filter: 'etudiant_id=eq.' + (currentEtudiant?.id || 'none')
-    }, payload => {
-      console.log('[Realtime] Nouvelle absence:', payload.new);
-      chargerAbsences();
-      showToastPortail('🚫 Absence enregistrée : ' + payload.new?.matiere, 'warning');
-    })
-
-    .subscribe(status => {
-      console.log('[Realtime] Statut:', status);
-    });
-}
-
-function showToastPortail(msg, type='info') {
-  const colors = { info:'#1e3a5f', success:'#059669', warning:'#d97706', error:'#dc2626' };
-  const t = document.createElement('div');
-  t.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
-    background:${colors[type]||colors.info};color:#fff;padding:10px 18px;border-radius:12px;
-    font-size:13px;font-family:'Poppins',sans-serif;font-weight:600;z-index:9999;
-    box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:320px;text-align:center;`;
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 4000);
-}
-
 </script>
 </body>
 </html>
