@@ -905,6 +905,7 @@ let currentProfile = null;
 let currentEtudiant = null;
 let currentEcoleId = null;
 let toutesNotes = [];
+let toutesNotesDetail = [];
 let tousReleves = [];   // S5 portail : relevés officiels LMD
 let toutesAbsences = [];
 let toutesFactures = [];
@@ -959,7 +960,7 @@ async function seConnecter() {
 }
 
 async function chargerProfil() {
-  const { data: profile } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
+  const { data: profile } = await db.from('utilisateurs').select('*').eq('id', currentUser.id).single();
   currentProfile = profile;
   if (!profile || !['parent','etudiant'].includes(profile.role)) {
     await db.auth.signOut();
@@ -979,14 +980,14 @@ async function chargerEtudiantLie() {
   // Si parent → chercher via etudiant_id du profil
   let etudiant = null;
   if (currentProfile.role === 'etudiant') {
-    const { data } = await db.from('etudiants').select('*').eq('email', currentUser.email).single();
+    const { data } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).single();
     etudiant = data;
   } else if (currentProfile.etudiant_id) {
     const { data } = await db.from('etudiants').select('*').eq('id', currentProfile.etudiant_id).single();
     etudiant = data;
   } else {
     // Fallback : chercher par email de l'user
-    const { data } = await db.from('etudiants').select('*').eq('email', currentUser.email).maybeSingle();
+    const { data } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).maybeSingle();
     etudiant = data;
   }
   currentEtudiant = etudiant;
@@ -1051,8 +1052,24 @@ async function seDeconnecter() {
 // ══ DATA ══
 async function chargerNotes() {
   if (!currentEtudiant) { toutesNotes = []; return; }
-  const { data } = await db.from('notes').select('*').eq('etudiant_id', currentEtudiant.id).order('created_at',{ascending:false});
-  toutesNotes = data || [];
+  // Charger depuis resultats_cache (résultats LMD calculés) + notes_lmd via évaluations
+  try {
+    // Résultats par semestre
+    const { data: cache } = await db.from('resultats_cache')
+      .select('etudiant_id,semestre_id,moyenne_semestre,credits_valides,mention,decision,semestres(libelle,niveau)')
+      .eq('etudiant_id', currentEtudiant.id)
+      .order('created_at', { ascending: false });
+    toutesNotes = cache || [];
+
+    // Détail notes par matière via notes_lmd
+    const { data: notesDetail } = await db.from('notes_lmd')
+      .select('valeur,absent,evaluation_id,evaluations(intitule,categorie,ponderation,matiere_id,matieres_lmd(nom,code,unites_enseignement(intitule,credits_cect)))')
+      .eq('etudiant_id', currentEtudiant.id);
+    toutesNotesDetail = notesDetail || [];
+  } catch(e) {
+    console.warn('[Notes] Erreur chargement:', e.message);
+    toutesNotes = []; toutesNotesDetail = [];
+  }
 }
 
 // ── S5 Portail : Relevés officiels LMD ──────────────────────────────────────
@@ -1282,8 +1299,33 @@ async function telechargerReleveOfficiel(releveId) {
 }
 async function chargerAbsences() {
   if (!currentEtudiant) { toutesAbsences = []; return; }
-  const { data } = await db.from('absences').select('*').eq('etudiant_id', currentEtudiant.id).order('date_absence',{ascending:false});
-  toutesAbsences = data || [];
+  try {
+    // Utiliser v_absences_ue si disponible, sinon presences + seances
+    const { data: absUE, error } = await db.from('v_absences_ue')
+      .select('*')
+      .eq('etudiant_id', currentEtudiant.id);
+    if (!error && absUE?.length) {
+      toutesAbsences = absUE;
+      return;
+    }
+    // Fallback : presences directes
+    const { data: pres } = await db.from('presences')
+      .select('statut,seance_id,seances(date_seance,type_seance,matieres_lmd(nom,code))')
+      .eq('etudiant_id', currentEtudiant.id)
+      .in('statut', ['absent','retard','justifie'])
+      .order('seance_id', { ascending: false });
+    toutesAbsences = (pres || []).map(p => ({
+      etudiant_id: currentEtudiant.id,
+      statut: p.statut,
+      date_absence: p.seances?.date_seance,
+      matiere: p.seances?.matieres_lmd?.nom || '—',
+      justification: p.statut === 'justifie' ? 'Justifiée' : null,
+      parent_notifie: false,
+    }));
+  } catch(e) {
+    console.warn('[Absences] Erreur:', e.message);
+    toutesAbsences = [];
+  }
 }
 async function chargerFactures() {
   if (!currentEtudiant) { toutesFactures = []; return; }
@@ -1682,7 +1724,7 @@ function afficherAbsences() {
   }
   const nbAbs = toutesAbsences.filter(a=>a.statut==='absent').length;
   const nbRet = toutesAbsences.filter(a=>a.statut==='retard').length;
-  const nbExc = toutesAbsences.filter(a=>a.statut==='excuse').length;
+  const nbExc = toutesAbsences.filter(a=>(a.statut==='excuse'||a.statut==='justifie')).length;
 
   page.innerHTML = `<div class="page-pad">
     <div class="section-title">🚫 Présences & Absences</div>
@@ -2162,18 +2204,32 @@ function retourStep1() {
 
 async function chargerExamensPortail() {
   if (!currentEcoleId) { tousExamens = []; return; }
-  let q = db.from('examens').select('*').eq('ecole_id', currentEcoleId).order('date_examen', {ascending: true});
-  // Filtrer par filière/niveau de l'étudiant
-  if (currentEtudiant?.filiere) q = q.or(`filiere.is.null,filiere.eq.${currentEtudiant.filiere}`);
-  if (currentEtudiant?.niveau)  q = q.or(`niveau.is.null,niveau.eq.${currentEtudiant.niveau}`);
-  const { data } = await q;
-  tousExamens = data || [];
-
-  // Badge nav
-  const today = new Date().toISOString().split('T')[0];
-  const aVenir = tousExamens.filter(e => e.date_examen >= today && e.statut !== 'annule').length;
-  const b = document.getElementById('nav-exam-badge');
-  if (b) { if (aVenir > 0) { b.style.display='flex'; b.textContent=aVenir; } else b.style.display='none'; }
+  try {
+    // Sessions d'évaluation = "examens" dans le contexte portail
+    const { data: sessions } = await db.from('sessions_evaluation')
+      .select('id,type_session,statut,date_debut,date_fin,semestre_id,semestres(libelle,niveau,programmes_lmd(intitule))')
+      .eq('ecole_id', currentEcoleId)
+      .order('date_debut', { ascending: true });
+    const today = new Date().toISOString().split('T')[0];
+    tousExamens = (sessions || []).map(s => ({
+      id: s.id,
+      libelle: s.type_session === 'rattrapage' ? 'Session de rattrapage' : 'Session normale',
+      semestre: s.semestres?.libelle || '—',
+      niveau: s.semestres?.niveau || '—',
+      programme: s.semestres?.programmes_lmd?.intitule || '—',
+      date_examen: s.date_debut,
+      date_fin: s.date_fin,
+      statut: s.statut,
+      type: s.type_session,
+    }));
+    // Badge nav
+    const aVenir = tousExamens.filter(e => e.date_examen >= today && e.statut === 'ouverte').length;
+    const b = document.getElementById('nav-exam-badge');
+    if (b) { if (aVenir > 0) { b.style.display='flex'; b.textContent=aVenir; } else b.style.display='none'; }
+  } catch(e) {
+    console.warn('[Examens] Erreur:', e.message);
+    tousExamens = [];
+  }
 }
 
 function afficherExamensPortail() {
@@ -2260,7 +2316,8 @@ async function rendreListeExamensPortail() {
   if (currentEtudiant) {
     const examinesTermines = liste.filter(e => e.statut === 'termine').map(e => 'EXAM-' + e.id);
     if (examinesTermines.length) {
-      const { data: notesEx } = await db.from('notes').select('*')
+      const { data: notesEx } = await db.from('notes_lmd')
+        .select('valeur,absent,evaluation_id,evaluations(matiere_id)')
         .eq('etudiant_id', currentEtudiant.id)
         .in('periode', examinesTermines);
       (notesEx || []).forEach(n => {
@@ -2467,11 +2524,11 @@ async function telechargerBulletinPDFPortail(periode) {
     T1:['2025-09-01','2025-12-15'], T2:['2025-12-16','2026-03-31'], T3:['2026-04-01','2026-06-30']
   };
   const range = periodeRanges[periode] || ['2000-01-01','2099-12-31'];
-  const { data: abs } = await db.from('absences')
-    .select('statut,date_absence')
-    .eq('etudiant_id', currentEtudiant.id)
-    .gte('date_absence', range[0])
-    .lte('date_absence', range[1]);
+  // Utiliser les absences déjà chargées
+    const abs = toutesAbsences.filter(a => {
+      if (!a.date_absence) return false;
+      return a.date_absence >= range[0] && a.date_absence <= range[1];
+    });
   const stats = { absent:0, retard:0, excuse:0 };
   (abs||[]).forEach(a => { stats[a.statut] = (stats[a.statut]||0) + 1; });
 
@@ -2485,8 +2542,8 @@ async function telechargerBulletinPDFPortail(periode) {
       .eq('niveau', currentEtudiant.niveau);
     if (classmates?.length) {
       const ids = classmates.map(c => c.id);
-      const { data: allNotes } = await db.from('notes')
-        .select('etudiant_id,note,coefficient')
+      const { data: allNotes } = await db.from('resultats_cache')
+        .select('etudiant_id,moyenne_semestre')
         .in('etudiant_id', ids)
         .eq('periode', periode||'S1');
       const moyParEtu = {};
@@ -3264,87 +3321,32 @@ const CERT_TYPES_PORTAIL = {
 };
 
 async function chargerCertificatsPortailData() {
-  if (!currentEtudiant?.id || !currentEcoleId) { certPortailList = []; return; }
+  if (!currentEtudiant) { tousCertificats = []; return; }
   try {
-    const { data } = await db.from('certificats')
-      .select('*')
+    // Les certificats sont générés depuis les relevés publiés
+    const { data } = await db.from('releves_notes')
+      .select('id,semestre_id,mention,decision,credits_valides,publie_le,numero_releve,semestres(libelle,niveau)')
       .eq('etudiant_id', currentEtudiant.id)
-      .eq('ecole_id', currentEcoleId)
-      .neq('statut', 'annule')
-      .order('created_at', { ascending: false });
-    certPortailList = data || [];
-    // Badge accueil
-    if (certPortailList.length > 0) {
-      const navBtn = document.getElementById('nav-certificats-portail');
-      if (navBtn) {
-        const badge = document.createElement('span');
-        badge.className = 'nav-badge';
-        badge.style.cssText = 'display:flex;background:#0f6e56';
-        badge.textContent = certPortailList.length;
-        navBtn.appendChild(badge);
-      }
-    }
+      .eq('verrouille', true)
+      .order('publie_le', { ascending: false });
+    // Convertir les relevés verrouillés en "certificats"
+    tousCertificats = (data || []).map(r => ({
+      id: r.id,
+      type: 'attestation_reussite',
+      libelle: `Attestation de réussite — ${r.semestres?.libelle || '—'}`,
+      semestre: r.semestres?.libelle || '—',
+      niveau: r.semestres?.niveau || '—',
+      mention: r.mention,
+      credits: r.credits_valides,
+      date_emission: r.publie_le,
+      numero: r.numero_releve,
+      ecole_id: currentEtudiant.ecole_id,
+      etudiant_id: currentEtudiant.id,
+    }));
   } catch(e) {
-    certPortailList = [];
-    console.warn('[Certificats Portail]', e.message);
+    console.warn('[Certificats] Erreur:', e.message);
+    tousCertificats = [];
   }
-}
-
-function afficherCertificatsPortail() {
-  const page = document.getElementById('page-certificats-portail');
-  if (!page) return;
-
-  if (!certPortailList.length) {
-    page.innerHTML = `<div class="page-pad">
-      <div class="section-title">📜 Mes Documents officiels</div>
-      <div style="background:linear-gradient(135deg,var(--teal,#0f6e56),var(--navy,#1e3a5f));border-radius:14px;padding:1.2rem;color:#fff;margin-bottom:1rem;position:relative;overflow:hidden">
-        <div style="position:absolute;right:1rem;top:50%;transform:translateY(-50%);font-size:48px;opacity:.12">📜</div>
-        <div style="font-size:22px;font-weight:800;font-family:'Nunito',sans-serif">0</div>
-        <div style="font-size:14px;font-weight:700;margin-bottom:2px">Mes Documents officiels</div>
-        <div style="font-size:12px;opacity:.75">Attestations, relevés & certificats</div>
-      </div>
-      <div class="empty">
-        <div class="e-ico">📭</div>
-        <p>Aucun document officiel disponible.<br>Contactez votre administration pour en faire la demande.</p>
-      </div>
-    </div>`;
-    return;
-  }
-
-  const typeCounts = {};
-  certPortailList.forEach(c => { typeCounts[c.type] = (typeCounts[c.type]||0)+1; });
-  const summaryBadges = Object.entries(typeCounts).map(([t,n]) => {
-    const tc = CERT_TYPES_PORTAIL[t];
-    return `<span class="badge ${tc?.cls||'blue'}" style="margin-right:4px">${tc?.ico||'📄'} ${n}</span>`;
-  }).join('');
-
-  page.innerHTML = `<div class="page-pad">
-    <div class="section-title">📜 Mes Documents officiels</div>
-    <div style="background:linear-gradient(135deg,var(--teal,#0f6e56),var(--navy,#1e3a5f));border-radius:14px;padding:1.2rem;color:#fff;margin-bottom:1rem;position:relative;overflow:hidden">
-      <div style="position:absolute;right:1rem;top:50%;transform:translateY(-50%);font-size:48px;opacity:.12">📜</div>
-      <div style="font-size:26px;font-weight:800;font-family:'Nunito',sans-serif">${certPortailList.length}</div>
-      <div style="font-size:14px;font-weight:700;margin-bottom:4px">Document${certPortailList.length>1?'s':''} officiel${certPortailList.length>1?'s':''}</div>
-      <div style="margin-top:6px">${summaryBadges}</div>
-    </div>
-    <div class="card" style="overflow:hidden">
-      ${certPortailList.map(c => {
-        const t = CERT_TYPES_PORTAIL[c.type] || { label:c.type, ico:'📄', cls:'blue' };
-        return `<div class="cert-portail-card">
-          <div class="cpc-ico" style="background:${c.type==='releve_notes'?'#fef9c3':c.type==='diplome_provisoire'?'#ede9fe':c.type==='certificat_scolarite'?'#dcfce7':'#dbeafe'}">${t.ico}</div>
-          <div class="cpc-info">
-            <div class="cpc-type">${t.label}</div>
-            <div><span class="cpc-ref">${c.reference}</span></div>
-            <div class="cpc-date">Émis le ${fmtDate(c.created_at)}${c.delivre_par?' · '+c.delivre_par:''}</div>
-          </div>
-          <button class="cpc-dl" onclick="telechargerCertPortailV2('${c.id}')">⬇ PDF</button>
-        </div>`;
-      }).join('')}
-    </div>
-    <div style="text-align:center;padding:1rem;font-size:12px;color:#9ca3af">
-      🔒 Tous vos documents sont vérifiables sur <strong>edulink.bj/verifier</strong>
-    </div>
-  </div>`;
-}
 
 async function telechargerCertPortailV2(id) {
   const cert = certPortailList.find(c => c.id === id);
