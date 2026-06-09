@@ -959,9 +959,9 @@ async function seConnecter() {
 }
 
 async function chargerProfil() {
-  // Chercher directement l'etudiant par email_auth
-  const { data: etudiant } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).maybeSingle();
-  if (!etudiant) {
+  // Charger depuis profiles (Supabase) puis trouver l'etudiant lie
+  const { data: profile } = await db.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+  if (!profile || !['parent','etudiant'].includes(profile.role)) {
     await db.auth.signOut();
     const err = document.getElementById('login-error');
     err.style.display = 'block';
@@ -970,10 +970,8 @@ async function chargerProfil() {
     document.getElementById('login-btn').textContent = 'Se connecter →';
     return;
   }
-  currentProfile = { id: currentUser.id, role: 'parent', nom: etudiant.nom, prenom: etudiant.prenom, etudiant_id: etudiant.id, ecole_id: etudiant.ecole_id };
-  currentEtudiant = etudiant;
-  currentEcoleId  = etudiant.ecole_id;
-  await resoudreClasseEtudiant();
+  currentProfile = profile;
+  await chargerEtudiantLie();
   lancerApp();
 }
 
@@ -982,14 +980,14 @@ async function chargerEtudiantLie() {
   // Si parent → chercher via etudiant_id du profil
   let etudiant = null;
   if (currentProfile.role === 'etudiant') {
-    const { data } = await db.from('etudiants').select('*').eq('email', currentUser.email).single();
+    const { data } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).single();
     etudiant = data;
   } else if (currentProfile.etudiant_id) {
     const { data } = await db.from('etudiants').select('*').eq('id', currentProfile.etudiant_id).single();
     etudiant = data;
   } else {
     // Fallback : chercher par email de l'user
-    const { data } = await db.from('etudiants').select('*').eq('email', currentUser.email).maybeSingle();
+    const { data } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).maybeSingle();
     etudiant = data;
   }
   currentEtudiant = etudiant;
@@ -1019,7 +1017,7 @@ function lancerApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-portail').style.display = 'block';
   // Header
-  const nom = currentProfile ? currentProfile.prenom + ' ' + currentProfile.nom : currentUser.email;
+  const nom = currentProfile ? (currentProfile.prenom || '') + (currentProfile.prenom ? ' ' : '') + (currentProfile.nom || '') : currentUser.email;
   document.getElementById('greeting-nom').textContent = nom;
   document.getElementById('greeting-role').textContent = currentProfile?.role === 'parent' ? 'Espace parent' : 'Espace étudiant';
   if (currentEtudiant) {
