@@ -4,6 +4,14 @@
   "framework": null,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/legacy",   "destination": "/index_legacy.html" },
     { "source": "/(.*)",     "destination": "/index_legacy.html" }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "has": [{"type": "host", "value": "portail.edulink.bj"}],
+      "dest": "/edulink-portail.html"
+    }
   ]
 }
