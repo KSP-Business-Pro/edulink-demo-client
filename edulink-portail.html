@@ -959,8 +959,8 @@ async function seConnecter() {
 }
 
 async function chargerProfil() {
-  // Charger depuis profiles (Supabase) puis trouver l'etudiant lie
-  const { data: profile } = await db.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+  const { data: profile } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
+  currentProfile = profile;
   if (!profile || !['parent','etudiant'].includes(profile.role)) {
     await db.auth.signOut();
     const err = document.getElementById('login-error');
@@ -970,23 +970,19 @@ async function chargerProfil() {
     document.getElementById('login-btn').textContent = 'Se connecter →';
     return;
   }
-  currentProfile = profile;
   await chargerEtudiantLie();
   lancerApp();
 }
 
 async function chargerEtudiantLie() {
-  // Si étudiant → chercher son profil dans la table étudiants via email
-  // Si parent → chercher via etudiant_id du profil
   let etudiant = null;
-  if (currentProfile.role === 'etudiant') {
-    const { data } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).single();
-    etudiant = data;
-  } else if (currentProfile.etudiant_id) {
+  // 1. Via etudiant_id dans profiles
+  if (currentProfile?.etudiant_id) {
     const { data } = await db.from('etudiants').select('*').eq('id', currentProfile.etudiant_id).single();
     etudiant = data;
-  } else {
-    // Fallback : chercher par email de l'user
+  }
+  // 2. Via email_auth
+  if (!etudiant) {
     const { data } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).maybeSingle();
     etudiant = data;
   }
@@ -994,11 +990,6 @@ async function chargerEtudiantLie() {
   if (etudiant) currentEcoleId = etudiant.ecole_id;
   await resoudreClasseEtudiant();
 }
-
-// Résout le NOM textuel de la classe de l'étudiant courant et le stocke
-// dans currentEtudiant.classe_nom — utilisé pour filtrer l'emploi du temps.
-// Doit produire la MÊME chaîne que celle écrite par le back-office
-// (peuplerClassesEDT : `c.nom || c.filiere + ' ' + c.niveau`).
 async function resoudreClasseEtudiant() {
   if (!currentEtudiant || !currentEtudiant.classe_id) return;
   try {
@@ -1017,7 +1008,7 @@ function lancerApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-portail').style.display = 'block';
   // Header
-  const nom = currentProfile ? (currentProfile.prenom || '') + (currentProfile.prenom ? ' ' : '') + (currentProfile.nom || '') : currentUser.email;
+  const nom = currentProfile ? (currentProfile.prenom ? currentProfile.prenom + ' ' + currentProfile.nom : currentProfile.nom || currentUser.email) : currentUser.email;
   document.getElementById('greeting-nom').textContent = nom;
   document.getElementById('greeting-role').textContent = currentProfile?.role === 'parent' ? 'Espace parent' : 'Espace étudiant';
   if (currentEtudiant) {
@@ -3598,4 +3589,3 @@ function showToastPortail(msg, type='info') {
 </script>
 </body>
 </html>
-<!-- deploy 202606092045 -->
