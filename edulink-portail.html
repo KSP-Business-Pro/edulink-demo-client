@@ -177,24 +177,17 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
   position:fixed;bottom:0;left:50%;transform:translateX(-50%);
   width:100%;max-width:500px;
   background:#fff;border-top:1px solid #e5e7eb;
-  display:flex;
-  overflow-x:scroll;overflow-y:hidden;
-  -webkit-overflow-scrolling:touch;
-  z-index:100;
-  box-shadow:0 -4px 20px rgba(0,0,0,.1);
-  scrollbar-width:none;-ms-overflow-style:none;
-  padding-bottom:env(safe-area-inset-bottom,0px);
+  display:flex;z-index:100;
+  box-shadow:0 -4px 20px rgba(0,0,0,.08);
 }
-.bottom-nav::-webkit-scrollbar{display:none;height:0;width:0}
 .nav-item{
-  flex:0 0 68px;min-width:68px;display:flex;flex-direction:column;align-items:center;
+  flex:1;display:flex;flex-direction:column;align-items:center;
   padding:10px 4px 8px;cursor:pointer;color:#9ca3af;transition:color .15s;
   border:none;background:transparent;font-family:'Poppins',sans-serif;
-  
 }
 .nav-item.active{color:#0f6e56}
-.nav-item .nav-ico{font-size:22px;margin-bottom:2px;line-height:1}
-.nav-item .nav-lbl{font-size:9px;font-weight:600;white-space:nowrap}
+.nav-item .nav-ico{font-size:20px;margin-bottom:2px;line-height:1}
+.nav-item .nav-lbl{font-size:9.5px;font-weight:600}
 .nav-badge{
   position:absolute;top:6px;right:50%;transform:translateX(50%);
   width:16px;height:16px;background:#dc2626;border-radius:50%;
@@ -203,7 +196,7 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
 .nav-item{position:relative}
 
 /* ══ PAGES ══ */
-.page{display:none;padding:1rem 1rem 80px;animation:fadeUp .2s ease}
+.page{display:none;padding:1rem 1rem 0;animation:fadeUp .2s ease}
 .page.active{display:block}
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
@@ -216,14 +209,10 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
 
 /* ══ STATS ACCUEIL ══ */
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}
-.stat-grid .stat-card:nth-child(5){grid-column:1/-1}
-.stat-grid .stat-card:nth-child(5) .stat-val{font-size:22px}
 .stat-card{
   background:#fff;border-radius:14px;border:1px solid #e5e7eb;
-  padding:1rem;display:flex;align-items:center;gap:.85rem;
-  cursor:pointer;transition:transform .1s,box-shadow .1s;
+  padding:.9rem;display:flex;align-items:center;gap:.75rem;
 }
-.stat-card:active{transform:scale(.97);box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .stat-ico{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .stat-ico.teal{background:#e1f5ee}
 .stat-ico.red{background:#fee2e2}
@@ -970,9 +959,13 @@ async function seConnecter() {
 }
 
 async function chargerProfil() {
-  const { data: profile } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
-  currentProfile = profile;
-  if (!profile || !['parent','etudiant'].includes(profile.role)) {
+  // Chercher directement l'étudiant par email_auth (plus de table profiles)
+  const { data: etudiant } = await db.from('etudiants')
+    .select('*')
+    .eq('email_auth', currentUser.email)
+    .maybeSingle();
+
+  if (!etudiant) {
     await db.auth.signOut();
     const err = document.getElementById('login-error');
     err.style.display = 'block';
@@ -981,8 +974,19 @@ async function chargerProfil() {
     document.getElementById('login-btn').textContent = 'Se connecter →';
     return;
   }
-  await chargerEtudiantLie();
-  lancerApp();
+
+  // Créer un profil synthétique parent/étudiant
+  currentProfile = {
+    id: currentUser.id,
+    role: 'parent',
+    nom: etudiant.nom,
+    prenom: etudiant.prenom,
+    etudiant_id: etudiant.id,
+    ecole_id: etudiant.ecole_id,
+  };
+  currentEtudiant = etudiant;
+  currentEcoleId  = etudiant.ecole_id;
+  await lancerApp();
 }
 
 async function chargerEtudiantLie() {
@@ -1439,10 +1443,10 @@ function afficherAccueil() {
             <div class="stat-lbl">Examens à venir</div>
           </div>
         </div>
-        <div class="stat-card" onclick="showPage('releves')" style="grid-column:1/-1">
+        <div class="stat-card" onclick="showPage('releves')">
           <div class="stat-ico teal">📋</div>
           <div>
-            <div class="stat-val" style="color:#0f6e56;font-size:22px">${tousReleves.length || '—'}</div>
+            <div class="stat-val" style="color:#0f6e56">${tousReleves.length || '—'}</div>
             <div class="stat-lbl">Relevé(s) officiel(s)</div>
           </div>
         </div>
@@ -1663,30 +1667,7 @@ function imprimerBulletin(periode) {
     .footer{margin-top:2.5rem;display:flex;justify-content:space-between}
     .sig{text-align:center;width:30%}
     .sig-line{border-top:1px solid #9ca3af;padding-top:6px;font-size:11px;color:#6b7280;margin-top:2rem}
-  
-/* ══ HEADER AMÉLIORÉ ══ */
-#nav-ecole-nom{
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  max-width:200px;font-size:13px;
-}
-.app-header{padding:1rem 1rem .85rem}
-.header-school-name{font-size:13px;font-weight:700;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100vw - 120px)}
-
-/* ══ PADDING BAS POUR NAV ══ */
-.page{padding-bottom:80px !important}
-
-/* ══ STAT-VAL ══ */
-.stat-val{font-size:22px;font-weight:800;line-height:1.1}
-.stat-lbl{font-size:11px;color:#6b7280;margin-top:2px}
-.stat-ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-
-/* ══ SAFE AREA ══ */
-@supports(padding-bottom:env(safe-area-inset-bottom)){
-  .bottom-nav{padding-bottom:env(safe-area-inset-bottom)}
-  .page{padding-bottom:calc(80px + env(safe-area-inset-bottom)) !important}
-}
-</style></head><body>
+  </style></head><body>
   <div class="header">
     <h1>Bulletin de Notes — ${currentEtudiant.nom} ${currentEtudiant.prenom}</h1>
     <p>${currentEtudiant.filiere} · Niveau ${currentEtudiant.niveau} · ${periodeLabel}</p>
