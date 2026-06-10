@@ -1,5 +1,5 @@
-importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
 firebase.initializeApp({
   apiKey:            "AIzaSyBEdRgcfDi2ai23shWBf4TLBZiM16MpW-U",
@@ -12,7 +12,6 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Réception des notifications en arrière-plan
 messaging.onBackgroundMessage(function(payload) {
   console.log('[EduLink SW] Notification reçue en background:', payload);
   const notif = payload.notification || {};
@@ -21,16 +20,15 @@ messaging.onBackgroundMessage(function(payload) {
     body:  notif.body  || '',
     icon:  notif.icon  || '/icon-192.png',
     badge: '/icon-72.png',
-    data:  { url: data.url || '/edulink-portail.html' },
+    data:  { url: data.url || '/' },
     requireInteraction: data.important === 'true',
     tag: data.tag || 'edulink-notif'
   });
 });
 
-// Clic sur la notification → ouvrir l'URL
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  const url = event.notification.data?.url || '/edulink-portail.html';
+  const url = event.notification.data?.url || '/';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
       for (const client of clientList) {
@@ -40,4 +38,3 @@ self.addEventListener('notificationclick', function(event) {
     })
   );
 });
-
