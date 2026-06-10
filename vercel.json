@@ -7,7 +7,7 @@
     {
       "source": "/(.*)",
       "has": [{"type": "host", "value": "portail.edulink.bj"}],
-      "destination": "/edulink-portail.html"
+      "destination": "/portail/index.html"
     },
     { "source": "/legacy", "destination": "/index_legacy.html" },
     { "source": "/(.*)",   "destination": "/index_legacy.html" }
