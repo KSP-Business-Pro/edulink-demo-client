@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v2 -->
+<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -993,13 +993,17 @@ async function chargerEtudiantLie() {
   await resoudreClasseEtudiant();
 }
 async function resoudreClasseEtudiant() {
-  if (!currentEtudiant || !currentEtudiant.classe_id) return;
+  // Table 'classes' inexistante — on utilise 'promotions' via promotion_id
+  const promoId = currentEtudiant?.promotion_id;
+  if (!currentEtudiant || !promoId) return;
   try {
-    const { data: cls } = await db.from('classes')
-      .select('nom, filiere, niveau')
-      .eq('id', currentEtudiant.classe_id).maybeSingle();
-    if (cls) {
-      currentEtudiant.classe_nom = cls.nom || ((cls.filiere || '') + ' ' + (cls.niveau || '')).trim();
+    const { data: promo, error } = await db.from('promotions')
+      .select('nom, niveau')
+      .eq('id', promoId).maybeSingle();
+    if (error) console.warn('[Classe] Résolution promotion:', error.message);
+    if (promo) {
+      currentEtudiant.classe_nom = promo.nom || promo.niveau || '';
+      currentEtudiant.niveau = currentEtudiant.niveau || promo.niveau || '';
     }
   } catch (e) {
     console.warn('[Classe] Résolution échouée:', e.message);
@@ -1056,11 +1060,10 @@ async function chargerNotes() {
 // ── S5 Portail : Relevés officiels LMD ──────────────────────────────────────
 async function chargerReleves() {
   if (!currentEtudiant) { tousReleves = []; return; }
-  const { data } = await db.from('releves_notes')
-    .select('id,semestre_id,snapshot_notes,moyenne_semestre,credits_valides,credits_tentes,mention,decision,publie_le,verrouille,semestres(libelle,niveau)')
-    .eq('etudiant_id', currentEtudiant.id)
-    .order('publie_le', { ascending: false });
-  tousReleves = data || [];
+  const { data, error } = await db.rpc('fn_get_releves_portail', { p_etudiant_id: currentEtudiant.id });
+  if (error) console.warn('[chargerReleves] RPC:', error.message);
+  // Trier par publie_le desc
+  tousReleves = (data || []).sort((a, b) => new Date(b.publie_le || 0) - new Date(a.publie_le || 0));
   // Badge nav
   const badge = document.getElementById('nav-releves-badge');
   if (badge) badge.textContent = tousReleves.length > 0 ? tousReleves.length : '';
