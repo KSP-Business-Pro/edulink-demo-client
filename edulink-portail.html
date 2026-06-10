@@ -2170,10 +2170,28 @@ function retourStep1() {
 // ══ EXAMENS PORTAIL ★ JOUR 12 ═══════════════════════════════
 
 async function chargerExamensPortail() {
-  // Table 'examens' non encore créée — fonctionnalité à venir
-  tousExamens = [];
+  if (!currentEcoleId) { tousExamens = []; return; }
+  const { data, error } = await db.from('examens')
+    .select('*')
+    .eq('ecole_id', currentEcoleId)
+    .order('date_examen', { ascending: true });
+  if (error) console.warn('[chargerExamensPortail]:', error.message);
+  let liste = data || [];
+  // Filtrer par filière/niveau de l'étudiant si renseigné
+  if (currentEtudiant?.filiere) {
+    const filtered = liste.filter(e => !e.filiere || e.filiere === currentEtudiant.filiere);
+    if (filtered.length) liste = filtered;
+  }
+  if (currentEtudiant?.niveau) {
+    const filtered = liste.filter(e => !e.niveau || e.niveau === currentEtudiant.niveau);
+    if (filtered.length) liste = filtered;
+  }
+  tousExamens = liste;
+  // Badge nav
+  const today = new Date().toISOString().split('T')[0];
+  const aVenir = tousExamens.filter(e => e.date_examen >= today && e.statut !== 'annule' && e.statut !== 'termine').length;
   const b = document.getElementById('nav-exam-badge');
-  if (b) b.style.display = 'none';
+  if (b) { if (aVenir > 0) { b.style.display='flex'; b.textContent=aVenir; } else b.style.display='none'; }
 }
 
 function afficherExamensPortail() {
