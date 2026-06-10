@@ -1179,7 +1179,7 @@ async function telechargerReleveOfficiel(releveId) {
 
   doc.setTextColor(255,255,255);
   doc.setFontSize(16); doc.setFont('helvetica','bold');
-  doc.text(safe(currentEtudiant?.ecole_nom || 'Etablissement'), 14, 14);
+  doc.text(safe(window.currentEcoleNom || currentEtudiant?.ecole_nom || 'Etablissement'), 14, 14);
   doc.setFontSize(8); doc.setFont('helvetica','normal');
   doc.text('RELEVE DE NOTES OFFICIEL — LMD CAMES', 14, 22);
   doc.setTextColor(200,235,225); doc.setFontSize(8);
@@ -3477,6 +3477,8 @@ async function chargerBrandingPortail() {
     // Mettre à jour le titre de l'onglet (toujours, même sans slogan)
     if (data.nom) {
       document.title = data.nom + ' — Portail Famille';
+      // Stocker pour usage dans les PDFs
+      window.currentEcoleNom = data.nom;
     }
 
     // Mettre à jour le header : nom de l'école toujours, logo en plus si dispo
