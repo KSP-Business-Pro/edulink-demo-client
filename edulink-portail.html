@@ -1053,8 +1053,16 @@ async function seDeconnecter() {
 // ══ DATA ══
 async function chargerNotes() {
   if (!currentEtudiant) { toutesNotes = []; return; }
-  const { data } = await db.from('notes_lmd').select('*').eq('etudiant_id', currentEtudiant.id).order('created_at',{ascending:false});
-  toutesNotes = data || [];
+  const { data, error } = await db.rpc('fn_get_notes_portail', { p_etudiant_id: currentEtudiant.id });
+  if (error) console.warn('[chargerNotes] RPC:', error.message);
+  // Normaliser les colonnes pour compatibilité avec le reste du code
+  toutesNotes = (data || []).map(n => ({
+    ...n,
+    note: n.valeur,
+    matiere: n.matiere_nom || n.intitule || '—',
+    periode: n.categorie || 'S',
+    coefficient: n.coefficient || 1
+  }));
 }
 
 // ── S5 Portail : Relevés officiels LMD ──────────────────────────────────────
