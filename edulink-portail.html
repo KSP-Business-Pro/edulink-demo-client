@@ -976,17 +976,15 @@ async function chargerProfil() {
 
 async function chargerEtudiantLie() {
   let etudiant = null;
-  // 1. Via etudiant_id dans profiles — RPC SECURITY DEFINER (contourne RLS)
+  // 1. Via etudiant_id dans profiles
   if (currentProfile?.etudiant_id) {
-    const { data: rows, error } = await db.rpc('fn_get_etudiant_portail', { p_id: currentProfile.etudiant_id });
-    if (error) console.warn('[chargerEtudiantLie] RPC etudiant_id:', error.message);
-    etudiant = rows?.[0] ?? null;
+    const { data } = await db.from('etudiants').select('*').eq('id', currentProfile.etudiant_id).single();
+    etudiant = data;
   }
-  // 2. Via email_auth — fallback direct (la RLS autorise la lecture par email_auth si politique en place)
+  // 2. Via email_auth
   if (!etudiant) {
-    const { data, error } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).maybeSingle();
-    if (error) console.warn('[chargerEtudiantLie] email_auth fallback:', error.message);
-    etudiant = data ?? null;
+    const { data } = await db.from('etudiants').select('*').eq('email_auth', currentUser.email).maybeSingle();
+    etudiant = data;
   }
   currentEtudiant = etudiant;
   if (etudiant) currentEcoleId = etudiant.ecole_id;
@@ -1010,11 +1008,7 @@ function lancerApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-portail').style.display = 'block';
   // Header
-  const nom = currentProfile
-    ? (currentProfile.prenom
-        ? currentProfile.prenom + ' ' + (currentProfile.nom || '')
-        : currentProfile.nom || currentUser.email)
-    : currentUser.email;
+  const nom = currentProfile ? (currentProfile.prenom ? currentProfile.prenom + ' ' + currentProfile.nom : currentProfile.nom || currentUser.email) : currentUser.email;
   document.getElementById('greeting-nom').textContent = nom;
   document.getElementById('greeting-role').textContent = currentProfile?.role === 'parent' ? 'Espace parent' : 'Espace étudiant';
   if (currentEtudiant) {
@@ -1049,7 +1043,7 @@ async function seDeconnecter() {
 // ══ DATA ══
 async function chargerNotes() {
   if (!currentEtudiant) { toutesNotes = []; return; }
-  const { data } = await db.from('notes').select('*').eq('etudiant_id', currentEtudiant.id).order('created_at',{ascending:false});
+  const { data } = await db.from('notes_lmd').select('*').eq('etudiant_id', currentEtudiant.id).order('created_at',{ascending:false});
   toutesNotes = data || [];
 }
 
@@ -1057,7 +1051,7 @@ async function chargerNotes() {
 async function chargerReleves() {
   if (!currentEtudiant) { tousReleves = []; return; }
   const { data } = await db.from('releves_notes')
-    .select('id,semestre_id,snapshot_notes,moyenne_semestre,credits_valides,credits_tentes,mention,decision,publie_le,numero_releve,verrouille,semestres(libelle,niveau)')
+    .select('id,semestre_id,snapshot_notes,moyenne_semestre,credits_valides,credits_tentes,mention,decision,publie_le,verrouille,semestres(libelle,niveau)')
     .eq('etudiant_id', currentEtudiant.id)
     .order('publie_le', { ascending: false });
   tousReleves = data || [];
@@ -1873,7 +1867,7 @@ async function envoyerMessage() {
   const objet   = document.getElementById('msg-objet')?.value.trim();
   const contenu = document.getElementById('msg-contenu')?.value.trim();
   if (!contenu) { showToast('Écrivez un message.', 'error'); return; }
-  const nom = currentProfile ? ((currentProfile.prenom || '') + ' ' + (currentProfile.nom || '')).trim() || currentUser.email : currentUser.email;
+  const nom = currentProfile ? currentProfile.prenom + ' ' + currentProfile.nom : currentUser.email;
   const { error } = await db.from('messages').insert([{
     ecole_id: currentEcoleId,
     expediteur_nom: nom,
@@ -2085,9 +2079,10 @@ async function connecterEtudiant(etudiant) {
   // À ce stade, db.auth.getUser() retourne l'utilisateur authentifié.
   // On recharge les données de l'étudiant depuis la base pour avoir les données fraîches.
   try {
-    const { data: rows, error } = await db.rpc('fn_get_etudiant_portail', { p_id: etudiant.id });
-    if (error) console.warn('[Portail OTP] RPC rechargement étudiant:', error.message);
-    const etu = rows?.[0] ?? null;
+    const { data: etu } = await db.from('etudiants')
+      .select('*')
+      .eq('id', etudiant.id)
+      .single();
     if (etu) etudiant = etu;
   } catch(e) {
     console.warn('[Portail] Rechargement étudiant échoué, on utilise le cache:', e);
@@ -2100,7 +2095,7 @@ async function connecterEtudiant(etudiant) {
 
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-portail').style.display  = 'block';
-  document.getElementById('greeting-nom').textContent   = 'Parent de ' + (etudiant.prenom || etudiant.nom || 'l\'étudiant');
+  document.getElementById('greeting-nom').textContent   = 'Parent de ' + etudiant.prenom;
   document.getElementById('greeting-role').textContent  = 'Espace parent';
   document.getElementById('student-pill-wrap').innerHTML =
     `<div class="student-pill">👨‍🎓 ${etudiant.nom} ${etudiant.prenom} · ${etudiant.filiere || ''} ${etudiant.niveau || ''}</div>`;
@@ -2158,19 +2153,10 @@ function retourStep1() {
 // ══ EXAMENS PORTAIL ★ JOUR 12 ═══════════════════════════════
 
 async function chargerExamensPortail() {
-  if (!currentEcoleId) { tousExamens = []; return; }
-  let q = db.from('examens').select('*').eq('ecole_id', currentEcoleId).order('date_examen', {ascending: true});
-  // Filtrer par filière/niveau de l'étudiant
-  if (currentEtudiant?.filiere) q = q.or(`filiere.is.null,filiere.eq.${currentEtudiant.filiere}`);
-  if (currentEtudiant?.niveau)  q = q.or(`niveau.is.null,niveau.eq.${currentEtudiant.niveau}`);
-  const { data } = await q;
-  tousExamens = data || [];
-
-  // Badge nav
-  const today = new Date().toISOString().split('T')[0];
-  const aVenir = tousExamens.filter(e => e.date_examen >= today && e.statut !== 'annule').length;
+  // Table 'examens' non encore créée — fonctionnalité à venir
+  tousExamens = [];
   const b = document.getElementById('nav-exam-badge');
-  if (b) { if (aVenir > 0) { b.style.display='flex'; b.textContent=aVenir; } else b.style.display='none'; }
+  if (b) b.style.display = 'none';
 }
 
 function afficherExamensPortail() {
@@ -2257,12 +2243,10 @@ async function rendreListeExamensPortail() {
   if (currentEtudiant) {
     const examinesTermines = liste.filter(e => e.statut === 'termine').map(e => 'EXAM-' + e.id);
     if (examinesTermines.length) {
-      const { data: notesEx } = await db.from('notes').select('*')
-        .eq('etudiant_id', currentEtudiant.id)
-        .in('periode', examinesTermines);
+      const { data: notesEx } = await db.from('notes_lmd').select('etudiant_id,valeur,evaluation_id')
+        .eq('etudiant_id', currentEtudiant.id);
       (notesEx || []).forEach(n => {
-        const examId = n.periode.replace('EXAM-', '');
-        notesMap[examId] = n.note;
+        notesMap[n.evaluation_id] = n.valeur;
       });
     }
   }
@@ -2336,20 +2320,8 @@ async function chargerEnseignantsPortail() {
   const classeId = currentEtudiant?.classe_id;
   if (!classeId) { tousEnseignantsPortail = liste; return; }
 
-  try {
-    const { data: progs } = await db.from('programmes')
-      .select('enseignant_id')
-      .eq('classe_id', classeId)
-      .not('enseignant_id', 'is', null);
-    const idsEns = [...new Set((progs || []).map(p => p.enseignant_id).filter(Boolean))];
-    if (!idsEns.length) { tousEnseignantsPortail = liste; return; }
-
-    const filtre = liste.filter(e => idsEns.includes(e.id));
-    tousEnseignantsPortail = filtre.length ? filtre : liste;
-  } catch (e) {
-    console.warn('[Enseignants] Filtre par programme échoué, fallback école:', e.message);
-    tousEnseignantsPortail = liste;
-  }
+  // Table 'programmes' non encore créée — fallback liste école entière
+  tousEnseignantsPortail = liste; return;
 }
 
 function afficherEnseignantsPortail() {
@@ -2482,15 +2454,14 @@ async function telechargerBulletinPDFPortail(periode) {
       .eq('niveau', currentEtudiant.niveau);
     if (classmates?.length) {
       const ids = classmates.map(c => c.id);
-      const { data: allNotes } = await db.from('notes')
-        .select('etudiant_id,note,coefficient')
-        .in('etudiant_id', ids)
-        .eq('periode', periode||'S1');
+      const { data: allNotes } = await db.from('notes_lmd')
+        .select('etudiant_id,valeur')
+        .in('etudiant_id', ids);
       const moyParEtu = {};
       (allNotes||[]).forEach(n => {
         if (!moyParEtu[n.etudiant_id]) moyParEtu[n.etudiant_id] = { pts:0, coef:0 };
-        moyParEtu[n.etudiant_id].pts += n.note * (n.coefficient||1);
-        moyParEtu[n.etudiant_id].coef += (n.coefficient||1);
+        moyParEtu[n.etudiant_id].pts += (n.valeur||0);
+        moyParEtu[n.etudiant_id].coef += 1;
       });
       const classements = Object.entries(moyParEtu)
         .map(([id,v]) => ({ id, moy: v.coef ? v.pts/v.coef : 0 }))
