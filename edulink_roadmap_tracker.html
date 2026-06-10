@@ -1,0 +1,227 @@
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);color:var(--color-text-primary)}
+.tracker{padding:1rem 0}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:12px}
+.hdr-left h1{font-size:17px;font-weight:500;margin-bottom:2px}
+.hdr-left p{font-size:12px;color:var(--color-text-secondary)}
+.global-bar{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:12px 16px;display:flex;align-items:center;gap:12px;min-width:220px}
+.global-bar span{font-size:13px;color:var(--color-text-secondary);white-space:nowrap}
+.bar-wrap{flex:1;height:8px;background:var(--color-border-tertiary);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;background:#1e3a5f;transition:width .4s}
+.pct{font-size:14px;font-weight:500;white-space:nowrap}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+.fbtn{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:4px 10px;font-size:12px;cursor:pointer;color:var(--color-text-secondary);transition:all .15s}
+.fbtn.active,.fbtn:hover{background:var(--color-background-primary);border-color:var(--color-border-secondary);color:var(--color-text-primary)}
+.sprint{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-bottom:12px;overflow:hidden}
+.sprint-hdr{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;background:var(--color-background-secondary);user-select:none}
+.sprint-hdr:hover{background:var(--color-background-primary)}
+.sprint-num{width:26px;height:26px;border-radius:50%;background:#1e3a5f;color:#fff;font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sprint-title{flex:1;font-size:13px;font-weight:500}
+.sprint-meta{display:flex;align-items:center;gap:8px}
+.mini-bar{width:80px;height:5px;background:var(--color-border-tertiary);border-radius:3px;overflow:hidden}
+.mini-fill{height:100%;border-radius:3px;background:#f97316}
+.sprint-pct{font-size:11px;color:var(--color-text-secondary);min-width:30px;text-align:right}
+.chev{font-size:14px;color:var(--color-text-secondary);transition:transform .2s}
+.chev.open{transform:rotate(180deg)}
+.tasks{padding:8px 14px 10px}
+.task{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.task:last-child{border-bottom:none}
+.badge{font-size:10px;font-weight:500;padding:2px 7px;border-radius:999px;white-space:nowrap;flex-shrink:0;margin-top:1px}
+.b-done{background:#d1fae5;color:#065f46}
+.b-partial{background:#fef3c7;color:#92400e}
+.b-todo{background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary)}
+.b-blocked{background:#fee2e2;color:#991b1b}
+.task-main{flex:1;min-width:0}
+.task-title{font-size:12.5px;line-height:1.4}
+.task-note{font-size:11px;color:var(--color-text-secondary);margin-top:1px}
+.pri{font-size:10px;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle}
+.pri-h{background:#fee2e2;color:#991b1b}
+.pri-c{background:#dbeafe;color:#1e40af}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+</style>
+<div class="tracker">
+<h2 class="sr-only">Fiche de suivi de développement EduLink Sup</h2>
+<div class="hdr">
+  <div class="hdr-left">
+    <h1>EduLink Sup — Fiche de suivi</h1>
+    <p>Feuille de route LMD-CAMES · mise à jour 10 juin 2026 — S6 100% complet, SMS OTP + FCM opérationnels</p>
+  </div>
+  <div class="global-bar">
+    <span>Avancement global</span>
+    <div class="bar-wrap"><div class="bar-fill" id="global-fill"></div></div>
+    <span class="pct" id="global-pct">—</span>
+  </div>
+</div>
+
+<div class="legend">
+  <span class="leg-item"><span class="badge b-done">Fait</span> terminé</span>
+  <span class="leg-item"><span class="badge b-partial">Partiel</span> en cours / partiel</span>
+  <span class="leg-item"><span class="badge b-todo">À faire</span> non démarré</span>
+  <span class="leg-item"><span class="badge b-blocked">Bloqué</span> bloqué</span>
+  <span class="leg-item"><span class="pri pri-h">●</span> priorité haute</span>
+  <span class="leg-item"><span class="pri pri-c">●</span> critique</span>
+</div>
+
+<div class="filters">
+  <button class="fbtn active" onclick="filter('all',this)">Tout</button>
+  <button class="fbtn" onclick="filter('done',this)">Fait</button>
+  <button class="fbtn" onclick="filter('partial',this)">Partiel</button>
+  <button class="fbtn" onclick="filter('todo',this)">À faire</button>
+</div>
+
+<div id="sprints"></div>
+</div>
+
+<script>
+const D=[
+{id:0,label:"S0",title:"Réalisations — prototype actuel",tasks:[
+  {t:"Landing page edulink.bj déployée",s:"done",n:"Formulaire Supabase + Brevo opérationnel"},
+  {t:"Authentification Supabase Auth",s:"done"},
+  {t:"Multi-école / multi-tenant (ecole_id)",s:"done"},
+  {t:"Dashboard avec donut chart programmes",s:"done",n:"Amélioré ce sprint"},
+  {t:"Affichage Programmes & UE",s:"done"},
+  {t:"Modal + Unité d'enseignement",s:"done",n:"Create + gestion doublons + RLS"},
+  {t:"RLS back-office (44 tables)",s:"done",n:"Audit complet + patches RLS Sprint 2"},
+  {t:"Saisie des notes (interface)",s:"done",n:"Migration React complète — Sprint 3a"},
+  {t:"Calcul résultats (fn_resultats_semestre)",s:"done",n:"Compensation LMD-CAMES + rattrapage — Sprint 3b"},
+  {t:"Relevés (interface publication)",s:"done",n:"Publication, republication, verrouillage, email — Sprint 5b"},
+  {t:"Présences (interface)",s:"done",n:"Saisie séances, suivi absences, exclusions — Sprint 4b"},
+  {t:"Comptabilité (interface)",s:"done",n:"KPIs, factures, paiements, facturation masse — Sprint 5a"},
+  {t:"Portail famille (app séparée)",s:"done",n:"portail.edulink.bj — Auth Email + SMS OTP + FCM + tous modules"},
+  {t:"Pitch ESM (web + PowerPoint)",s:"done"},
+]},
+{id:1,label:"S1",title:"Sprint 1 — Socle technique React",pri:"haute",tasks:[
+  {t:"Migration React + TypeScript + Vite",s:"done",p:"c",n:"Vite 5 + React 18 + TS — Auth + Dashboard + Étudiants + 7 rôles opérationnels"},
+  {t:"Séparation en modules (/auth, /dashboard…)",s:"done",p:"c",n:"Routes lazy par module + skeletons migration progressive"},
+  {t:"Couche services/ Supabase centralisée",s:"done",p:"h",n:"src/services/ : supabase.ts, auth.service.ts, dashboard.service.ts, permissions.ts"},
+  {t:"Fichier .env (no secrets en dur)",s:"done",p:"h",n:"WEBHOOK_SECRET déplacé côté serveur via proxy /api/releve Vercel"},
+  {t:"Matrice permissions 7 rôles",s:"done",n:"permissions.ts + usePermissions() + AppLayout filtrage sidebar"},
+  {t:"Suite de tests edulink_tests.mjs",s:"done",n:"26/26 tests OK"},
+  {t:"Repo structuré /src/modules /services /types",s:"done",n:"Architecture par module établie"},
+  {t:"Rôles et permissions (7 rôles)",s:"done",n:"Matrice complète admin/direction/scolarite/enseignant/comptable/etudiant/parent"},
+  {t:"Séparation back-office / landing page",s:"done"},
+]},
+{id:2,label:"S2",title:"Sprint 2 — Référentiel académique",tasks:[
+  {t:"CRUD Programmes LMD (modal complet)",s:"done",p:"h",n:"ModalProgramme.tsx — auto-fill crédits/durée par grade, actif/inactif"},
+  {t:"CRUD Unités d'enseignement",s:"done",n:"ModalUE.tsx — type, crédits CECT, pondération CC/Exam, lien programme"},
+  {t:"CRUD Matières (matieres_lmd)",s:"done",p:"h",n:"ModalMatieres.tsx — list+form inline, enseignant assigné, CM/TD"},
+  {t:"Affectation UE ↔ programme ↔ semestre",s:"done",n:"programme_ue + lien création UE"},
+  {t:"CRUD Semestres + années académiques",s:"done",p:"h",n:"SemestresPage — tabs semestres/années, auto-libellé, sessions affichées"},
+  {t:"CRUD Promotions",s:"done",n:"PromotionsPage — cards niveau, inscrits/capacité, auto-nom"},
+  {t:"Contrôle crédits CAMES (30/sem)",s:"done",p:"h",n:"CreditsBadge + checkCreditsUE dans referentiel.service.ts"},
+  {t:"Import Excel/CSV maquette pédagogique",s:"todo"},
+]},
+{id:3,label:"S3",title:"Sprint 3 — Notes, résultats, semestres",tasks:[
+  {t:"Module Saisie des notes React",s:"done",p:"h",n:"Grille CC/Exam, sauvegarde auto blur/Enter, ABS, verrouillage, import CSV/Excel"},
+  {t:"Sessions évaluation (normale/rattrapage)",s:"done",n:"Créer sessions, toggle mode, activer rattrapage"},
+  {t:"Module Résultats React",s:"done",p:"c",n:"Calcul batch, compensation CAMES, note plancher, tab rattrapage, modal détail UE"},
+  {t:"Module Semestres standalone React",s:"done",n:"Tableau avec sessions, années académiques CRUD, année courante"},
+  {t:"fn_resultats_semestre + compensation",s:"done",p:"c",n:"Port fidèle _calculerUnEtudiant — plancher, seuil UE, compensation, cache"},
+  {t:"Calcul rattrapage batch",s:"done",p:"h",n:"calculerRattrapageBatch — max/écrase + compensation post-ratt"},
+  {t:"Fiche étudiant complète",s:"done",p:"h",n:"FicheEtudiant.tsx — infos personnelles + historique inscriptions"},
+]},
+{id:4,label:"S4",title:"Sprint 4 — Présences et Délibérations",tasks:[
+  {t:"Module Présences React — saisie séances",s:"done",n:"Formulaire séance CM/TD/TP, liste séances récentes cliquables, suppression"},
+  {t:"Modal saisie présences",s:"done",n:"ModalSaisiePresence — feedback immédiat, rollback erreur, Tous présents"},
+  {t:"Suivi absences par UE (v_absences_ue)",s:"done",n:"Groupé par UE, barres progression colorées, statuts OK/À risque/Exclu"},
+  {t:"Exclusions — auto et manuelle",s:"done",n:"fn_auto_exclure_absences, fn_exclure_etudiant_ue, fn_lever_exclusion_ue"},
+  {t:"Module Délibérations React",s:"done",n:"Jury LMD-CAMES — override décisions, 5 KPI cards, tableau complet"},
+  {t:"Clôture semestre post-délibération",s:"done",n:"cloturerSemestre — statut cloture + sessions close"},
+  {t:"Publication relevés depuis Délibérations",s:"done",n:"publierTousReleves + verrouillage + barre progression"},
+]},
+{id:5,label:"S5",title:"Sprint 5 — Modules établissement",tasks:[
+  {t:"Module Comptabilité React",s:"done",n:"KPIs FCFA, répartition rubriques, top impayés, tableau filtrable, fiche étudiant"},
+  {t:"Facturation individuelle et en masse",s:"done",n:"ModalFacture + ModalFactureMasse — anti-doublons, auto-libellé"},
+  {t:"Enregistrement paiements + statuts",s:"done",n:"ModalFicheComptable — paiement partiel/total, modes Mobile Money/virement…"},
+  {t:"Module Relevés React",s:"done",n:"Publication, republication, verrouillage 🔒, renvoi email 📧, blocage impayé"},
+  {t:"Module Enseignants React",s:"done",n:"CRUD complet, grades CAMES, modal matières assignées"},
+  {t:"Module Paramètres React",s:"done",n:"Établissement, règles LMD, barème CAMES, notifications email"},
+  {t:"Module Messages React",s:"done",n:"Messagerie interne — envoi, suppression, avatars rôles"},
+  {t:"Module Promotions React",s:"done",n:"Cards niveau, inscrits/capacité, barre remplissage, CRUD + auto-nom"},
+  {t:"Génération relevé PDF officiel",s:"done",p:"c",n:"jsPDF + autoTable, QR code, mise en page LMD officielle"},
+  {t:"Reçu paiement PDF (A5 jsPDF)",s:"done",n:"genererRecuPDF — format A5, numéro reçu"},
+  {t:"Envoi email automatique relevé (Brevo)",s:"done",n:"publish-releve Edge Function — modes publish/resend/lock/unlock"},
+]},
+{id:6,label:"S6",title:"Sprint 6 — Portail famille & mobile",tasks:[
+  {t:"Portail famille (portail.edulink.bj)",s:"done",n:"Auth Email + RLS via RPC SECURITY DEFINER + branding HEMEC"},
+  {t:"Dashboard portail avec KPIs personnels",s:"done",n:"Moyenne générale, absences, paiements, relevés, dernières notes"},
+  {t:"Consultation emploi du temps",s:"done",n:"Emploi du temps hebdomadaire avec enseignants et salles"},
+  {t:"Consultation notes + bulletin PDF",s:"done",n:"fn_get_notes_portail RPC enrichi — matière, coeff, mention, bulletin PDF"},
+  {t:"Consultation absences personnelles",s:"done",n:"fn_get_absences_portail RPC — liste + stats par période"},
+  {t:"Relevés officiels LMD + PDF",s:"done",n:"fn_get_releves_portail RPC + PDF avec nom école, UE, crédits"},
+  {t:"Examens planifiés",s:"done",n:"Table examens créée — bannière prochain examen, filtres, badge nav"},
+  {t:"Notifications push / email étudiant",s:"done",n:"FCM + SW enregistré — importScripts Firebase + fichiers SW dans portail/ — PWA installable"},
+  {t:"Version mobile responsive",s:"done",n:"Layout mobile adaptatif — nav bottom, cards responsive"},
+  {t:"PDF relevé téléchargeable depuis portail",s:"done",n:"fn_get_releves_portail + PDF LMD officiel avec nom établissement"},
+  {t:"Connexion SMS OTP parents",s:"done",n:"bright-handler v7 — auth_id corrigé, rotation password sécurisé, flux complet opérationnel"},
+]},
+{id:7,label:"S7",title:"Sprint 7 — Production & sécurité",tasks:[
+  {t:"Audit sécurité RLS complet (44 tables)",s:"done",p:"c",n:"Toutes les tables critiques auditées et patchées — super-admin pattern IS NULL"},
+  {t:"Calculs académiques côté SQL (SECURITY DEFINER)",s:"done",p:"c",n:"fn_resultats_semestre, fn_moy_ue_rattrapage, fn_check_plancher"},
+  {t:"Performance (pagination 25/page, debounce, cache)",s:"done",p:"h",n:"_PAGE_SIZE, debounce 250ms, resultats_cache"},
+  {t:"Suite tests automatisés edulink_tests.mjs",s:"done",p:"h",n:"26/26 tests OK — couvrant RLS, calculs LMD, compensation, rattrapage"},
+  {t:"Migration React complète (tous modules)",s:"done",p:"c",n:"13 modules migrés — Dashboard, Étudiants, Programmes, Saisie, Résultats, Semestres, Présences, Délibérations, Relevés, Comptabilité, Enseignants, Paramètres, Messages, Promotions"},
+  {t:"Proxy Vercel secrets côté serveur",s:"done",n:"/api/config.js + /api/releve.js"},
+  {t:"Documentation API + guide admin",s:"done",n:"Guide HTML 18 sections — tous modules, règles LMD, sauvegarde, FAQ dépannage"},
+  {t:"Procédure sauvegarde/restauration",s:"done",n:"Documentée dans guide admin section 17 — pg_dump/pg_restore + backups Supabase"},
+  {t:"Monitoring + alertes production",s:"done",n:"MonitoringPage — KPIs réseau, alertes impayés/exclusions, liens Supabase/Vercel/Brevo, auto-refresh 5min"},
+  {t:"Dashboard prospects CRM (Suivi-PAG style)",s:"done",n:"ProspectsPage — pipeline 5 statuts, filtres, modal WhatsApp, notes internes"},
+  {t:"Environnement démo données fictives",s:"done",n:"seed_demo_esm.sql — école ESM, 4 programmes, 20 étudiants, inscriptions, factures"},
+  {t:"Déploiement production app.edulink.bj",s:"done",n:"app.edulink.bj stable — legacy interface principale, React dans dist, seed démo ESM exécuté"},
+]},
+];
+
+let currentFilter='all';
+const pts={done:1,partial:0.5,todo:0,blocked:0};
+
+function render(){
+  const c=document.getElementById('sprints');
+  c.innerHTML='';
+  let totalScore=0,totalTasks=0;
+  D.forEach(sp=>{
+    totalScore+=sp.tasks.reduce((a,t)=>a+pts[t.s],0);
+    totalTasks+=sp.tasks.length;
+    const tasks=currentFilter==='all'?sp.tasks:sp.tasks.filter(t=>t.s===currentFilter);
+    if(currentFilter!=='all'&&!tasks.length)return;
+    const pct=Math.round(sp.tasks.reduce((a,t)=>a+pts[t.s],0)/sp.tasks.length*100);
+    const div=document.createElement('div');
+    div.className='sprint';
+    const hdr=document.createElement('div');
+    hdr.className='sprint-hdr';
+    hdr.innerHTML=`<div class="sprint-num">${sp.label}</div><div class="sprint-title">${sp.title}</div><div class="sprint-meta"><div class="mini-bar"><div class="mini-fill" style="width:${pct}%"></div></div><span class="sprint-pct">${pct}%</span></div><i class="ti ti-chevron-down chev" aria-hidden="true"></i>`;
+    div.appendChild(hdr);
+    const body=document.createElement('div');
+    body.className='tasks';body.style.display='none';
+    tasks.forEach(t=>{
+      const row=document.createElement('div');row.className='task';
+      const bclass={done:'b-done',partial:'b-partial',todo:'b-todo',blocked:'b-blocked'}[t.s];
+      const blabel={done:'Fait',partial:'Partiel',todo:'À faire',blocked:'Bloqué'}[t.s];
+      const pri=t.p==='c'?`<span class="pri pri-c">critique</span>`:t.p==='h'?`<span class="pri pri-h">haute</span>`:'';
+      row.innerHTML=`<span class="badge ${bclass}">${blabel}</span><div class="task-main"><div class="task-title">${t.t}${pri}</div>${t.n?`<div class="task-note">${t.n}</div>`:''}</div>`;
+      body.appendChild(row);
+    });
+    div.appendChild(body);
+    hdr.addEventListener('click',()=>{
+      const open=body.style.display!=='none';
+      body.style.display=open?'none':'block';
+      hdr.querySelector('.chev').classList.toggle('open',!open);
+    });
+    c.appendChild(div);
+  });
+  const gp=Math.round(totalScore/totalTasks*100);
+  document.getElementById('global-fill').style.width=gp+'%';
+  document.getElementById('global-pct').textContent=gp+'%';
+}
+
+function filter(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+render();
+document.querySelectorAll('.sprint-hdr')[0]?.click();
+</script>
