@@ -1291,7 +1291,8 @@ async function telechargerReleveOfficiel(releveId) {
 }
 async function chargerAbsences() {
   if (!currentEtudiant) { toutesAbsences = []; return; }
-  const { data } = await db.from('absences').select('*').eq('etudiant_id', currentEtudiant.id).order('date_absence',{ascending:false});
+  const { data, error } = await db.rpc('fn_get_absences_portail', { p_etudiant_id: currentEtudiant.id });
+  if (error) console.warn('[chargerAbsences] RPC:', error.message);
   toutesAbsences = data || [];
 }
 async function chargerFactures() {
@@ -2452,11 +2453,8 @@ async function telechargerBulletinPDFPortail(periode) {
     T1:['2025-09-01','2025-12-15'], T2:['2025-12-16','2026-03-31'], T3:['2026-04-01','2026-06-30']
   };
   const range = periodeRanges[periode] || ['2000-01-01','2099-12-31'];
-  const { data: abs } = await db.from('absences')
-    .select('statut,date_absence')
-    .eq('etudiant_id', currentEtudiant.id)
-    .gte('date_absence', range[0])
-    .lte('date_absence', range[1]);
+  const { data: absAll } = await db.rpc('fn_get_absences_portail', { p_etudiant_id: currentEtudiant.id });
+  const abs = (absAll || []).filter(a => a.date_absence >= range[0] && a.date_absence <= range[1]);
   const stats = { absent:0, retard:0, excuse:0 };
   (abs||[]).forEach(a => { stats[a.statut] = (stats[a.statut]||0) + 1; });
 
