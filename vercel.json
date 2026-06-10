@@ -4,12 +4,15 @@
   "framework": null,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/firebase-messaging-sw.js", "destination": "/firebase-messaging-sw.js" },
+    { "source": "/service-worker.js", "destination": "/service-worker.js" },
+    { "source": "/manifest.json", "destination": "/manifest.json" },
     {
       "source": "/(.*)",
       "has": [{"type": "host", "value": "portail.edulink.bj"}],
       "destination": "/portail/index.html"
     },
     { "source": "/legacy", "destination": "/index_legacy.html" },
-    { "source": "/(.*)",   "destination": "/index_legacy.html" }
+    { "source": "/(.*)", "destination": "/index_legacy.html" }
   ]
 }
