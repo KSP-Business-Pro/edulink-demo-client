@@ -559,7 +559,8 @@ export default function PresencesPage() {
       {/* ── Modal saisie présences ── */}
       {modalSeance && (
         <ModalSaisiePresence
-          seance={modalSeance}
+          seanceId={modalSeance.id}
+          matiereNom={modalSeance.matieres_lmd?.nom ?? modalSeance.matiere_id}
           etudiants={etudiants}
           ecoleId={ecoleId}
           onClose={() => { setModalSeance(null); }}
@@ -568,3 +569,4 @@ export default function PresencesPage() {
     </div>
   );
 }
+
