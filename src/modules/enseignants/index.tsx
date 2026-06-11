@@ -22,7 +22,7 @@ interface MatiereLien {
 
 interface EcoleOption { id: string; nom: string }
 
-const GRADES = ['Professeur Titulaire', 'Maître de Conférences', 'Maître Assistant', 'Assistant', 'ATER', 'Vacataire', 'Autre'];
+const GRADES = ['Professeur Titulaire', 'Maître de Conférences', 'Maître-Assistant', 'Prof Agrégé', 'Chargé de Cours', 'Docteur', 'Vacataire'];
 
 const GRADE_COLOR: Record<string, string> = {
   'Professeur Titulaire': 'purple',
@@ -65,7 +65,7 @@ export default function EnseignantsPage() {
   const [formError, setFormError] = useState('');
   const [form, setForm]           = useState({
     nom: '', prenom: '', grade: GRADES[5], specialite: '',
-    email: '', telephone: '', statut: 'actif' as 'actif' | 'inactif',
+    email: '', telephone: '', statut: 'Permanent' as 'Permanent' | 'Vacataire' | 'Visiteur',
   });
 
   // ── Modal matières ────────────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ export default function EnseignantsPage() {
   // ── CRUD ──────────────────────────────────────────────────────────────────────
   function openCreate() {
     setEditId(null);
-    setForm({ nom: '', prenom: '', grade: GRADES[5], specialite: '', email: '', telephone: '', statut: 'actif' });
+    setForm({ nom: '', prenom: '', grade: GRADES[5], specialite: '', email: '', telephone: '', statut: 'Permanent' });
     setFormError('');
     setModalOpen(true);
   }
@@ -237,7 +237,7 @@ export default function EnseignantsPage() {
         specialite: row.specialite || null,
         email: row.email || null,
         telephone: row.telephone || null,
-        statut: 'actif',
+        statut: 'Permanent',
       });
       if (!error) { ok++; results.push({ ...row, _ok: true }); }
       else { skip++; results.push({ ...row, _ok: false, _err: error.message }); }
@@ -292,7 +292,7 @@ export default function EnseignantsPage() {
           {[
             { ico: '👨‍🏫', val: enseignants.length,                          lbl: 'Total' },
             { ico: '✅',  val: enseignants.filter(e => e.statut === 'actif').length, lbl: 'Actifs' },
-            { ico: '🎓',  val: enseignants.filter(e => ['Professeur Titulaire','Maître de Conférences','Maître Assistant'].includes(e.grade ?? '')).length, lbl: 'Permanents' },
+            { ico: '🎓',  val: enseignants.filter(e => ['Professeur Titulaire','Maître de Conférences','Maître-Assistant','Prof Agrégé','Docteur','Chargé de Cours'].includes(e.grade ?? '')).length, lbl: 'Permanents' },
             { ico: '🔄',  val: enseignants.filter(e => e.grade === 'Vacataire').length, lbl: 'Vacataires' },
           ].map(({ ico, val, lbl }) => (
             <div key={lbl} className="card" style={{ padding: '.75rem' }}>
@@ -391,8 +391,9 @@ export default function EnseignantsPage() {
                   <label>Statut *</label>
                   <select value={form.statut} onChange={e => setForm(f => ({ ...f, statut: e.target.value as 'actif' | 'inactif' }))}
                     style={{ width: '100%', marginTop: 4 }} required>
-                    <option value="actif">Actif</option>
-                    <option value="inactif">Inactif</option>
+                    <option value="Permanent">Permanent</option>
+                    <option value="Vacataire">Vacataire</option>
+                    <option value="Visiteur">Visiteur</option>
                   </select>
                 </div>
               </div>
@@ -519,4 +520,6 @@ export default function EnseignantsPage() {
     </div>
   );
 }
+
+
 
