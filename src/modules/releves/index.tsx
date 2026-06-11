@@ -130,7 +130,7 @@ export default function RelevesPage() {
     if (!sessionId) return { success: false, error: 'Aucune session normale' };
     try {
       const res = await fetch(RELEVE_FN_URL, {
-        method: 'POST', headers: releveHeaders(),
+        method: 'POST', headers: await releveHeaders(),
         body: JSON.stringify({
           etudiant_id: etudiantId, semestre_id: semId, session_id: sessionId,
           mode: 'publish', send_email: opts.sendEmail ?? sendEmail,
@@ -151,7 +151,7 @@ export default function RelevesPage() {
     const sessionId = await getSessionId();
     try {
       const res = await fetch(RELEVE_FN_URL, {
-        method: 'POST', headers: releveHeaders(),
+        method: 'POST', headers: await releveHeaders(),
         body: JSON.stringify({ etudiant_id: etudiant.id, semestre_id: semId, session_id: sessionId, mode: 'resend' }),
       });
       const data = await res.json();
@@ -412,4 +412,5 @@ export default function RelevesPage() {
     </div>
   );
 }
+
 
