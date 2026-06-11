@@ -1,12 +1,7 @@
 {
-  "functions": {
-    "api/chat.js": {
-      "maxDuration": 30
-    },
-    "api/notify.js": {
-      "maxDuration": 10
-    }
-  },
+  "buildCommand": "npm run build",
+  "outputDirectory": ".",
+  "framework": null,
   "headers": [
     {
       "source": "/api/(.*)",
@@ -16,5 +11,17 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
       ]
     }
+  ],
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/legacy", "destination": "/index_legacy.html" },
+    { "source": "/legacy/(.*)", "destination": "/index_legacy.html" },
+    {
+      "source": "/(.*)",
+      "has": [{"type": "host", "value": "portail.edulink.bj"}],
+      "destination": "/portail/index.html"
+    },
+    { "source": "/(.*\\.(js|css|png|jpg|svg|ico|woff|woff2|ttf|json))", "destination": "/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
