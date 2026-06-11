@@ -21,7 +21,6 @@
       "has": [{"type": "host", "value": "portail.edulink.bj"}],
       "destination": "/portail/index.html"
     },
-    { "source": "/(.*\\.(js|css|png|jpg|svg|ico|woff|woff2|ttf|json))", "destination": "/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
