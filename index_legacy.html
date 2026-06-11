@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -1359,6 +1359,76 @@ async function activerSessionRattrapage(sessId) {
 }
 async function initResultats()    { await peuplerSelectSemestre('resultats-semestre'); }
 async function initDeliberations() { await peuplerSelectSemestre('delib-semestre'); }
+
+async function chargerDeliberation() {
+  const semId = document.getElementById('delib-semestre').value;
+  const el = document.getElementById('deliberation-content');
+  const actEl = document.getElementById('delib-actions');
+  if (!semId) { el.innerHTML = '<div class="empty-state"><div class="es-ico">⚖️</div><h3>Sélectionnez un semestre</h3></div>'; actEl.innerHTML = ''; return; }
+  el.innerHTML = '<div class="loading">Chargement…</div>';
+  const [{ data: ins }, { data: cache }, { data: sem }] = await Promise.all([
+    db.from('inscriptions_semestre').select('etudiant_id, etudiants(id,nom,prenom,matricule,filiere)').eq('semestre_id', semId).eq('statut','active'),
+    db.from('resultats_cache').select('etudiant_id,credits_valides,semestre_valide,moyenne_semestre,mention,decision').eq('semestre_id', semId),
+    db.from('semestres').select('statut').eq('id', semId).single(),
+  ]);
+  const cacheMap = {}; (cache||[]).forEach(c => { cacheMap[c.etudiant_id] = c; });
+  const etus = (ins||[]).map(i=>i.etudiants).filter(Boolean).sort((a,b)=>a.nom.localeCompare(b.nom));
+  const nbTotal = etus.length, nbCalc = Object.keys(cacheMap).length;
+  const nbAdmis = Object.values(cacheMap).filter(c=>c.semestre_valide).length;
+  const nbAj = Object.values(cacheMap).filter(c=>!c.semestre_valide).length;
+  const isCloture = sem && (sem.statut === 'cloture' || sem.statut === 'archive');
+  document.getElementById('delib-session-badge').style.display='inline';
+  document.getElementById('delib-session-badge').innerHTML = isCloture ? '<span class="badge blue">🔒 Clôturé</span>' : '<span class="badge green">🔓 En cours</span>';
+  actEl.innerHTML = isCloture ? '' : '<button class="btn-blue" onclick="cloturerSemestreDelib(\''+semId+'\')">🔒 Clôturer</button>';
+  if (!nbTotal) { el.innerHTML = '<div class="empty-state"><div class="es-ico">📋</div><h3>Aucun étudiant inscrit</h3></div>'; return; }
+  const ML = {tres_bien:'Très bien',bien:'Bien',assez_bien:'Assez bien',passable:'Passable',insuffisant:'Insuffisant'};
+  const MC = {tres_bien:'purple',bien:'green',assez_bien:'blue',passable:'gray',insuffisant:'red'};
+  const DL = {admis:'Admis','ajourné':'Ajourné',redoublant:'Redoublant',exclus:'Exclus',mention_speciale:'Mention spéciale'};
+  const DC = {admis:'green','ajourné':'amber',redoublant:'red',exclus:'gray',mention_speciale:'purple'};
+  const DECS = ['admis','ajourné','redoublant','exclus','mention_speciale'];
+  let rows = '';
+  etus.forEach(et => {
+    const c = cacheMap[et.id];
+    const moy = c && c.moyenne_semestre != null ? Number(c.moyenne_semestre).toFixed(2) : '—';
+    const cred = c ? c.credits_valides : '—';
+    const ment = c && c.mention ? '<span class="badge '+(MC[c.mention]||'gray')+'">'+( ML[c.mention]||c.mention)+'</span>' : '<span class="badge gray">—</span>';
+    const dec = c && c.decision ? '<span class="badge '+(DC[c.decision]||'gray')+'">'+( DL[c.decision]||c.decision)+'</span>' : '<span class="badge gray">Non calculé</span>';
+    const opts = DECS.map(d => '<option value="'+d+'"'+(c && c.decision===d?' selected':'')+'>'+DL[d]+'</option>').join('');
+    rows += '<tr><td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px">'+esc(et.matricule||'—')+'</code></td>'
+      +'<td><strong>'+esc(et.nom)+' '+esc(et.prenom)+'</strong></td>'
+      +'<td style="text-align:center"><span class="badge teal">'+moy+'</span></td>'
+      +'<td style="text-align:center"><span class="badge gray">'+cred+' CECT</span></td>'
+      +'<td style="text-align:center">'+ment+'</td>'
+      +'<td style="text-align:center">'+dec+'</td>'
+      +'<td style="text-align:center"><select onchange="ajusterDecisionJury(\''+et.id+'\',\''+semId+'\',this.value)" style="padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:inherit"><option value="">— Choisir —</option>'+opts+'</select></td>'
+      +'</tr>';
+  });
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem">'
+    +'<div class="card"><div class="c-ico">👥</div><div class="c-val">'+nbTotal+'</div><div class="c-lbl">Étudiants</div></div>'
+    +'<div class="card"><div class="c-ico">⚙️</div><div class="c-val">'+nbCalc+'</div><div class="c-lbl">Calculés</div></div>'
+    +'<div class="card"><div class="c-ico">✅</div><div class="c-val">'+nbAdmis+'</div><div class="c-lbl">Admis</div></div>'
+    +'<div class="card"><div class="c-ico">⏳</div><div class="c-val">'+nbAj+'</div><div class="c-lbl">Ajournés</div></div>'
+    +'</div><div class="table-wrap"><table><thead><tr>'
+    +'<th>Matricule</th><th>Étudiant</th><th style="text-align:center">Moyenne</th><th style="text-align:center">Crédits</th><th style="text-align:center">Mention</th><th style="text-align:center">Décision calculée</th><th style="text-align:center">Décision jury</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+
+async function ajusterDecisionJury(etudiantId, semId, decision) {
+  if (!decision) return;
+  const { error } = await db.from('resultats_cache').update({ decision }).eq('etudiant_id', etudiantId).eq('semestre_id', semId);
+  if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
+  showToast('Décision mise à jour ✓');
+}
+
+async function cloturerSemestreDelib(semId) {
+  if (!confirm('Clôturer ce semestre ?')) return;
+  const { error } = await db.from('semestres').update({ statut: 'cloture' }).eq('id', semId);
+  if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
+  await db.from('sessions_evaluation').update({ statut: 'close' }).eq('semestre_id', semId);
+  showToast('Semestre clôturé 🔒'); chargerDeliberation();
+}
+
+
 async function initReleves()      { await peuplerSelectSemestre('releves-semestre'); }
 
 async function peuplerSelectSemestre(selId) {
