@@ -41,18 +41,20 @@ const COLORS = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4'];
 export async function loadDashboard(ecoleId: string): Promise<DashboardData> {
   const [
     { data: etudiants },
-    { data: semestres },
     { data: ues },
+    { data: semestres },
     { data: inscriptions },
     { data: cache },
     { data: annee },
     { data: regles },
   ] = await Promise.all([
-    supabase.from('etudiants').select('id,statut').eq('ecole_id', ecoleId),
+    // RPC SECURITY DEFINER — contourne RLS sur etudiants
+    supabase.rpc('fn_dashboard_etudiants', { p_ecole_id: ecoleId }),
+    // RPC SECURITY DEFINER — contourne RLS sur unites_enseignement
+    supabase.rpc('fn_dashboard_ues', { p_ecole_id: ecoleId }),
     supabase.from('semestres')
       .select('id,libelle,niveau,statut,programme_id,programmes_lmd(intitule,grade)')
       .eq('ecole_id', ecoleId).order('numero'),
-    supabase.from('unites_enseignement').select('id').eq('ecole_id', ecoleId),
     supabase.from('inscriptions_semestre').select('id,statut,semestre_id').eq('ecole_id', ecoleId),
     supabase.from('resultats_cache')
       .select('etudiant_id,semestre_valide,credits_valides,moyenne_semestre')
@@ -64,10 +66,10 @@ export async function loadDashboard(ecoleId: string): Promise<DashboardData> {
   ]);
 
   // KPIs de base
-  const nbEtudiants      = etudiants?.length ?? 0;
-  const nbInscrits       = inscriptions?.filter(i => i.statut === 'active').length ?? 0;
+  const nbEtudiants       = etudiants?.length ?? 0;
+  const nbInscrits        = inscriptions?.filter(i => i.statut === 'active').length ?? 0;
   const nbSemestresActifs = semestres?.filter(s => s.statut === 'en_cours').length ?? 0;
-  const nbUE             = ues?.length ?? 0;
+  const nbUE              = ues?.length ?? 0;
 
   // Programmes uniques
   const progMap = new Map<string, { intitule: string; inscrits: number }>();
@@ -112,9 +114,9 @@ export async function loadDashboard(ecoleId: string): Promise<DashboardData> {
   const semestresEnCours: SemestreEnCours[] = (semestres ?? [])
     .filter(s => s.statut === 'en_cours')
     .map(s => ({
-      id:       s.id,
-      libelle:  s.libelle,
-      niveau:   s.niveau,
+      id:        s.id,
+      libelle:   s.libelle,
+      niveau:    s.niveau,
       programme: (s.programmes_lmd as { intitule: string } | null)?.intitule ?? '—',
     }));
 
@@ -141,4 +143,3 @@ export async function loadDashboard(ecoleId: string): Promise<DashboardData> {
     programmes,
   };
 }
-
