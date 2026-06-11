@@ -8,9 +8,9 @@ import { basculerVerrouReleve } from '../../services/deliberations.service';
 
 const RELEVE_FN_URL = `https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve`;
 
-function releveHeaders(): Record<string, string> {
-  const session = (supabase as any).auth?.session?.();
-  const token = session?.access_token ?? (supabase as any)._session?.access_token ?? '';
+async function releveHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token ?? '';
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 }
 
@@ -412,3 +412,4 @@ export default function RelevesPage() {
     </div>
   );
 }
+
