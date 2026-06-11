@@ -26,8 +26,11 @@ export default function ModalImportMatieres({ ecoleId, onClose, onImported }: Pr
       if (file.name.endsWith('.csv')) {
         parsed = parseImportMatieres(await file.text());
       } else {
-        const XLSX = (window as any).XLSX;
-        if (!XLSX) throw new Error('SheetJS non disponible — utilisez un fichier CSV');
+        let XLSX = (window as any).XLSX;
+        if (!XLSX) {
+          const mod = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
+          XLSX = mod.default ?? mod;
+        }
         const buf  = await file.arrayBuffer();
         const wb   = XLSX.read(buf, { type: 'array' });
         const ws   = wb.Sheets[wb.SheetNames[0]];
@@ -129,3 +132,4 @@ export default function ModalImportMatieres({ ecoleId, onClose, onImported }: Pr
     </div>
   );
 }
+

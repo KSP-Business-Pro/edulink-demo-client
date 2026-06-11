@@ -194,8 +194,11 @@ export default function EnseignantsPage() {
         }).filter(r => r.nom);
       } else {
         // Excel via SheetJS
-        const XLSX = (window as any).XLSX;
-        if (!XLSX) throw new Error('SheetJS non disponible — utilisez un fichier CSV');
+        let XLSX = (window as any).XLSX;
+        if (!XLSX) {
+          const mod = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
+          XLSX = mod.default ?? mod;
+        }
         const buf  = await file.arrayBuffer();
         const wb   = XLSX.read(buf, { type: 'array' });
         const ws   = wb.Sheets[wb.SheetNames[0]];
@@ -516,3 +519,4 @@ export default function EnseignantsPage() {
     </div>
   );
 }
+
