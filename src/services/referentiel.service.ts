@@ -1,4 +1,4 @@
-// @ts-nocheck // rpc-v2
+// @ts-nocheck
 // ─────────────────────────────────────────────────────────────────────────────
 //  referentiel.service.ts — Couche données Référentiel académique Sprint 2
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,11 +47,8 @@ export async function deleteProgramme(id: string): Promise<void> {
 // ── Unités d'Enseignement ─────────────────────────────────────────────────────
 
 export async function fetchUEs(ecoleId: string): Promise<UniteEnseignement[]> {
-  const { data, error } = await supabase
-    .from('unites_enseignement')
-    .select('*')
-    .eq('ecole_id', ecoleId)
-    .order('code');
+  // RPC SECURITY DEFINER — contourne RLS
+  const { data, error } = await supabase.rpc('fn_dashboard_ues', { p_ecole_id: ecoleId });
   if (error) throw error;
   return data ?? [];
 }
