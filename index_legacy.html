@@ -152,7 +152,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 /* ── Modals ── */
 .modal-overlay {
   display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-  background:rgba(0,0,0,.5); z-index:100; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.5); z-index:9999; align-items:center; justify-content:center;
 }
 .modal-overlay.open { display:flex; }
 .modal { background:#fff; border-radius:16px; padding:1.5rem; width:540px; max-width:94%; max-height:92vh; overflow-y:auto; }
@@ -7222,3 +7222,4 @@ function toggleMonitoringAutoRefresh(active) {
 
 </body>
 </html>
+
