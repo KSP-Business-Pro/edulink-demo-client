@@ -1,18 +1,20 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": ".",
-  "framework": null,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/firebase-messaging-sw.js", "destination": "/firebase-messaging-sw.js" },
-    { "source": "/service-worker.js", "destination": "/service-worker.js" },
-    { "source": "/manifest.json", "destination": "/manifest.json" },
-    {
-      "source": "/(.*)",
-      "has": [{"type": "host", "value": "portail.edulink.bj"}],
-      "destination": "/portail/index.html"
+  "functions": {
+    "api/chat.js": {
+      "maxDuration": 30
     },
-    { "source": "/legacy", "destination": "/index_legacy.html" },
-    { "source": "/(.*)", "destination": "/index_legacy.html" }
+    "api/notify.js": {
+      "maxDuration": 10
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    }
   ]
 }
