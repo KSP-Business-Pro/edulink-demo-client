@@ -11,12 +11,9 @@ import type {
 // ── Programmes ────────────────────────────────────────────────────────────────
 
 export async function fetchProgrammes(ecoleId: string): Promise<Programme[]> {
+  // RPC SECURITY DEFINER — contourne RLS
   const { data, error } = await supabase
-    .from('programmes_lmd')
-    .select('*')
-    .eq('ecole_id', ecoleId)
-    .order('grade')
-    .order('intitule');
+    .rpc('fn_get_programmes_lmd', { p_ecole_id: ecoleId });
   if (error) throw error;
   return data ?? [];
 }
@@ -108,24 +105,18 @@ export async function deleteUE(id: string): Promise<void> {
 // ── Semestres ─────────────────────────────────────────────────────────────────
 
 export async function fetchSemestres(ecoleId: string): Promise<Semestre[]> {
+  // RPC SECURITY DEFINER — contourne RLS
   const { data, error } = await supabase
-    .from('semestres')
-    .select('*, programmes_lmd(intitule,grade), annees_academiques(libelle)')
-    .eq('ecole_id', ecoleId)
-    .order('numero');
+    .rpc('fn_get_semestres', { p_ecole_id: ecoleId });
   if (error) throw error;
   return data ?? [];
 }
 
 export async function fetchSemestresActifs(ecoleId: string): Promise<Semestre[]> {
   const { data, error } = await supabase
-    .from('semestres')
-    .select('id,libelle,niveau,programmes_lmd(intitule,grade)')
-    .eq('ecole_id', ecoleId)
-    .in('statut', ['en_cours', 'planifie'])
-    .order('numero');
+    .rpc('fn_get_semestres', { p_ecole_id: ecoleId });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).filter((s: any) => ['en_cours', 'planifie'].includes(s.statut));
 }
 
 export async function createSemestre(
@@ -195,11 +186,9 @@ export async function deleteMatiere(id: string): Promise<void> {
 // ── Années académiques ────────────────────────────────────────────────────────
 
 export async function fetchAnneesAcademiques(ecoleId: string): Promise<AnneeAcademique[]> {
+  // RPC SECURITY DEFINER — contourne RLS
   const { data, error } = await supabase
-    .from('annees_academiques')
-    .select('id,libelle')
-    .eq('ecole_id', ecoleId)
-    .order('libelle', { ascending: false });
+    .rpc('fn_get_annees_academiques', { p_ecole_id: ecoleId });
   if (error) throw error;
   return data ?? [];
 }
@@ -219,4 +208,3 @@ export function checkCreditsUE(
   const totalCredits = ues.reduce((sum, ue) => sum + (ue.credits_cect ?? 0), 0);
   return { totalCredits, valid: totalCredits === expectedTotal, delta: totalCredits - expectedTotal };
 }
-

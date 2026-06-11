@@ -59,10 +59,11 @@ export default function PromotionsPage() {
     setLoading(true);
     try {
       const [{ data: promos }, { data: ins }, { data: progs }, { data: ans }] = await Promise.all([
-        supabase.from('promotions').select('*, programmes_lmd(intitule,grade), annees_academiques(libelle)').eq('ecole_id', ecoleId).order('niveau'),
+        // RPCs SECURITY DEFINER — contournent RLS
+        supabase.rpc('fn_get_promotions', { p_ecole_id: ecoleId }),
         supabase.from('inscriptions_semestre').select('promotion_id').eq('ecole_id', ecoleId).eq('statut', 'active'),
-        supabase.from('programmes_lmd').select('id,intitule,grade,credits_total,duree_annees,actif,ecole_id').eq('ecole_id', ecoleId).order('grade').order('intitule'),
-        supabase.from('annees_academiques').select('id,libelle').eq('ecole_id', ecoleId).order('libelle', { ascending: false }),
+        supabase.rpc('fn_get_programmes_lmd', { p_ecole_id: ecoleId }),
+        supabase.rpc('fn_get_annees_academiques', { p_ecole_id: ecoleId }),
       ]);
       setPromotions((promos ?? []) as Promotion[]);
       const map: Record<string, number> = {};
@@ -85,7 +86,6 @@ export default function PromotionsPage() {
     }
   }, [form.programme_id, form.niveau, form.annee_academique_id]); // eslint-disable-line
 
-  // Niveaux disponibles selon programme
   const progSelectionne = programmes.find(p => p.id === form.programme_id);
   const niveauxDispo = progSelectionne ? NIVEAUX_BY_GRADE[progSelectionne.grade as keyof typeof NIVEAUX_BY_GRADE] ?? [] : [];
 
@@ -141,7 +141,6 @@ export default function PromotionsPage() {
           {toast.msg}
         </div>
       )}
-
       <div className="top">
         <div><h2>Promotions</h2><div className="page-subtitle">Groupes d'étudiants par niveau et programme</div></div>
         <div className="top-actions">
@@ -209,7 +208,6 @@ export default function PromotionsPage() {
           )
       }
 
-      {/* Modal CRUD */}
       {modalOpen && (
         <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && setModalOpen(false)}>
           <div className="modal" style={{ width: 520, padding: '1.5rem' }}>
