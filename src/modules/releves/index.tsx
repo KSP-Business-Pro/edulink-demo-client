@@ -8,6 +8,7 @@ import { basculerVerrouReleve } from '../../services/deliberations.service';
 
 const RELEVE_FN_URL = `https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve`;
 
+const WEBHOOK_SECRET = import.meta.env.VITE_WEBHOOK_SECRET ?? '';
 async function releveHeaders(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
   const token = data?.session?.access_token ?? '';
@@ -134,7 +135,7 @@ export default function RelevesPage() {
         body: JSON.stringify({
           etudiant_id: etudiantId, semestre_id: semId, session_id: sessionId,
           mode: 'publish', send_email: opts.sendEmail ?? sendEmail,
-          republish: opts.republish ?? false,
+          republish: opts.republish ?? false, webhook_secret: WEBHOOK_SECRET,
         }),
       });
       const data = await res.json();
@@ -152,7 +153,7 @@ export default function RelevesPage() {
     try {
       const res = await fetch(RELEVE_FN_URL, {
         method: 'POST', headers: await releveHeaders(),
-        body: JSON.stringify({ etudiant_id: etudiant.id, semestre_id: semId, session_id: sessionId, mode: 'resend' }),
+        body: JSON.stringify({ etudiant_id: etudiant.id, semestre_id: semId, session_id: sessionId, mode: 'resend', webhook_secret: WEBHOOK_SECRET }),
       });
       const data = await res.json();
       if (data.success && data.email_envoye) showToast(`📧 Relevé renvoyé à ${etudiant.prenom} ${etudiant.nom} ✓`);
@@ -412,5 +413,7 @@ export default function RelevesPage() {
     </div>
   );
 }
+
+
 
 
