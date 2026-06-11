@@ -150,14 +150,12 @@ export async function importEtudiants(
         };
         if (row.sexe)             payload.sexe             = row.sexe;
         if (row.email_auth)       payload.email_auth       = row.email_auth.toLowerCase();
-        if (row.telephone)        payload.telephone        = row.telephone;
         if (row.telephone_parent) payload.telephone_parent = row.telephone_parent;
         if (row.email_parent)     payload.email_parent     = row.email_parent.toLowerCase();
         if (row.filiere)          payload.filiere          = row.filiere;
         if (row.niveau)           payload.niveau           = row.niveau;
         if (row.date_naissance)   payload.date_naissance   = row.date_naissance;
         if (row.lieu_naissance)   payload.lieu_naissance   = row.lieu_naissance;
-        if (row.nationalite)      payload.nationalite      = row.nationalite;
         if (row.adresse)          payload.adresse          = row.adresse;
 
         const existingId = matriculeToId.get(matricule.toLowerCase());
@@ -186,3 +184,4 @@ export async function importEtudiants(
 
   return result;
 }
+
