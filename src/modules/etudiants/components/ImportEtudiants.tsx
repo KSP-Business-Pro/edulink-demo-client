@@ -193,7 +193,7 @@ export function ImportEtudiants({ ecoleId, onClose, onSuccess }: Props) {
               </div>
               <div style={{ fontSize: 11, color: '#0c4a6e', lineHeight: 1.6 }}>
                 <strong>Obligatoires :</strong> nom, prenom<br />
-                <strong>Optionnelles :</strong> matricule, sexe (M/F), email, telephone, telephone_parent, email_parent, filiere, niveau, statut, date_naissance, lieu_naissance, nationalite, adresse
+                <strong>Optionnelles :</strong> matricule, sexe (M/F), email, telephone, telephone_parent, email_parent, filiere, niveau, statut
               </div>
               <button style={{ ...S.btnSecondary, marginTop: 8 }} onClick={downloadTemplate}>
                 ⬇️ Télécharger le modèle Excel
@@ -343,12 +343,10 @@ function downloadTemplate() {
   const headers = [
     'nom', 'prenom', 'matricule', 'sexe', 'email', 'telephone',
     'telephone_parent', 'email_parent', 'filiere', 'niveau', 'statut',
-    'date_naissance', 'lieu_naissance', 'nationalite', 'adresse',
   ];
   const example = [
     'AGOSSOU', 'Koffi', 'HEMEC-001', 'M', 'k.agossou@email.com', '+22997000001',
     '+22997000002', 'parent@email.com', 'Marketing et Commerce', 'L1', 'actif',
-    '2003-05-15', 'Cotonou', 'Béninoise', 'Akpakpa, Cotonou',
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, example]);
   // Largeurs colonnes
@@ -375,3 +373,4 @@ const S = {
   td: { padding: '7px 10px', fontSize: 12, verticalAlign: 'middle' as const },
   statCard: { background: '#fff', border: '1.5px solid', borderRadius: 10, padding: '16px', textAlign: 'center' as const },
 };
+
