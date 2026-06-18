@@ -52,26 +52,25 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     setSearching(true);
     const s = q.trim();
     try {
-      const [etudRes, ensRes, facRes] = await Promise.all([
-        // Étudiants
-        supabase.from('etudiants')
-          .select('id, nom, prenom, matricule, filiere')
-          .or(`nom.ilike.%${s}%,prenom.ilike.%${s}%,matricule.ilike.%${s}%`)
-          .eq('ecole_id', ecoleId)
-          .limit(5),
-        // Enseignants
-        supabase.from('enseignants')
-          .select('id, nom, prenom, specialite')
-          .or(`nom.ilike.%${s}%,prenom.ilike.%${s}%`)
-          .eq('ecole_id', ecoleId)
-          .limit(3),
-        // Factures
-        supabase.from('factures')
-          .select('id, reference, montant_total, statut, etudiants(nom, prenom)')
-          .ilike('reference', `%${s}%`)
-          .eq('ecole_id', ecoleId)
-          .limit(3),
-      ]);
+      // Construire les queries avec filtre ecole_id optionnel (super-admin n'en a pas)
+      let etudQ = supabase.from('etudiants')
+        .select('id, nom, prenom, matricule, filiere')
+        .or(`nom.ilike.%${s}%,prenom.ilike.%${s}%,matricule.ilike.%${s}%`)
+        .limit(5);
+      let ensQ = supabase.from('enseignants')
+        .select('id, nom, prenom, specialite')
+        .or(`nom.ilike.%${s}%,prenom.ilike.%${s}%`)
+        .limit(3);
+      let facQ = supabase.from('factures')
+        .select('id, reference, montant_total, statut, etudiants(nom, prenom)')
+        .ilike('reference', `%${s}%`)
+        .limit(3);
+      if (ecoleId) {
+        etudQ = etudQ.eq('ecole_id', ecoleId);
+        ensQ  = ensQ.eq('ecole_id', ecoleId);
+        facQ  = facQ.eq('ecole_id', ecoleId);
+      }
+      const [etudRes, ensRes, facRes] = await Promise.all([etudQ, ensQ, facQ]);
 
       const items: SearchResult[] = [];
 
