@@ -194,6 +194,19 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
   font-size:9px;font-weight:700;color:#fff;display:none;align-items:center;justify-content:center;
 }
 .nav-item{position:relative}
+/* B2.4 */
+.nav-plus-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:199;opacity:0;pointer-events:none;transition:opacity .2s}
+.nav-plus-overlay.open{opacity:1;pointer-events:all}
+.nav-plus-sheet{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);width:100%;max-width:500px;background:#fff;border-radius:20px 20px 0 0;z-index:200;padding:0 0 8px;transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:0 -8px 32px rgba(0,0,0,.12)}
+.nav-plus-sheet.open{transform:translateX(-50%) translateY(0)}
+.nav-plus-handle{width:40px;height:4px;background:#e5e7eb;border-radius:2px;margin:12px auto 8px}
+.nav-plus-title{font-size:12px;font-weight:700;color:#9ca3af;letter-spacing:.06em;padding:0 20px 8px;text-transform:uppercase}
+.nav-plus-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:0 12px 12px}
+.nav-plus-item{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border:none;background:transparent;cursor:pointer;border-radius:14px;transition:background .15s;font-family:Poppins,sans-serif;color:#374151;position:relative}
+.nav-plus-item:active,.nav-plus-item:hover{background:#f0f7f4}
+.nav-plus-item .pi-ico{font-size:24px;line-height:1}
+.nav-plus-item .pi-lbl{font-size:10px;font-weight:600;text-align:center}
+.nav-plus-item .pi-badge{position:absolute;top:10px;right:calc(50% - 16px);width:16px;height:16px;background:#dc2626;border-radius:50%;font-size:9px;font-weight:700;color:#fff;display:none;align-items:center;justify-content:center}
 
 /* ══ PAGES ══ */
 .page{display:none;padding:1rem 1rem 0;animation:fadeUp .2s ease}
@@ -837,6 +850,7 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
   <div class="page" id="page-enseignants"></div>
 
   <!-- Navigation bas -->
+  <!-- B2.4 - Navigation simplifiee 5 items -->
   <nav class="bottom-nav">
     <button class="nav-item active" id="nav-accueil" onclick="showPage('accueil')">
       <span class="nav-ico">🏠</span>
@@ -846,47 +860,54 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
       <span class="nav-ico">📊</span>
       <span class="nav-lbl">Notes</span>
     </button>
-    <button class="nav-item" id="nav-releves" onclick="showPage('releves')">
-      <span class="nav-ico">📋</span>
-      <span class="nav-lbl">Relevés</span>
-      <span class="nav-badge" id="nav-releves-badge"></span>
-    </button>
-    <button class="nav-item" id="nav-absences" onclick="showPage('absences')">
-      <span class="nav-ico">✅</span>
-      <span class="nav-lbl">Présences</span>
-    </button>
     <button class="nav-item" id="nav-paiements" onclick="showPage('paiements')">
       <span class="nav-ico">💳</span>
       <span class="nav-lbl">Paiements</span>
-    </button>
-    <button class="nav-item" id="nav-enseignants" onclick="showPage('enseignants')">
-      <span class="nav-ico">👨‍🏫</span>
-      <span class="nav-lbl">Profs</span>
-    </button>
-    <button class="nav-item" id="nav-examens" onclick="showPage('examens')">
-      <span class="nav-ico">📝</span>
-      <span class="nav-lbl">Examens</span>
-      <span class="nav-badge" id="nav-exam-badge"></span>
     </button>
     <button class="nav-item" id="nav-messages" onclick="showPage('messages')">
       <span class="nav-ico">✉️</span>
       <span class="nav-lbl">Messages</span>
       <span class="nav-badge" id="nav-msg-badge"></span>
     </button>
-    <button class="nav-item" id="nav-notifs" onclick="showPage('notifs')">
-      <span class="nav-ico">🔔</span>
-      <span class="nav-lbl">Alertes</span>
-      <span class="nav-badge" id="nav-notifs-badge"></span>
-    </button>
-    <button class="nav-item" id="nav-emploi" onclick="showPage('emploi')">
-      <span class="nav-ico">📅</span>
-      <span class="nav-lbl">Emploi</span>
-    </button>
-    <button class="nav-item" id="nav-certificats-portail" onclick="showPage('certificats-portail')">
-      <span class="nav-ico">📜</span>
-      <span class="nav-lbl">Docs</span>
+    <button class="nav-item" id="nav-plus-btn" onclick="openNavPlus()">
+      <span class="nav-ico">⋯</span>
+      <span class="nav-lbl">Plus</span>
+      <span class="nav-badge" id="nav-plus-badge" style="display:none"></span>
     </button>
   </nav>
+
+  <!-- B2.4 - Drawer Plus -->
+  <div class="nav-plus-overlay" id="nav-plus-overlay" onclick="closeNavPlus()"></div>
+  <div class="nav-plus-sheet" id="nav-plus-sheet">
+    <div class="nav-plus-handle"></div>
+    <div class="nav-plus-title">Plus</div>
+    <div class="nav-plus-grid">
+      <button class="nav-plus-item" onclick="showPageFromPlus('releves')">
+        <span class="pi-ico">📋</span><span class="pi-lbl">Relevés</span>
+        <span class="pi-badge" id="nav-releves-badge"></span>
+      </button>
+      <button class="nav-plus-item" onclick="showPageFromPlus('absences')">
+        <span class="pi-ico">✅</span><span class="pi-lbl">Présences</span>
+      </button>
+      <button class="nav-plus-item" onclick="showPageFromPlus('enseignants')">
+        <span class="pi-ico">👨‍🏫</span><span class="pi-lbl">Profs</span>
+      </button>
+      <button class="nav-plus-item" onclick="showPageFromPlus('examens')">
+        <span class="pi-ico">📝</span><span class="pi-lbl">Examens</span>
+        <span class="pi-badge" id="nav-exam-badge"></span>
+      </button>
+      <button class="nav-plus-item" onclick="showPageFromPlus('notifs')">
+        <span class="pi-ico">🔔</span><span class="pi-lbl">Alertes</span>
+        <span class="pi-badge" id="nav-notifs-badge"></span>
+      </button>
+      <button class="nav-plus-item" onclick="showPageFromPlus('emploi')">
+        <span class="pi-ico">📅</span><span class="pi-lbl">Emploi</span>
+      </button>
+      <button class="nav-plus-item" onclick="showPageFromPlus('certificats-portail')">
+        <span class="pi-ico">📜</span><span class="pi-lbl">Docs</span>
+      </button>
+    </div>
+  </div>
 
 </div>
 
