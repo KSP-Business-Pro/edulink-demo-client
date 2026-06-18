@@ -1,19 +1,127 @@
 // src/components/AppLayout.tsx
 // Layout principal — sidebar + contenu
-// Navigation via <Link> React Router (pas de rechargement complet)
+// Navigation via <Link> React Router + Recherche globale
 
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
+import { supabase } from '../services/supabase';
 
 interface AppLayoutProps {
   children: React.ReactNode;
   currentPage?: string;
 }
 
+interface SearchResult {
+  type: 'etudiant' | 'enseignant' | 'facture';
+  id: string;
+  label: string;
+  sublabel: string;
+  href: string;
+  ico: string;
+}
+
 export function AppLayout({ children, currentPage }: AppLayoutProps) {
   const { user, logout, isSuperAdmin } = useAuth();
   const { visibleModules } = usePermissions();
+  const navigate = useNavigate();
+
+  const [query, setQuery]       = useState('');
+  const [results, setResults]   = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showDrop, setShowDrop] = useState(false);
+  const searchRef               = useRef<HTMLDivElement>(null);
+  const debounceRef             = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const ecoleId = user?.ecole_id ?? '';
+
+  // Fermer dropdown si clic en dehors
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowDrop(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const doSearch = useCallback(async (q: string) => {
+    if (q.trim().length < 2) { setResults([]); setShowDrop(false); return; }
+    setSearching(true);
+    const s = q.trim();
+    try {
+      const [etudRes, ensRes, facRes] = await Promise.all([
+        // Étudiants
+        supabase.from('etudiants')
+          .select('id, nom, prenom, matricule, filiere')
+          .or(`nom.ilike.%${s}%,prenom.ilike.%${s}%,matricule.ilike.%${s}%`)
+          .eq('ecole_id', ecoleId)
+          .limit(5),
+        // Enseignants
+        supabase.from('enseignants')
+          .select('id, nom, prenom, specialite')
+          .or(`nom.ilike.%${s}%,prenom.ilike.%${s}%`)
+          .eq('ecole_id', ecoleId)
+          .limit(3),
+        // Factures
+        supabase.from('factures')
+          .select('id, reference, montant_total, statut, etudiants(nom, prenom)')
+          .ilike('reference', `%${s}%`)
+          .eq('ecole_id', ecoleId)
+          .limit(3),
+      ]);
+
+      const items: SearchResult[] = [];
+
+      (etudRes.data ?? []).forEach((e: any) => items.push({
+        type: 'etudiant',
+        id: e.id,
+        label: `${e.nom} ${e.prenom}`,
+        sublabel: `${e.matricule ?? '—'} · ${e.filiere ?? '—'}`,
+        href: '/etudiants',
+        ico: '🧑‍🎓',
+      }));
+
+      (ensRes.data ?? []).forEach((e: any) => items.push({
+        type: 'enseignant',
+        id: e.id,
+        label: `${e.nom} ${e.prenom ?? ''}`,
+        sublabel: e.specialite ?? 'Enseignant',
+        href: '/enseignants',
+        ico: '👨‍🏫',
+      }));
+
+      (facRes.data ?? []).forEach((f: any) => items.push({
+        type: 'facture',
+        id: f.id,
+        label: f.reference ?? f.id.slice(0, 8),
+        sublabel: `${(f.etudiants as any)?.nom ?? ''} · ${Number(f.montant_total ?? 0).toLocaleString('fr-FR')} FCFA · ${f.statut}`,
+        href: '/comptabilite',
+        ico: '💰',
+      }));
+
+      setResults(items);
+      setShowDrop(true);
+    } finally {
+      setSearching(false);
+    }
+  }, [ecoleId]);
+
+  function handleQueryChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setQuery(v);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSearch(v), 300);
+  }
+
+  function handleSelect(r: SearchResult) {
+    setQuery('');
+    setResults([]);
+    setShowDrop(false);
+    navigate(r.href);
+  }
 
   const navItems = [
     { group: 'TABLEAU DE BORD', items: [
@@ -132,10 +240,105 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
         </div>
       </aside>
 
-      {/* Contenu */}
-      <main style={{ flex: 1, overflow: 'auto' }}>
-        {children}
-      </main>
+      {/* Zone principale */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+        {/* Barre de recherche globale */}
+        <div style={{
+          background: '#fff', borderBottom: '1px solid #f1f5f9',
+          padding: '0.6rem 1.5rem', display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <div ref={searchRef} style={{ position: 'relative', flex: 1, maxWidth: 480 }}>
+            <div style={{ position: 'relative' }}>
+              <span style={{
+                position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                fontSize: 14, color: '#94a3b8', pointerEvents: 'none',
+              }}>🔍</span>
+              <input
+                type="search"
+                value={query}
+                onChange={handleQueryChange}
+                onFocus={() => { if (results.length > 0) setShowDrop(true); }}
+                placeholder="Rechercher un étudiant, enseignant, facture…"
+                style={{
+                  width: '100%', padding: '7px 12px 7px 32px',
+                  border: '1px solid #e2e8f0', borderRadius: 10,
+                  fontSize: 13, fontFamily: 'inherit', outline: 'none',
+                  background: '#f8fafc', color: '#1e293b',
+                  boxSizing: 'border-box',
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') { setShowDrop(false); setQuery(''); }
+                }}
+              />
+              {searching && (
+                <span style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  fontSize: 11, color: '#94a3b8',
+                }}>…</span>
+              )}
+            </div>
+
+            {/* Dropdown résultats */}
+            {showDrop && results.length > 0 && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+                background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
+                boxShadow: '0 8px 24px rgba(0,0,0,.1)', zIndex: 9999,
+                overflow: 'hidden',
+              }}>
+                {results.map((r, i) => (
+                  <button
+                    key={`${r.type}-${r.id}`}
+                    onClick={() => handleSelect(r)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '9px 14px', border: 'none', background: 'transparent',
+                      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                      borderBottom: i < results.length - 1 ? '1px solid #f8fafc' : 'none',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>{r.ico}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {r.label}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {r.sublabel}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: 10, padding: '2px 6px', borderRadius: 6, flexShrink: 0,
+                      background: r.type === 'etudiant' ? '#dbeafe' : r.type === 'enseignant' ? '#dcfce7' : '#fef3c7',
+                      color: r.type === 'etudiant' ? '#1d4ed8' : r.type === 'enseignant' ? '#15803d' : '#b45309',
+                    }}>
+                      {r.type}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {showDrop && query.length >= 2 && results.length === 0 && !searching && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+                background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
+                padding: '12px 14px', fontSize: 13, color: '#94a3b8',
+                boxShadow: '0 8px 24px rgba(0,0,0,.1)', zIndex: 9999,
+              }}>
+                Aucun résultat pour « {query} »
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Contenu */}
+        <main style={{ flex: 1, overflow: 'auto' }}>
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
