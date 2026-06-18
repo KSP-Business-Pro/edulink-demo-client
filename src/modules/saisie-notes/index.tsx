@@ -94,6 +94,7 @@ export default function SaisieNotesPage() {
       const mat = matieres.find(m => m.id === matId) ?? null;
       setSessions(sess); setEtudiants(etus); setMatiere(mat);
       const allEvals = await fetchEvaluations(matId, sess.map(s => s.id));
+      console.log('[DEBUG] sess:', sess, 'matId:', matId, 'allEvals:', allEvals);
       setEvals(allEvals);
       setNotes(await fetchNotes(allEvals.map(e => e.id)));
     } finally {
