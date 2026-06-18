@@ -1,4 +1,4 @@
-// src/modules/saisie-notes/index.tsx
+﻿// src/modules/saisie-notes/index.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../services/supabase';
@@ -99,7 +99,7 @@ export default function SaisieNotesPage() {
     } finally {
       setLoadingGrille(false);
     }
-  }, [matId, semId, matieres]);
+  }, [matId, semId]); // eslint-disable-line
 
   useEffect(() => { loadGrille(); }, [loadGrille]);
 
