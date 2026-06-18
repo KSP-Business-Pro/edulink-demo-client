@@ -1,12 +1,13 @@
 // src/components/AppLayout.tsx
 // Layout principal — sidebar + contenu
-// Navigation via <Link> React Router + Recherche globale
+// Navigation via <Link> React Router + Recherche globale + ToastContainer B2.2
 
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { supabase } from '../services/supabase';
+import { ToastContainer } from './ErrorComponents';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -36,7 +37,6 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
 
   const ecoleId = user?.ecole_id ?? '';
 
-  // Fermer dropdown si clic en dehors
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -52,7 +52,6 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     setSearching(true);
     const s = q.trim();
     try {
-      // Construire les queries avec filtre ecole_id optionnel (super-admin n'en a pas)
       let etudQ = supabase.from('etudiants')
         .select('id, nom, prenom, matricule, filiere')
         .or(`nom.ilike.%${s}%,prenom.ilike.%${s}%,matricule.ilike.%${s}%`)
@@ -337,6 +336,9 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
         <main style={{ flex: 1, overflow: 'auto' }}>
           {children}
         </main>
+
+        {/* Toast notifications — B2.2 */}
+        <ToastContainer />
       </div>
     </div>
   );

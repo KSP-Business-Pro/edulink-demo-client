@@ -1,8 +1,9 @@
 // src/modules/etudiants/index.tsx
-// Module Étudiants React — liste, recherche, filtres, pagination, fiche, import Excel
+// Module Étudiants — migré B2.2 : useErrorHandler remplace catch/alert/setError manuels
 
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { useErrorHandler } from '../../hooks/useErrorHandler';
 import {
   fetchEtudiants, deleteEtudiant,
   type Etudiant, type EtudiantStatut
@@ -29,16 +30,16 @@ const NIVEAUX = ['L1','L2','L3','M1','M2','D1','D2','D3'];
 
 export default function EtudiantsPage() {
   const { user } = useAuth();
+  // ← Remplacement de loading/error/setError manuels
+  const { error, loading, run, runAction } = useErrorHandler();
+
   const [etudiants,  setEtudiants]  = useState<Etudiant[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState<string | null>(null);
   const [search,     setSearch]     = useState('');
   const [filterNiv,  setFilterNiv]  = useState('');
   const [page,       setPage]       = useState(0);
   const [ficheId,    setFicheId]    = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
-
-  const [ecoleId, setEcoleId] = useState<string | null>(user?.ecole_id ?? null);
+  const [ecoleId,    setEcoleId]    = useState<string | null>(user?.ecole_id ?? null);
 
   useEffect(() => {
     if (user?.ecole_id) { setEcoleId(user.ecole_id); return; }
@@ -50,16 +51,13 @@ export default function EtudiantsPage() {
   }, [user?.ecole_id]);
 
   const load = async () => {
-    if (!ecoleId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const data = await fetchEtudiants(ecoleId);
-      setEtudiants(data);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erreur');
-    } finally {
-      setLoading(false);
-    }
+    if (!ecoleId) return;
+    // run() gère loading + toast d'erreur automatiquement
+    const data = await run(
+      () => fetchEtudiants(ecoleId),
+      { context: 'Chargement étudiants', inline: true }
+    );
+    if (data) setEtudiants(data);
   };
 
   useEffect(() => { if (ecoleId) load(); }, [ecoleId]);
@@ -79,12 +77,12 @@ export default function EtudiantsPage() {
 
   const handleDelete = async (id: string, nom: string) => {
     if (!confirm(`Supprimer ${nom} ? Cette action est irréversible.`)) return;
-    try {
-      await deleteEtudiant(id);
-      setEtudiants(prev => prev.filter(e => e.id !== id));
-    } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Erreur suppression');
-    }
+    // runAction() : pas de loading global, juste toast si erreur
+    const ok = await runAction(
+      () => deleteEtudiant(id),
+      'Suppression étudiant'
+    );
+    if (ok !== null) setEtudiants(prev => prev.filter(e => e.id !== id));
   };
 
   if (ficheId) {
@@ -119,7 +117,10 @@ export default function EtudiantsPage() {
           onSuccess={(count) => {
             setShowImport(false);
             load();
-            alert(`✅ ${count} étudiant${count > 1 ? 's' : ''} importé${count > 1 ? 's' : ''} avec succès`);
+            // Toast positif (info)
+            import('../../hooks/useErrorHandler').then(({ addToast }) =>
+              addToast(`✅ ${count} étudiant${count > 1 ? 's' : ''} importé${count > 1 ? 's' : ''} avec succès`, 'info')
+            );
           }}
         />
       )}
@@ -143,9 +144,11 @@ export default function EtudiantsPage() {
         </select>
       </div>
 
+      {/* Bandeau erreur inline (chargement initial uniquement) */}
       {error && (
-        <div style={{ background: '#fee2e2', color: '#991b1b', padding: '10px 14px', borderRadius: 8, marginBottom: 12, fontSize: 13 }}>
+        <div style={S.errorBanner}>
           {error}
+          <button style={S.retryBtn} onClick={load}>🔄 Réessayer</button>
         </div>
       )}
 
@@ -243,23 +246,25 @@ export default function EtudiantsPage() {
 }
 
 const S = {
-  page:       { padding: '1.5rem 2rem', maxWidth: 1100, margin: '0 auto', fontFamily: "'Segoe UI', sans-serif" } as React.CSSProperties,
-  header:     { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' } as React.CSSProperties,
-  h1:         { fontSize: 22, fontWeight: 700, color: '#1e293b', margin: 0 } as React.CSSProperties,
-  sub:        { fontSize: 13, color: '#64748b', margin: '2px 0 0' } as React.CSSProperties,
-  filters:    { display: 'flex', gap: 10, marginBottom: '1rem', flexWrap: 'wrap' as const },
-  input:      { padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', flex: 1, minWidth: 200, fontFamily: 'inherit' } as React.CSSProperties,
-  tableWrap:  { background: '#fff', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.06)' } as React.CSSProperties,
-  table:      { width: '100%', borderCollapse: 'collapse' as const },
-  thead:      { background: '#f8fafc' },
-  th:         { padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151', textAlign: 'left' as const, borderBottom: '1px solid #f1f5f9' },
-  tr:         { borderBottom: '1px solid #f9fafb' },
-  td:         { padding: '10px 14px', fontSize: 13, verticalAlign: 'middle' as const },
-  btnPrimary: { padding: '8px 16px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' } as React.CSSProperties,
+  page:        { padding: '1.5rem 2rem', maxWidth: 1100, margin: '0 auto', fontFamily: "'Segoe UI', sans-serif" } as React.CSSProperties,
+  header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' } as React.CSSProperties,
+  h1:          { fontSize: 22, fontWeight: 700, color: '#1e293b', margin: 0 } as React.CSSProperties,
+  sub:         { fontSize: 13, color: '#64748b', margin: '2px 0 0' } as React.CSSProperties,
+  filters:     { display: 'flex', gap: 10, marginBottom: '1rem', flexWrap: 'wrap' as const },
+  input:       { padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', flex: 1, minWidth: 200, fontFamily: 'inherit' } as React.CSSProperties,
+  errorBanner: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: '#fef2f2', color: '#991b1b', padding: '10px 14px', borderRadius: 8, marginBottom: 12, fontSize: 13, border: '1px solid #fecaca' } as React.CSSProperties,
+  retryBtn:    { padding: '5px 12px', background: '#fff', border: '1px solid #fca5a5', borderRadius: 6, fontSize: 12, color: '#dc2626', cursor: 'pointer', whiteSpace: 'nowrap' as const },
+  tableWrap:   { background: '#fff', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.06)' } as React.CSSProperties,
+  table:       { width: '100%', borderCollapse: 'collapse' as const },
+  thead:       { background: '#f8fafc' },
+  th:          { padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151', textAlign: 'left' as const, borderBottom: '1px solid #f1f5f9' },
+  tr:          { borderBottom: '1px solid #f9fafb' },
+  td:          { padding: '10px 14px', fontSize: 13, verticalAlign: 'middle' as const },
+  btnPrimary:  { padding: '8px 16px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' } as React.CSSProperties,
   btnSecondary:{ padding: '8px 16px', background: '#fff', color: '#374151', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' } as React.CSSProperties,
-  btnGhost:   { padding: '5px 10px', background: 'transparent', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' } as React.CSSProperties,
-  pagination: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, padding: '8px 0' } as React.CSSProperties,
-  centered:   { display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 } as React.CSSProperties,
-  spinner:    { width: 28, height: 28, border: '3px solid #e2e8f0', borderTopColor: '#1e3a5f', borderRadius: '50%', animation: 'spin 0.7s linear infinite' } as React.CSSProperties,
-  empty:      { textAlign: 'center' as const, padding: '3rem', color: '#94a3b8', fontSize: 14 },
+  btnGhost:    { padding: '5px 10px', background: 'transparent', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' } as React.CSSProperties,
+  pagination:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, padding: '8px 0' } as React.CSSProperties,
+  centered:    { display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 } as React.CSSProperties,
+  spinner:     { width: 28, height: 28, border: '3px solid #e2e8f0', borderTopColor: '#1e3a5f', borderRadius: '50%', animation: 'spin 0.7s linear infinite' } as React.CSSProperties,
+  empty:       { textAlign: 'center' as const, padding: '3rem', color: '#94a3b8', fontSize: 14 },
 };
