@@ -1089,6 +1089,8 @@ async function chargerNotes() {
     coefficient: n.coefficient || 1
   }));
 }
+// B2.6 — déclenché après chaque chargement de données
+function onDonneesChargees(){try{cacheSaveAll();}catch(e){}}
 
 // ── S5 Portail : Relevés officiels LMD ──────────────────────────────────────
 async function chargerReleves() {
@@ -2992,7 +2994,16 @@ async function initFCMPortail() {
 
     // 3. Enregistrer le Service Worker FCM
     try {
-      fcmPortailSwReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+      fcmPortailSwReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
+// B2.6 — Cache SW
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/edulink-cache-sw.js').then(function(reg) {
+    console.log('[EduLink Cache SW] Enregistré:', reg.scope);
+  }).catch(function(err) {
+    console.warn('[EduLink Cache SW] Echec:', err);
+  });
+}
+;
       await navigator.serviceWorker.ready;
 
       // Envoyer la config au SW dès qu'il est actif
@@ -3315,6 +3326,101 @@ async function chargerCertificatsPortailData() {
     console.warn('[Certificats Portail]', e.message);
   }
 }
+
+
+// ══ B2.6 CACHE LOCAL PWA ══
+const CACHE_KEYS = {
+  notes:    'edulink_cache_notes',
+  factures: 'edulink_cache_factures',
+  examens:  'edulink_cache_examens',
+  messages: 'edulink_cache_messages',
+  releves:  'edulink_cache_releves',
+  sync:     'edulink_cache_last_sync',
+};
+
+function cacheSet(key, data) {
+  try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch(e) {}
+}
+
+function cacheGet(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    // Expiration : 24h
+    if (Date.now() - obj.ts > 86400000) { localStorage.removeItem(key); return null; }
+    return obj.data;
+  } catch(e) { return null; }
+}
+
+function cacheSaveAll() {
+  if (toutesNotes    && toutesNotes.length)    cacheSet(CACHE_KEYS.notes,    toutesNotes);
+  if (toutesFactures && toutesFactures.length) cacheSet(CACHE_KEYS.factures, toutesFactures);
+  if (tousExamens    && tousExamens.length)    cacheSet(CACHE_KEYS.examens,  tousExamens);
+  if (tousMessages   && tousMessages.length)   cacheSet(CACHE_KEYS.messages, tousMessages.slice(0, 50));
+  if (tousReleves    && tousReleves.length)     cacheSet(CACHE_KEYS.releves,  tousReleves);
+  localStorage.setItem(CACHE_KEYS.sync, new Date().toISOString());
+  console.log('[EduLink Cache] Données sauvegardées localement');
+}
+
+function cacheLoadAll() {
+  const notes    = cacheGet(CACHE_KEYS.notes);
+  const factures = cacheGet(CACHE_KEYS.factures);
+  const examens  = cacheGet(CACHE_KEYS.examens);
+  const messages = cacheGet(CACHE_KEYS.messages);
+  const releves  = cacheGet(CACHE_KEYS.releves);
+  if (notes)    toutesNotes    = notes;
+  if (factures) toutesFactures = factures;
+  if (examens)  tousExamens    = examens;
+  if (messages) tousMessages   = messages;
+  if (releves)  tousReleves    = releves;
+  const loaded = [notes, factures, examens, messages, releves].filter(Boolean).length;
+  if (loaded > 0) console.log('[EduLink Cache] ' + loaded + ' jeux de données chargés depuis le cache local');
+  return loaded > 0;
+}
+
+function getSyncLabel() {
+  const iso = localStorage.getItem(CACHE_KEYS.sync);
+  if (!iso) return null;
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMin = Math.floor((now - d) / 60000);
+  if (diffMin < 1) return 'Sync à l\'instant';
+  if (diffMin < 60) return 'Sync il y a ' + diffMin + ' min';
+  return 'Sync ' + d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+}
+
+// File d'attente messages hors-ligne
+const MSG_QUEUE_KEY = 'edulink_msg_queue';
+
+function mqEnqueue(msg) {
+  try {
+    const q = JSON.parse(localStorage.getItem(MSG_QUEUE_KEY) || '[]');
+    q.push({ ...msg, queued_at: new Date().toISOString() });
+    localStorage.setItem(MSG_QUEUE_KEY, JSON.stringify(q));
+    console.log('[EduLink Cache] Message mis en file d\'attente hors-ligne');
+  } catch(e) {}
+}
+
+function mqFlush() {
+  try {
+    const q = JSON.parse(localStorage.getItem(MSG_QUEUE_KEY) || '[]');
+    if (!q.length) return;
+    console.log('[EduLink Cache] Envoi de ' + q.length + ' message(s) en attente...');
+    // Les messages seront envoyés par afficherMessages() au prochain chargement
+    localStorage.removeItem(MSG_QUEUE_KEY);
+  } catch(e) {}
+}
+
+// Appeler mqFlush au retour en ligne
+window.addEventListener('online', function() {
+  console.log('[EduLink] Connexion rétablie');
+  mqFlush();
+  // Rafraîchir les données si une session est active
+  if (currentEtudiant) {
+    chargerToutesDonnees(currentEtudiant.id).then(cacheSaveAll);
+  }
+});
 
 // ══ B2.5 PROFIL FAMILLE ══
 function afficherProfil() {
