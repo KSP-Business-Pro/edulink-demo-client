@@ -775,8 +775,7 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 // ── Config Supabase ──────────────────────────────────────────────────────
 const SUPABASE_URL  = 'https://kcfpvnrgutkhakogbjip.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnB2bnJndXRraGFrb2diamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjYyNTIsImV4cCI6MjA5MDY0MjI1Mn0.BvVFEwDwjbu0R7rMOq978hPHed5IuhafFn_KgX2-_Dc';
-/* WEBHOOK_SECRET chargé depuis /api/whs */
-const WEBHOOK_SECRET = window.__WHS__ ?? '';
+
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── État global ──────────────────────────────────────────────────────────
@@ -6369,7 +6368,7 @@ async function publierReleve(etudiantId, semestreId, silent, opts) {
   try {
     const res = await fetch('https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'x-webhook-secret': WEBHOOK_SECRET },
+      headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + (await db.auth.getSession()).data.session?.access_token },
       body: JSON.stringify({
         etudiant_id: etudiantId, semestre_id: semestreId, session_id: session.id,
         publie_par: currentUserId, mode: 'publish', send_email: sendEmail, republish
@@ -6404,7 +6403,7 @@ async function republierReleve(etudiantId, semestreId) {
 
 // ── S5 : renvoi email & verrouillage ────────────────────────────────────────
 const _RELEVE_FN_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve';
-function _releveHeaders() { return { 'Content-Type':'application/json', 'x-webhook-secret': WEBHOOK_SECRET }; }
+async function _releveHeaders() { const s = await db.auth.getSession(); const t = s?.data?.session?.access_token ?? ''; return { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + t }; }
 
 async function renvoyerEmailReleve(etudiantId, semestreId) {
   const { data: et } = await db.from('etudiants').select('nom,prenom,email_auth').eq('id', etudiantId).single();
@@ -6415,7 +6414,7 @@ async function renvoyerEmailReleve(etudiantId, semestreId) {
   toast("Envoi de l'email…", "info");
   try {
     const res = await fetch(_RELEVE_FN_URL, {
-      method:'POST', headers:_releveHeaders(),
+      method:'POST', headers:await _releveHeaders(),
       body: JSON.stringify({ etudiant_id:etudiantId, semestre_id:semestreId, session_id:session?.id, mode:'resend' })
     });
     const data = await res.json();
@@ -6440,7 +6439,7 @@ async function _basculerVerrouReleve(etudiantId, semestreId, mode, okMsg) {
     .select('id').eq('semestre_id', semestreId).eq('type_session','normale').single();
   try {
     const res = await fetch(_RELEVE_FN_URL, {
-      method:'POST', headers:_releveHeaders(),
+      method:'POST', headers:await _releveHeaders(),
       body: JSON.stringify({ etudiant_id:etudiantId, semestre_id:semestreId, session_id:session?.id, mode, publie_par: currentUserId })
     });
     const data = await res.json();
