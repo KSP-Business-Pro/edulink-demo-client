@@ -159,7 +159,7 @@ export default function RelevesPage() {
         nom:  ecoleInfo?.nom  ?? 'École',
         code: ecoleInfo?.code_ecole ?? 'ECO',
       },
-      snapshot:  r.snapshot_notes as ReleveData['snapshot'],
+      snapshot:  r.snapshot_notes as unknown as ReleveData['snapshot'],
       decision:  r.decision,
       publie_le: r.publie_le,
     });
@@ -466,3 +466,4 @@ export default function RelevesPage() {
     </div>
   );
 }
+
