@@ -1,4 +1,4 @@
-// src/modules/programmes/components/ModalImportMatieres.tsx
+﻿// src/modules/programmes/components/ModalImportMatieres.tsx
 import { useState, useRef } from 'react';
 import type { ImportMatiereLigne } from '../../../services/import-matieres.service';
 import {
@@ -26,9 +26,10 @@ export default function ModalImportMatieres({ ecoleId, onClose, onImported }: Pr
       if (file.name.endsWith('.csv')) {
         parsed = parseImportMatieres(await file.text());
       } else {
-        let XLSX = (window as any).XLSX;
+        type XLSXMod = typeof import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
+        let XLSX = (window as unknown as { XLSX?: XLSXMod }).XLSX;
         if (!XLSX) {
-          const mod = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
+          const mod = await import(/* @vite-ignore */ 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
           XLSX = mod.default ?? mod;
         }
         const buf  = await file.arrayBuffer();

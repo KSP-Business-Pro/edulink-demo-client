@@ -1,4 +1,4 @@
-// src/modules/enseignants/index.tsx
+﻿// src/modules/enseignants/index.tsx
 // Fix TS : statut 'actif'|'inactif' aligné DB, MatiereLien corrigé, xlsx typé
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
@@ -228,8 +228,7 @@ export default function EnseignantsPage() {
         let XLSX = (window as unknown as { XLSX?: XLSXModule }).XLSX;
         if (!XLSX) {
           const mod = await import(
-            /* @vite-ignore */
-            'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm'
+            /* @vite-ignore */ 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm'
           ) as { default?: XLSXModule } & XLSXModule;
           XLSX = mod.default ?? mod;
         }
