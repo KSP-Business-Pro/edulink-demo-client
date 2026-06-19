@@ -124,7 +124,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
   const navItems = [
     { group: 'TABLEAU DE BORD', items: [
       { id: 'dashboard', label: 'Dashboard', ico: '🏠', href: '/dashboard' },
-      { id: 'analytics', label: 'Analytique', ico: '📊', href: '/analytics' }, ico: '🏠', href: '/dashboard' },
+      { id: 'analytics', label: 'Analytique', ico: '📊', href: '/analytics' },
     ]},
     { group: 'PÉDAGOGIE LMD', items: [
       { id: 'programmes', label: 'Programmes & UE', ico: '🎓', href: '/programmes' },
