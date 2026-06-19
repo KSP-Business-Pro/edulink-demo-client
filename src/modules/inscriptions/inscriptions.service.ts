@@ -59,7 +59,7 @@ export async function fetchInscriptions(
   const { data, error } = await supabase.rpc('fn_get_inscriptions_semestre', {
     p_ecole_id:    ecoleId,
     p_semestre_id: semestreId ?? null,
-    p_statut:      statut     ?? null,
+    p_statut_filtre: statut   ?? null,
   });
   if (error) throw new Error(error.message);
   return (data ?? []) as Inscription[];
@@ -185,3 +185,4 @@ export async function deleteInscription(inscriptionId: string): Promise<void> {
     .eq('id', inscriptionId);
   if (error) throw new Error(error.message);
 }
+
