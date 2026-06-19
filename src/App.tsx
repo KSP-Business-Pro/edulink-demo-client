@@ -1,4 +1,4 @@
-// src/App.tsx
+﻿// src/App.tsx
 // Router principal avec lazy loading par module
 // Chaque module est chargé à la demande — bundle splitting automatique
 
@@ -26,6 +26,7 @@ const DeliberationsPage= lazy(() => import('./modules/deliberations'));
 const EnseignantsPage  = lazy(() => import('./modules/enseignants'));
 const ComptabilitePage = lazy(() => import('./modules/comptabilite'));
 const ParametresPage   = lazy(() => import('./modules/parametres'));
+const InscriptionsPage = lazy(() => import('./modules/inscriptions'));
 
 // ── Spinner de chargement lazy ─────────────────────────────────────────────
 function PageLoader() {
@@ -65,6 +66,7 @@ export default function App() {
 
           {/* Modules pédagogie */}
           <Route path="/etudiants"    element={<AppRoute page="etudiants">   <EtudiantsPage /></AppRoute>} />
+          <Route path="/inscriptions" element={<AppRoute page="inscriptions"><InscriptionsPage /></AppRoute>} />
           <Route path="/semestres" element={<AppRoute page="semestres"><SemestresPage /></AppRoute>} />
           <Route path="/programmes" element={<AppRoute page="programmes"><ProgrammesPage /></AppRoute>} />
           <Route path="/resultats"    element={<AppRoute page="resultats">   <ResultatsPage /></AppRoute>} />

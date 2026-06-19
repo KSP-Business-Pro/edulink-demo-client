@@ -1,4 +1,4 @@
-// src/components/AppLayout.tsx
+﻿// src/components/AppLayout.tsx
 // Layout principal — sidebar + contenu
 // Navigation via <Link> React Router + Recherche globale + ToastContainer B2.2
 
@@ -127,6 +127,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     ]},
     { group: 'PÉDAGOGIE LMD', items: [
       { id: 'programmes', label: 'Programmes & UE', ico: '🎓', href: '/programmes' },
+      { id: 'inscriptions', label: 'Inscriptions', ico: '📋', href: '/inscriptions' },
       { id: 'semestres',  label: 'Semestres',       ico: '📅', href: '/semestres' },
       { id: 'promotions', label: 'Promotions',      ico: '👥', href: '/promotions' },
       { id: 'etudiants',  label: 'Étudiants',       ico: '🧑‍🎓', href: '/etudiants' },
