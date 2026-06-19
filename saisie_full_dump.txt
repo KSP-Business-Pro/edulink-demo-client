@@ -1,0 +1,687 @@
+﻿// src/modules/saisie-notes/components/GrilleNotes.tsx
+import { useState, useCallback } from 'react';
+import type { Evaluation, EtudiantSaisie, NoteLMD, MatiereSaisie, SessionEvaluation } from '../../../types/saisie.types';
+import { calculerLigneGrille, sauvegarderNote, toggleAbsent } from '../../../services/saisie.service';
+
+interface Props {
+  matiere: MatiereSaisie;
+  session: SessionEvaluation;
+  evalsCC: Evaluation[];
+  evalsEX: Evaluation[];
+  etudiants: EtudiantSaisie[];
+  notes: NoteLMD[];
+  ecoleId: string;
+  onRefresh: () => void;
+  onAjouterEval: (cat: 'CC' | 'EXAMEN') => void;
+  onChangerStatut: (statut: string) => void;
+  onImporter: () => void;
+}
+
+export default function GrilleNotes({
+  matiere, session, evalsCC, evalsEX, etudiants, notes,
+  ecoleId, onRefresh, onAjouterEval, onChangerStatut, onImporter,
+}: Props) {
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const poids_cc = matiere.unites_enseignement?.poids_cc ?? 0.4;
+  const poids_ex = matiere.unites_enseignement?.poids_examen ?? 0.6;
+  const sessLocked  = session.statut === 'close';
+  const sessPlanned = session.statut === 'planifiee';
+
+  // Build notesMap
+  const notesMap: Record<string, Record<string, NoteLMD>> = {};
+  notes.forEach(n => {
+    if (!notesMap[n.etudiant_id]) notesMap[n.etudiant_id] = {};
+    notesMap[n.etudiant_id][n.evaluation_id] = n;
+  });
+
+  const lignes = etudiants.map(et =>
+    calculerLigneGrille(et, evalsCC, evalsEX, notesMap, poids_cc, poids_ex)
+  );
+
+  const handleBlur = useCallback(async (
+    inputEl: HTMLInputElement, etudiantId: string, evaluationId: string
+  ) => {
+    const raw = inputEl.value.trim();
+    if (raw === '') return;
+    const valeur = parseFloat(raw);
+    const key = `${etudiantId}-${evaluationId}`;
+    if (isNaN(valeur) || valeur < 0 || valeur > 20) {
+      setErrors(e => ({ ...e, [key]: 'invalide' }));
+      return;
+    }
+    setErrors(e => { const n = { ...e }; delete n[key]; return n; });
+    setSaving(s => ({ ...s, [key]: true }));
+    try {
+      await sauvegarderNote(etudiantId, evaluationId, valeur, ecoleId);
+      onRefresh();
+    } catch (err: any) {
+      setErrors(e => ({ ...e, [key]: err.message }));
+    } finally {
+      setSaving(s => { const n = { ...s }; delete n[key]; return n; });
+    }
+  }, [ecoleId, onRefresh]);
+
+  const handleToggleAbsent = useCallback(async (
+    etudiantId: string, evaluationId: string, isAbsent: boolean
+  ) => {
+    try {
+      await toggleAbsent(etudiantId, evaluationId, isAbsent, ecoleId);
+      onRefresh();
+    } catch {}
+  }, [ecoleId, onRefresh]);
+
+  const statusColor = sessLocked ? '#dc2626' : sessPlanned ? '#f97316' : '#059669';
+  const statusLabel = sessLocked ? '🔒 Verrouillée' : sessPlanned ? '⏳ Planifiée' : '🔓 Ouverte';
+
+  return (
+    <div>
+      {/* En-tête matière */}
+      <div style={{ background: '#1e3a5f', color: '#fff', borderRadius: 12, padding: '1rem 1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{matiere.nom}</div>
+          <div style={{ fontSize: 12, opacity: .7 }}>
+            UE {matiere.unites_enseignement?.code ?? '—'} · Coef. {matiere.coefficient} · CC {Math.round(poids_cc * 100)}% / Exam {Math.round(poids_ex * 100)}%
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, opacity: .7 }}>{etudiants.length} étudiants</span>
+          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 12, fontWeight: 600, background: statusColor, color: '#fff' }}>
+            {statusLabel}
+          </span>
+          {!sessPlanned && !sessLocked && (
+            <>
+              <button onClick={() => onAjouterEval('CC')} style={{ background: 'rgba(255,255,255,.15)', color: '#fff', border: '1px solid rgba(255,255,255,.3)', padding: '3px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>+ CC</button>
+              <button onClick={() => onAjouterEval('EXAMEN')} style={{ background: 'rgba(201,124,26,.8)', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>+ Exam</button>
+            </>
+          )}
+          <button onClick={onImporter} style={{ background: 'rgba(255,255,255,.1)', color: '#fff', border: '1px solid rgba(255,255,255,.3)', padding: '3px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>⬆ Import</button>
+          {!sessLocked && !sessPlanned && (
+            <button onClick={() => onChangerStatut('close')} style={{ background: 'rgba(220,38,38,.7)', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>Clôturer</button>
+          )}
+          {sessLocked && (
+            <button onClick={() => onChangerStatut('ouverte')} style={{ background: 'rgba(255,255,255,.15)', color: '#fff', border: '1px solid rgba(255,255,255,.4)', padding: '3px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>Rouvrir</button>
+          )}
+        </div>
+      </div>
+
+      {/* Grille */}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+          <thead>
+            <tr style={{ background: '#f9fafb' }}>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, color: '#6b7280', borderBottom: '2px solid #e5e7eb', position: 'sticky', left: 0, background: '#f9fafb', zIndex: 1 }}>Étudiant</th>
+              {evalsCC.map(e => (
+                <th key={e.id} style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, color: '#1d4ed8', borderBottom: '2px solid #dbeafe', minWidth: 80 }}>
+                  <div>CC</div>
+                  <div style={{ fontWeight: 400, color: '#9ca3af' }}>{e.intitule || e.format}</div>
+                  <div style={{ fontSize: 9, color: '#c97c1a' }}>{Math.round(e.ponderation * 100)}%</div>
+                </th>
+              ))}
+              {evalsEX.map(e => (
+                <th key={e.id} style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, color: '#7c3aed', borderBottom: '2px solid #ede9fe', minWidth: 80 }}>
+                  <div>EXAMEN</div>
+                  <div style={{ fontWeight: 400, color: '#9ca3af' }}>{e.intitule || e.format}</div>
+                </th>
+              ))}
+              <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, color: '#059669', borderBottom: '2px solid #dcfce7', minWidth: 70 }}>Moy. CC</th>
+              <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, color: '#374151', borderBottom: '2px solid #e5e7eb', minWidth: 70 }}>Note finale</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lignes.map((ligne, idx) => {
+              const et = ligne.etudiant;
+              const bg = idx % 2 === 0 ? '#fff' : '#fafafa';
+              return (
+                <tr key={et.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: '8px 12px', position: 'sticky', left: 0, background: bg, zIndex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{et.nom} {et.prenom}</div>
+                    <div style={{ fontSize: 10, color: '#9ca3af' }}>{et.matricule ?? '—'}</div>
+                  </td>
+
+                  {evalsCC.map((e, i) => {
+                    const n = notesMap[et.id]?.[e.id];
+                    const isAbs = ligne.absentsCC[i];
+                    const key = `${et.id}-${e.id}`;
+                    const isErr = !!errors[key];
+                    const isSav = !!saving[key];
+                    return (
+                      <td key={e.id} style={{ padding: '4px 6px', textAlign: 'center', background: bg }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center' }}>
+                          <input
+                            type="number" min={0} max={20} step={0.5}
+                            defaultValue={isAbs ? '' : (n?.valeur ?? '')}
+                            disabled={isAbs || sessLocked || isSav}
+                            placeholder="—"
+                            style={{ width: 54, textAlign: 'center', padding: 4, border: `1px solid ${isErr ? '#dc2626' : isAbs || sessLocked ? '#f3f4f6' : '#e5e7eb'}`, borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', background: isAbs || sessLocked ? '#f9fafb' : '#fff', color: isAbs || sessLocked ? '#9ca3af' : '#111827' }}
+                            onFocus={el => (el.currentTarget.style.borderColor = '#1e3a5f')}
+                            onBlur={el => handleBlur(el.currentTarget, et.id, e.id)}
+                            onKeyDown={el => { if (el.key === 'Enter' || el.key === 'Tab') el.currentTarget.blur(); }}
+                          />
+                          <button
+                            disabled={sessLocked}
+                            onClick={() => handleToggleAbsent(et.id, e.id, isAbs)}
+                            style={{ padding: '1px 4px', fontSize: 9, fontWeight: 700, borderRadius: 4, cursor: sessLocked ? 'not-allowed' : 'pointer', border: `1px solid ${isAbs ? '#dc2626' : '#e5e7eb'}`, background: isAbs ? '#fee2e2' : '#f9fafb', color: isAbs ? '#dc2626' : '#9ca3af', lineHeight: 1.6, flexShrink: 0, fontFamily: 'inherit', opacity: sessLocked ? .4 : 1 }}
+                          >ABS</button>
+                        </div>
+                      </td>
+                    );
+                  })}
+
+                  {evalsEX.map((e, i) => {
+                    const n = notesMap[et.id]?.[e.id];
+                    const isAbs = ligne.absentsEX[i];
+                    const key = `${et.id}-${e.id}`;
+                    const isErr = !!errors[key];
+                    const isSav = !!saving[key];
+                    return (
+                      <td key={e.id} style={{ padding: '4px 6px', textAlign: 'center', background: bg }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center' }}>
+                          <input
+                            type="number" min={0} max={20} step={0.5}
+                            defaultValue={isAbs ? '' : (n?.valeur ?? '')}
+                            disabled={isAbs || sessLocked || isSav}
+                            placeholder="—"
+                            style={{ width: 54, textAlign: 'center', padding: 4, border: `1px solid ${isErr ? '#dc2626' : isAbs ? '#f3f4f6' : '#ede9fe'}`, borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', background: isAbs ? '#f9fafb' : '#fff', color: isAbs ? '#9ca3af' : '#111827' }}
+                            onFocus={el => (el.currentTarget.style.borderColor = '#7c3aed')}
+                            onBlur={el => handleBlur(el.currentTarget, et.id, e.id)}
+                            onKeyDown={el => { if (el.key === 'Enter' || el.key === 'Tab') el.currentTarget.blur(); }}
+                          />
+                          <button
+                            disabled={sessLocked}
+                            onClick={() => handleToggleAbsent(et.id, e.id, isAbs)}
+                            style={{ padding: '1px 4px', fontSize: 9, fontWeight: 700, borderRadius: 4, cursor: sessLocked ? 'not-allowed' : 'pointer', border: `1px solid ${isAbs ? '#dc2626' : '#ede9fe'}`, background: isAbs ? '#fee2e2' : '#f9fafb', color: isAbs ? '#dc2626' : '#9ca3af', lineHeight: 1.6, flexShrink: 0, fontFamily: 'inherit', opacity: sessLocked ? .4 : 1 }}
+                          >ABS</button>
+                        </div>
+                      </td>
+                    );
+                  })}
+
+                  <td style={{ padding: '8px 6px', textAlign: 'center', background: bg }}>
+                    <NoteChip val={ligne.moyCC} />
+                  </td>
+                  <td style={{ padding: '8px 6px', textAlign: 'center', background: bg }}>
+                    <NoteChip val={ligne.finale} bold />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop: '.75rem', fontSize: 11, color: '#9ca3af' }}>
+        💡 Saisissez une note et appuyez sur Entrée ou Tab pour sauvegarder automatiquement.
+      </div>
+    </div>
+  );
+}
+
+function NoteChip({ val, bold }: { val: number | null; bold?: boolean }) {
+  const color = val === null ? '#9ca3af' : val >= 10 ? '#059669' : '#dc2626';
+  const bg    = val === null ? '#f3f4f6' : val >= 10 ? '#dcfce7' : '#fee2e2';
+  return (
+    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: bold ? 700 : 600, background: bg, color }}>
+      {val !== null ? val.toFixed(2) : '—'}
+    </span>
+  );
+}
+
+
+===FILE===
+
+// src/modules/saisie-notes/components/ModalImportNotes.tsx
+import { useState, useRef } from 'react';
+import type { Evaluation, EtudiantSaisie, ImportRow } from '../../../types/saisie.types';
+import { parseCSV, importerNotes } from '../../../services/saisie.service';
+
+interface Props {
+  evaluations: Evaluation[];
+  etudiants: EtudiantSaisie[];
+  ecoleId: string;
+  onClose: () => void;
+  onImported: (ok: number, skip: number) => void;
+}
+
+export default function ModalImportNotes({ evaluations, etudiants, ecoleId, onClose, onImported }: Props) {
+  const [evalId, setEvalId]   = useState(evaluations[0]?.id ?? '');
+  const [rows, setRows]       = useState<ImportRow[] | null>(null);
+  const [parseErr, setParseErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParseErr(null);
+    try {
+      let parsed: ImportRow[];
+      if (file.name.endsWith('.csv') || file.type === 'text/csv') {
+        parsed = parseCSV(await file.text());
+      } else {
+        // Excel via SheetJS (chargé globalement dans le legacy — ici on requiert l'import dynamique)
+        const XLSX = (window as any).XLSX;
+        if (!XLSX) throw new Error('SheetJS non disponible — utilisez un fichier CSV');
+        const buf  = await file.arrayBuffer();
+        const wb   = XLSX.read(buf, { type: 'array' });
+        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        parsed = data.map((row: any) => {
+          const matKey  = Object.keys(row).find((k: string) => k.toLowerCase().includes('matri'));
+          const noteKey = Object.keys(row).find((k: string) => k.toLowerCase().includes('note') || k.toLowerCase().includes('mark'));
+          return { matricule: String(row[matKey] ?? '').trim(), note: parseFloat(row[noteKey]) };
+        }).filter((r: ImportRow) => r.matricule && !isNaN(r.note));
+      }
+      setRows(parsed);
+    } catch (err: any) {
+      setParseErr(err.message);
+      setRows(null);
+    }
+  }
+
+  async function handleImport() {
+    if (!rows?.length || !evalId) return;
+    setLoading(true);
+    try {
+      const { ok, skip } = await importerNotes(rows, evalId, ecoleId, etudiants);
+      onImported(ok, skip);
+      onClose();
+    } catch (err: any) {
+      setParseErr(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ width: 500, padding: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#111827' }}>Import de notes</h3>
+          <button className="btn-ghost btn-sm" onClick={onClose}>✕</button>
+        </div>
+
+        <div style={{ marginBottom: '.85rem' }}>
+          <label>Évaluation cible *</label>
+          <select value={evalId} onChange={e => setEvalId(e.target.value)} style={{ width: '100%', marginTop: 4 }}>
+            {evaluations.map(e => (
+              <option key={e.id} value={e.id}>[{e.categorie}] {e.intitule || e.format}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '.85rem' }}>
+          <label>Fichier CSV ou Excel *</label>
+          <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFile}
+            style={{ width: '100%', marginTop: 4 }} />
+          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+            Format : colonne <strong>Matricule</strong> + colonne <strong>Note</strong> (0-20). Première ligne = en-têtes.
+          </div>
+        </div>
+
+        {rows && (
+          <div style={{ maxHeight: 140, overflowY: 'auto', marginBottom: '.85rem', fontSize: 12, color: '#374151', background: '#f9fafb', borderRadius: 8, padding: '.75rem' }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>{rows.length} ligne(s) détectée(s)</div>
+            {rows.slice(0, 5).map((r, i) => <div key={i}>{r.matricule} → {r.note}</div>)}
+            {rows.length > 5 && <div style={{ color: '#9ca3af' }}>…</div>}
+          </div>
+        )}
+
+        {parseErr && (
+          <div style={{ background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: '.85rem' }}>
+            {parseErr}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.5rem', paddingTop: '.85rem', borderTop: '1px solid #f3f4f6' }}>
+          <button className="btn-ghost" onClick={onClose}>Annuler</button>
+          <button className="btn-blue" onClick={handleImport} disabled={!rows?.length || loading}>
+            {loading ? 'Import…' : 'Importer →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+===FILE===
+
+// @ts-nocheck
+// src/services/saisie.service.ts
+import { supabase } from './supabase';
+import type {
+  SessionEvaluation, Evaluation, NoteLMD,
+  EtudiantSaisie, MatiereSaisie, UESaisie, ImportRow,
+} from '../types/saisie.types';
+
+// ── Semestres actifs ──────────────────────────────────────────────────────────
+export async function fetchSemestresActifsSaisie(ecoleId: string) {
+  const { data, error } = await supabase
+    .from('semestres')
+    .select('id,libelle,niveau,programmes_lmd(intitule)')
+    .eq('ecole_id', ecoleId)
+    .in('statut', ['en_cours', 'planifie'])
+    .order('numero');
+  if (error) throw error;
+  return data ?? [];
+}
+
+// ── UE du semestre ────────────────────────────────────────────────────────────
+export async function fetchUEsBySemestre(semestreId: string): Promise<UESaisie[]> {
+  const { data, error } = await supabase
+    .from('programme_ue')
+    .select('ue_id, unites_enseignement(id,code,intitule,type_ue,poids_cc,poids_examen)')
+    .eq('semestre_id', semestreId);
+  if (error) throw error;
+  return (data ?? [])
+    .map((r: any) => r.unites_enseignement)
+    .filter(Boolean) as UESaisie[];
+}
+
+// ── Matières d'une UE ─────────────────────────────────────────────────────────
+export async function fetchMatieresByUESaisie(ueId: string): Promise<MatiereSaisie[]> {
+  const { data, error } = await supabase
+    .from('matieres_lmd')
+    .select('id,code,nom,coefficient,ue_id,unites_enseignement(code,intitule,poids_cc,poids_examen)')
+    .eq('ue_id', ueId)
+    .order('code');
+  if (error) throw error;
+  return (data ?? []) as MatiereSaisie[];
+}
+
+// ── Sessions évaluation ───────────────────────────────────────────────────────
+export async function fetchSessions(semestreId: string): Promise<SessionEvaluation[]> {
+  const { data, error } = await supabase
+    .from('sessions_evaluation')
+    .select('id,semestre_id,ecole_id,type_session,statut')
+    .eq('semestre_id', semestreId);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function creerSessions(semestreId: string, ecoleId: string): Promise<void> {
+  const existing = await fetchSessions(semestreId);
+  const types = existing.map(s => s.type_session);
+  const toCreate = [];
+  if (!types.includes('normale'))
+    toCreate.push({ semestre_id: semestreId, ecole_id: ecoleId, type_session: 'normale', statut: 'ouverte' });
+  if (!types.includes('rattrapage'))
+    toCreate.push({ semestre_id: semestreId, ecole_id: ecoleId, type_session: 'rattrapage', statut: 'planifiee' });
+  if (!toCreate.length) throw new Error('Sessions déjà créées');
+  const { error } = await supabase.from('sessions_evaluation').insert(toCreate);
+  if (error) throw error;
+}
+
+export async function changerStatutSession(sessionId: string, statut: string): Promise<void> {
+  const { error } = await supabase
+    .from('sessions_evaluation')
+    .update({ statut })
+    .eq('id', sessionId);
+  if (error) throw error;
+}
+
+// ── Évaluations ───────────────────────────────────────────────────────────────
+export async function fetchEvaluations(matiereId: string, sessionIds: string[]): Promise<Evaluation[]> {
+  if (!sessionIds.length) return [];
+  const { data, error } = await supabase
+    .from('evaluations')
+    .select('*')
+    .eq('matiere_id', matiereId)
+    .in('session_id', sessionIds);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function ajouterEvaluation(
+  matiereId: string, sessionId: string, ecoleId: string,
+  categorie: 'CC' | 'EXAMEN', intitule: string, existingEvals: Evaluation[]
+): Promise<void> {
+  const sameType = existingEvals.filter(e => e.categorie === categorie && e.session_id === sessionId);
+  const totalPond = sameType.reduce((s, e) => s + e.ponderation, 0);
+  const ponderation = categorie === 'CC'
+    ? Math.max(0.1, parseFloat((1 - totalPond).toFixed(2)))
+    : 1.0;
+  const { error } = await supabase.from('evaluations').insert({
+    matiere_id: matiereId, session_id: sessionId, ecole_id: ecoleId,
+    categorie, format: 'ecrit', intitule, ponderation,
+  });
+  if (error) throw error;
+}
+
+// ── Étudiants inscrits ────────────────────────────────────────────────────────
+export async function fetchEtudiantsInscrits(semestreId: string): Promise<EtudiantSaisie[]> {
+  const { data, error } = await supabase
+    .from('inscriptions_semestre')
+    .select('etudiant_id, etudiants(id,nom,prenom,matricule)')
+    .eq('semestre_id', semestreId)
+    .eq('statut', 'active');
+  if (error) throw error;
+  return ((data ?? []).map((i: any) => i.etudiants).filter(Boolean) as EtudiantSaisie[])
+    .sort((a, b) => a.nom.localeCompare(b.nom));
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+export async function fetchNotes(evaluationIds: string[]): Promise<NoteLMD[]> {
+  if (!evaluationIds.length) return [];
+  const { data, error } = await supabase
+    .from('notes_lmd')
+    .select('etudiant_id,evaluation_id,valeur,absent')
+    .in('evaluation_id', evaluationIds);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function sauvegarderNote(
+  etudiantId: string, evaluationId: string,
+  valeur: number, ecoleId: string
+): Promise<void> {
+  // Récupérer session_id
+  const { data: ev } = await supabase
+    .from('evaluations').select('session_id').eq('id', evaluationId).single();
+  const sessionId = ev?.session_id;
+
+  // Note précédente pour historique
+  const { data: existing } = await supabase
+    .from('notes_lmd')
+    .select('valeur')
+    .eq('etudiant_id', etudiantId)
+    .eq('evaluation_id', evaluationId)
+    .maybeSingle();
+
+  const { error } = await supabase.from('notes_lmd').upsert({
+    etudiant_id: etudiantId, evaluation_id: evaluationId,
+    session_id: sessionId, ecole_id: ecoleId,
+    valeur, absent: false,
+  }, { onConflict: 'etudiant_id,evaluation_id' });
+  if (error) throw error;
+
+  // Historique silencieux
+  await _logNote(etudiantId, evaluationId, ecoleId, existing?.valeur ?? null, valeur);
+}
+
+export async function toggleAbsent(
+  etudiantId: string, evaluationId: string,
+  isCurrentlyAbsent: boolean, ecoleId: string
+): Promise<void> {
+  const { data: ev } = await supabase
+    .from('evaluations').select('session_id').eq('id', evaluationId).single();
+  const { data: existing } = await supabase
+    .from('notes_lmd').select('valeur')
+    .eq('etudiant_id', etudiantId).eq('evaluation_id', evaluationId).maybeSingle();
+
+  const { error } = await supabase.from('notes_lmd').upsert({
+    etudiant_id: etudiantId, evaluation_id: evaluationId,
+    session_id: ev?.session_id, ecole_id: ecoleId,
+    absent: !isCurrentlyAbsent, valeur: null,
+  }, { onConflict: 'etudiant_id,evaluation_id' });
+  if (error) throw error;
+
+  if (!isCurrentlyAbsent)
+    await _logNote(etudiantId, evaluationId, ecoleId, existing?.valeur ?? null, null);
+}
+
+async function _logNote(
+  etudiantId: string, evaluationId: string, ecoleId: string,
+  ancienne: number | null, nouvelle: number | null
+): Promise<void> {
+  try {
+    await supabase.from('notes_historique').insert({
+      etudiant_id: etudiantId, evaluation_id: evaluationId, ecole_id: ecoleId,
+      valeur_ancienne: ancienne, valeur_nouvelle: nouvelle,
+      modifie_le: new Date().toISOString(),
+    });
+  } catch { /* silencieux si table absente */ }
+}
+
+// ── Import CSV/Excel ──────────────────────────────────────────────────────────
+export function parseCSV(text: string): ImportRow[] {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(/[,;]/).map(h => h.trim().toLowerCase());
+  const matIdx  = headers.findIndex(h => h.includes('matri'));
+  const noteIdx = headers.findIndex(h => h.includes('note') || h.includes('mark'));
+  if (matIdx < 0 || noteIdx < 0) throw new Error('Colonnes Matricule/Note non trouvées');
+  return lines.slice(1)
+    .map(l => { const c = l.split(/[,;]/); return { matricule: c[matIdx]?.trim(), note: parseFloat(c[noteIdx]) }; })
+    .filter(r => r.matricule && !isNaN(r.note));
+}
+
+export async function importerNotes(
+  rows: ImportRow[], evaluationId: string, ecoleId: string,
+  etudiants: EtudiantSaisie[]
+): Promise<{ ok: number; skip: number }> {
+  const { data: ev } = await supabase
+    .from('evaluations').select('session_id').eq('id', evaluationId).single();
+  const matMap: Record<string, string> = {};
+  etudiants.forEach(e => { matMap[e.matricule] = e.id; });
+  let ok = 0, skip = 0;
+  for (const row of rows) {
+    const etuId = matMap[row.matricule];
+    if (!etuId) { skip++; continue; }
+    const { data: existing } = await supabase
+      .from('notes_lmd').select('valeur')
+      .eq('etudiant_id', etuId).eq('evaluation_id', evaluationId).maybeSingle();
+    const { error } = await supabase.from('notes_lmd').upsert({
+      etudiant_id: etuId, evaluation_id: evaluationId,
+      session_id: ev?.session_id, ecole_id: ecoleId,
+      valeur: row.note, absent: false,
+    }, { onConflict: 'etudiant_id,evaluation_id' });
+    if (!error) { ok++; await _logNote(etuId, evaluationId, ecoleId, existing?.valeur ?? null, row.note); }
+    else skip++;
+  }
+  return { ok, skip };
+}
+
+// ── Calcul moyennes ───────────────────────────────────────────────────────────
+export function calculerLigneGrille(
+  etudiant: EtudiantSaisie,
+  evalsCC: Evaluation[], evalsEX: Evaluation[],
+  notesMap: Record<string, Record<string, NoteLMD>>,
+  poids_cc: number, poids_ex: number
+) {
+  const rowNotes = notesMap[etudiant.id] ?? {};
+
+  const notesCC  = evalsCC.map(e => { const n = rowNotes[e.id]; return n?.absent ? 0 : (n?.valeur ?? null); });
+  const absCC    = evalsCC.map(e => !!rowNotes[e.id]?.absent);
+  const notesEX  = evalsEX.map(e => { const n = rowNotes[e.id]; return n?.absent ? 0 : (n?.valeur ?? null); });
+  const absEX    = evalsEX.map(e => !!rowNotes[e.id]?.absent);
+
+  let moyCC: number | null = null;
+  if (notesCC.every(n => n !== null)) {
+    const tot = evalsCC.reduce((s, e) => s + e.ponderation, 0);
+    moyCC = tot > 0
+      ? Math.round(notesCC.reduce((s, n, i) => s + (n ?? 0) * evalsCC[i].ponderation, 0) / tot * 100) / 100
+      : null;
+  }
+
+  let finale: number | null = null;
+  const moyEX = notesEX.length && notesEX.every(n => n !== null) ? notesEX[0] : null;
+  if (moyCC !== null && moyEX !== null)          finale = Math.round((moyCC * poids_cc + moyEX * poids_ex) * 100) / 100;
+  else if (moyCC !== null && evalsEX.length === 0) finale = moyCC;
+  else if (moyEX !== null && evalsCC.length === 0) finale = moyEX;
+
+  return { etudiant, notesCC, notesEX, absentsCC: absCC, absentsEX: absEX, moyCC, finale };
+}
+
+
+
+===FILE===
+
+// src/types/saisie.types.ts
+export type TypeSession   = 'normale' | 'rattrapage';
+export type StatutSession = 'ouverte' | 'planifiee' | 'close';
+export type CategorieEval = 'CC' | 'EXAMEN';
+
+export interface SessionEvaluation {
+  id: string;
+  semestre_id: string;
+  ecole_id: string;
+  type_session: TypeSession;
+  statut: StatutSession;
+}
+
+export interface Evaluation {
+  id: string;
+  matiere_id: string;
+  session_id: string;
+  ecole_id: string;
+  categorie: CategorieEval;
+  format: string;
+  intitule: string;
+  ponderation: number; // 0..1
+}
+
+export interface NoteLMD {
+  etudiant_id: string;
+  evaluation_id: string;
+  session_id: string;
+  ecole_id: string;
+  valeur: number | null;
+  absent: boolean;
+}
+
+export interface EtudiantSaisie {
+  id: string;
+  nom: string;
+  prenom: string;
+  matricule: string;
+}
+
+export interface MatiereSaisie {
+  id: string;
+  nom: string;
+  code: string;
+  coefficient: number;
+  ue_id: string;
+  unites_enseignement: {
+    code: string;
+    intitule: string;
+    poids_cc: number;
+    poids_examen: number;
+  };
+}
+
+export interface UESaisie {
+  id: string;
+  code: string;
+  intitule: string;
+  type_ue: string;
+  poids_cc: number;
+  poids_examen: number;
+}
+
+// Données agrégées pour la grille
+export interface LigneGrille {
+  etudiant: EtudiantSaisie;
+  notesCC:  (number | null)[];  // valeurs par evaluation CC
+  notesEX:  (number | null)[];
+  absentsCC: boolean[];
+  absentsEX: boolean[];
+  moyCC:    number | null;
+  finale:   number | null;
+}
+
+export interface ImportRow {
+  matricule: string;
+  note: number;
+}
