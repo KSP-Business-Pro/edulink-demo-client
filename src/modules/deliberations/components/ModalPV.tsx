@@ -2,7 +2,8 @@
 // B4.2 — Modal PV officiel de jury
 
 import { useState, useEffect } from 'react';
-import { upsertPV, validerPV, type PVDelib } from '../../../services/deliberations.service';
+import { upsertPV, validerPV } from '../../../services/deliberations.service';
+import type { PVDelib } from '../../../types/deliberations.types';
 
 interface Props {
   ecoleId:    string;
@@ -195,3 +196,4 @@ const S = {
   btnPrimary:  { padding: '9px 18px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' } as React.CSSProperties,
   btnSecondary:{ padding: '9px 18px', background: '#fff', color: '#374151', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' } as React.CSSProperties,
 };
+
