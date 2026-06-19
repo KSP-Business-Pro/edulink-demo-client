@@ -127,6 +127,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     ]},
     { group: 'PÉDAGOGIE LMD', items: [
       { id: 'programmes', label: 'Programmes & UE', ico: '🎓', href: '/programmes' },
+      { id: 'emploi-du-temps', label: 'Emploi du temps', ico: '📆', href: '/emploi-du-temps' },
       { id: 'inscriptions', label: 'Inscriptions', ico: '📋', href: '/inscriptions' },
       { id: 'semestres',  label: 'Semestres',       ico: '📅', href: '/semestres' },
       { id: 'promotions', label: 'Promotions',      ico: '👥', href: '/promotions' },
