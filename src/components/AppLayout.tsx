@@ -124,7 +124,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
   const navItems = [
     { group: 'TABLEAU DE BORD', items: [
       { id: 'dashboard', label: 'Dashboard', ico: '🏠', href: '/dashboard' },
-      { id: 'dashboard-reseau', label: 'Dashboard Réseau', ico: '🌐', href: '/dashboard-reseau', superAdminOnly: true },
+      { id: 'dashboard-reseau', label: 'Dashboard Réseau', ico: '🌐', href: '/dashboard-reseau' },
       { id: 'analytics', label: 'Analytique', ico: '📊', href: '/analytics' },
     ]},
     { group: 'PÉDAGOGIE LMD', items: [
