@@ -1,4 +1,4 @@
-// src/services/permissions.ts
+﻿// src/services/permissions.ts
 // Matrice complète des permissions pour les 7 rôles EduLink Sup
 // Basée sur les règles CAMES + règles métier HEMEC/ESM
 

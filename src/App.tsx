@@ -9,6 +9,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { DashboardReseauPage } from './pages/DashboardReseauPage';
 
 // ── Lazy loading par module ────────────────────────────────────────────────
 const EtudiantsPage    = lazy(() => import('./modules/etudiants'));
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
 
           {/* Dashboard */}
+          <Route path="/dashboard-reseau" element={<AppRoute page="dashboard-reseau"><DashboardReseauPage /></AppRoute>} />
           <Route path="/dashboard" element={
             <AppRoute page="dashboard"><DashboardPage /></AppRoute>
           } />
