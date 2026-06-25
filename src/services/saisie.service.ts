@@ -1,4 +1,4 @@
-// src/services/saisie.service.ts
+﻿// src/services/saisie.service.ts
 // B4.1 — Retrait @ts-nocheck, typage explicite
 
 import { supabase } from './supabase';
@@ -53,13 +53,23 @@ export async function fetchSessions(semestreId: string): Promise<SessionEvaluati
 }
 
 export async function creerSessions(semestreId: string, ecoleId: string): Promise<void> {
+  const { data: semestre } = await supabase
+    .from('semestres')
+    .select('date_debut, date_fin')
+    .eq('id', semestreId)
+    .single();
+  const date_debut = (semestre as { date_debut: string } | null)?.date_debut ?? new Date().toISOString().split('T')[0];
+  const date_fin   = (semestre as { date_fin: string }   | null)?.date_fin   ?? new Date().toISOString().split('T')[0];
   const existing = await fetchSessions(semestreId);
   const types = existing.map(s => s.type_session);
-  const toCreate: { semestre_id: string; ecole_id: string; type_session: string; statut: string }[] = [];
+  const toCreate: {
+    semestre_id: string; ecole_id: string; type_session: string;
+    statut: string; date_debut: string; date_fin: string;
+  }[] = [];
   if (!types.includes('normale'))
-    toCreate.push({ semestre_id: semestreId, ecole_id: ecoleId, type_session: 'normale', statut: 'ouverte' });
+    toCreate.push({ semestre_id: semestreId, ecole_id: ecoleId, type_session: 'normale',   statut: 'ouverte',   date_debut, date_fin });
   if (!types.includes('rattrapage'))
-    toCreate.push({ semestre_id: semestreId, ecole_id: ecoleId, type_session: 'rattrapage', statut: 'planifiee' });
+    toCreate.push({ semestre_id: semestreId, ecole_id: ecoleId, type_session: 'rattrapage', statut: 'planifiee', date_debut, date_fin });
   if (!toCreate.length) throw new Error('Sessions déjà créées');
   const { error } = await supabase.from('sessions_evaluation').insert(toCreate);
   if (error) throw error;
