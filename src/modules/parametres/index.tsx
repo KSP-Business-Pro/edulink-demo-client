@@ -1,4 +1,4 @@
-// src/modules/parametres/index.tsx
+﻿// src/modules/parametres/index.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../services/supabase';
