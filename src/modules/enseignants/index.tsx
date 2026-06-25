@@ -273,7 +273,7 @@ export default function EnseignantsPage() {
         specialite: row.specialite || null,
         email:      row.email   || null,
         telephone:  row.telephone || null,
-        statut:     'actif',        // ← valeur DB correcte
+        statut:     'Permanent',    // ← valeur DB correcte
       });
       if (!error) { ok++; results.push({ ...row, _ok: true }); }
       else        { skip++; results.push({ ...row, _ok: false, _err: error.message }); }
