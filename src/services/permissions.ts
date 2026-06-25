@@ -175,5 +175,6 @@ export function getVisibleModules(role: UserRole): string[] {
   if (p.voir_parametres)   modules.push('parametres');
   if (p.voir_prospects)    modules.push('prospects');
   if (p.voir_monitoring)   modules.push('monitoring');
+  if (role === 'admin')      modules.push('dashboard-reseau');
   return modules;
 }
