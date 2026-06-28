@@ -144,9 +144,9 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     ]},
     { group: 'ÉTABLISSEMENT', items: [
       { id: 'enseignants',  label: 'Enseignants',  ico: '👨‍🏫', href: '/enseignants' },
+      { id: 'utilisateurs', label: 'Utilisateurs', ico: '👤', href: '/utilisateurs' },
       { id: 'comptabilite', label: 'Comptabilité', ico: '💰', href: '/comptabilite' },
       { id: 'messages',     label: 'Messages',     ico: '💬', href: '/messages' },
-      { id: 'utilisateurs', label: 'Utilisateurs', ico: '👤', href: '/utilisateurs' },
     ]},
     { group: 'SYSTÈME', items: [
       { id: 'monitoring', label: 'Monitoring', ico: '📡', href: '/monitoring' },
