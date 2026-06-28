@@ -40,7 +40,7 @@ interface Actualite {
   contenu: string
   image_url: string | null
   categorie: string
-  date_pub: string
+  publie_le: string | null
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -142,10 +142,10 @@ export default function PortailPublicPage() {
 
       // Charger en parallèle
       const [progsRes, actusRes, etudRes, ensRes] = await Promise.all([
-        supabase.from('programmes').select('id, nom, niveau, domaine, duree_mois, frais_scolarite')
+        supabase.from('programmes_lmd').select('id, nom, niveau, domaine, duree_mois, frais_scolarite')
           .eq('ecole_id', id).eq('afficher_portail', true).order('niveau'),
-        supabase.from('actualites').select('id, titre, contenu, image_url, categorie, date_pub')
-          .eq('ecole_id', id).eq('publie', true).order('date_pub', { ascending: false }).limit(6),
+        supabase.from('actualites').select('id, titre, contenu, image_url, categorie, publie_le')
+          .eq('ecole_id', id).eq('statut', 'publie').order('publie_le', { ascending: false }).limit(6),
         supabase.from('etudiants').select('id', { count: 'exact', head: true }).eq('ecole_id', id).eq('statut', 'actif'),
         supabase.from('enseignants').select('id', { count: 'exact', head: true }).eq('ecole_id', id).eq('statut', 'actif'),
       ])
@@ -320,7 +320,7 @@ export default function PortailPublicPage() {
                       WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const }}>
                       {a.contenu}
                     </div>
-                    <div style={S.actuDate}>{fmtDate(a.date_pub)}</div>
+                    <div style={S.actuDate}>{fmtDate(a.publie_le ?? a.id)}</div>
                   </div>
                 </div>
               ))}

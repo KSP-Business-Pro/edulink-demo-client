@@ -1,4 +1,4 @@
-// src/modules/portail-public/index.tsx
+﻿// src/modules/portail-public/index.tsx
 // B5.6 — Gestion Portail Public (back-office) — inline styles
 
 import { useState, useEffect } from 'react'
@@ -11,8 +11,8 @@ interface Actualite {
   contenu: string
   image_url: string | null
   categorie: string
-  publie: boolean
-  date_pub: string
+  statut: string
+  publie_le: string | null
 }
 
 interface EcoleConfig {
@@ -91,7 +91,7 @@ export default function GestionPortailPage() {
     setLoading(true)
     Promise.all([
       supabase.from('ecoles').select('id, nom, slug, description, adresse, telephone, email_contact, site_web, annee_creation, portail_actif').eq('id', ecoleId).single(),
-      supabase.from('actualites').select('*').eq('ecole_id', ecoleId).order('date_pub', { ascending: false }),
+      supabase.from('actualites').select('*').eq('ecole_id', ecoleId).order('publie_le', { ascending: false }),
     ]).then(([eRes, aRes]) => {
       setEcoleConf(eRes.data as EcoleConfig)
       setActualites(aRes.data ?? [])
@@ -118,14 +118,14 @@ export default function GestionPortailPage() {
   async function saveActu(form: Partial<Actualite>) {
     setSaving(true)
     if (form.id) {
-      await supabase.from('actualites').update({ titre: form.titre, contenu: form.contenu, categorie: form.categorie, publie: form.publie, date_pub: form.date_pub }).eq('id', form.id)
+      await supabase.from('actualites').update({ titre: form.titre, contenu: form.contenu, categorie: form.categorie, statut: form.statut ?? 'brouillon' }).eq('id', form.id)
     } else {
-      await supabase.from('actualites').insert({ ecole_id: ecoleId, titre: form.titre, contenu: form.contenu, categorie: form.categorie ?? 'general', publie: form.publie ?? false, date_pub: form.date_pub ?? new Date().toISOString().slice(0,10) })
+      await supabase.from('actualites').insert({ ecole_id: ecoleId, titre: form.titre, contenu: form.contenu, categorie: form.categorie ?? 'general', statut: form.statut ?? 'brouillon' })
     }
     setSaving(false)
     setShowForm(false); setEditActu(null)
     showOk('Actualité enregistrée')
-    const { data } = await supabase.from('actualites').select('*').eq('ecole_id', ecoleId).order('date_pub', { ascending: false })
+    const { data } = await supabase.from('actualites').select('*').eq('ecole_id', ecoleId).order('publie_le', { ascending: false })
     setActualites(data ?? [])
   }
 
@@ -135,9 +135,9 @@ export default function GestionPortailPage() {
     setActualites(prev => prev.filter(a => a.id !== id))
   }
 
-  async function togglePublie(id: string, publie: boolean) {
-    await supabase.from('actualites').update({ publie: !publie }).eq('id', id)
-    setActualites(prev => prev.map(a => a.id === id ? { ...a, publie: !publie } : a))
+  async function togglePublie(id: string, publie: string) {
+    await supabase.from('actualites').update({ statut: publie === 'publie' ? 'brouillon' : 'publie' }).eq('id', id)
+    setActualites(prev => prev.map(a => a.id === id ? { ...a, statut: a.statut === 'publie' ? 'brouillon' : 'publie' } : a))
   }
 
   const portailUrl = ecoleConf?.slug ? `${window.location.origin}/ecole/${ecoleConf.slug}` : null
@@ -249,7 +249,7 @@ export default function GestionPortailPage() {
       {activeTab === 'actualites' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button onClick={() => { setEditActu({ categorie: 'general', publie: false, date_pub: new Date().toISOString().slice(0,10) }); setShowForm(true) }} style={S.btnPrimary}>
+            <button onClick={() => { setEditActu({ categorie: 'general', statut: 'brouillon' }); setShowForm(true) }} style={S.btnPrimary}>
               + Nouvelle actualité
             </button>
           </div>
@@ -270,7 +270,7 @@ export default function GestionPortailPage() {
                 </div>
                 <div style={S.field}>
                   <label style={S.label}>Date de publication</label>
-                  <input type="date" value={editActu.date_pub ?? ''} onChange={e => setEditActu(f => ({ ...f, date_pub: e.target.value }))} style={S.input} />
+                  <input type="date" value={editActu.publie_le ?? ''} onChange={e => setEditActu(f => ({ ...f, publie_le: e.target.value }))} style={S.input} />
                 </div>
               </div>
               <div style={S.field}>
@@ -278,10 +278,10 @@ export default function GestionPortailPage() {
                 <textarea value={editActu.contenu ?? ''} onChange={e => setEditActu(f => ({ ...f, contenu: e.target.value }))} style={S.textarea} rows={4} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <div style={S.toggle(!!editActu.publie)} onClick={() => setEditActu(f => ({ ...f, publie: !f?.publie }))}>
-                  <div style={S.toggleDot(!!editActu.publie)} />
+                <div style={S.toggle(editActu.statut === 'publie')} onClick={() => setEditActu(f => ({ ...f, statut: f?.statut === 'publie' ? 'brouillon' : 'publie' }))}>
+                  <div style={S.toggleDot(editActu.statut === 'publie')} />
                 </div>
-                <span style={{ fontSize: 13 }}>{editActu.publie ? 'Publié' : 'Brouillon'}</span>
+                <span style={{ fontSize: 13 }}>{editActu.statut === 'publie' ? 'Publié' : 'Brouillon'}</span>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button onClick={() => { setShowForm(false); setEditActu(null) }} style={S.btnSecondary}>Annuler</button>
@@ -309,13 +309,13 @@ export default function GestionPortailPage() {
                     <tr key={a.id}>
                       <td style={{ ...S.td, fontWeight: 500 }}>{a.titre}</td>
                       <td style={S.td}><span style={{ fontSize: 12, color: '#64748b' }}>{a.categorie}</span></td>
-                      <td style={{ ...S.td, fontSize: 12, color: '#64748b' }}>{new Date(a.date_pub).toLocaleDateString('fr-FR')}</td>
+                      <td style={{ ...S.td, fontSize: 12, color: '#64748b' }}>{new Date(a.publie_le ?? '').toLocaleDateString('fr-FR')}</td>
                       <td style={S.td}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={S.toggle(a.publie)} onClick={() => togglePublie(a.id, a.publie)}>
-                            <div style={S.toggleDot(a.publie)} />
+                          <div style={S.toggle(a.statut === 'publie')} onClick={() => togglePublie(a.id, a.statut)}>
+                            <div style={S.toggleDot(a.statut === 'publie')} />
                           </div>
-                          <span style={{ fontSize: 12, color: a.publie ? '#166534' : '#64748b' }}>{a.publie ? 'Publié' : 'Brouillon'}</span>
+                          <span style={{ fontSize: 12, color: a.statut === 'publie' ? '#166534' : '#64748b' }}>{a.statut === 'publie' ? 'Publié' : 'Brouillon'}</span>
                         </div>
                       </td>
                       <td style={{ ...S.td, textAlign: 'right' as const }}>
