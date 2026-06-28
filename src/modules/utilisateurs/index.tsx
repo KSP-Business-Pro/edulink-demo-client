@@ -417,7 +417,7 @@ export default function UtilisateursPage() {
     try {
       let q = supabase
         .from('utilisateurs')
-        .select(`id, auth_id, nom, prenom, role, ecole_id, actif,
+        .select(`id, auth_id, nom, prenom, role, ecole_id, actif, email,
                  ecoles(nom)`, { count: 'exact' })
         .order('nom')
         .range(p * PAGE_SIZE, (p + 1) * PAGE_SIZE - 1)
@@ -441,23 +441,10 @@ export default function UtilisateursPage() {
         role:     u.role as UserRole,
         ecole_id: u.ecole_id as string | null,
         actif:    u.actif as boolean,
-        email:    '',   // enrichi après
+        email:    (u.email as string) ?? '',
         ecole_nom: (u.ecoles as { nom: string } | null)?.nom,
       }))
 
-      // Récupérer les emails depuis auth via RPC get_users_emails
-      if (rows.length > 0) {
-        const authIds = rows.map(r => r.auth_id)
-        const { data: emailsData } = await supabase.rpc('fn_get_user_emails', {
-          p_auth_ids: authIds,
-        })
-        if (emailsData) {
-          const emailMap = Object.fromEntries(
-            (emailsData as { auth_id: string; email: string }[]).map(e => [e.auth_id, e.email])
-          )
-          rows.forEach(r => { r.email = emailMap[r.auth_id] ?? '' })
-        }
-      }
 
       setUsers(rows)
       setTotal(count ?? 0)
