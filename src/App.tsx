@@ -8,6 +8,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { LoginPage } from './pages/LoginPage';
+import { default as PortailPublicPage } from './pages/PortailPublicPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DashboardReseauPage } from './pages/DashboardReseauPage';
 
@@ -31,6 +32,7 @@ const UtilisateursPage      = lazy(() => import('./modules/utilisateurs'));
 const PortailEnseignantPage = lazy(() => import('./modules/portail-enseignant'));
 const RHPersonnelPage       = lazy(() => import('./modules/rh-personnel'));
 const EmailParentsPage      = lazy(() => import('./modules/email-parents'));
+const PortailPublicMgmt    = lazy(() => import('./modules/portail-public'));
 const InscriptionsPage  = lazy(() => import('./modules/inscriptions'));
 const EmploiDuTempsPage = lazy(() => import('./modules/emploi-du-temps'));
 const AnalyticsPage     = lazy(() => import('./modules/analytics'));
@@ -64,6 +66,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           {/* Route publique */}
+          <Route path="/ecole/:slug" element={<PortailPublicPage />} />
           <Route path="/login" element={<LoginPage />} />
 
           {/* Dashboard */}
@@ -93,6 +96,7 @@ export default function App() {
           <Route path="/promotions" element={<AppRoute page="promotions"><PromotionsPage /></AppRoute>} />
           <Route path="/messages" element={<AppRoute page="messages"><MessagesPage /></AppRoute>} />
           <Route path="/parametres"   element={<AppRoute page="parametres">  <ParametresPage /></AppRoute>} />
+          <Route path="/portail-public" element={<AppRoute page="portail-public"><PortailPublicMgmt /></AppRoute>} />
           <Route path="/email-parents" element={<AppRoute page="email-parents"><EmailParentsPage /></AppRoute>} />
           <Route path="/rh-personnel" element={<AppRoute page="rh-personnel"><RHPersonnelPage /></AppRoute>} />
           <Route path="/portail-enseignant" element={<AppRoute page="portail-enseignant"><PortailEnseignantPage /></AppRoute>} />
