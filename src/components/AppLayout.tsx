@@ -146,11 +146,11 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
       { id: 'enseignants',  label: 'Enseignants',  ico: '👨‍🏫', href: '/enseignants' },
       { id: 'comptabilite', label: 'Comptabilité', ico: '💰', href: '/comptabilite' },
       { id: 'messages',     label: 'Messages',     ico: '💬', href: '/messages' },
+      { id: 'utilisateurs', label: 'Utilisateurs', ico: '👤', href: '/utilisateurs' },
     ]},
     { group: 'SYSTÈME', items: [
       { id: 'monitoring', label: 'Monitoring', ico: '📡', href: '/monitoring' },
       { id: 'prospects',  label: 'Prospects',  ico: '🎯', href: '/prospects' },
-      { id: 'utilisateurs', label: 'Utilisateurs', ico: '👤', href: '/utilisateurs' },
       { id: 'parametres', label: 'Paramètres', ico: '⚙️', href: '/parametres' },
     ]},
   ];
