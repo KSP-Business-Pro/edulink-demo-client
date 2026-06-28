@@ -150,6 +150,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     { group: 'SYSTÈME', items: [
       { id: 'monitoring', label: 'Monitoring', ico: '📡', href: '/monitoring' },
       { id: 'prospects',  label: 'Prospects',  ico: '🎯', href: '/prospects' },
+      { id: 'utilisateurs', label: 'Utilisateurs', ico: '👤', href: '/utilisateurs' },
       { id: 'parametres', label: 'Paramètres', ico: '⚙️', href: '/parametres' },
     ]},
   ];
