@@ -143,6 +143,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
       { id: 'releves',      label: 'Relevés',          ico: '📄', href: '/releves' },
     ]},
     { group: 'ÉTABLISSEMENT', items: [
+      { id: 'analytics-ia', label: 'Analytics IA', ico: 'ðŸ¤–', href: '/analytics-ia' },
       { id: 'portail-public', label: 'Portail Public', ico: 'ðŸŒ', href: '/portail-public' },
       { id: 'email-parents', label: 'Email Parents', ico: '📧', href: '/email-parents' },
       { id: 'rh-personnel', label: 'RH & Personnel', ico: '🏢', href: '/rh-personnel' },
