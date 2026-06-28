@@ -27,7 +27,8 @@ const DeliberationsPage= lazy(() => import('./modules/deliberations'));
 const EnseignantsPage  = lazy(() => import('./modules/enseignants'));
 const ComptabilitePage = lazy(() => import('./modules/comptabilite'));
 const ParametresPage   = lazy(() => import('./modules/parametres'));
-const UtilisateursPage = lazy(() => import('./modules/utilisateurs'));
+const UtilisateursPage      = lazy(() => import('./modules/utilisateurs'));
+const PortailEnseignantPage = lazy(() => import('./modules/portail-enseignant'));
 const InscriptionsPage  = lazy(() => import('./modules/inscriptions'));
 const EmploiDuTempsPage = lazy(() => import('./modules/emploi-du-temps'));
 const AnalyticsPage     = lazy(() => import('./modules/analytics'));
@@ -90,6 +91,7 @@ export default function App() {
           <Route path="/promotions" element={<AppRoute page="promotions"><PromotionsPage /></AppRoute>} />
           <Route path="/messages" element={<AppRoute page="messages"><MessagesPage /></AppRoute>} />
           <Route path="/parametres"   element={<AppRoute page="parametres">  <ParametresPage /></AppRoute>} />
+          <Route path="/portail-enseignant" element={<AppRoute page="portail-enseignant"><PortailEnseignantPage /></AppRoute>} />
           <Route path="/utilisateurs" element={<AppRoute page="utilisateurs"><UtilisateursPage /></AppRoute>} />
 
           {/* Redirects */}
