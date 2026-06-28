@@ -143,6 +143,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
       { id: 'releves',      label: 'Relevés',          ico: '📄', href: '/releves' },
     ]},
     { group: 'ÉTABLISSEMENT', items: [
+      { id: 'portail-enseignant', label: 'Portail Enseignant', ico: '📋', href: '/portail-enseignant' },
       { id: 'enseignants',  label: 'Enseignants',  ico: '👨‍🏫', href: '/enseignants' },
       { id: 'utilisateurs', label: 'Utilisateurs', ico: '👤', href: '/utilisateurs' },
       { id: 'comptabilite', label: 'Comptabilité', ico: '💰', href: '/comptabilite' },
