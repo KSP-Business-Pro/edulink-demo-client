@@ -181,7 +181,8 @@ export function getVisibleModules(role: UserRole): string[] {
   if (p.voir_enseignants)  modules.push('enseignants');
   if (p.voir_comptabilite) modules.push('comptabilite');
   if (p.voir_messages)     modules.push('messages');
-  if (p.voir_parametres)   modules.push('parametres');
+  if (p.voir_parametres_ecole) modules.push('parametres-ecole');
+  if (p.voir_parametres)       modules.push('parametres');
   if (p.voir_prospects)    modules.push('prospects');
   if (p.voir_monitoring)   modules.push('monitoring');
   if (p.voir_utilisateurs)        modules.push('utilisateurs');
