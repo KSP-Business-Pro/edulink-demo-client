@@ -1,1 +1,1 @@
-{"redirects":[{"source":"/index_legacy.html","destination":"/dashboard","permanent":true}]}
+{"rewrites":[{"source":"/((?!edulink-portail\\.html).*)","destination":"/index.html"}],"redirects":[{"source":"/index_legacy.html","destination":"/dashboard","permanent":true}]}
