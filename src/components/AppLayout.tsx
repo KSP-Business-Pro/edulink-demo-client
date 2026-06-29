@@ -157,7 +157,8 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     { group: 'SYSTÈME', items: [
       { id: 'monitoring', label: 'Monitoring', ico: '📡', href: '/monitoring' },
       { id: 'prospects',  label: 'Prospects',  ico: '🎯', href: '/prospects' },
-      { id: 'parametres', label: 'Paramètres', ico: '⚙️', href: '/parametres' },
+      { id: 'parametres-ecole', label: 'Parametres', ico: '⚙️', href: '/parametres-ecole' },
+      { id: 'parametres', label: 'Param. avances', ico: '🔧', href: '/parametres' },
     ]},
   ];
 
