@@ -191,6 +191,6 @@ export function getVisibleModules(role: UserRole): string[] {
   if (p.voir_email_parents)     modules.push('email-parents');
   if (p.voir_portail_public)    modules.push('portail-public');
   if (p.voir_analytics_ia)     modules.push('analytics-ia');
-  if (role === 'admin')      modules.push('dashboard-reseau');
+  // dashboard-reseau gere separement via isSuperAdmin dans AppLayout
   return modules;
 }
