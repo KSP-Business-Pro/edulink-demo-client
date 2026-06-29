@@ -27,7 +27,8 @@ const PresencesPage    = lazy(() => import('./modules/presences'));
 const DeliberationsPage= lazy(() => import('./modules/deliberations'));
 const EnseignantsPage  = lazy(() => import('./modules/enseignants'));
 const ComptabilitePage = lazy(() => import('./modules/comptabilite'));
-const ParametresPage   = lazy(() => import('./modules/parametres'));
+const ParametresPage      = lazy(() => import('./modules/parametres'));
+const ParametresEcolePage = lazy(() => import('./modules/parametres-ecole'));
 const UtilisateursPage      = lazy(() => import('./modules/utilisateurs'));
 const PortailEnseignantPage = lazy(() => import('./modules/portail-enseignant'));
 const RHPersonnelPage       = lazy(() => import('./modules/rh-personnel'));
@@ -97,6 +98,7 @@ export default function App() {
           <Route path="/prospects" element={<AppRoute page="prospects"><ProspectsPage /></AppRoute>} />
           <Route path="/promotions" element={<AppRoute page="promotions"><PromotionsPage /></AppRoute>} />
           <Route path="/messages" element={<AppRoute page="messages"><MessagesPage /></AppRoute>} />
+          <Route path="/parametres-ecole" element={<AppRoute page="parametres-ecole"><ParametresEcolePage /></AppRoute>} />
           <Route path="/parametres"   element={<AppRoute page="parametres">  <ParametresPage /></AppRoute>} />
           <Route path="/annees" element={<AppRoute page="annees"><AnneesPage /></AppRoute>} />
           <Route path="/analytics-ia" element={<AppRoute page="analytics-ia"><AnalyticsIAPage /></AppRoute>} />
