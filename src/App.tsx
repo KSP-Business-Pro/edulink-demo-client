@@ -34,6 +34,7 @@ const RHPersonnelPage       = lazy(() => import('./modules/rh-personnel'));
 const EmailParentsPage      = lazy(() => import('./modules/email-parents'));
 const PortailPublicMgmt    = lazy(() => import('./modules/portail-public'));
 const AnalyticsIAPage      = lazy(() => import('./modules/analytics-ia'));
+const AnneesPage           = lazy(() => import('./modules/annees'));
 const InscriptionsPage  = lazy(() => import('./modules/inscriptions'));
 const EmploiDuTempsPage = lazy(() => import('./modules/emploi-du-temps'));
 const AnalyticsPage     = lazy(() => import('./modules/analytics'));
@@ -97,6 +98,7 @@ export default function App() {
           <Route path="/promotions" element={<AppRoute page="promotions"><PromotionsPage /></AppRoute>} />
           <Route path="/messages" element={<AppRoute page="messages"><MessagesPage /></AppRoute>} />
           <Route path="/parametres"   element={<AppRoute page="parametres">  <ParametresPage /></AppRoute>} />
+          <Route path="/annees" element={<AppRoute page="annees"><AnneesPage /></AppRoute>} />
           <Route path="/analytics-ia" element={<AppRoute page="analytics-ia"><AnalyticsIAPage /></AppRoute>} />
           <Route path="/portail-public" element={<AppRoute page="portail-public"><PortailPublicMgmt /></AppRoute>} />
           <Route path="/email-parents" element={<AppRoute page="email-parents"><EmailParentsPage /></AppRoute>} />
