@@ -50,6 +50,7 @@ export default function SaisieNotesPage() {
   const [etudiants, setEtudiants] = useState<EtudiantSaisie[]>([]);
   const [notes, setNotes]         = useState<NoteLMD[]>([]);
   const [matiere, setMatiere]     = useState<MatiereSaisie | null>(null);
+  const [afficherSelecteurs, setAfficherSelecteurs] = useState(true);
 
   const [loadingGrille, setLoadingGrille] = useState(false);
   const [showImport, setShowImport]       = useState(false);
@@ -103,6 +104,9 @@ export default function SaisieNotesPage() {
   }, [matId, semId]); // eslint-disable-line
 
   useEffect(() => { loadGrille(); }, [loadGrille]);
+  // Replier la cascade une fois la matière chargée ; la rouvrir si la sélection est réinitialisée
+  useEffect(() => { if (matiere) setAfficherSelecteurs(false); }, [matiere]);
+  useEffect(() => { if (!matId) setAfficherSelecteurs(true); }, [matId]);
 
   // ── Sessions ─────────────────────────────────────────────────────────────────
   const sessNorm   = sessions.find(s => s.type_session === 'normale');
@@ -162,34 +166,56 @@ export default function SaisieNotesPage() {
       {/* Filtres */}
       <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
 
-        {/* Sélecteur école super-admin */}
-        {isSuperAdmin && ecoles.length > 0 && (
-          <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
-            style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
-            {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
-          </select>
-        )}
+        {afficherSelecteurs ? (
+          <>
+            {/* Sélecteur école super-admin */}
+            {isSuperAdmin && ecoles.length > 0 && (
+              <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+                style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+                {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+              </select>
+            )}
 
-        <select value={semId} onChange={e => setSemId(e.target.value)}
-          style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 220 }}>
-          <option value="">Sélectionner un semestre…</option>
-          {semestres.map(s => <option key={s.id} value={s.id}>{s.libelle}</option>)}
-        </select>
+            <select value={semId} onChange={e => setSemId(e.target.value)}
+              style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 220 }}>
+              <option value="">Sélectionner un semestre…</option>
+              {semestres.map(s => <option key={s.id} value={s.id}>{s.libelle}</option>)}
+            </select>
 
-        {ues.length > 0 && (
-          <select value={ueId} onChange={e => setUeId(e.target.value)}
-            style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 180 }}>
-            <option value="">Sélectionner une UE…</option>
-            {ues.map(u => <option key={u.id} value={u.id}>{u.code} — {u.intitule}</option>)}
-          </select>
-        )}
+            {ues.length > 0 && (
+              <select value={ueId} onChange={e => setUeId(e.target.value)}
+                style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 180 }}>
+                <option value="">Sélectionner une UE…</option>
+                {ues.map(u => <option key={u.id} value={u.id}>{u.code} — {u.intitule}</option>)}
+              </select>
+            )}
 
-        {matieres.length > 0 && (
-          <select value={matId} onChange={e => setMatId(e.target.value)}
-            style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 180 }}>
-            <option value="">Sélectionner une matière…</option>
-            {matieres.map(m => <option key={m.id} value={m.id}>{m.code} — {m.nom} (coef {m.coefficient})</option>)}
-          </select>
+            {matieres.length > 0 && (
+              <select value={matId} onChange={e => setMatId(e.target.value)}
+                style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 180 }}>
+                <option value="">Sélectionner une matière…</option>
+                {matieres.map(m => <option key={m.id} value={m.id}>{m.code} — {m.nom} (coef {m.coefficient})</option>)}
+              </select>
+            )}
+          </>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, flexWrap: 'wrap' }}>
+            {isSuperAdmin && (
+              <>
+                <span style={{ color: '#6b7280' }}>{ecoles.find(e => e.id === ecoleId)?.nom ?? ''}</span>
+                <span style={{ color: '#cbd5e1' }}>›</span>
+              </>
+            )}
+            <span style={{ color: '#6b7280' }}>{semestres.find(s => s.id === semId)?.libelle ?? ''}</span>
+            <span style={{ color: '#cbd5e1' }}>›</span>
+            <span style={{ color: '#6b7280' }}>{ues.find(u => u.id === ueId)?.code ?? ''}</span>
+            <span style={{ color: '#cbd5e1' }}>›</span>
+            <span style={{ color: '#1e3a5f', fontWeight: 700 }}>{matiere ? `${matiere.code} — ${matiere.nom}` : ''}</span>
+            <button onClick={() => setAfficherSelecteurs(true)}
+              style={{ marginLeft: 8, background: 'none', border: 'none', color: '#c8932e', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', padding: 0 }}>
+              ✎ Modifier
+            </button>
+          </div>
         )}
 
         {matId && sessions.length > 0 && (

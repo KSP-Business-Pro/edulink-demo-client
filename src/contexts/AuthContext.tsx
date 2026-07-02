@@ -1,7 +1,8 @@
 // src/contexts/AuthContext.tsx
 // Contexte global auth — fournit user, loading, login, logout à toute l'app
+// + timeout de session automatique après inactivité (B9 — sécurité)
 
-import React, { createContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useEffect, useState, useCallback, useRef } from 'react';
 import {
   login as authLogin,
   logout as authLogout,
@@ -9,6 +10,11 @@ import {
   onAuthStateChange,
 } from '../services/auth.service';
 import type { UserProfil } from '../types/auth.types';
+
+// ── Paramètres du timeout d'inactivité ──────────────────────────────────────
+const INACTIVITE_LIMITE_MS = 30 * 60 * 1000; // 30 min avant déconnexion
+const AVERTISSEMENT_AVANT_MS = 2 * 60 * 1000; // avertir 2 min avant l'expiration
+const VERIF_INTERVALLE_MS = 5 * 1000; // fréquence de vérification
 
 // ── Types du contexte ──────────────────────────────────────────────────────
 interface AuthContextValue {
@@ -30,6 +36,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user,    setUser]    = useState<UserProfil | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
+
+  // ── État du timeout d'inactivité ──────────────────────────────────────────
+  const [showWarning, setShowWarning]           = useState(false);
+  const [secondesRestantes, setSecondesRestantes] = useState(0);
+  const derniereActivite = useRef<number>(Date.now());
 
   // Charger la session au montage
   useEffect(() => {
@@ -68,6 +79,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(result.profil);
     setLoading(false);
+    derniereActivite.current = Date.now();
+    setShowWarning(false);
     return true;
   }, []);
 
@@ -77,7 +90,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await authLogout();
     setUser(null);
     setLoading(false);
+    setShowWarning(false);
   }, []);
+
+  // ── Timeout de session automatique ─────────────────────────────────────
+  // Actif uniquement si un utilisateur est connecté.
+  useEffect(() => {
+    if (!user) return;
+
+    const marquerActivite = () => {
+      derniereActivite.current = Date.now();
+      setShowWarning(prev => (prev ? false : prev)); // referme l'avertissement si l'utilisateur revient
+    };
+
+    const evenements = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    evenements.forEach(ev => window.addEventListener(ev, marquerActivite, { passive: true }));
+
+    const interval = setInterval(() => {
+      const ecoule = Date.now() - derniereActivite.current;
+      const restant = INACTIVITE_LIMITE_MS - ecoule;
+
+      if (restant <= 0) {
+        // Temps écoulé → déconnexion automatique
+        logout();
+      } else if (restant <= AVERTISSEMENT_AVANT_MS) {
+        setShowWarning(true);
+        setSecondesRestantes(Math.ceil(restant / 1000));
+      } else {
+        setShowWarning(false);
+      }
+    }, VERIF_INTERVALLE_MS);
+
+    return () => {
+      evenements.forEach(ev => window.removeEventListener(ev, marquerActivite));
+      clearInterval(interval);
+    };
+  }, [user, logout]);
 
   // Helpers rôle
   const isSuperAdmin = user?.ecole_id === null && user?.role === 'admin';
@@ -87,6 +135,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [user]
   );
 
+  const resterConnecte = () => {
+    derniereActivite.current = Date.now();
+    setShowWarning(false);
+  };
+
   return (
     <AuthContext.Provider value={{
       user, loading, error,
@@ -94,6 +147,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isSuperAdmin, isAdmin, hasRole,
     }}>
       {children}
+
+      {/* ── Avertissement d'inactivité ── */}
+      {showWarning && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(17,24,39,.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 14, padding: '1.5rem 1.75rem', maxWidth: 380,
+            boxShadow: '0 20px 40px rgba(0,0,0,.2)', fontFamily: 'inherit',
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#1B2A4A', marginBottom: 8 }}>
+              ⏱ Session sur le point d'expirer
+            </div>
+            <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 18, lineHeight: 1.5 }}>
+              Par mesure de sécurité, vous allez être déconnecté(e) dans{' '}
+              <strong style={{ color: '#DC2626' }}>{secondesRestantes}s</strong> par inactivité.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => logout()}
+                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Se déconnecter
+              </button>
+              <button onClick={resterConnecte}
+                style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#C8932E', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Rester connecté(e)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AuthContext.Provider>
   );
 }

@@ -13,14 +13,12 @@ export interface Etudiant {
   prenom:           string;
   sexe:             'M' | 'F' | null;
   email_auth:       string | null;
-  telephone:        string | null;
   filiere:          string | null;
   niveau:           string | null;
   statut:           EtudiantStatut;
   ecole_id:         string;
   date_naissance:   string | null;
   lieu_naissance:   string | null;
-  nationalite:      string | null;
   adresse:          string | null;
   telephone_parent: string | null;
   email_parent:     string | null;
@@ -54,12 +52,35 @@ export interface InscriptionSemestre {
   } | null;
 }
 
-// ── Liste étudiants ────────────────────────────────────────────────────────
-export async function fetchEtudiants(ecoleId: string): Promise<Etudiant[]> {
-  const { data, error } = await supabase
-    .rpc('fn_get_etudiants_ecole', { p_ecole_id: ecoleId });
+export interface FetchEtudiantsParams {
+  ecoleId:   string | null;
+  search?:   string;
+  niveau?:   string;
+  page?:     number;   // 0-based
+  pageSize?: number;
+}
+export interface FetchEtudiantsResult {
+  data:  Etudiant[];
+  total: number;
+}
+
+// ── Liste étudiants — pagination + recherche + filtre côté serveur ─────────
+export async function fetchEtudiants(params: FetchEtudiantsParams): Promise<FetchEtudiantsResult> {
+  const { ecoleId, search, niveau, page = 0, pageSize = 20 } = params;
+  const { data, error } = await supabase.rpc('fn_get_etudiants_ecole', {
+    p_ecole_id: ecoleId,
+    p_search:   search?.trim() || null,
+    p_niveau:   niveau || null,
+    p_limit:    pageSize,
+    p_offset:   page * pageSize,
+  });
   if (error) throw new Error(error.message);
-  return (data ?? []) as Etudiant[];
+  const rows = (data ?? []) as (Etudiant & { total_count: number })[];
+  const total = rows.length > 0 ? Number(rows[0].total_count) : 0;
+  return {
+    data: rows.map(({ total_count, ...rest }) => rest as Etudiant),
+    total,
+  };
 }
 
 // ── Fiche étudiant ─────────────────────────────────────────────────────────

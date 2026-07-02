@@ -230,10 +230,13 @@ export default function GrilleNotes({
             {exporting ? '⏳' : '⬇ Excel'}
           </button>
           {!sessLocked && !sessPlanned && (
-            <button onClick={() => onChangerStatut('close')}
-              style={{ background: 'rgba(220,38,38,.7)', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-              Clôturer
-            </button>
+            <>
+              <span style={{ width: 1, height: 18, background: 'rgba(255,255,255,.25)', margin: '0 2px' }} />
+              <button onClick={() => onChangerStatut('close')}
+                style={{ background: 'rgba(220,38,38,.7)', color: '#fff', border: '1px solid rgba(220,38,38,.9)', padding: '3px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
+                🔒 Clôturer
+              </button>
+            </>
           )}
           {sessLocked && (
             <button onClick={() => onChangerStatut('ouverte')}
@@ -296,13 +299,18 @@ export default function GrilleNotes({
                 <th key={e.id} style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, color: '#1d4ed8', borderBottom: '2px solid #dbeafe', minWidth: 90 }}>
                   <div style={{ fontWeight: 700 }}>CC</div>
                   <div style={{ fontWeight: 400, color: '#6b7280', fontSize: 9 }}>{e.intitule || e.format}</div>
-                  <div style={{ fontSize: 9, color: '#c97c1a' }}>{Math.round(e.ponderation * 100)}%</div>
+                  {evalsCC.length > 1 && (
+                    <div style={{ fontSize: 9, color: '#c97c1a' }}>poids {Math.round(e.ponderation * 100)}%</div>
+                  )}
                 </th>
               ))}
               {evalsEX.map(e => (
                 <th key={e.id} style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, color: '#7c3aed', borderBottom: '2px solid #ede9fe', minWidth: 90 }}>
                   <div style={{ fontWeight: 700 }}>EXAMEN</div>
                   <div style={{ fontWeight: 400, color: '#6b7280', fontSize: 9 }}>{e.intitule || e.format}</div>
+                  {evalsEX.length > 1 && (
+                    <div style={{ fontSize: 9, color: '#7c3aed' }}>poids {Math.round(e.ponderation * 100)}%</div>
+                  )}
                 </th>
               ))}
               <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, color: '#059669', borderBottom: '2px solid #dcfce7', minWidth: 70 }}>Moy. CC</th>
@@ -361,7 +369,9 @@ export default function GrilleNotes({
                             disabled={sessLocked}
                             onClick={() => handleToggleAbsent(et.id, e.id, isAbs)}
                             title={isAbs ? 'Marquer présent' : 'Marquer absent'}
-                            style={{ padding: '1px 4px', fontSize: 9, fontWeight: 700, borderRadius: 4, cursor: sessLocked ? 'not-allowed' : 'pointer', border: `1px solid ${isAbs ? '#dc2626' : '#e5e7eb'}`, background: isAbs ? '#fee2e2' : '#f9fafb', color: isAbs ? '#dc2626' : '#9ca3af', lineHeight: 1.6, flexShrink: 0, fontFamily: 'inherit', opacity: sessLocked ? .4 : 1 }}
+                            style={{ padding: '1px 4px', fontSize: 9, fontWeight: 700, borderRadius: 4, cursor: sessLocked ? 'not-allowed' : 'pointer', border: `1px solid ${isAbs ? '#dc2626' : '#e5e7eb'}`, background: isAbs ? '#fee2e2' : '#f9fafb', color: isAbs ? '#dc2626' : '#9ca3af', lineHeight: 1.6, flexShrink: 0, fontFamily: 'inherit', opacity: sessLocked ? .4 : 1, transition: 'all 0.15s' }}
+                            onMouseOver={el => { if (!sessLocked) { el.currentTarget.style.background = isAbs ? '#fecaca' : '#e5e7eb'; el.currentTarget.style.borderColor = isAbs ? '#dc2626' : '#9ca3af'; el.currentTarget.style.color = isAbs ? '#991b1b' : '#374151'; } }}
+                            onMouseOut={el => { el.currentTarget.style.background = isAbs ? '#fee2e2' : '#f9fafb'; el.currentTarget.style.borderColor = isAbs ? '#dc2626' : '#e5e7eb'; el.currentTarget.style.color = isAbs ? '#dc2626' : '#9ca3af'; }}
                           >ABS</button>
                         </div>
                       </td>
@@ -403,7 +413,9 @@ export default function GrilleNotes({
                             disabled={sessLocked}
                             onClick={() => handleToggleAbsent(et.id, e.id, isAbs)}
                             title={isAbs ? 'Marquer présent' : 'Marquer absent'}
-                            style={{ padding: '1px 4px', fontSize: 9, fontWeight: 700, borderRadius: 4, cursor: sessLocked ? 'not-allowed' : 'pointer', border: `1px solid ${isAbs ? '#dc2626' : '#ede9fe'}`, background: isAbs ? '#fee2e2' : '#f9fafb', color: isAbs ? '#dc2626' : '#9ca3af', lineHeight: 1.6, flexShrink: 0, fontFamily: 'inherit', opacity: sessLocked ? .4 : 1 }}
+                            style={{ padding: '1px 4px', fontSize: 9, fontWeight: 700, borderRadius: 4, cursor: sessLocked ? 'not-allowed' : 'pointer', border: `1px solid ${isAbs ? '#dc2626' : '#ede9fe'}`, background: isAbs ? '#fee2e2' : '#f9fafb', color: isAbs ? '#dc2626' : '#9ca3af', lineHeight: 1.6, flexShrink: 0, fontFamily: 'inherit', opacity: sessLocked ? .4 : 1, transition: 'all 0.15s' }}
+                            onMouseOver={el => { if (!sessLocked) { el.currentTarget.style.background = isAbs ? '#fecaca' : '#ede9fe'; el.currentTarget.style.borderColor = isAbs ? '#dc2626' : '#7c3aed'; el.currentTarget.style.color = isAbs ? '#991b1b' : '#7c3aed'; } }}
+                            onMouseOut={el => { el.currentTarget.style.background = isAbs ? '#fee2e2' : '#f9fafb'; el.currentTarget.style.borderColor = isAbs ? '#dc2626' : '#ede9fe'; el.currentTarget.style.color = isAbs ? '#dc2626' : '#9ca3af'; }}
                           >ABS</button>
                         </div>
                       </td>

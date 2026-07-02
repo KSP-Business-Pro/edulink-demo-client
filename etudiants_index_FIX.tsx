@@ -123,19 +123,12 @@ export default function EtudiantsPage() {
 
   useEffect(() => {
     if (user?.ecole_id) { setEcoleId(user.ecole_id); return; }
-    // Fallback réservé aux super-admins sans école assignée.
-    // On attend que l'auth soit résolue (user non-null) pour éviter de choisir
-    // une école par défaut avant que le vrai ecole_id de l'utilisateur soit connu
-    // (sinon la réponse tardive du fallback peut écraser la bonne valeur).
-    if (!user) return;
-    let cancelled = false;
     import('../../services/supabase').then(({ supabase }) => {
       supabase.from('ecoles').select('id,nom').order('nom').limit(1).maybeSingle().then(({ data }) => {
-        if (!cancelled && data?.id) setEcoleId(data.id);
+        if (data?.id) setEcoleId(data.id);
       });
     });
-    return () => { cancelled = true; };
-  }, [user?.ecole_id, user]);
+  }, [user?.ecole_id]);
 
   // ── Recherche : debounce 300ms avant d'interroger le serveur ──────────────
   const handleSearchChange = (v: string) => {

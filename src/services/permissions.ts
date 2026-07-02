@@ -1,4 +1,4 @@
-﻿// src/services/permissions.ts
+// src/services/permissions.ts
 // Matrice complète des permissions pour les 7 rôles EduLink Sup
 // Basée sur les règles CAMES + règles métier HEMEC/ESM
 
@@ -191,6 +191,7 @@ export function getVisibleModules(role: UserRole): string[] {
   if (p.voir_email_parents)     modules.push('email-parents');
   if (p.voir_portail_public)    modules.push('portail-public');
   if (p.voir_analytics_ia)     modules.push('analytics-ia');
-  // dashboard-reseau gere separement via isSuperAdmin dans AppLayout
+  // dashboard-reseau : visible uniquement superadmin (voir_toutes_ecoles)
+  if (p.voir_toutes_ecoles) modules.push('dashboard-reseau');
   return modules;
 }

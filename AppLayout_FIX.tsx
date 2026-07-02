@@ -32,7 +32,6 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
   const [results, setResults]   = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [showDrop, setShowDrop] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const searchRef               = useRef<HTMLDivElement>(null);
   const debounceRef             = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -156,75 +155,19 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f1f5f9', fontFamily: "'Segoe UI', sans-serif" }}>
-      <style>{`
-        .el-hamburger { display: none; }
-        .el-overlay { display: none; }
-        .el-sidebar-close { display: none; }
-
-        @media (max-width: 768px) {
-          .el-sidebar {
-            position: fixed !important;
-            left: 0;
-            top: 0;
-            height: 100vh !important;
-            transform: translateX(-100%);
-            transition: transform 0.25s ease;
-            z-index: 1200;
-            box-shadow: 4px 0 24px rgba(0,0,0,.25);
-          }
-          .el-sidebar.el-sidebar-open {
-            transform: translateX(0);
-          }
-          .el-hamburger {
-            display: inline-flex !important;
-          }
-          .el-overlay.el-overlay-open {
-            display: block;
-            position: fixed;
-            inset: 0;
-            background: rgba(17,24,39,.5);
-            z-index: 1100;
-          }
-          .el-sidebar-close {
-            display: inline-flex !important;
-          }
-        }
-      `}</style>
-
-      {/* Overlay mobile — clic pour fermer le drawer */}
-      <div
-        className={`el-overlay${sidebarOpen ? ' el-overlay-open' : ''}`}
-        aria-hidden="true"
-        onClick={() => setSidebarOpen(false)}
-      />
 
       {/* Sidebar */}
-      <aside className={`el-sidebar${sidebarOpen ? ' el-sidebar-open' : ''}`} style={{
+      <aside style={{
         width: 240, background: '#fff', borderRight: '1px solid #f1f5f9',
         display: 'flex', flexDirection: 'column', flexShrink: 0,
         position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
       }}>
         {/* Logo */}
-        <div style={{ padding: '1.25rem 1rem 0.75rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>
-              EduLink <span style={{ color: '#d97706' }}>Sup</span>
-            </div>
-            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>LMD · CAMES</div>
+        <div style={{ padding: '1.25rem 1rem 0.75rem', borderBottom: '1px solid #f1f5f9' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>
+            EduLink <span style={{ color: '#d97706' }}>Sup</span>
           </div>
-          <button
-            className="el-sidebar-close"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Fermer le menu"
-            style={{
-              alignItems: 'center', justifyContent: 'center',
-              width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-              background: '#f1f5f9', border: 'none', color: '#64748b',
-              fontSize: 16, cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >
-            ✕
-          </button>
+          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>LMD · CAMES</div>
         </div>
 
         {/* École */}
@@ -249,7 +192,6 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
                   <Link
                     key={item.id}
                     to={item.href}
-                    onClick={() => setSidebarOpen(false)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '7px 10px', borderRadius: 8, textDecoration: 'none',
@@ -307,19 +249,6 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
           background: '#fff', borderBottom: '1px solid #f1f5f9',
           padding: '0.6rem 1.5rem', display: 'flex', alignItems: 'center', gap: 12,
         }}>
-          <button
-            className="el-hamburger"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Ouvrir le menu"
-            style={{
-              alignItems: 'center', justifyContent: 'center',
-              width: 34, height: 34, borderRadius: 8, flexShrink: 0,
-              background: '#1B2A4A', border: 'none', color: '#F7F4ED',
-              fontSize: 16, cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >
-            ☰
-          </button>
           <div ref={searchRef} style={{ position: 'relative', flex: 1, maxWidth: 480 }}>
             <div style={{ position: 'relative' }}>
               <span style={{
