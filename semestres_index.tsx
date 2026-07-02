@@ -11,7 +11,6 @@ import {
 } from '../../services/referentiel.service';
 import ModalSemestre from '../programmes/components/ModalSemestre';
 import ModalAnnee    from './components/ModalAnnee';
-import ResponsiveTable, { type RTColumn } from '../../components/ResponsiveTable';
 
 type Tab = 'semestres' | 'annees';
 interface EcoleOption { id: string; nom: string }
@@ -25,83 +24,6 @@ interface AnneeEtendue extends AnneeAcademique {
   date_fin?: string | null;
   est_courante?: boolean;
 }
-
-const STATUT_COLOR: Record<string, string> = { planifie: 'gray', en_cours: 'green', cloture: 'blue', archive: 'gray' };
-
-// ── Colonnes du tableau Semestres ──────────────────────────────────────────
-const semestreColumns: RTColumn<SemestreAvecSessions>[] = [
-  {
-    key: 'niveau',
-    label: 'Niveau',
-    render: s => {
-      const niveauColor = s.niveau?.startsWith('L') ? '#1d4ed8' : s.niveau?.startsWith('M') ? '#7c3aed' : '#0d9488';
-      const niveauBg    = s.niveau?.startsWith('L') ? '#dbeafe' : s.niveau?.startsWith('M') ? '#ede9fe' : '#ccfbf1';
-      return <span style={{ background: niveauBg, color: niveauColor, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{s.niveau}</span>;
-    },
-  },
-  {
-    key: 'libelle',
-    label: 'Libellé',
-    primary: true,
-    render: s => <strong>{s.libelle}</strong>,
-  },
-  {
-    key: 'programme',
-    label: 'Programme',
-    render: s => <span style={{ fontSize: 12, color: '#6b7280' }}>{s.programmes_lmd?.intitule ?? '—'}</span>,
-  },
-  {
-    key: 'annee',
-    label: 'Année',
-    render: s => <span style={{ fontSize: 12 }}>{s.annees_academiques?.libelle ?? '—'}</span>,
-  },
-  {
-    key: 'periode',
-    label: 'Période',
-    hideOnMobile: true,
-    render: s => <span style={{ fontSize: 12, color: '#6b7280' }}>{s.date_debut ? `${s.date_debut} → ${s.date_fin ?? '?'}` : '—'}</span>,
-  },
-  {
-    key: 'statut',
-    label: 'Statut',
-    render: s => <span className={`badge ${STATUT_COLOR[s.statut] ?? 'gray'}`}>{STATUT_SEMESTRE_LABEL[s.statut]}</span>,
-  },
-  {
-    key: 'sessions',
-    label: 'Sessions',
-    render: s => {
-      const sessions = s.sessions_evaluation ?? [];
-      const norm = sessions.find(x => x.type_session === 'normale');
-      const ratt = sessions.find(x => x.type_session === 'rattrapage');
-      return (
-        <>
-          <span className={`badge ${norm ? 'green' : 'gray'}`} style={{ marginRight: 3 }}>Normale</span>
-          <span className={`badge ${ratt ? 'amber' : 'gray'}`}>Rattrapage</span>
-        </>
-      );
-    },
-  },
-];
-
-// ── Colonnes du tableau Années académiques ─────────────────────────────────
-const anneeColumns: RTColumn<AnneeEtendue>[] = [
-  {
-    key: 'libelle',
-    label: 'Libellé',
-    primary: true,
-    render: a => <strong>{a.libelle}</strong>,
-  },
-  {
-    key: 'periode',
-    label: 'Période',
-    render: a => <span style={{ fontSize: 12, color: '#6b7280' }}>{a.date_debut ? `${a.date_debut} → ${a.date_fin ?? '?'}` : '—'}</span>,
-  },
-  {
-    key: 'statut',
-    label: 'Statut',
-    render: a => a.est_courante ? <span className="badge green">Courante</span> : <span className="badge gray">Archivée</span>,
-  },
-];
 
 export default function SemestresPage() {
   const { user, isSuperAdmin } = useAuth();
@@ -171,6 +93,7 @@ export default function SemestresPage() {
   }
 
   const anneeActive = annees.find(a => a.est_courante);
+  const statutColor: Record<string, string> = { planifie: 'gray', en_cours: 'green', cloture: 'blue', archive: 'gray' };
   const toastBg = { success: '#059669', error: '#dc2626' };
 
   return (
@@ -190,7 +113,7 @@ export default function SemestresPage() {
         </div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select id="semestres-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+            <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
               style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
               {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
             </select>
@@ -209,17 +132,36 @@ export default function SemestresPage() {
           ? <div className="empty-state"><div className="es-ico">📅</div><h3>Aucun semestre configuré</h3><p>Créez votre premier semestre ou configurez-les depuis Programmes & UE</p></div>
           : (
             <div className="table-wrap">
-              <ResponsiveTable<SemestreAvecSessions>
-                columns={semestreColumns}
-                data={semestres}
-                keyExtractor={s => s.id}
-                actions={s => (
-                  <>
-                    <button className="btn-ghost btn-sm" onClick={() => setModalSem({ open: true, item: s })}>✏</button>
-                    <button className="btn-ghost btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDeleteSem(s)}>🗑</button>
-                  </>
-                )}
-              />
+              <table>
+                <thead><tr><th>Niveau</th><th>Libellé</th><th>Programme</th><th>Année</th><th>Période</th><th>Statut</th><th>Sessions</th><th></th></tr></thead>
+                <tbody>
+                  {semestres.map(s => {
+                    const sessions = s.sessions_evaluation ?? [];
+                    const norm = sessions.find(x => x.type_session === 'normale');
+                    const ratt = sessions.find(x => x.type_session === 'rattrapage');
+                    const niveauColor = s.niveau?.startsWith('L') ? '#1d4ed8' : s.niveau?.startsWith('M') ? '#7c3aed' : '#0d9488';
+                    const niveauBg = s.niveau?.startsWith('L') ? '#dbeafe' : s.niveau?.startsWith('M') ? '#ede9fe' : '#ccfbf1';
+                    return (
+                      <tr key={s.id}>
+                        <td><span style={{ background: niveauBg, color: niveauColor, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{s.niveau}</span></td>
+                        <td><strong>{s.libelle}</strong></td>
+                        <td style={{ fontSize: 12, color: '#6b7280' }}>{s.programmes_lmd?.intitule ?? '—'}</td>
+                        <td style={{ fontSize: 12 }}>{s.annees_academiques?.libelle ?? '—'}</td>
+                        <td style={{ fontSize: 12, color: '#6b7280' }}>{s.date_debut ? `${s.date_debut} → ${s.date_fin ?? '?'}` : '—'}</td>
+                        <td><span className={`badge ${statutColor[s.statut] ?? 'gray'}`}>{STATUT_SEMESTRE_LABEL[s.statut]}</span></td>
+                        <td>
+                          <span className={`badge ${norm ? 'green' : 'gray'}`} style={{ marginRight: 3 }}>Normale</span>
+                          <span className={`badge ${ratt ? 'amber' : 'gray'}`}>Rattrapage</span>
+                        </td>
+                        <td style={{ display: 'flex', gap: 4 }}>
+                          <button className="btn-ghost btn-sm" onClick={() => setModalSem({ open: true, item: s })}>✏</button>
+                          <button className="btn-ghost btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDeleteSem(s)}>🗑</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )
       )}
@@ -228,18 +170,23 @@ export default function SemestresPage() {
           ? <div className="empty-state"><div className="es-ico">📆</div><h3>Aucune année académique</h3><p>Créez votre première année académique</p></div>
           : (
             <div className="table-wrap">
-              <ResponsiveTable<AnneeEtendue>
-                columns={anneeColumns}
-                data={annees}
-                keyExtractor={a => a.id}
-                actions={a => (
-                  <>
-                    {!a.est_courante && <button className="btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => handleDefinirCourante(a.id)}>✓ Définir courante</button>}
-                    <button className="btn-ghost btn-sm" onClick={() => setModalAnnee({ open: true, item: a })}>✏</button>
-                    <button className="btn-ghost btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDeleteAnnee(a)}>🗑</button>
-                  </>
-                )}
-              />
+              <table>
+                <thead><tr><th>Libellé</th><th>Période</th><th style={{ textAlign: 'center' }}>Statut</th><th></th></tr></thead>
+                <tbody>
+                  {annees.map(a => (
+                    <tr key={a.id}>
+                      <td><strong>{a.libelle}</strong></td>
+                      <td style={{ fontSize: 12, color: '#6b7280' }}>{a.date_debut ? `${a.date_debut} → ${a.date_fin ?? '?'}` : '—'}</td>
+                      <td style={{ textAlign: 'center' }}>{a.est_courante ? <span className="badge green">Courante</span> : <span className="badge gray">Archivée</span>}</td>
+                      <td style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        {!a.est_courante && <button className="btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => handleDefinirCourante(a.id)}>✓ Définir courante</button>}
+                        <button className="btn-ghost btn-sm" onClick={() => setModalAnnee({ open: true, item: a })}>✏</button>
+                        <button className="btn-ghost btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDeleteAnnee(a)}>🗑</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )
       )}

@@ -13,7 +13,6 @@ import {
   recalculerResultats, exportPVExcel,
 } from '../../services/deliberations.service';
 import { ModalPV } from './components/ModalPV';
-import ResponsiveTable, { type RTColumn } from '../../components/ResponsiveTable';
 
 interface SemestreOption { id: string; libelle: string; niveau: string }
 interface EcoleOption    { id: string; nom: string }
@@ -164,131 +163,6 @@ export default function DeliberationsPage() {
 
   const toastBg = { success: '#059669', error: '#dc2626', info: '#1e3a5f' };
 
-  // ── Colonnes du tableau jury (dépend de handlers/state du composant) ────────
-  const deliberationColumns: RTColumn<LigneDelib>[] = [
-    {
-      key: 'matricule',
-      label: 'Matricule',
-      mono: true,
-      render: l => (
-        <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>
-          {l.matricule}
-        </code>
-      ),
-    },
-    {
-      key: 'etudiant',
-      label: 'Étudiant',
-      primary: true,
-      render: l => (
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 13 }}>{l.nom} {l.prenom}</div>
-          <div style={{ fontSize: 11, color: '#9ca3af' }}>{l.filiere}</div>
-        </div>
-      ),
-    },
-    {
-      key: 'moyenne',
-      label: 'Moyenne',
-      render: l => l.moyenne_semestre != null
-        ? <span className="badge teal">{Number(l.moyenne_semestre).toFixed(2)}</span>
-        : <span className="badge gray">—</span>,
-    },
-    {
-      key: 'credits',
-      label: 'Crédits',
-      render: l => <span className={`badge ${l.credits_valides > 0 ? 'teal' : 'gray'}`}>{l.credits_valides} CECT</span>,
-    },
-    {
-      key: 'mention',
-      label: 'Mention',
-      render: l => l.mention
-        ? <span className={`badge ${MENTION_COLOR[l.mention] ?? 'gray'}`}>{MENTION_LABEL[l.mention] ?? l.mention}</span>
-        : <span className="badge gray">—</span>,
-    },
-    {
-      key: 'decision_auto',
-      label: 'Décision auto',
-      render: l => l.decision
-        ? <span className={`badge ${DECISION_COLOR[l.decision] ?? 'gray'}`}>{DECISION_LABEL[l.decision] ?? l.decision}</span>
-        : <span className="badge gray">Non calculé</span>,
-    },
-    {
-      key: 'decision_jury',
-      label: 'Décision jury',
-      render: (l, view) => (
-        <div>
-          <select
-            id={`decision-jury-${l.etudiant_id}-${view}`}
-            name={`decision-jury-${l.etudiant_id}-${view}`}
-            value={l.decision_jury ?? l.decision ?? ''}
-            onChange={e => handleAjusterDecision(l, e.target.value as DecisionJury)}
-            style={{
-              padding: '4px 8px', border: `1px solid ${l.decision_jury && l.decision_jury !== l.decision ? '#d97706' : '#e5e7eb'}`,
-              borderRadius: 6, fontSize: 12, fontFamily: 'inherit',
-              background: l.decision_jury && l.decision_jury !== l.decision ? '#fffbeb' : '#fff',
-              cursor: 'pointer',
-            }}
-            title={l.decision_jury && l.decision_jury !== l.decision ? 'Override jury actif' : 'Décision du jury'}
-          >
-            <option value="">— Choisir —</option>
-            {DECISIONS.map(d => (
-              <option key={d} value={d}>{DECISION_LABEL[d]}</option>
-            ))}
-          </select>
-          {l.decision_jury && l.decision_jury !== l.decision && (
-            <div style={{ fontSize: 9, color: '#d97706', marginTop: 2 }}>⚠ Override jury</div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'note_jury',
-      label: 'Note jury',
-      render: (l, view) => (
-        <input
-          type="text"
-          id={`note-jury-${l.etudiant_id}-${view}`}
-          name={`note-jury-${l.etudiant_id}-${view}`}
-          autoComplete="off"
-          value={noteJury[l.etudiant_id] ?? l.note_jury ?? ''}
-          onChange={e => setNoteJury(prev => ({ ...prev, [l.etudiant_id]: e.target.value }))}
-          onBlur={async e => {
-            const val = e.target.value.trim();
-            if (val !== (l.note_jury ?? '')) {
-              await ajusterDecisionJury(l.etudiant_id, semId, ecoleId, (l.decision_jury ?? l.decision)!, val);
-            }
-          }}
-          placeholder="Observation…"
-          style={{ width: '100%', padding: '4px 6px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11, fontFamily: 'inherit', outline: 'none' }}
-        />
-      ),
-    },
-    {
-      key: 'releve',
-      label: 'Relevé',
-      render: l => (
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          {l.releve_publie ? (
-            <>
-              <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Publié</span>
-              <button onClick={() => handleVerrou(l)}
-                title={l.releve_verrouille ? 'Déverrouiller' : 'Verrouiller'}
-                style={{ background: 'none', border: `1px solid ${l.releve_verrouille ? '#b45309' : '#d1d5db'}`, padding: '2px 6px', borderRadius: 5, fontSize: 12, cursor: 'pointer', color: l.releve_verrouille ? '#b45309' : '#9ca3af', fontFamily: 'inherit' }}>
-                {l.releve_verrouille ? '🔒' : '🔓'}
-              </button>
-            </>
-          ) : (
-            <button onClick={() => handlePublierUn(l)}
-              style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '3px 8px', borderRadius: 6, fontSize: 11, color: '#059669', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>
-              Publier
-            </button>
-          )}
-        </div>
-      ),
-    },
-  ];
-
   return (
     <div style={{ padding: '1.5rem', paddingBottom: '2rem' }}>
       {toast && (
@@ -305,12 +179,12 @@ export default function DeliberationsPage() {
         </div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select id="delib-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+            <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
               style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
               {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
             </select>
           )}
-          <select id="delib-semestre" name="semestre" value={semId}
+          <select value={semId}
             onChange={e => {
               setSemId(e.target.value);
               const s = semestres.find(x => x.id === e.target.value);
@@ -383,8 +257,8 @@ export default function DeliberationsPage() {
 
           {/* ── Barre d'actions ── */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const, padding: '.85rem 1rem', background: '#f9fafb', borderRadius: 10, border: '1px solid #e5e7eb', marginBottom: '1rem' }}>
-            <label htmlFor="delib-send-email" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151', cursor: 'pointer', fontWeight: 400 }}>
-              <input type="checkbox" id="delib-send-email" name="send-email" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} style={{ width: 14, height: 14 }} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151', cursor: 'pointer', fontWeight: 400 }}>
+              <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} style={{ width: 14, height: 14 }} />
               📧 Email à la publication
             </label>
             <div style={{ flex: 1 }} />
@@ -419,11 +293,117 @@ export default function DeliberationsPage() {
 
           {/* ── Tableau jury ── */}
           <div className="table-wrap">
-            <ResponsiveTable<LigneDelib>
-              columns={deliberationColumns}
-              data={lignes}
-              keyExtractor={l => l.etudiant_id}
-            />
+            <table>
+              <thead>
+                <tr>
+                  <th>Matricule</th>
+                  <th>Étudiant</th>
+                  <th style={{ textAlign: 'center' }}>Moyenne</th>
+                  <th style={{ textAlign: 'center' }}>Crédits</th>
+                  <th style={{ textAlign: 'center' }}>Mention</th>
+                  <th style={{ textAlign: 'center' }}>Décision auto</th>
+                  <th style={{ textAlign: 'center', minWidth: 140 }}>Décision jury</th>
+                  <th style={{ minWidth: 140 }}>Note jury</th>
+                  <th style={{ textAlign: 'center' }}>Relevé</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lignes.map(l => {
+                  const decisionFinale = l.decision_jury ?? l.decision;
+                  return (
+                    <tr key={l.etudiant_id}>
+                      <td>
+                        <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>
+                          {l.matricule}
+                        </code>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{l.nom} {l.prenom}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{l.filiere}</div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {l.moyenne_semestre != null
+                          ? <span className="badge teal">{Number(l.moyenne_semestre).toFixed(2)}</span>
+                          : <span className="badge gray">—</span>}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={`badge ${l.credits_valides > 0 ? 'teal' : 'gray'}`}>
+                          {l.credits_valides} CECT
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {l.mention
+                          ? <span className={`badge ${MENTION_COLOR[l.mention] ?? 'gray'}`}>{MENTION_LABEL[l.mention] ?? l.mention}</span>
+                          : <span className="badge gray">—</span>}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {l.decision
+                          ? <span className={`badge ${DECISION_COLOR[l.decision] ?? 'gray'}`}>{DECISION_LABEL[l.decision] ?? l.decision}</span>
+                          : <span className="badge gray">Non calculé</span>}
+                      </td>
+                      {/* Sélecteur décision jury */}
+                      <td style={{ textAlign: 'center' }}>
+                        <select
+                          value={l.decision_jury ?? l.decision ?? ''}
+                          onChange={e => handleAjusterDecision(l, e.target.value as DecisionJury)}
+                          style={{
+                            padding: '4px 8px', border: `1px solid ${l.decision_jury && l.decision_jury !== l.decision ? '#d97706' : '#e5e7eb'}`,
+                            borderRadius: 6, fontSize: 12, fontFamily: 'inherit',
+                            background: l.decision_jury && l.decision_jury !== l.decision ? '#fffbeb' : '#fff',
+                            cursor: 'pointer',
+                          }}
+                          title={l.decision_jury && l.decision_jury !== l.decision ? 'Override jury actif' : 'Décision du jury'}
+                        >
+                          <option value="">— Choisir —</option>
+                          {DECISIONS.map(d => (
+                            <option key={d} value={d}>{DECISION_LABEL[d]}</option>
+                          ))}
+                        </select>
+                        {l.decision_jury && l.decision_jury !== l.decision && (
+                          <div style={{ fontSize: 9, color: '#d97706', marginTop: 2 }}>⚠ Override jury</div>
+                        )}
+                      </td>
+                      {/* Note jury */}
+                      <td>
+                        <input
+                          type="text"
+                          value={noteJury[l.etudiant_id] ?? l.note_jury ?? ''}
+                          onChange={e => setNoteJury(prev => ({ ...prev, [l.etudiant_id]: e.target.value }))}
+                          onBlur={async e => {
+                            const val = e.target.value.trim();
+                            if (val !== (l.note_jury ?? '')) {
+                              await ajusterDecisionJury(l.etudiant_id, semId, ecoleId, (l.decision_jury ?? l.decision)!, val);
+                            }
+                          }}
+                          placeholder="Observation…"
+                          style={{ width: '100%', padding: '4px 6px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11, fontFamily: 'inherit', outline: 'none' }}
+                        />
+                      </td>
+                      {/* Relevé */}
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: 4, justifyContent: 'center', alignItems: 'center' }}>
+                          {l.releve_publie ? (
+                            <>
+                              <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Publié</span>
+                              <button onClick={() => handleVerrou(l)}
+                                title={l.releve_verrouille ? 'Déverrouiller' : 'Verrouiller'}
+                                style={{ background: 'none', border: `1px solid ${l.releve_verrouille ? '#b45309' : '#d1d5db'}`, padding: '2px 6px', borderRadius: 5, fontSize: 12, cursor: 'pointer', color: l.releve_verrouille ? '#b45309' : '#9ca3af', fontFamily: 'inherit' }}>
+                                {l.releve_verrouille ? '🔒' : '🔓'}
+                              </button>
+                            </>
+                          ) : (
+                            <button onClick={() => handlePublierUn(l)}
+                              style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '3px 8px', borderRadius: 6, fontSize: 11, color: '#059669', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>
+                              Publier
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </>
       )}

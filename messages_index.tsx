@@ -100,7 +100,7 @@ export default function MessagesPage() {
         <div><h2>Messages</h2><div className="page-subtitle">Messagerie interne</div></div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select id="messages-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+            <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
               style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
               {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
             </select>
@@ -160,13 +160,13 @@ export default function MessagesPage() {
             </div>
             <form onSubmit={handleEnvoyer} autoComplete="off">
               <div style={{ marginBottom: '.85rem' }}>
-                <label htmlFor="msg-sujet">Sujet <span style={{ color: '#9ca3af', fontWeight: 400, textTransform: 'none' }}>(optionnel)</span></label>
-                <input id="msg-sujet" name="sujet" type="text" value={sujet} onChange={e => setSujet(e.target.value)}
+                <label>Sujet <span style={{ color: '#9ca3af', fontWeight: 400, textTransform: 'none' }}>(optionnel)</span></label>
+                <input type="text" value={sujet} onChange={e => setSujet(e.target.value)}
                   style={{ width: '100%', marginTop: 4 }} placeholder="Objet du message…" autoFocus />
               </div>
               <div style={{ marginBottom: '1.2rem' }}>
-                <label htmlFor="msg-contenu">Message *</label>
-                <textarea id="msg-contenu" name="contenu" value={contenu} onChange={e => setContenu(e.target.value)} rows={5} required
+                <label>Message *</label>
+                <textarea value={contenu} onChange={e => setContenu(e.target.value)} rows={5} required
                   style={{ width: '100%', marginTop: 4, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
                   placeholder="Votre message…" />
               </div>

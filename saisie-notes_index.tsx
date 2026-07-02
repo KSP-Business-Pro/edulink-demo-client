@@ -164,20 +164,20 @@ export default function SaisieNotesPage() {
 
         {/* Sélecteur école super-admin */}
         {isSuperAdmin && ecoles.length > 0 && (
-          <select id="saisie-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+          <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
             style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
             {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
           </select>
         )}
 
-        <select id="saisie-semestre" name="semestre" value={semId} onChange={e => setSemId(e.target.value)}
+        <select value={semId} onChange={e => setSemId(e.target.value)}
           style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 220 }}>
           <option value="">Sélectionner un semestre…</option>
           {semestres.map(s => <option key={s.id} value={s.id}>{s.libelle}</option>)}
         </select>
 
         {ues.length > 0 && (
-          <select id="saisie-ue" name="ue" value={ueId} onChange={e => setUeId(e.target.value)}
+          <select value={ueId} onChange={e => setUeId(e.target.value)}
             style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 180 }}>
             <option value="">Sélectionner une UE…</option>
             {ues.map(u => <option key={u.id} value={u.id}>{u.code} — {u.intitule}</option>)}
@@ -185,7 +185,7 @@ export default function SaisieNotesPage() {
         )}
 
         {matieres.length > 0 && (
-          <select id="saisie-matiere" name="matiere" value={matId} onChange={e => setMatId(e.target.value)}
+          <select value={matId} onChange={e => setMatId(e.target.value)}
             style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 180 }}>
             <option value="">Sélectionner une matière…</option>
             {matieres.map(m => <option key={m.id} value={m.id}>{m.code} — {m.nom} (coef {m.coefficient})</option>)}

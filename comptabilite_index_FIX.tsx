@@ -7,7 +7,6 @@ import { fetchFactures, grouperParEtudiant, fmt, RUBRIQUE_LABELS, RUBRIQUE_COLOR
 import ModalFicheComptable from './components/ModalFicheComptable';
 import { ModalFacture, ModalFactureMasse } from './components/ModalFacture';
 import ResponsiveTable, { type RTColumn } from '../../components/ResponsiveTable';
-import ParametrageFinancier from './components/ParametrageFinancier';
 
 interface EcoleOption { id: string; nom: string }
 
@@ -91,7 +90,6 @@ export default function ComptabilitePage() {
   const { user, isSuperAdmin } = useAuth();
   const [ecoleId, setEcoleId] = useState<string>(user?.ecole_id ?? '');
   const [ecoles, setEcoles]   = useState<EcoleOption[]>([]);
-  const [tab, setTab]         = useState<'facturation' | 'parametrage'>('facturation');
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -199,23 +197,14 @@ export default function ComptabilitePage() {
               {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
             </select>
           )}
-          <button onClick={() => setMasseModal(true)} style={{ background: '#f3f4f6', color: '#374151', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: tab === 'facturation' ? 'inline-block' : 'none' }}>
+          <button onClick={() => setMasseModal(true)} style={{ background: '#f3f4f6', color: '#374151', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             📋 Facturer une promotion
           </button>
-          {tab === 'facturation' && <button className="btn-blue" onClick={() => setFactureModal(true)}>+ Facture</button>}
+          <button className="btn-blue" onClick={() => setFactureModal(true)}>+ Facture</button>
         </div>
       </div>
 
-      {/* Onglets */}
-      <div className="tabs" style={{ marginBottom: '1.25rem' }}>
-        <button className={`tab${tab === 'facturation' ? ' active' : ''}`} onClick={() => setTab('facturation')}>Facturation</button>
-        <button className={`tab${tab === 'parametrage' ? ' active' : ''}`} onClick={() => setTab('parametrage')}>⚙ Paramétrage financier</button>
-      </div>
-
-      {tab === 'parametrage' && ecoleId && <ParametrageFinancier ecoleId={ecoleId} />}
-
-      {tab === 'facturation' && (
-        loading ? <div className="loading">Chargement…</div> : (
+      {loading ? <div className="loading">Chargement…</div> : (
         <>
           {/* KPI cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
@@ -343,7 +332,6 @@ export default function ComptabilitePage() {
             )
           }
         </>
-        )
       )}
 
       {/* Modals */}

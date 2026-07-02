@@ -11,7 +11,6 @@ import {
   fetchSeuilAbsence,
 } from '../../services/presences.service';
 import ModalSaisiePresence from './components/ModalSaisiePresence';
-import ResponsiveTable, { type RTColumn } from '../../components/ResponsiveTable';
 
 interface SemestreOption { id: string; libelle: string; niveau: string }
 interface EcoleOption    { id: string; nom: string }
@@ -25,177 +24,6 @@ const TYPE_SEANCE_LABEL: Record<TypeSeance, string> = {
 const TYPE_SEANCE_COLOR: Record<TypeSeance, string> = {
   CM: '#1e3a5f', TD: '#0891b2', TP: '#7c3aed', examen: '#dc2626', autre: '#6b7280',
 };
-
-// ── Colonnes du tableau Séances ────────────────────────────────────────────
-const seanceColumns: RTColumn<Seance>[] = [
-  {
-    key: 'date',
-    label: 'Date',
-    primary: true,
-    render: s => (
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
-        {new Date(s.date_seance).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
-      </div>
-    ),
-  },
-  {
-    key: 'matiere',
-    label: 'Matière',
-    render: s => (
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{s.matieres_lmd?.nom ?? '—'}</div>
-        <div style={{ fontSize: 11, color: '#9ca3af' }}>{s.matieres_lmd?.code ?? ''}</div>
-      </div>
-    ),
-  },
-  {
-    key: 'type',
-    label: 'Type',
-    render: s => (
-      <span style={{
-        display: 'inline-block', padding: '2px 8px', borderRadius: 20,
-        fontSize: 11, fontWeight: 600,
-        background: `${TYPE_SEANCE_COLOR[s.type_seance]}18`,
-        color: TYPE_SEANCE_COLOR[s.type_seance],
-      }}>
-        {TYPE_SEANCE_LABEL[s.type_seance]}
-      </span>
-    ),
-  },
-  {
-    key: 'horaire',
-    label: 'Horaire',
-    render: s => <span style={{ fontSize: 12, color: '#6b7280' }}>{s.heure_debut ? `${s.heure_debut}${s.heure_fin ? ` – ${s.heure_fin}` : ''}` : '—'}</span>,
-  },
-  {
-    key: 'observations',
-    label: 'Observations',
-    hideOnMobile: true,
-    render: s => <span style={{ fontSize: 12, color: '#6b7280' }}>{s.observations ?? '—'}</span>,
-  },
-];
-
-// ── Colonnes du tableau Absences ───────────────────────────────────────────
-// NB: construites dynamiquement dans le composant (dépendent du seuil réel, pas d'une valeur fixe)
-function buildAbsenceColumns(seuil: number): RTColumn<AbsenceUE>[] {
-  return [
-  {
-    key: 'etudiant',
-    label: 'Étudiant',
-    primary: true,
-    render: a => (
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600 }}>{a.etudiant_nom} {a.etudiant_prenom}</div>
-        <div style={{ fontSize: 10, color: '#9ca3af' }}>{a.matricule}</div>
-      </div>
-    ),
-  },
-  {
-    key: 'ue',
-    label: 'UE',
-    render: a => (
-      <div>
-        <div style={{ fontSize: 12, fontWeight: 600 }}>{a.ue_code}</div>
-        <div style={{ fontSize: 11, color: '#9ca3af' }}>{a.ue_intitule}</div>
-      </div>
-    ),
-  },
-  {
-    key: 'seances',
-    label: 'Séances',
-    render: a => <span style={{ fontSize: 13 }}>{a.nb_seances_total}</span>,
-  },
-  {
-    key: 'presents',
-    label: 'Présents',
-    render: a => <span style={{ color: '#059669', fontWeight: 600, fontSize: 13 }}>{a.nb_presents}</span>,
-  },
-  {
-    key: 'absences',
-    label: 'Absences',
-    render: a => (
-      <span style={{ color: a.nb_absences > 0 ? '#dc2626' : '#9ca3af', fontWeight: 600, fontSize: 13 }}>
-        {a.nb_absences}
-        {a.nb_absences_justifiees > 0 && <span style={{ fontSize: 10, color: '#7c3aed', marginLeft: 3 }}>({a.nb_absences_justifiees}J)</span>}
-      </span>
-    ),
-  },
-  {
-    key: 'taux',
-    label: 'Taux',
-    render: a => {
-      const isRisque = a.taux_absence_pct >= seuil;
-      const barColor = a.est_exclu ? '#dc2626' : isRisque ? '#f97316' : '#059669';
-      return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 50, height: 5, background: '#e5e7eb', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${Math.min(a.taux_absence_pct, 100)}%`, background: barColor, borderRadius: 3 }} />
-          </div>
-          <span style={{ fontSize: 12, fontWeight: 700, color: barColor }}>{Math.round(a.taux_absence_pct)}%</span>
-        </div>
-      );
-    },
-  },
-  {
-    key: 'statut',
-    label: 'Statut',
-    render: a => a.est_exclu
-      ? <span className="badge red">Exclu</span>
-      : a.taux_absence_pct >= seuil
-        ? <span className="badge amber">⚠️ Risque</span>
-        : <span className="badge green">OK</span>,
-  },
-  ];
-}
-
-interface ExclusionRow {
-  id: string; etudiant_nom: string; etudiant_prenom: string; matricule: string;
-  ue_code: string; ue_intitule: string; source: string; motif: string | null; date_exclusion: string;
-}
-// ── Colonnes du tableau Exclusions ─────────────────────────────────────────
-const exclusionColumns: RTColumn<ExclusionRow>[] = [
-  {
-    key: 'etudiant',
-    label: 'Étudiant',
-    primary: true,
-    render: ex => (
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600 }}>{ex.etudiant_nom} {ex.etudiant_prenom}</div>
-        <div style={{ fontSize: 10, color: '#9ca3af' }}>{ex.matricule}</div>
-      </div>
-    ),
-  },
-  {
-    key: 'ue',
-    label: 'UE',
-    render: ex => (
-      <div>
-        <div style={{ fontSize: 12, fontWeight: 600 }}>{ex.ue_code}</div>
-        <div style={{ fontSize: 11, color: '#9ca3af' }}>{ex.ue_intitule}</div>
-      </div>
-    ),
-  },
-  {
-    key: 'source',
-    label: 'Source',
-    render: ex => (
-      <span className={`badge ${ex.source === 'auto' ? 'blue' : 'amber'}`}>
-        {ex.source === 'auto' ? '⚡ Auto' : '✍ Manuel'}
-      </span>
-    ),
-  },
-  {
-    key: 'motif',
-    label: 'Motif',
-    hideOnMobile: true,
-    render: ex => <span style={{ fontSize: 12, color: '#6b7280' }}>{ex.motif ?? '—'}</span>,
-  },
-  {
-    key: 'date',
-    label: 'Date',
-    render: ex => <span style={{ fontSize: 12, color: '#6b7280' }}>{new Date(ex.date_exclusion).toLocaleDateString('fr-FR')}</span>,
-  },
-];
 
 export default function PresencesPage() {
   const { user, isSuperAdmin } = useAuth();
@@ -377,12 +205,12 @@ export default function PresencesPage() {
         </div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select id="presences-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+            <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
               style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
               {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
             </select>
           )}
-          <select id="presences-semestre" name="semestre" value={semId} onChange={e => setSemId(e.target.value)}
+          <select value={semId} onChange={e => setSemId(e.target.value)}
             style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 220 }}>
             <option value="">— Sélectionner un semestre —</option>
             {semestres.map(s => <option key={s.id} value={s.id}>{s.libelle}</option>)}
@@ -430,27 +258,65 @@ export default function PresencesPage() {
                   </div>
                 ) : (
                   <div className="table-wrap">
-                    <ResponsiveTable<Seance>
-                      columns={seanceColumns}
-                      data={seances}
-                      keyExtractor={s => s.id}
-                      actions={s => (
-                        <>
-                          <button
-                            className="btn-blue"
-                            style={{ fontSize: 11, padding: '4px 10px' }}
-                            onClick={() => setModalSeance(s)}
-                          >
-                            ✏ Saisir présences
-                          </button>
-                          <button
-                            className="btn-ghost btn-sm"
-                            style={{ color: '#dc2626' }}
-                            onClick={() => handleSupprimerSeance(s)}
-                          >🗑</button>
-                        </>
-                      )}
-                    />
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Matière</th>
+                          <th style={{ textAlign: 'center' }}>Type</th>
+                          <th style={{ textAlign: 'center' }}>Horaire</th>
+                          <th>Observations</th>
+                          <th style={{ textAlign: 'center' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {seances.map(s => (
+                          <tr key={s.id}>
+                            <td>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
+                                {new Date(s.date_seance).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{s.matieres_lmd?.nom ?? '—'}</div>
+                              <div style={{ fontSize: 11, color: '#9ca3af' }}>{s.matieres_lmd?.code ?? ''}</div>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span style={{
+                                display: 'inline-block', padding: '2px 8px', borderRadius: 20,
+                                fontSize: 11, fontWeight: 600,
+                                background: `${TYPE_SEANCE_COLOR[s.type_seance]}18`,
+                                color: TYPE_SEANCE_COLOR[s.type_seance],
+                              }}>
+                                {TYPE_SEANCE_LABEL[s.type_seance]}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center', fontSize: 12, color: '#6b7280' }}>
+                              {s.heure_debut ? `${s.heure_debut}${s.heure_fin ? ` – ${s.heure_fin}` : ''}` : '—'}
+                            </td>
+                            <td style={{ fontSize: 12, color: '#6b7280', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {s.observations ?? '—'}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                                <button
+                                  className="btn-blue"
+                                  style={{ fontSize: 11, padding: '4px 10px' }}
+                                  onClick={() => setModalSeance(s)}
+                                >
+                                  ✏ Saisir présences
+                                </button>
+                                <button
+                                  className="btn-ghost btn-sm"
+                                  style={{ color: '#dc2626' }}
+                                  onClick={() => handleSupprimerSeance(s)}
+                                >🗑</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )
               )}
@@ -491,11 +357,67 @@ export default function PresencesPage() {
                     </div>
                   ) : (
                     <div className="table-wrap">
-                      <ResponsiveTable<AbsenceUE>
-                        columns={buildAbsenceColumns(seuil)}
-                        data={absences}
-                        keyExtractor={a => `${a.etudiant_id}-${a.ue_id}`}
-                      />
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Étudiant</th>
+                            <th>UE</th>
+                            <th style={{ textAlign: 'center' }}>Séances</th>
+                            <th style={{ textAlign: 'center' }}>Présents</th>
+                            <th style={{ textAlign: 'center' }}>Absences</th>
+                            <th style={{ textAlign: 'center' }}>Taux</th>
+                            <th style={{ textAlign: 'center' }}>Statut</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {absences.map((a, idx) => {
+                            const isRisque = a.taux_absence_pct >= seuil;
+                            const barColor = a.est_exclu ? '#dc2626' : isRisque ? '#f97316' : '#059669';
+                            return (
+                              <tr key={`${a.etudiant_id}-${a.ue_id}-${idx}`}>
+                                <td>
+                                  <div style={{ fontSize: 13, fontWeight: 600 }}>{a.etudiant_nom} {a.etudiant_prenom}</div>
+                                  <div style={{ fontSize: 10, color: '#9ca3af' }}>{a.matricule}</div>
+                                </td>
+                                <td>
+                                  <div style={{ fontSize: 12, fontWeight: 600 }}>{a.ue_code}</div>
+                                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{a.ue_intitule}</div>
+                                </td>
+                                <td style={{ textAlign: 'center', fontSize: 13 }}>{a.nb_seances_total}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span style={{ color: '#059669', fontWeight: 600, fontSize: 13 }}>{a.nb_presents}</span>
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span style={{ color: a.nb_absences > 0 ? '#dc2626' : '#9ca3af', fontWeight: 600, fontSize: 13 }}>
+                                    {a.nb_absences}
+                                    {a.nb_absences_justifiees > 0 && (
+                                      <span style={{ fontSize: 10, color: '#7c3aed', marginLeft: 3 }}>({a.nb_absences_justifiees}J)</span>
+                                    )}
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: 'center', minWidth: 100 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                                    <div style={{ width: 50, height: 5, background: '#e5e7eb', borderRadius: 3, overflow: 'hidden' }}>
+                                      <div style={{ height: '100%', width: `${Math.min(a.taux_absence_pct, 100)}%`, background: barColor, borderRadius: 3 }} />
+                                    </div>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: barColor }}>
+                                      {Math.round(a.taux_absence_pct)}%
+                                    </span>
+                                  </div>
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  {a.est_exclu
+                                    ? <span className="badge red">Exclu</span>
+                                    : isRisque
+                                      ? <span className="badge amber">⚠️ Risque</span>
+                                      : <span className="badge green">OK</span>
+                                  }
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </>
@@ -516,20 +438,50 @@ export default function PresencesPage() {
                   </div>
                 ) : (
                   <div className="table-wrap">
-                    <ResponsiveTable<ExclusionRow>
-                      columns={exclusionColumns}
-                      data={exclusions}
-                      keyExtractor={ex => ex.id}
-                      actions={ex => (
-                        <button
-                          className="btn-ghost btn-sm"
-                          style={{ color: '#059669' }}
-                          onClick={() => handleLeverExclusion(ex.id, `${ex.etudiant_nom} ${ex.etudiant_prenom}`)}
-                        >
-                          ↩ Lever
-                        </button>
-                      )}
-                    />
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Étudiant</th>
+                          <th>UE</th>
+                          <th style={{ textAlign: 'center' }}>Source</th>
+                          <th>Motif</th>
+                          <th style={{ textAlign: 'center' }}>Date</th>
+                          <th style={{ textAlign: 'center' }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {exclusions.map(ex => (
+                          <tr key={ex.id}>
+                            <td>
+                              <div style={{ fontSize: 13, fontWeight: 600 }}>{ex.etudiant_nom} {ex.etudiant_prenom}</div>
+                              <div style={{ fontSize: 10, color: '#9ca3af' }}>{ex.matricule}</div>
+                            </td>
+                            <td>
+                              <div style={{ fontSize: 12, fontWeight: 600 }}>{ex.ue_code}</div>
+                              <div style={{ fontSize: 11, color: '#9ca3af' }}>{ex.ue_intitule}</div>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span className={`badge ${ex.source === 'auto' ? 'blue' : 'amber'}`}>
+                                {ex.source === 'auto' ? '⚡ Auto' : '✍ Manuel'}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: 12, color: '#6b7280' }}>{ex.motif ?? '—'}</td>
+                            <td style={{ textAlign: 'center', fontSize: 12, color: '#6b7280' }}>
+                              {new Date(ex.date_exclusion).toLocaleDateString('fr-FR')}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button
+                                className="btn-ghost btn-sm"
+                                style={{ color: '#059669' }}
+                                onClick={() => handleLeverExclusion(ex.id, `${ex.etudiant_nom} ${ex.etudiant_prenom}`)}
+                              >
+                                ↩ Lever
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )
               )}
@@ -549,8 +501,8 @@ export default function PresencesPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '.85rem' }}>
               <div style={{ gridColumn: '1/-1' }}>
-                <label htmlFor="seance-matiere">Matière *</label>
-                <select id="seance-matiere" name="matiere_id" value={formSeance.matiere_id} onChange={e => setFormSeance(f => ({ ...f, matiere_id: e.target.value }))}
+                <label>Matière *</label>
+                <select value={formSeance.matiere_id} onChange={e => setFormSeance(f => ({ ...f, matiere_id: e.target.value }))}
                   style={{ width: '100%', marginTop: 4 }} required>
                   <option value="">Sélectionner…</option>
                   {matieres.map(m => (
@@ -559,8 +511,8 @@ export default function PresencesPage() {
                 </select>
               </div>
               <div>
-                <label htmlFor="seance-type">Type *</label>
-                <select id="seance-type" name="type_seance" value={formSeance.type_seance} onChange={e => setFormSeance(f => ({ ...f, type_seance: e.target.value as TypeSeance }))}
+                <label>Type *</label>
+                <select value={formSeance.type_seance} onChange={e => setFormSeance(f => ({ ...f, type_seance: e.target.value as TypeSeance }))}
                   style={{ width: '100%', marginTop: 4 }}>
                   {Object.entries(TYPE_SEANCE_LABEL).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
@@ -568,26 +520,26 @@ export default function PresencesPage() {
                 </select>
               </div>
               <div>
-                <label htmlFor="seance-date">Date *</label>
-                <input id="seance-date" name="date_seance" type="date" value={formSeance.date_seance}
+                <label>Date *</label>
+                <input type="date" value={formSeance.date_seance}
                   onChange={e => setFormSeance(f => ({ ...f, date_seance: e.target.value }))}
                   style={{ width: '100%', marginTop: 4 }} required />
               </div>
               <div>
-                <label htmlFor="seance-heure-debut">Heure début</label>
-                <input id="seance-heure-debut" name="heure_debut" type="time" value={formSeance.heure_debut}
+                <label>Heure début</label>
+                <input type="time" value={formSeance.heure_debut}
                   onChange={e => setFormSeance(f => ({ ...f, heure_debut: e.target.value }))}
                   style={{ width: '100%', marginTop: 4 }} />
               </div>
               <div>
-                <label htmlFor="seance-heure-fin">Heure fin</label>
-                <input id="seance-heure-fin" name="heure_fin" type="time" value={formSeance.heure_fin}
+                <label>Heure fin</label>
+                <input type="time" value={formSeance.heure_fin}
                   onChange={e => setFormSeance(f => ({ ...f, heure_fin: e.target.value }))}
                   style={{ width: '100%', marginTop: 4 }} />
               </div>
               <div style={{ gridColumn: '1/-1' }}>
-                <label htmlFor="seance-observations">Observations</label>
-                <input id="seance-observations" name="observations" autoComplete="off" type="text" value={formSeance.observations}
+                <label>Observations</label>
+                <input type="text" value={formSeance.observations}
                   onChange={e => setFormSeance(f => ({ ...f, observations: e.target.value }))}
                   style={{ width: '100%', marginTop: 4 }} placeholder="Optionnel…" />
               </div>

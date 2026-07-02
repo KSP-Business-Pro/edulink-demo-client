@@ -216,11 +216,11 @@ export default function DeliberationsPage() {
     {
       key: 'decision_jury',
       label: 'Décision jury',
-      render: (l, view) => (
+      render: l => (
         <div>
           <select
-            id={`decision-jury-${l.etudiant_id}-${view}`}
-            name={`decision-jury-${l.etudiant_id}-${view}`}
+            id={`decision-jury-${l.etudiant_id}`}
+            name={`decision-jury-${l.etudiant_id}`}
             value={l.decision_jury ?? l.decision ?? ''}
             onChange={e => handleAjusterDecision(l, e.target.value as DecisionJury)}
             style={{
@@ -245,11 +245,11 @@ export default function DeliberationsPage() {
     {
       key: 'note_jury',
       label: 'Note jury',
-      render: (l, view) => (
+      render: l => (
         <input
           type="text"
-          id={`note-jury-${l.etudiant_id}-${view}`}
-          name={`note-jury-${l.etudiant_id}-${view}`}
+          id={`note-jury-${l.etudiant_id}`}
+          name={`note-jury-${l.etudiant_id}`}
           autoComplete="off"
           value={noteJury[l.etudiant_id] ?? l.note_jury ?? ''}
           onChange={e => setNoteJury(prev => ({ ...prev, [l.etudiant_id]: e.target.value }))}

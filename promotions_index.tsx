@@ -145,7 +145,7 @@ export default function PromotionsPage() {
         <div><h2>Promotions</h2><div className="page-subtitle">Groupes d'étudiants par niveau et programme</div></div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select id="promotions-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+            <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
               style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
               {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
             </select>
@@ -220,15 +220,15 @@ export default function PromotionsPage() {
             <form onSubmit={handleSubmit} autoComplete="off">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '.85rem' }}>
                 <div>
-                  <label htmlFor="promo-programme">Programme *</label>
-                  <select id="promo-programme" name="programme_id" value={form.programme_id} onChange={e => { setForm(f => ({ ...f, programme_id: e.target.value, niveau: '' })); setNomManual(false); }} style={{ width: '100%', marginTop: 4 }} required>
+                  <label>Programme *</label>
+                  <select value={form.programme_id} onChange={e => { setForm(f => ({ ...f, programme_id: e.target.value, niveau: '' })); setNomManual(false); }} style={{ width: '100%', marginTop: 4 }} required>
                     <option value="">— Sélectionner —</option>
                     {programmes.map(p => <option key={p.id} value={p.id}>{p.intitule}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="promo-niveau">Niveau *</label>
-                  <select id="promo-niveau" name="niveau" value={form.niveau} onChange={e => { setForm(f => ({ ...f, niveau: e.target.value })); setNomManual(false); }} style={{ width: '100%', marginTop: 4 }} required>
+                  <label>Niveau *</label>
+                  <select value={form.niveau} onChange={e => { setForm(f => ({ ...f, niveau: e.target.value })); setNomManual(false); }} style={{ width: '100%', marginTop: 4 }} required>
                     <option value="">— Niveau —</option>
                     {niveauxDispo.map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
@@ -236,24 +236,24 @@ export default function PromotionsPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '.85rem' }}>
                 <div>
-                  <label htmlFor="promo-annee">Année académique</label>
-                  <select id="promo-annee" name="annee_academique_id" value={form.annee_academique_id} onChange={e => { setForm(f => ({ ...f, annee_academique_id: e.target.value })); setNomManual(false); }} style={{ width: '100%', marginTop: 4 }}>
+                  <label>Année académique</label>
+                  <select value={form.annee_academique_id} onChange={e => { setForm(f => ({ ...f, annee_academique_id: e.target.value })); setNomManual(false); }} style={{ width: '100%', marginTop: 4 }}>
                     <option value="">— Sélectionner —</option>
                     {annees.map(a => <option key={a.id} value={a.id}>{a.libelle}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="promo-effectif">Effectif max</label>
-                  <input id="promo-effectif" name="effectif_max" type="number" value={form.effectif_max} onChange={e => setForm(f => ({ ...f, effectif_max: e.target.value }))} style={{ width: '100%', marginTop: 4 }} min={1} max={500} placeholder="ex : 50" />
+                  <label>Effectif max</label>
+                  <input type="number" value={form.effectif_max} onChange={e => setForm(f => ({ ...f, effectif_max: e.target.value }))} style={{ width: '100%', marginTop: 4 }} min={1} max={500} placeholder="ex : 50" />
                 </div>
               </div>
               <div style={{ marginBottom: '.85rem' }}>
-                <label htmlFor="promo-nom">Nom de la promotion *</label>
-                <input id="promo-nom" name="nom" autoComplete="off" type="text" value={form.nom} onChange={e => { setForm(f => ({ ...f, nom: e.target.value })); setNomManual(true); }} style={{ width: '100%', marginTop: 4 }} placeholder="ex : Promo L1 — Licence GFC 2025-2026" required />
+                <label>Nom de la promotion *</label>
+                <input type="text" value={form.nom} onChange={e => { setForm(f => ({ ...f, nom: e.target.value })); setNomManual(true); }} style={{ width: '100%', marginTop: 4 }} placeholder="ex : Promo L1 — Licence GFC 2025-2026" required />
               </div>
               <div style={{ marginBottom: '1.2rem' }}>
-                <label htmlFor="promo-responsable">Responsable pédagogique</label>
-                <input id="promo-responsable" name="responsable" autoComplete="off" type="text" value={form.responsable} onChange={e => setForm(f => ({ ...f, responsable: e.target.value }))} style={{ width: '100%', marginTop: 4 }} placeholder="Nom du responsable (optionnel)" />
+                <label>Responsable pédagogique</label>
+                <input type="text" value={form.responsable} onChange={e => setForm(f => ({ ...f, responsable: e.target.value }))} style={{ width: '100%', marginTop: 4 }} placeholder="Nom du responsable (optionnel)" />
               </div>
               {formError && <div style={{ background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: '1rem' }}>{formError}</div>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.5rem', paddingTop: '.85rem', borderTop: '1px solid #f3f4f6' }}>
