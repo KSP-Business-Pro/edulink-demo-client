@@ -13,6 +13,7 @@ import {
   deleteProgramme, deleteUE, deleteSemestre, checkCreditsUE,
 } from '../../services/referentiel.service';
 import { supabase } from '../../services/supabase';
+import { addToast } from '../../hooks/useErrorHandler';
 
 import ModalProgramme       from './components/ModalProgramme';
 import ModalUE              from './components/ModalUE';
@@ -33,7 +34,7 @@ export default function ProgrammesPage() {
 
   useEffect(() => {
     if (!isSuperAdmin) return;
-    supabase.from('ecoles').select('id,nom').eq('actif', true).order('nom')
+    supabase.from('ecoles').select('id,nom').order('nom')
       .then(({ data }) => {
         setEcoles(data ?? []);
         if (!ecoleId && data?.[0]) setEcoleId(data[0].id);
@@ -85,19 +86,19 @@ export default function ProgrammesPage() {
   async function handleDeleteProg(p: Programme) {
     if (!confirm(`Supprimer "${p.intitule}" ? Cette action est irréversible.`)) return;
     try { await deleteProgramme(p.id); await loadAll(); }
-    catch (err: any) { alert('Erreur : ' + err.message); }
+    catch (err: any) { addToast('Erreur : ' + err.message, 'error'); }
   }
 
   async function handleDeleteUE(u: UniteEnseignement) {
     if (!confirm(`Supprimer l'UE "${u.intitule}" ? Action irréversible.`)) return;
     try { await deleteUE(u.id); await loadAll(); }
-    catch (err: any) { alert('Erreur : ' + err.message); }
+    catch (err: any) { addToast('Erreur : ' + err.message, 'error'); }
   }
 
   async function handleDeleteSem(s: Semestre) {
     if (!confirm(`Supprimer "${s.libelle}" ? Attention : notes et présences liées seront perdues.`)) return;
     try { await deleteSemestre(s.id); await loadAll(); }
-    catch (err: any) { alert('Erreur : ' + err.message); }
+    catch (err: any) { addToast('Erreur : ' + err.message, 'error'); }
   }
 
   const gradeOrder = ['licence', 'master', 'doctorat'] as const;
