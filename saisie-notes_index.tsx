@@ -20,6 +20,11 @@ interface EcoleOption    { id: string; nom: string }
 
 type SessionMode = 'normale' | 'rattrapage';
 
+const srOnly: React.CSSProperties = {
+  position: 'absolute', width: 1, height: 1, overflow: 'hidden',
+  clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap',
+};
+
 export default function SaisieNotesPage() {
   const { user, isSuperAdmin } = useAuth();
   const [ecoleId, setEcoleId] = useState<string>(user?.ecole_id ?? '');
@@ -147,7 +152,7 @@ export default function SaisieNotesPage() {
   return (
     <div style={{ padding: '1.5rem', paddingBottom: '2rem' }}>
       {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 20, background: toastBg[toast.type], color: '#fff', padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, zIndex: 200, boxShadow: '0 4px 12px rgba(0,0,0,.2)' }}>
+        <div role="status" style={{ position: 'fixed', top: 20, right: 20, background: toastBg[toast.type], color: '#fff', padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, zIndex: 200, boxShadow: '0 4px 12px rgba(0,0,0,.2)' }}>
           {toast.msg}
         </div>
       )}
@@ -164,38 +169,48 @@ export default function SaisieNotesPage() {
 
         {/* Sélecteur école super-admin */}
         {isSuperAdmin && ecoles.length > 0 && (
-          <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
-            style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
-            {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
-          </select>
+          <>
+            <label htmlFor="saisie-ecole" style={srOnly}>École</label>
+            <select id="saisie-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+              style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+              {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+            </select>
+          </>
         )}
 
-        <select value={semId} onChange={e => setSemId(e.target.value)}
+        <label htmlFor="saisie-semestre" style={srOnly}>Semestre</label>
+        <select id="saisie-semestre" name="semestre" value={semId} onChange={e => setSemId(e.target.value)}
           style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 220 }}>
           <option value="">Sélectionner un semestre…</option>
           {semestres.map(s => <option key={s.id} value={s.id}>{s.libelle}</option>)}
         </select>
 
         {ues.length > 0 && (
-          <select value={ueId} onChange={e => setUeId(e.target.value)}
-            style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 180 }}>
-            <option value="">Sélectionner une UE…</option>
-            {ues.map(u => <option key={u.id} value={u.id}>{u.code} — {u.intitule}</option>)}
-          </select>
+          <>
+            <label htmlFor="saisie-ue" style={srOnly}>Unité d'enseignement</label>
+            <select id="saisie-ue" name="ue" value={ueId} onChange={e => setUeId(e.target.value)}
+              style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 180 }}>
+              <option value="">Sélectionner une UE…</option>
+              {ues.map(u => <option key={u.id} value={u.id}>{u.code} — {u.intitule}</option>)}
+            </select>
+          </>
         )}
 
         {matieres.length > 0 && (
-          <select value={matId} onChange={e => setMatId(e.target.value)}
-            style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 180 }}>
-            <option value="">Sélectionner une matière…</option>
-            {matieres.map(m => <option key={m.id} value={m.id}>{m.code} — {m.nom} (coef {m.coefficient})</option>)}
-          </select>
+          <>
+            <label htmlFor="saisie-matiere" style={srOnly}>Matière</label>
+            <select id="saisie-matiere" name="matiere" value={matId} onChange={e => setMatId(e.target.value)}
+              style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 180 }}>
+              <option value="">Sélectionner une matière…</option>
+              {matieres.map(m => <option key={m.id} value={m.id}>{m.code} — {m.nom} (coef {m.coefficient})</option>)}
+            </select>
+          </>
         )}
 
         {matId && sessions.length > 0 && (
-          <div style={{ display: 'flex', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginLeft: 'auto' }}>
+          <div role="group" aria-label="Mode de session" style={{ display: 'flex', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginLeft: 'auto' }}>
             {(['normale', 'rattrapage'] as SessionMode[]).map(mode => (
-              <button key={mode} onClick={() => setSessionMode(mode)}
+              <button key={mode} onClick={() => setSessionMode(mode)} aria-pressed={sessionMode === mode}
                 style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', fontFamily: 'inherit', background: sessionMode === mode ? (mode === 'rattrapage' ? '#f97316' : '#1e3a5f') : '#fff', color: sessionMode === mode ? '#fff' : '#6b7280' }}>
                 {mode === 'normale' ? 'Normale' : 'Rattrapage'}
               </button>
