@@ -8,8 +8,6 @@ import ModalFicheComptable from './components/ModalFicheComptable';
 import { ModalFacture, ModalFactureMasse } from './components/ModalFacture';
 import ModalFactureGrille from './components/ModalFactureGrille';
 import CaisseJournaliere from './components/CaisseJournaliere';
-import Recouvrement from './components/Recouvrement';
-import Pilotage from './components/Pilotage';
 import ResponsiveTable, { type RTColumn } from '../../components/ResponsiveTable';
 import ParametrageFinancier from './components/ParametrageFinancier';
 
@@ -95,7 +93,7 @@ export default function ComptabilitePage() {
   const { user, isSuperAdmin } = useAuth();
   const [ecoleId, setEcoleId] = useState<string>(user?.ecole_id ?? '');
   const [ecoles, setEcoles]   = useState<EcoleOption[]>([]);
-  const [tab, setTab]         = useState<'facturation' | 'caisse' | 'recouvrement' | 'pilotage' | 'parametrage'>('facturation');
+  const [tab, setTab]         = useState<'facturation' | 'caisse' | 'parametrage'>('facturation');
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -220,14 +218,10 @@ export default function ComptabilitePage() {
       <div className="tabs" style={{ marginBottom: '1.25rem' }}>
         <button className={`tab${tab === 'facturation' ? ' active' : ''}`} onClick={() => setTab('facturation')}>Facturation</button>
         <button className={`tab${tab === 'caisse' ? ' active' : ''}`} onClick={() => setTab('caisse')}>💰 Caisse du jour</button>
-        <button className={`tab${tab === 'recouvrement' ? ' active' : ''}`} onClick={() => setTab('recouvrement')}>🔴 Recouvrement</button>
-        <button className={`tab${tab === 'pilotage' ? ' active' : ''}`} onClick={() => setTab('pilotage')}>📊 Pilotage</button>
         <button className={`tab${tab === 'parametrage' ? ' active' : ''}`} onClick={() => setTab('parametrage')}>⚙ Paramétrage financier</button>
       </div>
 
       {tab === 'caisse' && ecoleId && <CaisseJournaliere ecoleId={ecoleId} />}
-      {tab === 'recouvrement' && ecoleId && <Recouvrement ecoleId={ecoleId} />}
-      {tab === 'pilotage' && ecoleId && <Pilotage ecoleId={ecoleId} />}
 
       {tab === 'parametrage' && ecoleId && <ParametrageFinancier ecoleId={ecoleId} />}
 
