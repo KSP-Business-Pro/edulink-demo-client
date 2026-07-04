@@ -39,6 +39,7 @@ const AnneesPage           = lazy(() => import('./modules/annees'));
 const InscriptionsPage  = lazy(() => import('./modules/inscriptions'));
 const EmploiDuTempsPage = lazy(() => import('./modules/emploi-du-temps'));
 const AnalyticsPage     = lazy(() => import('./modules/analytics'));
+const AuditPage         = lazy(() => import('./modules/audit'));
 
 // ── Spinner de chargement lazy ─────────────────────────────────────────────
 function PageLoader() {
@@ -51,9 +52,9 @@ function PageLoader() {
 }
 
 // ── HOC route protégée avec layout ─────────────────────────────────────────
-function AppRoute({ page, children }: { page: string; children: React.ReactNode }) {
+function AppRoute({ page, children, allowedRoles }: { page: string; children: React.ReactNode; allowedRoles?: import('./types/auth.types').UserRole[] }) {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowedRoles={allowedRoles}>
       <AppLayout currentPage={page}>
         <Suspense fallback={<PageLoader />}>
           {children}
@@ -95,6 +96,7 @@ export default function App() {
           <Route path="/enseignants"  element={<AppRoute page="enseignants"> <EnseignantsPage /></AppRoute>} />
           <Route path="/comptabilite" element={<AppRoute page="comptabilite"><ComptabilitePage /></AppRoute>} />
           <Route path="/monitoring" element={<AppRoute page="monitoring"><MonitoringPage /></AppRoute>} />
+          <Route path="/audit" element={<AppRoute page="audit" allowedRoles={['admin', 'direction']}><AuditPage /></AppRoute>} />
           <Route path="/prospects" element={<AppRoute page="prospects"><ProspectsPage /></AppRoute>} />
           <Route path="/promotions" element={<AppRoute page="promotions"><PromotionsPage /></AppRoute>} />
           <Route path="/messages" element={<AppRoute page="messages"><MessagesPage /></AppRoute>} />

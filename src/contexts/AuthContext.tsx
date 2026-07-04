@@ -9,6 +9,7 @@ import {
   getCurrentSession,
   onAuthStateChange,
 } from '../services/auth.service';
+import { clearMfaVerifie } from '../services/mfa.service';
 import type { UserProfil } from '../types/auth.types';
 
 // ── Paramètres du timeout d'inactivité ──────────────────────────────────────
@@ -87,11 +88,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Logout
   const logout = useCallback(async () => {
     setLoading(true);
+    clearMfaVerifie(user?.id);
     await authLogout();
     setUser(null);
     setLoading(false);
     setShowWarning(false);
-  }, []);
+  }, [user]);
 
   // ── Timeout de session automatique ─────────────────────────────────────
   // Actif uniquement si un utilisateur est connecté.

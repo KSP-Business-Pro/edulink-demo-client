@@ -25,13 +25,14 @@ interface FormData {
   prenom:   string
   role:     UserRole
   ecole_id: string | null
+  telephone: string
   actif:    boolean
   password: string
 }
 
 const FORM_INIT: FormData = {
   email: '', nom: '', prenom: '', role: 'scolarite',
-  ecole_id: null, actif: true, password: '',
+  ecole_id: null, telephone: '', actif: true, password: '',
 }
 
 const ROLES: UserRole[] = ['admin','scolarite','enseignant','etudiant','parent','comptable','direction']
@@ -140,7 +141,7 @@ function ModalUtilisateur({
   const [form, setForm] = useState<FormData>(
     isEdit
       ? { email: user.email, nom: user.nom, prenom: user.prenom ?? '',
-          role: user.role, ecole_id: user.ecole_id, actif: user.actif, password: '' }
+          role: user.role, ecole_id: user.ecole_id, telephone: user.telephone ?? '', actif: user.actif, password: '' }
       : { ...FORM_INIT }
   )
   const [saving, setSaving]   = useState(false)
@@ -159,7 +160,7 @@ function ModalUtilisateur({
         // Mise à jour profil
         const { error: e } = await supabase.from('utilisateurs').update({
           nom: form.nom, prenom: form.prenom || null,
-          role: form.role, ecole_id: form.ecole_id, actif: form.actif,
+          role: form.role, ecole_id: form.ecole_id, telephone: form.telephone || null, actif: form.actif,
         }).eq('id', user.id)
         if (e) throw e
         // Réinitialiser mot de passe si renseigné
@@ -188,6 +189,7 @@ function ModalUtilisateur({
           prenom:   form.prenom || null,
           role:     form.role,
           ecole_id: form.ecole_id,
+          telephone: form.telephone || null,
           actif:    form.actif,
         })
         if (pe) throw pe
@@ -214,7 +216,7 @@ function ModalUtilisateur({
               {isEdit ? `${user.email}` : 'Création d\'un nouveau compte'}
             </div>
           </div>
-          <button onClick={onClose} style={S.closeBtn}>✕</button>
+          <button onClick={onClose} style={S.closeBtn} aria-label="Fermer la fenêtre">✕</button>
         </div>
 
         <div style={S.modalBody}>
@@ -237,6 +239,15 @@ function ModalUtilisateur({
               style={{ ...S.input, ...(isEdit ? { background: '#f8fafc', color: '#94a3b8' } : {}) }}
               placeholder="email@ecole.bj" disabled={isEdit} type="email" />
             {isEdit && <span style={{ fontSize: 11, color: '#94a3b8' }}>L'email ne peut pas être modifié</span>}
+          </div>
+
+          <div style={S.field}>
+            <label htmlFor="user-telephone" style={S.label}>Téléphone</label>
+            <input id="user-telephone" name="telephone" value={form.telephone} onChange={e => set('telephone', e.target.value)}
+              style={S.input} placeholder="+229 97 00 00 00" type="tel" />
+            <span style={{ fontSize: 11, color: '#94a3b8' }}>
+              Requis uniquement si l'utilisateur souhaite recevoir son code de connexion (2FA) par SMS.
+            </span>
           </div>
 
           <div style={S.grid2}>
@@ -423,7 +434,7 @@ export default function UtilisateursPage() {
     try {
       let q = supabase
         .from('utilisateurs')
-        .select(`id, auth_id, nom, prenom, role, ecole_id, actif, email,
+        .select(`id, auth_id, nom, prenom, role, ecole_id, telephone, actif, email,
                  ecoles(nom)`, { count: 'exact' })
         .order('nom')
         .range(p * PAGE_SIZE, (p + 1) * PAGE_SIZE - 1)

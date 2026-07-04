@@ -3,10 +3,13 @@
 // Affiche un spinner pendant le chargement de la session
 
 import { Navigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import type { UserRole } from '../types/auth.types';
 import type { Permissions } from '../services/permissions';
+import { mfaRequisPourRole, isMfaVerifie } from '../services/mfa.service';
+import { Mfa2FAScreen } from './Mfa2FAScreen';
 
 interface ProtectedRouteProps {
   children:       React.ReactNode;
@@ -15,9 +18,10 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles, requiredPerm }: ProtectedRouteProps) {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { can } = usePermissions();
   const location = useLocation();
+  const [mfaOk, setMfaOk] = useState(false);
 
   // Pendant la vérification de session — spinner sobre
   if (loading) {
@@ -39,6 +43,17 @@ export function ProtectedRoute({ children, allowedRoles, requiredPerm }: Protect
   // Non authentifié → /login avec mémoire de la page demandée
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // B12.1 — Second facteur requis pour ce rôle, pas encore vérifié cette session
+  if (mfaRequisPourRole(user.role) && !isMfaVerifie(user.id) && !mfaOk) {
+    return (
+      <Mfa2FAScreen
+        user={user}
+        onVerified={() => setMfaOk(true)}
+        onLogout={() => logout()}
+      />
+    );
   }
 
   // Rôle insuffisant → page 403

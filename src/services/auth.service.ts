@@ -63,7 +63,7 @@ export function onAuthStateChange(
 async function loadProfil(authId: string, email: string): Promise<UserProfil | null> {
   const { data: utilisateur, error } = await supabase
     .from('utilisateurs')
-    .select('id, auth_id, nom, prenom, role, ecole_id, actif')
+    .select('id, auth_id, nom, prenom, role, ecole_id, telephone, actif')
     .eq('auth_id', authId)
     .eq('actif', true)
     .maybeSingle<UtilisateurRow>();
@@ -89,6 +89,7 @@ async function loadProfil(authId: string, email: string): Promise<UserProfil | n
     role:      utilisateur.role,
     ecole_id:  utilisateur.ecole_id,
     ecole_nom,
+    telephone: utilisateur.telephone ?? null,
     actif:     utilisateur.actif,
   };
 }

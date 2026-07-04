@@ -35,7 +35,7 @@ type IconName =
   | 'calendar' | 'users' | 'userGraduate' | 'pencil' | 'clipboardCheck'
   | 'barChart' | 'scale' | 'fileText' | 'chalkboard' | 'wallet'
   | 'message' | 'radio' | 'target' | 'settings' | 'search' | 'close' | 'menu'
-  | 'globe' | 'layers' | 'sparkles' | 'mail' | 'briefcase' | 'chevronDown';
+  | 'globe' | 'layers' | 'sparkles' | 'mail' | 'briefcase' | 'chevronDown' | 'shield';
 
 const ICON_PATHS: Record<IconName, string> = {
   home:            'M3 11l9-8 9 8M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10',
@@ -66,6 +66,7 @@ const ICON_PATHS: Record<IconName, string> = {
   mail:            'M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zM22 6l-10 7L2 6',
   briefcase:       'M20 7h-4V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM8 5h8v2H8V5zM2 13h20',
   chevronDown:     'M6 9l6 6 6-6',
+  shield:          'M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z',
 };
 
 function Icon({ name, size = 17 }: { name: IconName; size?: number }) {
@@ -249,6 +250,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     ]},
     { group: 'SYSTÈME', items: [
       { id: 'monitoring', label: 'Monitoring', ico: 'radio', href: '/monitoring' },
+      { id: 'audit', label: "Journal d'audit", ico: 'shield', href: '/audit' },
       { id: 'prospects',  label: 'Prospects',  ico: 'target', href: '/prospects' },
       { id: 'parametres-ecole', label: 'Paramètres', ico: 'settings', href: '/parametres-ecole' },
       { id: 'parametres', label: 'Param. avancés', ico: 'settings', href: '/parametres' },

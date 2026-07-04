@@ -19,6 +19,7 @@ export interface UserProfil {
   role: UserRole;
   ecole_id: string | null; // null = super-admin
   ecole_nom?: string;
+  telephone?: string | null;
   actif: boolean;
 }
 
@@ -36,6 +37,7 @@ export interface UtilisateurRow {
   prenom: string | null;
   role: UserRole;
   ecole_id: string | null;
+  telephone?: string | null;
   actif: boolean;
 }
 
