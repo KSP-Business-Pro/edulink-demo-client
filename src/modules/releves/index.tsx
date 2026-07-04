@@ -20,6 +20,11 @@ async function releveHeaders(): Promise<Record<string, string>> {
 interface SemestreOption { id: string; libelle: string }
 interface EcoleOption    { id: string; nom: string; code_ecole: string | null }
 
+const SR_ONLY: React.CSSProperties = {
+  position: 'absolute', width: 1, height: 1, overflow: 'hidden',
+  clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap',
+};
+
 interface ReleveEtudiant {
   id: string; nom: string; prenom: string; matricule: string;
   filiere: string; email_auth: string | null;
@@ -384,11 +389,15 @@ export default function RelevesPage() {
         </div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select id="releves-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
-              style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
-              {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
-            </select>
+            <>
+              <label htmlFor="releves-ecole" style={SR_ONLY}>École</label>
+              <select id="releves-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+                style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+                {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+              </select>
+            </>
           )}
+          <label htmlFor="releves-semestre" style={SR_ONLY}>Semestre</label>
           <select id="releves-semestre" name="semestre" value={semId}
             onChange={e => {
               setSemId(e.target.value);
@@ -424,6 +433,7 @@ export default function RelevesPage() {
               <input type="checkbox" id="releves-send-email" name="send-email" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} style={{ width: 14, height: 14 }} />
               📧 Email à la publication
             </label>
+            <label htmlFor="releves-search" style={SR_ONLY}>Rechercher un étudiant</label>
             <input type="search" id="releves-search" name="search" autoComplete="off" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="🔍 Rechercher…"
               style={{ padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit', width: 160 }} />

@@ -1,11 +1,12 @@
 // src/modules/etudiants/index.tsx
 // Module Étudiants — matricule auto-généré par trigger SQL (B3.1)
+// B9 : fetchEtudiants bascule sur recherche + pagination côté serveur (RPC fn_get_etudiants_ecole)
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import {
-  fetchEtudiants, deleteEtudiant, upsertEtudiant,
+  fetchEtudiants, fetchEtudiant, deleteEtudiant, upsertEtudiant,
   type Etudiant, type EtudiantStatut, type EtudiantCreatePayload
 } from './etudiants.service';
 import { FicheEtudiant }   from './components/FicheEtudiant';
@@ -104,57 +105,76 @@ export default function EtudiantsPage() {
   const { user } = useAuth();
   const { error, loading, run, runAction } = useErrorHandler();
 
-  const [etudiants,   setEtudiants]   = useState<Etudiant[]>([]);
-  const [search,      setSearch]      = useState('');
-  const [filterNiv,   setFilterNiv]   = useState('');
-  const [page,        setPage]        = useState(0);
-  const [ficheId,     setFicheId]     = useState<string | null>(null);
-  const [showImport,  setShowImport]  = useState(false);
-  const [showModal,   setShowModal]   = useState(false);
-  const [form,        setForm]        = useState<EtudiantCreatePayload>(FORM_INIT);
-  const [saving,      setSaving]      = useState(false);
+  const [etudiants,    setEtudiants]    = useState<Etudiant[]>([]);
+  const [total,        setTotal]        = useState(0);
+  const [searchInput,  setSearchInput]  = useState('');   // valeur brute du champ (à chaque frappe)
+  const [search,       setSearch]       = useState('');   // valeur debouncée, envoyée au serveur
+  const [filterNiv,    setFilterNiv]    = useState('');
+  const [page,         setPage]         = useState(0);
+  const [ficheId,      setFicheId]      = useState<string | null>(null);
+  const [showImport,   setShowImport]   = useState(false);
+  const [showModal,    setShowModal]    = useState(false);
+  const [form,         setForm]         = useState<EtudiantCreatePayload>(FORM_INIT);
+  const [saving,       setSaving]       = useState(false);
   const [newMatricule, setNewMatricule] = useState<string | null>(null); // matricule généré après création
-  const [ecoleId,     setEcoleId]     = useState<string | null>(user?.ecole_id ?? null);
+  const [ecoleId,      setEcoleId]      = useState<string | null>(user?.ecole_id ?? null);
+
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (user?.ecole_id) { setEcoleId(user.ecole_id); return; }
+    // Fallback réservé aux super-admins sans école assignée.
+    // On attend que l'auth soit résolue (user non-null) pour éviter de choisir
+    // une école par défaut avant que le vrai ecole_id de l'utilisateur soit connu
+    // (sinon la réponse tardive du fallback peut écraser la bonne valeur).
+    if (!user) return;
+    let cancelled = false;
     import('../../services/supabase').then(({ supabase }) => {
-      supabase.from('ecoles').select('id,nom').order('nom').limit(1).maybeSingle().then(({ data }) => {
-        if (data?.id) setEcoleId(data.id);
+      supabase.from('ecoles').select('id,nom').eq('actif', true).order('nom').limit(1).maybeSingle().then(({ data }) => {
+        if (!cancelled && data?.id) setEcoleId(data.id);
       });
     });
-  }, [user?.ecole_id]);
+    return () => { cancelled = true; };
+  }, [user?.ecole_id, user]);
 
-  const load = async () => {
-    if (!ecoleId) return;
-    const data = await run(
-      () => fetchEtudiants(ecoleId),
-      { context: 'Chargement étudiants', inline: true }
-    );
-    if (data) setEtudiants(data);
+  // ── Recherche : debounce 300ms avant d'interroger le serveur ──────────────
+  const handleSearchChange = (v: string) => {
+    setSearchInput(v);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setSearch(v);
+      setPage(0);
+    }, 300);
   };
 
-  useEffect(() => { if (ecoleId) load(); }, [ecoleId]);
-
-  // ── Filtres + pagination ──────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    let l = etudiants;
-    if (search) {
-      const s = search.toLowerCase();
-      l = l.filter(e => `${e.nom} ${e.prenom} ${e.matricule ?? ''}`.toLowerCase().includes(s));
+  // ── Chargement (recherche + filtre + pagination côté serveur) ─────────────
+  const load = async () => {
+    if (!ecoleId) return;
+    const result = await run(
+      () => fetchEtudiants({
+        ecoleId,
+        search: search.trim() || undefined,
+        niveau: filterNiv || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+      }),
+      { context: 'Chargement étudiants', inline: true }
+    );
+    if (result) {
+      setEtudiants(result.data);
+      setTotal(result.total);
     }
-    if (filterNiv) l = l.filter(e => e.niveau === filterNiv);
-    return l;
-  }, [etudiants, search, filterNiv]);
+  };
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
-  const paginated  = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  useEffect(() => { if (ecoleId) load(); }, [ecoleId, search, filterNiv, page]);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
 
   // ── Suppression ───────────────────────────────────────────────────────────
   const handleDelete = async (id: string, nom: string) => {
     if (!confirm(`Supprimer ${nom} ? Cette action est irréversible.`)) return;
     const ok = await runAction(() => deleteEtudiant(id), 'Suppression étudiant');
-    if (ok !== null) setEtudiants(prev => prev.filter(e => e.id !== id));
+    if (ok !== null) load();
   };
 
   // ── Création étudiant ─────────────────────────────────────────────────────
@@ -170,15 +190,12 @@ export default function EtudiantsPage() {
     try {
       // matricule NON inclus → le trigger SQL fn_generate_matricule le génère
       const id = await upsertEtudiant({ ...form, ecole_id: ecoleId });
-      // Recharger pour récupérer le matricule généré par le trigger
-      const data = await fetchEtudiants(ecoleId);
-      if (data) {
-        setEtudiants(data);
-        const created = data.find(e => e.id === id);
-        if (created?.matricule) setNewMatricule(created.matricule);
-      }
+      // Récupérer le matricule généré par le trigger pour le bandeau de confirmation
+      const created = await fetchEtudiant(id);
+      if (created?.matricule) setNewMatricule(created.matricule);
       setForm(FORM_INIT);
       setShowModal(false);
+      load();
     } catch (err) {
       import('../../hooks/useErrorHandler').then(({ addToast }) =>
         addToast(`Erreur création : ${err instanceof Error ? err.message : 'Inconnue'}`, 'error')
@@ -210,7 +227,7 @@ export default function EtudiantsPage() {
         <div>
           <h1 style={S.h1}>🧑‍🎓 Étudiants</h1>
           <p style={S.sub}>
-            {loading ? '…' : `${etudiants.length} étudiant${etudiants.length > 1 ? 's' : ''} enregistré${etudiants.length > 1 ? 's' : ''}`}
+            {loading ? '…' : `${total} étudiant${total > 1 ? 's' : ''} enregistré${total > 1 ? 's' : ''}`}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -265,46 +282,46 @@ export default function EtudiantsPage() {
                 <div style={S.sectionTitle}>👤 Identité</div>
                 <div style={S.formGrid}>
                   <div style={S.field}>
-                    <label style={S.label}>Nom <span style={S.req}>*</span></label>
-                    <input style={S.input}
+                    <label style={S.label} htmlFor="etu-nom">Nom <span style={S.req}>*</span></label>
+                    <input style={S.input} id="etu-nom" name="nom" autoComplete="off"
                       value={form.nom}
                       onChange={e => handleField('nom', e.target.value.toUpperCase())}
                       placeholder="KPADONOU"
                     />
                   </div>
                   <div style={S.field}>
-                    <label style={S.label}>Prénom <span style={S.req}>*</span></label>
-                    <input style={S.input}
+                    <label style={S.label} htmlFor="etu-prenom">Prénom <span style={S.req}>*</span></label>
+                    <input style={S.input} id="etu-prenom" name="prenom" autoComplete="off"
                       value={form.prenom}
                       onChange={e => handleField('prenom', e.target.value)}
                       placeholder="Fidèle"
                     />
                   </div>
                   <div style={S.field}>
-                    <label style={S.label}>Sexe</label>
-                    <select style={S.input} value={form.sexe} onChange={e => handleField('sexe', e.target.value)}>
+                    <label style={S.label} htmlFor="etu-sexe">Sexe</label>
+                    <select style={S.input} id="etu-sexe" name="sexe" value={form.sexe} onChange={e => handleField('sexe', e.target.value)}>
                       <option value="M">Masculin</option>
                       <option value="F">Féminin</option>
                     </select>
                   </div>
                   <div style={S.field}>
-                    <label style={S.label}>Date de naissance</label>
-                    <input style={S.input} type="date"
+                    <label style={S.label} htmlFor="etu-date-naissance">Date de naissance</label>
+                    <input style={S.input} id="etu-date-naissance" name="date_naissance" type="date"
                       value={form.date_naissance}
                       onChange={e => handleField('date_naissance', e.target.value)}
                     />
                   </div>
                   <div style={S.field}>
-                    <label style={S.label}>Lieu de naissance</label>
-                    <input style={S.input}
+                    <label style={S.label} htmlFor="etu-lieu-naissance">Lieu de naissance</label>
+                    <input style={S.input} id="etu-lieu-naissance" name="lieu_naissance" autoComplete="off"
                       value={form.lieu_naissance}
                       onChange={e => handleField('lieu_naissance', e.target.value)}
                       placeholder="Cotonou"
                     />
                   </div>
                   <div style={S.field}>
-                    <label style={S.label}>Adresse</label>
-                    <input style={S.input}
+                    <label style={S.label} htmlFor="etu-adresse">Adresse</label>
+                    <input style={S.input} id="etu-adresse" name="adresse" autoComplete="off"
                       value={form.adresse}
                       onChange={e => handleField('adresse', e.target.value)}
                       placeholder="Quartier, ville"
@@ -318,29 +335,29 @@ export default function EtudiantsPage() {
                 <div style={S.sectionTitle}>🎓 Parcours académique</div>
                 <div style={S.formGrid}>
                   <div style={S.field}>
-                    <label style={S.label}>Filière <span style={S.req}>*</span></label>
-                    <select style={S.input} value={form.filiere} onChange={e => handleField('filiere', e.target.value)}>
+                    <label style={S.label} htmlFor="etu-filiere">Filière <span style={S.req}>*</span></label>
+                    <select style={S.input} id="etu-filiere" name="filiere" value={form.filiere} onChange={e => handleField('filiere', e.target.value)}>
                       <option value="">— Choisir —</option>
                       {FILIERES.map(f => <option key={f} value={f}>{f}</option>)}
                     </select>
                   </div>
                   <div style={S.field}>
-                    <label style={S.label}>Niveau</label>
-                    <select style={S.input} value={form.niveau} onChange={e => handleField('niveau', e.target.value)}>
+                    <label style={S.label} htmlFor="etu-niveau">Niveau</label>
+                    <select style={S.input} id="etu-niveau" name="niveau" value={form.niveau} onChange={e => handleField('niveau', e.target.value)}>
                       {NIVEAUX.map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </div>
                   <div style={S.field}>
-                    <label style={S.label}>Email étudiant</label>
-                    <input style={S.input} type="email"
+                    <label style={S.label} htmlFor="etu-email">Email étudiant</label>
+                    <input style={S.input} id="etu-email" name="email_auth" type="email" autoComplete="off"
                       value={form.email_auth}
                       onChange={e => handleField('email_auth', e.target.value.toLowerCase())}
                       placeholder="etudiant@email.com"
                     />
                   </div>
                   <div style={S.field}>
-                    <label style={S.label}>Statut</label>
-                    <select style={S.input} value={form.statut} onChange={e => handleField('statut', e.target.value)}>
+                    <label style={S.label} htmlFor="etu-statut">Statut</label>
+                    <select style={S.input} id="etu-statut" name="statut" value={form.statut} onChange={e => handleField('statut', e.target.value)}>
                       <option value="actif">Actif</option>
                       <option value="inactif">Inactif</option>
                     </select>
@@ -364,16 +381,16 @@ export default function EtudiantsPage() {
                 <div style={S.sectionTitle}>👨‍👩‍👦 Contact parent / tuteur</div>
                 <div style={S.formGrid}>
                   <div style={S.field}>
-                    <label style={S.label}>Téléphone parent</label>
-                    <input style={S.input}
+                    <label style={S.label} htmlFor="etu-tel-parent">Téléphone parent</label>
+                    <input style={S.input} id="etu-tel-parent" name="telephone_parent" autoComplete="off"
                       value={form.telephone_parent}
                       onChange={e => handleField('telephone_parent', e.target.value)}
                       placeholder="+229 97 00 00 00"
                     />
                   </div>
                   <div style={S.field}>
-                    <label style={S.label}>Email parent</label>
-                    <input style={S.input} type="email"
+                    <label style={S.label} htmlFor="etu-email-parent">Email parent</label>
+                    <input style={S.input} id="etu-email-parent" name="email_parent" type="email" autoComplete="off"
                       value={form.email_parent}
                       onChange={e => handleField('email_parent', e.target.value.toLowerCase())}
                       placeholder="parent@email.com"
@@ -403,14 +420,21 @@ export default function EtudiantsPage() {
 
       {/* ── Filtres ── */}
       <div style={S.filters}>
+        <label htmlFor="etudiants-search" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Rechercher un étudiant</label>
         <input
           type="text"
+          id="etudiants-search"
+          name="etudiants-search"
+          autoComplete="off"
           placeholder="🔍 Rechercher par nom, prénom, matricule…"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(0); }}
+          value={searchInput}
+          onChange={e => handleSearchChange(e.target.value)}
           style={S.filterInput}
         />
+        <label htmlFor="etudiants-filter-niveau" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Filtrer par niveau</label>
         <select
+          id="etudiants-filter-niveau"
+          name="etudiants-filter-niveau"
           value={filterNiv}
           onChange={e => { setFilterNiv(e.target.value); setPage(0); }}
           style={{ ...S.filterInput, maxWidth: 140 }}
@@ -434,7 +458,7 @@ export default function EtudiantsPage() {
           <div style={S.spinner} />
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : etudiants.length === 0 ? (
         <div style={S.empty}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>🧑‍🎓</div>
           <p>Aucun étudiant{search ? ' correspondant à la recherche' : ''}</p>
@@ -449,7 +473,7 @@ export default function EtudiantsPage() {
         <div style={S.tableWrap}>
           <ResponsiveTable<Etudiant>
             columns={etudiantColumns}
-            data={paginated}
+            data={etudiants}
             keyExtractor={e => e.id}
             actions={e => (
               <>
@@ -462,10 +486,10 @@ export default function EtudiantsPage() {
       )}
 
       {/* ── Pagination ── */}
-      {!loading && filtered.length > PAGE_SIZE && (
+      {!loading && total > PAGE_SIZE && (
         <div style={S.pagination}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>
-            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length} étudiant{filtered.length > 1 ? 's' : ''}
+            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} sur {total} étudiant{total > 1 ? 's' : ''}
           </span>
           <div style={{ display: 'flex', gap: 6 }}>
             <button style={S.btnGhost} disabled={page === 0}             onClick={() => setPage(p => p - 1)}>← Préc.</button>

@@ -1,6 +1,6 @@
 /* ── Tabs ── */
 .tabs { display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; margin-bottom: 1rem; }
-.tab  { background: transparent; color: #6b7280; border: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; margin-bottom: -2px; transition: all .15s; font-family: inherit; }
+.tab  { background: transparent; color: #4b5563; border: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; margin-bottom: -2px; transition: all .15s; font-family: inherit; }
 .tab:hover  { color: #1B2A4A; }
 .tab.active { color: #1B2A4A; border-bottom-color: #C8932E; font-weight: 600; }
 
@@ -10,24 +10,25 @@
 .modal { background: #fff; border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.2); max-height: 90vh; overflow-y: auto; }
 
 /* ── Empty state ── */
-.empty-state { text-align: center; padding: 3rem 1rem; color: #9ca3af; }
+/* B11.1 — #9ca3af remplacé par #6b7280 (ratio 2.5:1 → 4.8:1, conforme WCAG AA) */
+.empty-state { text-align: center; padding: 3rem 1rem; color: #6b7280; }
 .empty-state .es-ico { font-size: 40px; margin-bottom: .75rem; }
 .empty-state h3 { font-size: 15px; color: #374151; margin-bottom: .25rem; }
 .empty-state p  { font-size: 13px; }
 .empty-state button { padding: 8px 16px; background: #1B2A4A; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: .75rem; font-family: inherit; }
 
 /* ── Form controls ── */
-label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; display: block; }
+label { font-size: 11px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: .04em; display: block; }
 input[type=text], input[type=number], input[type=date], select { padding: 7px 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: inherit; outline: none; width: 100%; box-sizing: border-box; }
 input:focus, select:focus { border-color: #C8932E; box-shadow: 0 0 0 2px rgba(200,147,46,0.15); }
 
 /* ── Loading ── */
-.loading { padding: 2rem; text-align: center; color: #9ca3af; font-size: 13px; }
+.loading { padding: 2rem; text-align: center; color: #6b7280; font-size: 13px; }
 
 /* ── Page header (.top) ── */
 .top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; padding: 0; }
 .top h2 { font-family: 'Lora', serif; font-size: 22px; font-weight: 600; color: #1B2A4A; margin: 0; }
-.page-subtitle { font-size: 13px; color: #64748b; margin: 2px 0 0; }
+.page-subtitle { font-size: 13px; color: #4b5563; margin: 2px 0 0; }
 .top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* ── Buttons ── */
@@ -81,3 +82,71 @@ input:focus, select:focus { border-color: #C8932E; box-shadow: 0 0 0 2px rgba(20
 .s-en_cours  { background: #d1fae5; color: #065f46; }
 .s-cloture   { background: #fef3c7; color: #92400e; }
 .s-archive   { background: #dbeafe; color: #1d4ed8; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   B11.10 — Mode contraste élevé (prefers-contrast: high / forced-colors)
+   Renforce les bordures et les contours de focus sur les éléments partagés.
+   ═════════════════════════════════════════════════════════════════════════ */
+@media (prefers-contrast: high) {
+  .tab.active { border-bottom-width: 3px; }
+  .modal { border: 2px solid #1B2A4A; }
+  .btn-ghost { border-width: 2px; border-color: #1e293b; color: #000; }
+  .btn-blue { outline: 2px solid #000; outline-offset: 1px; }
+  .table-wrap { border: 2px solid #1B2A4A; }
+  .table-wrap th { border-bottom-width: 2px; border-bottom-color: #1B2A4A; }
+  input[type=text], input[type=number], input[type=date], select {
+    border-width: 2px; border-color: #1e293b;
+  }
+  .badge { border: 1px solid currentColor; }
+  a:focus-visible, button:focus-visible, input:focus-visible,
+  select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+    outline-width: 4px !important;
+  }
+}
+
+/* Windows High Contrast Mode (forced-colors) — s'appuie sur les couleurs système */
+@media (forced-colors: active) {
+  .btn-blue, .btn-ghost, .table-wrap, .modal, input, select {
+    forced-color-adjust: none;
+    border: 1px solid CanvasText;
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   B11.10 — Thème sombre (prefers-color-scheme: dark)
+   S'applique aux éléments basés sur les classes CSS partagées (modales,
+   tableaux, boutons, formulaires, badges). Les pages construites avec des
+   styles inline (cartes de tableaux de bord, etc.) ne sont pas couvertes
+   par cette media query — voir note de session pour le suivi.
+   ═════════════════════════════════════════════════════════════════════════ */
+@media (prefers-color-scheme: dark) {
+  body { background: #0f172a; color: #e2e8f0; }
+
+  .modal { background: #1e293b; color: #e2e8f0; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  .modal-overlay { background: rgba(0,0,0,.7); }
+
+  .top h2 { color: #F7F4ED; }
+  .page-subtitle { color: #94a3b8; }
+  label { color: #94a3b8; }
+
+  .empty-state { color: #94a3b8; }
+  .empty-state h3 { color: #e2e8f0; }
+  .loading { color: #94a3b8; }
+
+  input[type=text], input[type=number], input[type=date], select {
+    background: #0f172a; color: #e2e8f0; border-color: #334155;
+  }
+  input:focus, select:focus { border-color: #C8932E; }
+
+  .btn-ghost { background: #1e293b; color: #e2e8f0; border-color: #334155; }
+  .btn-ghost:hover { background: #334155; }
+
+  .table-wrap { background: #1e293b; border-color: #334155; }
+  .table-wrap thead { background: #0f172a; }
+  .table-wrap th { color: #F7F4ED; border-bottom-color: #334155; }
+  .table-wrap td { border-bottom-color: #334155; color: #e2e8f0; }
+  .table-wrap tbody tr:hover { background: #263449; }
+
+  .tab { color: #94a3b8; }
+  .tab.active { color: #F7F4ED; }
+}

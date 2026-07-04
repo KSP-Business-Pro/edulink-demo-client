@@ -255,7 +255,7 @@ export default function PromotionsPage() {
                 <label htmlFor="promo-responsable">Responsable pédagogique</label>
                 <input id="promo-responsable" name="responsable" autoComplete="off" type="text" value={form.responsable} onChange={e => setForm(f => ({ ...f, responsable: e.target.value }))} style={{ width: '100%', marginTop: 4 }} placeholder="Nom du responsable (optionnel)" />
               </div>
-              {formError && <div style={{ background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: '1rem' }}>{formError}</div>}
+              {formError && <div role="alert" style={{ background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: '1rem' }}>{formError}</div>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.5rem', paddingTop: '.85rem', borderTop: '1px solid #f3f4f6' }}>
                 <button type="button" className="btn-ghost" onClick={() => setModalOpen(false)}>Annuler</button>
                 <button type="submit" className="btn-blue" disabled={saving}>

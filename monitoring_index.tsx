@@ -297,11 +297,11 @@ export default function MonitoringPage() {
             <div className="card" style={{ padding: '1.2rem' }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', marginBottom: '1rem' }}>💰 Finances réseau</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '.6rem .75rem', background: '#fef2f2', borderRadius: 7 }}>
+                <div role="alert" style={{ display: 'flex', justifyContent: 'space-between', padding: '.6rem .75rem', background: '#fef2f2', borderRadius: 7 }}>
                   <span style={{ fontSize: 12, color: '#dc2626' }}>Total impayés réseau</span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#dc2626' }}>{Math.round(stats.totalMontantImpaye).toLocaleString('fr-FR')} FCFA</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '.6rem .75rem', background: '#fef9c3', borderRadius: 7 }}>
+                <div role="alert" style={{ display: 'flex', justifyContent: 'space-between', padding: '.6rem .75rem', background: '#fef9c3', borderRadius: 7 }}>
                   <span style={{ fontSize: 12, color: '#92400e' }}>Factures en attente / partiel</span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>{stats.totalFacturesImpayees}</span>
                 </div>

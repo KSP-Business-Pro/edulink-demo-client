@@ -121,7 +121,7 @@ export default function ModalMatieres({ ecoleId, ueId, ueNom, enseignants, onClo
             {view === 'list' && (
               <button className="btn-sm btn-blue" onClick={openAdd}>+ Ajouter</button>
             )}
-            <button className="btn-ghost btn-sm" onClick={onClose}>✕</button>
+            <button className="btn-ghost btn-sm" onClick={onClose} aria-label="Fermer la fenêtre">✕</button>
           </div>
         </div>
 
@@ -165,8 +165,8 @@ export default function ModalMatieres({ ecoleId, ueId, ueNom, enseignants, onClo
                           }
                         </td>
                         <td style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn-ghost btn-sm" onClick={() => openEdit(m)}>✏</button>
-                          <button className="btn-ghost btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDelete(m.id, m.nom)}>🗑</button>
+                          <button className="btn-ghost btn-sm" onClick={() => openEdit(m)} aria-label={`Modifier ${m.nom}`}>✏</button>
+                          <button className="btn-ghost btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDelete(m.id, m.nom)} aria-label={`Supprimer ${m.nom}`}>🗑</button>
                         </td>
                       </tr>
                     ))}
@@ -182,8 +182,9 @@ export default function ModalMatieres({ ecoleId, ueId, ueNom, enseignants, onClo
           <form onSubmit={handleSubmit} autoComplete="off">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '.75rem', marginBottom: '.85rem' }}>
               <div>
-                <label>Code *</label>
+                <label htmlFor="mat-code">Code *</label>
                 <input
+                  id="mat-code" name="code"
                   type="text"
                   value={form.code}
                   onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))}
@@ -194,8 +195,9 @@ export default function ModalMatieres({ ecoleId, ueId, ueNom, enseignants, onClo
                 />
               </div>
               <div>
-                <label>Nom *</label>
+                <label htmlFor="mat-nom">Nom *</label>
                 <input
+                  id="mat-nom" name="nom"
                   type="text"
                   value={form.nom}
                   onChange={(e) => setForm(f => ({ ...f, nom: e.target.value }))}
@@ -208,8 +210,9 @@ export default function ModalMatieres({ ecoleId, ueId, ueNom, enseignants, onClo
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '.75rem', marginBottom: '.85rem' }}>
               <div>
-                <label>Coefficient *</label>
+                <label htmlFor="mat-coef">Coefficient *</label>
                 <input
+                  id="mat-coef" name="coefficient"
                   type="number"
                   value={form.coefficient}
                   onChange={(e) => setForm(f => ({ ...f, coefficient: parseFloat(e.target.value) || 1 }))}
@@ -219,8 +222,9 @@ export default function ModalMatieres({ ecoleId, ueId, ueNom, enseignants, onClo
                 />
               </div>
               <div>
-                <label>Heures CM</label>
+                <label htmlFor="mat-cm">Heures CM</label>
                 <input
+                  id="mat-cm" name="heures_cm"
                   type="number"
                   value={form.heures_cm}
                   onChange={(e) => setForm(f => ({ ...f, heures_cm: parseInt(e.target.value) || 0 }))}
@@ -229,8 +233,9 @@ export default function ModalMatieres({ ecoleId, ueId, ueNom, enseignants, onClo
                 />
               </div>
               <div>
-                <label>Heures TD</label>
+                <label htmlFor="mat-td">Heures TD</label>
                 <input
+                  id="mat-td" name="heures_td"
                   type="number"
                   value={form.heures_td}
                   onChange={(e) => setForm(f => ({ ...f, heures_td: parseInt(e.target.value) || 0 }))}
@@ -241,8 +246,9 @@ export default function ModalMatieres({ ecoleId, ueId, ueNom, enseignants, onClo
             </div>
 
             <div style={{ marginBottom: '1.2rem' }}>
-              <label>Enseignant</label>
+              <label htmlFor="mat-enseignant">Enseignant</label>
               <select
+                id="mat-enseignant" name="enseignant_id"
                 value={form.enseignant_id}
                 onChange={(e) => setForm(f => ({ ...f, enseignant_id: e.target.value }))}
                 style={{ width: '100%', marginTop: 4 }}
@@ -255,7 +261,7 @@ export default function ModalMatieres({ ecoleId, ueId, ueNom, enseignants, onClo
             </div>
 
             {error && (
-              <div style={{ background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: '1rem' }}>
+              <div role="alert" style={{ background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: '1rem' }}>
                 {error}
               </div>
             )}

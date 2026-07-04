@@ -12,9 +12,111 @@ import {
   fetchRattNotes, calculerRattrapageBatch, getRegles, clearReglesCache,
 } from '../../services/resultats.service';
 import ModalDetailUE from './components/ModalDetailUE';
+import ResponsiveTable, { type RTColumn } from '../../components/ResponsiveTable';
 
 interface SemestreOption { id: string; libelle: string; niveau: string }
 interface EcoleOption    { id: string; nom: string }
+
+// ── Colonnes du tableau Résultats semestriels ──────────────────────────────
+const resultatColumns: RTColumn<LigneResultat>[] = [
+  {
+    key: 'matricule',
+    label: 'Matricule',
+    mono: true,
+    render: ({ etudiant: et }) => (
+      <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>
+        {et.matricule ?? '—'}
+      </code>
+    ),
+  },
+  {
+    key: 'etudiant',
+    label: 'Étudiant',
+    primary: true,
+    render: ({ etudiant: et }) => <strong>{et.nom} {et.prenom}</strong>,
+  },
+  {
+    key: 'filiere',
+    label: 'Filière',
+    render: ({ etudiant: et }) => <span style={{ fontSize: 12, color: '#6b7280' }}>{et.filiere ?? '—'}</span>,
+  },
+  {
+    key: 'credits',
+    label: 'Crédits validés',
+    render: ({ cache: c }) => (
+      <span className={`badge ${c && c.credits_valides > 0 ? 'teal' : 'gray'}`}>
+        {c?.credits_valides ?? '—'} CECT
+      </span>
+    ),
+  },
+  {
+    key: 'moyenne',
+    label: 'Moyenne',
+    render: ({ cache: c }) => c?.moyenne_semestre != null
+      ? <span className="badge teal">{Number(c.moyenne_semestre).toFixed(2)}</span>
+      : <span className="badge gray">—</span>,
+  },
+  {
+    key: 'mention',
+    label: 'Mention',
+    render: ({ cache: c }) => c?.mention
+      ? <span className={`badge ${MENTION_COLOR[c.mention] ?? 'gray'}`}>{MENTION_LABEL[c.mention] ?? c.mention}</span>
+      : <span className="badge gray">—</span>,
+  },
+  {
+    key: 'resultat',
+    label: 'Résultat',
+    render: ({ cache: c }) => c
+      ? <span className={`badge ${c.semestre_valide ? 'green' : 'red'}`}>{c.semestre_valide ? 'Validé' : 'Non validé'}</span>
+      : <span className="badge gray">Non calculé</span>,
+  },
+];
+
+// ── Colonnes du tableau Rattrapage ─────────────────────────────────────────
+interface RattRow { etudiant: EtudiantResultat; cache: ResultatCache | null; rattNbUE: number }
+const rattColumns: RTColumn<RattRow>[] = [
+  {
+    key: 'matricule',
+    label: 'Matricule',
+    render: ({ etudiant: et }) => <span style={{ fontSize: 11, color: '#6b7280' }}>{et.matricule ?? '—'}</span>,
+  },
+  {
+    key: 'etudiant',
+    label: 'Étudiant',
+    primary: true,
+    render: ({ etudiant: et }) => <span style={{ fontWeight: 500 }}>{et.nom} {et.prenom}</span>,
+  },
+  {
+    key: 'moyenne',
+    label: 'Moy. normale',
+    render: ({ cache: c }) => (
+      <span style={{ color: '#dc2626', fontWeight: 600 }}>
+        {c?.moyenne_semestre != null ? `${Number(c.moyenne_semestre).toFixed(2)}/20` : '—'}
+      </span>
+    ),
+  },
+  {
+    key: 'decision_normale',
+    label: 'Décision normale',
+    render: () => <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Ajourné</span>,
+  },
+  {
+    key: 'notes_ratt',
+    label: 'Notes ratt.',
+    render: ({ rattNbUE }) => rattNbUE > 0
+      ? <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: 999, fontSize: 11 }}>{rattNbUE} UE saisie(s)</span>
+      : <span style={{ color: '#9ca3af', fontSize: 12 }}>Pas de notes</span>,
+  },
+  {
+    key: 'decision_finale',
+    label: 'Décision finale',
+    render: ({ cache: c }) => c?.decision === 'admis'
+      ? <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Admis ✅</span>
+      : c?.decision === 'redoublant'
+        ? <span style={{ background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Redoublant</span>
+        : <span style={{ color: '#9ca3af', fontSize: 12 }}>Non calculé</span>,
+  },
+];
 
 export default function ResultatsPage() {
   const { user, isSuperAdmin } = useAuth();
@@ -158,12 +260,16 @@ export default function ResultatsPage() {
         </div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
-              style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
-              {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
-            </select>
+            <>
+              <label htmlFor="resultats-ecole" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>École</label>
+              <select id="resultats-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+                style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+                {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+              </select>
+            </>
           )}
-          <select value={semId} onChange={e => setSemId(e.target.value)}
+          <label htmlFor="resultats-semestre" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Semestre</label>
+          <select id="resultats-semestre" name="semestre" value={semId} onChange={e => setSemId(e.target.value)}
             style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 220 }}>
             <option value="">Sélectionner un semestre…</option>
             {semestres.map(s => <option key={s.id} value={s.id}>{s.libelle}</option>)}
@@ -246,62 +352,19 @@ export default function ResultatsPage() {
                 ? <div className="empty-state"><div className="es-ico">📋</div><h3>Aucun étudiant inscrit</h3></div>
                 : (
                   <div className="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Matricule</th>
-                          <th>Étudiant</th>
-                          <th>Filière</th>
-                          <th style={{ textAlign: 'center' }}>Crédits validés</th>
-                          <th style={{ textAlign: 'center' }}>Moyenne</th>
-                          <th style={{ textAlign: 'center' }}>Mention</th>
-                          <th style={{ textAlign: 'center' }}>Résultat</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {lignes.map(({ etudiant: et, cache: c }) => (
-                          <tr key={et.id}>
-                            <td>
-                              <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>
-                                {et.matricule ?? '—'}
-                              </code>
-                            </td>
-                            <td><strong>{et.nom} {et.prenom}</strong></td>
-                            <td style={{ fontSize: 12, color: '#6b7280' }}>{et.filiere ?? '—'}</td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span className={`badge ${c && c.credits_valides > 0 ? 'teal' : 'gray'}`}>
-                                {c?.credits_valides ?? '—'} CECT
-                              </span>
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              {c?.moyenne_semestre != null
-                                ? <span className="badge teal">{Number(c.moyenne_semestre).toFixed(2)}</span>
-                                : <span className="badge gray">—</span>
-                              }
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              {c?.mention
-                                ? <span className={`badge ${MENTION_COLOR[c.mention] ?? 'gray'}`}>{MENTION_LABEL[c.mention] ?? c.mention}</span>
-                                : <span className="badge gray">—</span>
-                              }
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              {c
-                                ? <span className={`badge ${c.semestre_valide ? 'green' : 'red'}`}>{c.semestre_valide ? 'Validé' : 'Non validé'}</span>
-                                : <span className="badge gray">Non calculé</span>
-                              }
-                            </td>
-                            <td style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                              <button className="btn-ghost btn-sm" onClick={() => setModal({ etudiantId: et.id, nom: `${et.nom} ${et.prenom}` })}>
-                                Détail
-                              </button>
-                              <button className="btn-ghost btn-sm" title="Recalculer" onClick={() => handleRecalculerUn(et.id)}>🔄</button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <ResponsiveTable<LigneResultat>
+                      columns={resultatColumns}
+                      data={lignes}
+                      keyExtractor={({ etudiant: et }) => et.id}
+                      actions={({ etudiant: et }) => (
+                        <>
+                          <button className="btn-ghost btn-sm" onClick={() => setModal({ etudiantId: et.id, nom: `${et.nom} ${et.prenom}` })}>
+                            Détail
+                          </button>
+                          <button className="btn-ghost btn-sm" title="Recalculer" onClick={() => handleRecalculerUn(et.id)}>🔄</button>
+                        </>
+                      )}
+                    />
                   </div>
                 )
               }
@@ -314,7 +377,7 @@ export default function ResultatsPage() {
       {tab === 'rattrapage' && semId && (
         <>
           {regles && (
-            <div style={{ padding: '.85rem 1rem', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 10, marginBottom: '1rem', fontSize: 13, color: '#92400e' }}>
+            <div role="alert" style={{ padding: '.85rem 1rem', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 10, marginBottom: '1rem', fontSize: 13, color: '#92400e' }}>
               ⚖️ <strong>Règle appliquée :</strong> {regles.regle_rattrapage === 'ecrase' ? 'Note rattrapage remplace la normale' : 'Max(note normale, note rattrapage)'} par UE · Seuil validation : {regles.seuil_validation_ue}/20
             </div>
           )}
@@ -329,46 +392,11 @@ export default function ResultatsPage() {
             )
             : (
               <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Matricule</th>
-                      <th>Étudiant</th>
-                      <th style={{ textAlign: 'center' }}>Moy. normale</th>
-                      <th style={{ textAlign: 'center' }}>Décision normale</th>
-                      <th style={{ textAlign: 'center' }}>Notes ratt.</th>
-                      <th style={{ textAlign: 'center' }}>Décision finale</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rattRows.map(({ etudiant: et, cache: c, rattNbUE }) => (
-                      <tr key={et.id}>
-                        <td style={{ fontSize: 11, color: '#6b7280' }}>{et.matricule ?? '—'}</td>
-                        <td style={{ fontWeight: 500 }}>{et.nom} {et.prenom}</td>
-                        <td style={{ textAlign: 'center', color: '#dc2626', fontWeight: 600 }}>
-                          {c?.moyenne_semestre != null ? `${Number(c.moyenne_semestre).toFixed(2)}/20` : '—'}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Ajourné</span>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {rattNbUE > 0
-                            ? <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: 999, fontSize: 11 }}>{rattNbUE} UE saisie(s)</span>
-                            : <span style={{ color: '#9ca3af', fontSize: 12 }}>Pas de notes</span>
-                          }
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {c?.decision === 'admis'
-                            ? <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Admis ✅</span>
-                            : c?.decision === 'redoublant'
-                            ? <span style={{ background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600 }}>Redoublant</span>
-                            : <span style={{ color: '#9ca3af', fontSize: 12 }}>Non calculé</span>
-                          }
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <ResponsiveTable<RattRow>
+                  columns={rattColumns}
+                  data={rattRows}
+                  keyExtractor={({ etudiant: et }) => et.id}
+                />
               </div>
             )
           }

@@ -64,7 +64,7 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
       <div className="modal" style={{ width: 620, padding: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#111827' }}>Fiche comptable — {nom}</h3>
-          <button className="btn-ghost btn-sm" onClick={onClose}>✕</button>
+          <button className="btn-ghost btn-sm" onClick={onClose} aria-label="Fermer la fenêtre">✕</button>
         </div>
 
         {/* Résumé financier */}
@@ -141,22 +141,22 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
           <div className="modal" style={{ width: 420, padding: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.4rem' }}>
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Enregistrer un paiement</h3>
-              <button className="btn-ghost btn-sm" onClick={() => setPaiementModal(null)}>✕</button>
+              <button className="btn-ghost btn-sm" onClick={() => setPaiementModal(null)} aria-label="Fermer la fenêtre">✕</button>
             </div>
             <form onSubmit={handlePaiement}>
               <div style={{ marginBottom: '.85rem' }}>
-                <label>Montant payé (FCFA) *</label>
-                <input type="number" value={paiementMontant} onChange={e => setPaiementMontant(e.target.value)}
-                  style={{ width: '100%', marginTop: 4 }} min={1} step="any" required autoFocus />
+                <label htmlFor="paie-montant">Montant payé (FCFA) *</label>
+                <input type="number" id="paie-montant" name="montant" value={paiementMontant} onChange={e => setPaiementMontant(e.target.value)}
+                  style={{ width: '100%', marginTop: 4 }} min={1} step="any" required autoFocus aria-describedby={error ? 'paie-error' : undefined} />
               </div>
               <div style={{ marginBottom: '1.2rem' }}>
-                <label>Mode de paiement *</label>
-                <select value={paiementMode} onChange={e => setPaiementMode(e.target.value as ModePaiement)}
+                <label htmlFor="paie-mode">Mode de paiement *</label>
+                <select id="paie-mode" name="mode" value={paiementMode} onChange={e => setPaiementMode(e.target.value as ModePaiement)}
                   style={{ width: '100%', marginTop: 4 }} required>
                   {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
               </div>
-              {error && <div style={{ background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: '1rem' }}>{error}</div>}
+              {error && <div id="paie-error" role="alert" style={{ background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: '1rem' }}>{error}</div>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.5rem', paddingTop: '.85rem', borderTop: '1px solid #f3f4f6' }}>
                 <button type="button" className="btn-ghost" onClick={() => setPaiementModal(null)}>Annuler</button>
                 <button type="submit" className="btn-blue" disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer →'}</button>

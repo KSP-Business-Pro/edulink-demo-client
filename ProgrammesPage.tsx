@@ -135,10 +135,13 @@ export default function ProgrammesPage() {
         </div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select value={ecoleId} onChange={(e) => setEcoleId(e.target.value)}
-              style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, fontFamily: 'inherit' }}>
-              {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
-            </select>
+            <>
+              <label htmlFor="prog-ecole" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>École</label>
+              <select id="prog-ecole" name="ecole" value={ecoleId} onChange={(e) => setEcoleId(e.target.value)}
+                style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, fontFamily: 'inherit' }}>
+                {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+              </select>
+            </>
           )}
           {tab === 'programmes' && (
             <button className="btn-blue" onClick={() => setModalProg({ open: true, item: null })}>+ Programme</button>

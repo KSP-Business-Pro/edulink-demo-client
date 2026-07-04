@@ -420,6 +420,7 @@ export default function EtudiantsPage() {
 
       {/* ── Filtres ── */}
       <div style={S.filters}>
+        <label htmlFor="etudiants-search" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Rechercher un étudiant</label>
         <input
           type="text"
           id="etudiants-search"
@@ -430,6 +431,7 @@ export default function EtudiantsPage() {
           onChange={e => handleSearchChange(e.target.value)}
           style={S.filterInput}
         />
+        <label htmlFor="etudiants-filter-niveau" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Filtrer par niveau</label>
         <select
           id="etudiants-filter-niveau"
           name="etudiants-filter-niveau"

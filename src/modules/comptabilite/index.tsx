@@ -15,6 +15,11 @@ import ParametrageFinancier from './components/ParametrageFinancier';
 
 interface EcoleOption { id: string; nom: string }
 
+const SR_ONLY: React.CSSProperties = {
+  position: 'absolute', width: 1, height: 1, overflow: 'hidden',
+  clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap',
+};
+
 const STATUT_COLOR: Record<string, string> = { paye: 'green', partiel: 'amber', en_attente: 'red' };
 
 function statutDe(e: EtudiantCompta): 'paye' | 'partiel' | 'en_attente' {
@@ -199,10 +204,13 @@ export default function ComptabilitePage() {
         </div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select id="compta-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
-              style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
-              {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
-            </select>
+            <>
+              <label htmlFor="compta-ecole" style={SR_ONLY}>École</label>
+              <select id="compta-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+                style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+                {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+              </select>
+            </>
           )}
           <button onClick={() => setMasseModal(true)} style={{ background: '#f3f4f6', color: '#374151', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: tab === 'facturation' ? 'inline-block' : 'none' }}>
             📋 Facturer une promotion
@@ -324,13 +332,16 @@ export default function ComptabilitePage() {
 
           {/* Filtres */}
           <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <label htmlFor="compta-search" style={SR_ONLY}>Rechercher une facture</label>
             <input type="search" id="compta-search" name="search" autoComplete="off" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="🔍 Rechercher…" style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit', minWidth: 180 }} />
+            <label htmlFor="compta-rubrique" style={SR_ONLY}>Filtrer par rubrique</label>
             <select id="compta-rubrique" name="rubrique" value={filterRub} onChange={e => setFilterRub(e.target.value as TypeFrais | '')}
               style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit' }}>
               <option value="">Toutes rubriques</option>
               {(Object.keys(RUBRIQUE_LABELS) as TypeFrais[]).map(k => <option key={k} value={k}>{RUBRIQUE_LABELS[k]}</option>)}
             </select>
+            <label htmlFor="compta-statut" style={SR_ONLY}>Filtrer par statut</label>
             <select id="compta-statut" name="statut" value={filterStatut} onChange={e => setFilterStatut(e.target.value as StatutFacture | '')}
               style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit' }}>
               <option value="">Tous statuts</option>

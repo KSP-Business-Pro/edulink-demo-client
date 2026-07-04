@@ -260,11 +260,15 @@ export default function ResultatsPage() {
         </div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select id="resultats-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
-              style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
-              {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
-            </select>
+            <>
+              <label htmlFor="resultats-ecole" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>École</label>
+              <select id="resultats-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+                style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+                {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+              </select>
+            </>
           )}
+          <label htmlFor="resultats-semestre" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Semestre</label>
           <select id="resultats-semestre" name="semestre" value={semId} onChange={e => setSemId(e.target.value)}
             style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minWidth: 220 }}>
             <option value="">Sélectionner un semestre…</option>
@@ -373,7 +377,7 @@ export default function ResultatsPage() {
       {tab === 'rattrapage' && semId && (
         <>
           {regles && (
-            <div style={{ padding: '.85rem 1rem', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 10, marginBottom: '1rem', fontSize: 13, color: '#92400e' }}>
+            <div role="alert" style={{ padding: '.85rem 1rem', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 10, marginBottom: '1rem', fontSize: 13, color: '#92400e' }}>
               ⚖️ <strong>Règle appliquée :</strong> {regles.regle_rattrapage === 'ecrase' ? 'Note rattrapage remplace la normale' : 'Max(note normale, note rattrapage)'} par UE · Seuil validation : {regles.seuil_validation_ue}/20
             </div>
           )}

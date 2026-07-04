@@ -6,13 +6,101 @@ import type { EtudiantCompta, TypeFrais, StatutFacture } from '../../services/co
 import { fetchFactures, grouperParEtudiant, fmt, RUBRIQUE_LABELS, RUBRIQUE_COLORS } from '../../services/comptabilite.service';
 import ModalFicheComptable from './components/ModalFicheComptable';
 import { ModalFacture, ModalFactureMasse } from './components/ModalFacture';
+import ModalFactureGrille from './components/ModalFactureGrille';
+import CaisseJournaliere from './components/CaisseJournaliere';
+import Recouvrement from './components/Recouvrement';
+import Pilotage from './components/Pilotage';
+import ResponsiveTable, { type RTColumn } from '../../components/ResponsiveTable';
+import ParametrageFinancier from './components/ParametrageFinancier';
 
 interface EcoleOption { id: string; nom: string }
+
+const SR_ONLY: React.CSSProperties = {
+  position: 'absolute', width: 1, height: 1, overflow: 'hidden',
+  clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap',
+};
+
+const STATUT_COLOR: Record<string, string> = { paye: 'green', partiel: 'amber', en_attente: 'red' };
+
+function statutDe(e: EtudiantCompta): 'paye' | 'partiel' | 'en_attente' {
+  const restant = e.attendu - e.encaisse;
+  const taux    = e.attendu > 0 ? Math.round(e.encaisse / e.attendu * 100) : 0;
+  return restant <= 0 ? 'paye' : taux > 0 ? 'partiel' : 'en_attente';
+}
+
+const comptaColumns: RTColumn<EtudiantCompta>[] = [
+  {
+    key: 'etudiant',
+    label: 'Étudiant',
+    primary: true,
+    render: e => (
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{e.etudiant?.nom} {e.etudiant?.prenom}</div>
+        <div style={{ fontSize: 11, color: '#9ca3af' }}>{e.etudiant?.matricule ?? '—'}</div>
+      </div>
+    ),
+  },
+  {
+    key: 'filiere',
+    label: 'Filière / Niveau',
+    render: e => (
+      <div>
+        <div style={{ fontSize: 12, color: '#6b7280' }}>{e.etudiant?.filiere ?? '—'}</div>
+        {e.etudiant?.niveau && <span className="badge blue" style={{ fontSize: 10 }}>{e.etudiant.niveau}</span>}
+      </div>
+    ),
+  },
+  {
+    key: 'attendu',
+    label: 'Attendu',
+    render: e => <span style={{ fontWeight: 600, fontSize: 13 }}>{fmt(e.attendu)}</span>,
+  },
+  {
+    key: 'encaisse',
+    label: 'Encaissé',
+    render: e => <span style={{ fontWeight: 600, fontSize: 13, color: '#059669' }}>{fmt(e.encaisse)}</span>,
+  },
+  {
+    key: 'reste',
+    label: 'Reste',
+    render: e => {
+      const restant = e.attendu - e.encaisse;
+      return <span style={{ fontWeight: 600, fontSize: 13, color: restant > 0 ? '#dc2626' : '#059669' }}>{fmt(restant)}</span>;
+    },
+  },
+  {
+    key: 'echeance',
+    label: 'Échéance',
+    render: e => {
+      const prochaineEch = e.factures
+        .filter(f => f.date_echeance)
+        .sort((a, b) => new Date(a.date_echeance!).getTime() - new Date(b.date_echeance!).getTime())[0]?.date_echeance;
+      return <span style={{ fontSize: 11, color: '#6b7280' }}>{prochaineEch ? new Date(prochaineEch).toLocaleDateString('fr-FR') : '—'}</span>;
+    },
+  },
+  {
+    key: 'statut',
+    label: 'Statut',
+    render: e => {
+      const statut = statutDe(e);
+      const taux   = e.attendu > 0 ? Math.round(e.encaisse / e.attendu * 100) : 0;
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <span className={`badge ${STATUT_COLOR[statut] ?? 'gray'}`}>{statut}</span>
+          <div style={{ width: 60, height: 4, background: '#e5e7eb', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${taux}%`, background: statut === 'paye' ? '#059669' : statut === 'partiel' ? '#d97706' : '#dc2626', borderRadius: 2 }} />
+          </div>
+        </div>
+      );
+    },
+  },
+];
 
 export default function ComptabilitePage() {
   const { user, isSuperAdmin } = useAuth();
   const [ecoleId, setEcoleId] = useState<string>(user?.ecole_id ?? '');
   const [ecoles, setEcoles]   = useState<EcoleOption[]>([]);
+  const [tab, setTab]         = useState<'facturation' | 'caisse' | 'recouvrement' | 'pilotage' | 'parametrage'>('facturation');
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -32,6 +120,7 @@ export default function ComptabilitePage() {
   const [ficheModal, setFicheModal]   = useState<{ id: string; nom: string } | null>(null);
   const [factureModal, setFactureModal] = useState(false);
   const [masseModal, setMasseModal]   = useState(false);
+  const [grilleModal, setGrilleModal] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   function showToast(msg: string, type: 'success' | 'error' | 'info' = 'success') {
@@ -115,19 +204,43 @@ export default function ComptabilitePage() {
         </div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
-              style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
-              {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
-            </select>
+            <>
+              <label htmlFor="compta-ecole" style={SR_ONLY}>École</label>
+              <select id="compta-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+                style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+                {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+              </select>
+            </>
           )}
-          <button onClick={() => setMasseModal(true)} style={{ background: '#f3f4f6', color: '#374151', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button onClick={() => setMasseModal(true)} style={{ background: '#f3f4f6', color: '#374151', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: tab === 'facturation' ? 'inline-block' : 'none' }}>
             📋 Facturer une promotion
           </button>
-          <button className="btn-blue" onClick={() => setFactureModal(true)}>+ Facture</button>
+          {tab === 'facturation' && (
+            <button onClick={() => setGrilleModal(true)} style={{ background: '#eef2ff', color: '#4338ca', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              🧮 Facturer depuis une grille
+            </button>
+          )}
+          {tab === 'facturation' && <button className="btn-blue" onClick={() => setFactureModal(true)}>+ Facture</button>}
         </div>
       </div>
 
-      {loading ? <div className="loading">Chargement…</div> : (
+      {/* Onglets */}
+      <div className="tabs" style={{ marginBottom: '1.25rem' }}>
+        <button className={`tab${tab === 'facturation' ? ' active' : ''}`} onClick={() => setTab('facturation')}>Facturation</button>
+        <button className={`tab${tab === 'caisse' ? ' active' : ''}`} onClick={() => setTab('caisse')}>💰 Caisse du jour</button>
+        <button className={`tab${tab === 'recouvrement' ? ' active' : ''}`} onClick={() => setTab('recouvrement')}>🔴 Recouvrement</button>
+        <button className={`tab${tab === 'pilotage' ? ' active' : ''}`} onClick={() => setTab('pilotage')}>📊 Pilotage</button>
+        <button className={`tab${tab === 'parametrage' ? ' active' : ''}`} onClick={() => setTab('parametrage')}>⚙ Paramétrage financier</button>
+      </div>
+
+      {tab === 'caisse' && ecoleId && <CaisseJournaliere ecoleId={ecoleId} />}
+      {tab === 'recouvrement' && ecoleId && <Recouvrement ecoleId={ecoleId} />}
+      {tab === 'pilotage' && ecoleId && <Pilotage ecoleId={ecoleId} />}
+
+      {tab === 'parametrage' && ecoleId && <ParametrageFinancier ecoleId={ecoleId} />}
+
+      {tab === 'facturation' && (
+        loading ? <div className="loading">Chargement…</div> : (
         <>
           {/* KPI cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
@@ -219,14 +332,17 @@ export default function ComptabilitePage() {
 
           {/* Filtres */}
           <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <input type="search" value={search} onChange={e => setSearch(e.target.value)}
+            <label htmlFor="compta-search" style={SR_ONLY}>Rechercher une facture</label>
+            <input type="search" id="compta-search" name="search" autoComplete="off" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="🔍 Rechercher…" style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit', minWidth: 180 }} />
-            <select value={filterRub} onChange={e => setFilterRub(e.target.value as TypeFrais | '')}
+            <label htmlFor="compta-rubrique" style={SR_ONLY}>Filtrer par rubrique</label>
+            <select id="compta-rubrique" name="rubrique" value={filterRub} onChange={e => setFilterRub(e.target.value as TypeFrais | '')}
               style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit' }}>
               <option value="">Toutes rubriques</option>
               {(Object.keys(RUBRIQUE_LABELS) as TypeFrais[]).map(k => <option key={k} value={k}>{RUBRIQUE_LABELS[k]}</option>)}
             </select>
-            <select value={filterStatut} onChange={e => setFilterStatut(e.target.value as StatutFacture | '')}
+            <label htmlFor="compta-statut" style={SR_ONLY}>Filtrer par statut</label>
+            <select id="compta-statut" name="statut" value={filterStatut} onChange={e => setFilterStatut(e.target.value as StatutFacture | '')}
               style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit' }}>
               <option value="">Tous statuts</option>
               <option value="en_attente">Impayé</option>
@@ -240,67 +356,22 @@ export default function ComptabilitePage() {
             ? <div className="empty-state"><div className="es-ico">💳</div><h3>Aucune facture</h3></div>
             : (
               <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Étudiant</th>
-                      <th>Filière / Niveau</th>
-                      <th style={{ textAlign: 'right' }}>Attendu</th>
-                      <th style={{ textAlign: 'right' }}>Encaissé</th>
-                      <th style={{ textAlign: 'right' }}>Reste</th>
-                      <th style={{ textAlign: 'center' }}>Échéance</th>
-                      <th style={{ textAlign: 'center' }}>Statut</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {listeFiltrée.map(e => {
-                      const restant = e.attendu - e.encaisse;
-                      const taux    = e.attendu > 0 ? Math.round(e.encaisse / e.attendu * 100) : 0;
-                      const statut  = restant <= 0 ? 'paye' : taux > 0 ? 'partiel' : 'en_attente';
-                      const statutColor: Record<string, string> = { paye: 'green', partiel: 'amber', en_attente: 'red' };
-                      const prochaineEch = e.factures
-                        .filter(f => f.date_echeance)
-                        .sort((a, b) => new Date(a.date_echeance!).getTime() - new Date(b.date_echeance!).getTime())[0]?.date_echeance;
-                      return (
-                        <tr key={e.etudiant?.id}>
-                          <td>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{e.etudiant?.nom} {e.etudiant?.prenom}</div>
-                            <div style={{ fontSize: 11, color: '#9ca3af' }}>{e.etudiant?.matricule ?? '—'}</div>
-                          </td>
-                          <td>
-                            <div style={{ fontSize: 12, color: '#6b7280' }}>{e.etudiant?.filiere ?? '—'}</div>
-                            {e.etudiant?.niveau && <span className="badge blue" style={{ fontSize: 10 }}>{e.etudiant.niveau}</span>}
-                          </td>
-                          <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmt(e.attendu)}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 13, color: '#059669' }}>{fmt(e.encaisse)}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 13, color: restant > 0 ? '#dc2626' : '#059669' }}>{fmt(restant)}</td>
-                          <td style={{ textAlign: 'center', fontSize: 11, color: '#6b7280' }}>
-                            {prochaineEch ? new Date(prochaineEch).toLocaleDateString('fr-FR') : '—'}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                              <span className={`badge ${statutColor[statut] ?? 'gray'}`}>{statut}</span>
-                              <div style={{ width: 60, height: 4, background: '#e5e7eb', borderRadius: 2, overflow: 'hidden' }}>
-                                <div style={{ height: '100%', width: `${taux}%`, background: statut === 'paye' ? '#059669' : statut === 'partiel' ? '#d97706' : '#dc2626', borderRadius: 2 }} />
-                              </div>
-                            </div>
-                          </td>
-                          <td>
-                            <button className="btn-ghost btn-sm"
-                              onClick={() => setFicheModal({ id: e.etudiant!.id, nom: `${e.etudiant!.nom} ${e.etudiant!.prenom}` })}>
-                              Fiche
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <ResponsiveTable<EtudiantCompta>
+                  columns={comptaColumns}
+                  data={listeFiltrée}
+                  keyExtractor={e => e.etudiant?.id ?? Math.random().toString()}
+                  actions={e => (
+                    <button className="btn-ghost btn-sm"
+                      onClick={() => setFicheModal({ id: e.etudiant!.id, nom: `${e.etudiant!.nom} ${e.etudiant!.prenom}` })}>
+                      Fiche
+                    </button>
+                  )}
+                />
               </div>
             )
           }
         </>
+        )
       )}
 
       {/* Modals */}
@@ -314,6 +385,12 @@ export default function ComptabilitePage() {
         <ModalFacture ecoleId={ecoleId}
           onClose={() => setFactureModal(false)}
           onSaved={() => { load(); showToast('Facture créée ✓'); }}
+        />
+      )}
+      {grilleModal && (
+        <ModalFactureGrille ecoleId={ecoleId}
+          onClose={() => setGrilleModal(false)}
+          onSaved={(ok, skip) => { load(); showToast(`${ok} facture${ok > 1 ? 's' : ''} générée${ok > 1 ? 's' : ''}${skip > 0 ? ` · ${skip} déjà existante(s)` : ''} ✓`); }}
         />
       )}
       {masseModal && (

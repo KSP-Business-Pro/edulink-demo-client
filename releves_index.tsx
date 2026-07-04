@@ -7,6 +7,7 @@ import { supabase } from '../../services/supabase';
 import { MENTION_LABEL, MENTION_COLOR } from '../../types/deliberations.types';
 import { basculerVerrouReleve } from '../../services/deliberations.service';
 import { ReleveModal, type ReleveData } from './components/RelevePDF';
+import ResponsiveTable, { type RTColumn } from '../../components/ResponsiveTable';
 
 const RELEVE_FN_URL = `https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/publish-releve`;
 
@@ -18,6 +19,11 @@ async function releveHeaders(): Promise<Record<string, string>> {
 
 interface SemestreOption { id: string; libelle: string }
 interface EcoleOption    { id: string; nom: string; code_ecole: string | null }
+
+const SR_ONLY: React.CSSProperties = {
+  position: 'absolute', width: 1, height: 1, overflow: 'hidden',
+  clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap',
+};
 
 interface ReleveEtudiant {
   id: string; nom: string; prenom: string; matricule: string;
@@ -74,6 +80,7 @@ export default function RelevesPage() {
   const [relevesMap,  setRelevesMap]  = useState<Record<string, ReleveNote>>({});
   const [soldesMap,   setSoldesMap]   = useState<Record<string, number> | null>(null);
   const [tolerance,   setTolerance]   = useState(0);
+  const [derogationsActives, setDerogationsActives] = useState<Set<string>>(new Set());
   const [sendEmail,   setSendEmail]   = useState(true);
   const [search,      setSearch]      = useState('');
   const [loading,     setLoading]     = useState(false);
@@ -135,9 +142,21 @@ export default function RelevesPage() {
             sMap[f.etudiant_id as string] = (sMap[f.etudiant_id as string] || 0) + du;
           });
           setSoldesMap(sMap);
+
+          // Dérogations actives (accès relevé) — contournent le blocage impayé
+          const today = new Date().toISOString().slice(0, 10);
+          const { data: derogs } = await supabase
+            .from('derogations_financieres').select('etudiant_id,date_fin')
+            .in('etudiant_id', ids).eq('type_derogation', 'acces_releve').eq('active', true);
+          const dSet = new Set<string>();
+          ((derogs ?? []) as { etudiant_id: string; date_fin: string | null }[]).forEach(d => {
+            if (!d.date_fin || d.date_fin >= today) dSet.add(d.etudiant_id);
+          });
+          setDerogationsActives(dSet);
         }
       } else {
         setSoldesMap(null);
+        setDerogationsActives(new Set());
       }
     } finally { setLoading(false); }
   }, [semId, ecoleId]);
@@ -210,7 +229,7 @@ export default function RelevesPage() {
   }
 
   async function handlePublierTous() {
-    const nonPublies = etudiants.filter(et => !relevesMap[et.id] && !(soldesMap && (soldesMap[et.id] || 0) > tolerance));
+    const nonPublies = etudiants.filter(et => !relevesMap[et.id] && !(soldesMap && (soldesMap[et.id] || 0) > tolerance && !derogationsActives.has(et.id)));
     if (!nonPublies.length) { showToast('Tous les relevés sont déjà publiés', 'info'); return; }
     if (!confirm(`Publier les relevés de ${nonPublies.length} étudiant(s) ?${sendEmail ? '\nUn email sera envoyé.' : ''}`)) return;
     setPubProgress({ done: 0, total: nonPublies.length });
@@ -287,6 +306,73 @@ export default function RelevesPage() {
 
   const toastBg = { success: '#059669', error: '#dc2626', info: '#1e3a5f' };
 
+  // ── Colonnes du tableau relevés (dépend de state du composant) ──────────────
+  const releveColumns: RTColumn<ReleveEtudiant>[] = [
+    {
+      key: 'matricule',
+      label: 'Matricule',
+      mono: true,
+      render: et => (
+        <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>
+          {et.matricule ?? '—'}
+        </code>
+      ),
+    },
+    {
+      key: 'etudiant',
+      label: 'Étudiant',
+      primary: true,
+      render: et => <strong>{et.nom} {et.prenom}</strong>,
+    },
+    {
+      key: 'filiere',
+      label: 'Filière',
+      render: et => <span style={{ fontSize: 12, color: '#6b7280' }}>{et.filiere ?? '—'}</span>,
+    },
+    {
+      key: 'mention',
+      label: 'Mention',
+      render: et => {
+        const r = relevesMap[et.id];
+        return r?.mention
+          ? <span className={`badge ${MENTION_COLOR[r.mention] ?? 'gray'}`}>{MENTION_LABEL[r.mention] ?? r.mention}</span>
+          : <span className="badge gray">—</span>;
+      },
+    },
+    {
+      key: 'credits',
+      label: 'Crédits',
+      render: et => {
+        const r = relevesMap[et.id];
+        return r ? <span className="badge teal">{r.credits_valides} CECT</span> : <span>—</span>;
+      },
+    },
+    {
+      key: 'decision',
+      label: 'Décision',
+      render: et => {
+        const r = relevesMap[et.id];
+        return r?.decision
+          ? <span className={`badge ${r.decision === 'admis' ? 'green' : 'amber'}`}>{r.decision}</span>
+          : <span>—</span>;
+      },
+    },
+    {
+      key: 'statut',
+      label: 'Statut',
+      render: et => {
+        const r = relevesMap[et.id];
+        const solde = soldesMap ? (soldesMap[et.id] || 0) : 0;
+        const bloqueImpaye = !r && soldesMap && solde > tolerance && !derogationsActives.has(et.id);
+        return r
+          ? <span className="badge green">Publié{r.verrouille ? ' 🔒' : ''}</span>
+          : bloqueImpaye
+            ? <span className="badge red" title={`Solde dû : ${solde.toLocaleString('fr-FR')} FCFA`}>🔒 Impayé</span>
+            : <span className="badge gray">En attente</span>;
+      },
+    },
+  ];
+
   return (
     <div style={{ padding: '1.5rem', paddingBottom: '2rem' }}>
       {toast && (
@@ -303,12 +389,16 @@ export default function RelevesPage() {
         </div>
         <div className="top-actions">
           {isSuperAdmin && ecoles.length > 0 && (
-            <select value={ecoleId} onChange={e => setEcoleId(e.target.value)}
-              style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
-              {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
-            </select>
+            <>
+              <label htmlFor="releves-ecole" style={SR_ONLY}>École</label>
+              <select id="releves-ecole" name="ecole" value={ecoleId} onChange={e => setEcoleId(e.target.value)}
+                style={{ padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+                {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+              </select>
+            </>
           )}
-          <select value={semId}
+          <label htmlFor="releves-semestre" style={SR_ONLY}>Semestre</label>
+          <select id="releves-semestre" name="semestre" value={semId}
             onChange={e => {
               setSemId(e.target.value);
               setSemLibelle(semestres.find(s => s.id === e.target.value)?.libelle ?? '');
@@ -339,11 +429,12 @@ export default function RelevesPage() {
             <div style={{ width: 150, height: 6, background: '#e5e7eb', borderRadius: 3, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${pctPublies}%`, background: '#059669', borderRadius: 3, transition: 'width .5s' }} />
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151', cursor: 'pointer', fontWeight: 400 }}>
-              <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} style={{ width: 14, height: 14 }} />
+            <label htmlFor="releves-send-email" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151', cursor: 'pointer', fontWeight: 400 }}>
+              <input type="checkbox" id="releves-send-email" name="send-email" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} style={{ width: 14, height: 14 }} />
               📧 Email à la publication
             </label>
-            <input type="search" value={search} onChange={e => setSearch(e.target.value)}
+            <label htmlFor="releves-search" style={SR_ONLY}>Rechercher un étudiant</label>
+            <input type="search" id="releves-search" name="search" autoComplete="off" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="🔍 Rechercher…"
               style={{ padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit', width: 160 }} />
             <button onClick={handlePublierTous} disabled={!!pubProgress}
@@ -362,92 +453,54 @@ export default function RelevesPage() {
             ? <div className="empty-state"><div className="es-ico">📄</div><h3>Aucun étudiant inscrit</h3></div>
             : (
               <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Matricule</th>
-                      <th>Étudiant</th>
-                      <th>Filière</th>
-                      <th style={{ textAlign: 'center' }}>Mention</th>
-                      <th style={{ textAlign: 'center' }}>Crédits</th>
-                      <th style={{ textAlign: 'center' }}>Décision</th>
-                      <th style={{ textAlign: 'center' }}>Statut</th>
-                      <th style={{ textAlign: 'center', minWidth: 160 }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {listeFiltree.map(et => {
-                      const r = relevesMap[et.id];
-                      const solde = soldesMap ? (soldesMap[et.id] || 0) : 0;
-                      const bloqueImpaye = !r && soldesMap && solde > tolerance;
+                <ResponsiveTable<ReleveEtudiant>
+                  columns={releveColumns}
+                  data={listeFiltree}
+                  keyExtractor={et => et.id}
+                  actions={et => {
+                    const r = relevesMap[et.id];
+                    const solde = soldesMap ? (soldesMap[et.id] || 0) : 0;
+                    const bloqueImpaye = !r && soldesMap && solde > tolerance && !derogationsActives.has(et.id);
+                    if (r) {
                       return (
-                        <tr key={et.id}>
-                          <td>
-                            <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>
-                              {et.matricule ?? '—'}
-                            </code>
-                          </td>
-                          <td><strong>{et.nom} {et.prenom}</strong></td>
-                          <td style={{ fontSize: 12, color: '#6b7280' }}>{et.filiere ?? '—'}</td>
-                          <td style={{ textAlign: 'center' }}>
-                            {r?.mention
-                              ? <span className={`badge ${MENTION_COLOR[r.mention] ?? 'gray'}`}>{MENTION_LABEL[r.mention] ?? r.mention}</span>
-                              : <span className="badge gray">—</span>}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {r ? <span className="badge teal">{r.credits_valides} CECT</span> : '—'}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {r?.decision
-                              ? <span className={`badge ${r.decision === 'admis' ? 'green' : 'amber'}`}>{r.decision}</span>
-                              : '—'}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {r
-                              ? <span className="badge green">Publié{r.verrouille ? ' 🔒' : ''}</span>
-                              : bloqueImpaye
-                                ? <span className="badge red" title={`Solde dû : ${solde.toLocaleString('fr-FR')} FCFA`}>🔒 Impayé</span>
-                                : <span className="badge gray">En attente</span>}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {r ? (
-                              <div style={{ display: 'flex', gap: 3, justifyContent: 'center', flexWrap: 'wrap' }}>
-                                {/* ── Aperçu PDF (B4.3) ── */}
-                                <button onClick={() => handleApercu(et)}
-                                  style={{ background: '#1e3a5f', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 5, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
-                                  title="Aperçu et impression PDF">
-                                  📄 PDF
-                                </button>
-                                {!r.verrouille && (
-                                  <button onClick={() => handleRepublierUn(et.id, `${et.prenom} ${et.nom}`)}
-                                    style={{ background: 'none', border: '1px solid #e5e7eb', padding: '2px 7px', borderRadius: 5, fontSize: 11, cursor: 'pointer', color: '#6b7280', fontFamily: 'inherit' }}
-                                    title="Recalculer et republier">🔄</button>
-                                )}
-                                <button onClick={() => renvoyerEmail(et)} disabled={!et.email_auth}
-                                  style={{ background: 'none', border: '1px solid #ede9fe', padding: '2px 7px', borderRadius: 5, fontSize: 11, cursor: et.email_auth ? 'pointer' : 'not-allowed', color: '#7c3aed', fontFamily: 'inherit', opacity: et.email_auth ? 1 : .4 }}
-                                  title={et.email_auth ? `Envoyer à ${et.email_auth}` : 'Aucun email'}>📧</button>
-                                <button onClick={() => handleVerrou(et.id, r.verrouille)}
-                                  style={{ background: 'none', border: `1px solid ${r.verrouille ? '#b45309' : '#d1d5db'}`, padding: '2px 7px', borderRadius: 5, fontSize: 11, cursor: 'pointer', color: r.verrouille ? '#b45309' : '#9ca3af', fontFamily: 'inherit' }}
-                                  title={r.verrouille ? 'Déverrouiller' : 'Verrouiller'}>
-                                  {r.verrouille ? '🔒' : '🔓'}
-                                </button>
-                              </div>
-                            ) : bloqueImpaye ? (
-                              <button disabled style={{ opacity: .5, cursor: 'not-allowed', background: '#fee2e2', color: '#dc2626', border: 'none', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontFamily: 'inherit' }}>
-                                🔒 {solde.toLocaleString('fr-FR')} FCFA
-                              </button>
-                            ) : (
-                              <button onClick={() => handlePublierUn(et.id)}
-                                style={{ background: '#1e3a5f', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>
-                                Publier
-                              </button>
-                            )}
-                          </td>
-                        </tr>
+                        <div style={{ display: 'flex', gap: 3, justifyContent: 'center', flexWrap: 'wrap' }}>
+                          {/* ── Aperçu PDF (B4.3) ── */}
+                          <button onClick={() => handleApercu(et)}
+                            style={{ background: '#1e3a5f', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 5, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
+                            title="Aperçu et impression PDF">
+                            📄 PDF
+                          </button>
+                          {!r.verrouille && (
+                            <button onClick={() => handleRepublierUn(et.id, `${et.prenom} ${et.nom}`)}
+                              style={{ background: 'none', border: '1px solid #e5e7eb', padding: '2px 7px', borderRadius: 5, fontSize: 11, cursor: 'pointer', color: '#6b7280', fontFamily: 'inherit' }}
+                              title="Recalculer et republier">🔄</button>
+                          )}
+                          <button onClick={() => renvoyerEmail(et)} disabled={!et.email_auth}
+                            style={{ background: 'none', border: '1px solid #ede9fe', padding: '2px 7px', borderRadius: 5, fontSize: 11, cursor: et.email_auth ? 'pointer' : 'not-allowed', color: '#7c3aed', fontFamily: 'inherit', opacity: et.email_auth ? 1 : .4 }}
+                            title={et.email_auth ? `Envoyer à ${et.email_auth}` : 'Aucun email'}>📧</button>
+                          <button onClick={() => handleVerrou(et.id, r.verrouille)}
+                            style={{ background: 'none', border: `1px solid ${r.verrouille ? '#b45309' : '#d1d5db'}`, padding: '2px 7px', borderRadius: 5, fontSize: 11, cursor: 'pointer', color: r.verrouille ? '#b45309' : '#9ca3af', fontFamily: 'inherit' }}
+                            title={r.verrouille ? 'Déverrouiller' : 'Verrouiller'}>
+                            {r.verrouille ? '🔒' : '🔓'}
+                          </button>
+                        </div>
                       );
-                    })}
-                  </tbody>
-                </table>
+                    }
+                    if (bloqueImpaye) {
+                      return (
+                        <button disabled style={{ opacity: .5, cursor: 'not-allowed', background: '#fee2e2', color: '#dc2626', border: 'none', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontFamily: 'inherit' }}>
+                          🔒 {solde.toLocaleString('fr-FR')} FCFA
+                        </button>
+                      );
+                    }
+                    return (
+                      <button onClick={() => handlePublierUn(et.id)}
+                        style={{ background: '#1e3a5f', color: '#fff', border: 'none', padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>
+                        Publier
+                      </button>
+                    );
+                  }}
+                />
               </div>
             )
           }
