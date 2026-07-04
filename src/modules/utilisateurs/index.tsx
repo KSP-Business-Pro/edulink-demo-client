@@ -8,6 +8,21 @@ import type { UserRole, UtilisateurRow } from '../../types/auth.types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+const MANAGE_USER_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/manage-user';
+
+async function appelerManageUser(body: Record<string, unknown>): Promise<{ success: boolean; error?: string; auth_id?: string }> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token ?? '';
+  const res = await fetch(MANAGE_USER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const result = await res.json();
+  if (!res.ok) return { success: false, error: result?.error || 'Erreur serveur' };
+  return { success: true, auth_id: result.auth_id };
+}
+
 const SR_ONLY: React.CSSProperties = {
   position: 'absolute', width: 1, height: 1, overflow: 'hidden',
   clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap',
@@ -163,12 +178,13 @@ function ModalUtilisateur({
           role: form.role, ecole_id: form.ecole_id, telephone: form.telephone || null, actif: form.actif,
         }).eq('id', user.id)
         if (e) throw e
-        // Réinitialiser mot de passe si renseigné
+        // Réinitialiser mot de passe si renseigné (via Edge Function — service_role requis)
         if (form.password.trim()) {
-          const { error: pe } = await supabase.auth.admin.updateUserById(user.auth_id, {
-            password: form.password,
+          const r = await appelerManageUser({
+            action: 'reset_password', auth_id: user.auth_id, password: form.password,
+            ecole_id: form.ecole_id, nom: form.nom, prenom: form.prenom,
           })
-          if (pe) throw pe
+          if (!r.success) throw new Error(r.error)
         }
         // Audit log
         await supabase.rpc('fn_audit_log', {
@@ -177,26 +193,13 @@ function ModalUtilisateur({
           p_ressource_ref: `Utilisateur ${form.prenom} ${form.nom}`,
         })
       } else {
-        // Création compte auth
-        const { data: authData, error: ae } = await supabase.auth.admin.createUser({
-          email: form.email, password: form.password, email_confirm: true,
+        // Création compte (Auth + profil) via Edge Function — service_role requis
+        const r = await appelerManageUser({
+          action: 'create', email: form.email, password: form.password,
+          nom: form.nom, prenom: form.prenom || null, role: form.role,
+          ecole_id: form.ecole_id, telephone: form.telephone || null,
         })
-        if (ae) throw ae
-        // Création profil
-        const { error: pe } = await supabase.from('utilisateurs').insert({
-          auth_id:  authData.user.id,
-          nom:      form.nom,
-          prenom:   form.prenom || null,
-          role:     form.role,
-          ecole_id: form.ecole_id,
-          telephone: form.telephone || null,
-          actif:    form.actif,
-        })
-        if (pe) throw pe
-        await supabase.rpc('fn_audit_log', {
-          p_ecole_id: form.ecole_id, p_action: 'CREATE', p_module: 'users',
-          p_ressource_ref: `Utilisateur ${form.prenom} ${form.nom} (${form.email})`,
-        })
+        if (!r.success) throw new Error(r.error)
       }
       onSaved()
     } catch (e) {
@@ -479,12 +482,11 @@ export default function UtilisateursPage() {
 
   async function handleDelete(u: UtilisateurComplet) {
     try {
-      await supabase.from('utilisateurs').delete().eq('id', u.id)
-      await supabase.auth.admin.deleteUser(u.auth_id)
-      await supabase.rpc('fn_audit_log', {
-        p_ecole_id: u.ecole_id, p_action: 'DELETE', p_module: 'users',
-        p_ressource_ref: `Utilisateur ${u.prenom} ${u.nom} (${u.email})`,
+      const r = await appelerManageUser({
+        action: 'delete', auth_id: u.auth_id, utilisateur_id: u.id,
+        nom: u.nom, prenom: u.prenom, email: u.email, ecole_id: u.ecole_id,
       })
+      if (!r.success) throw new Error(r.error)
       setModalDelete(null)
       showSuccess(`${u.nom} supprimé`)
       loadUsers(page)
