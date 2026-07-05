@@ -132,8 +132,26 @@ serve(async (req) => {
         role, ecole_id: ecole_id ?? null, telephone: telephone || null, actif: true,
       });
       if (profilErr) {
-        // Rollback uniquement si le compte Auth vient d'être créé à l'instant
-        // (on ne supprime jamais un compte préexistant rattaché)
+        // Vérifier si le "doublon" détecté est en réalité NOTRE PROPRE
+        // insertion, qui a réellement réussi côté base malgré une réponse
+        // d'erreur reçue par cet appel (aléa réseau / incident plateforme —
+        // l'INSERT a committé, mais l'accusé de réception s'est perdu ou a
+        // été dupliqué). Dans ce cas précis : ne PAS rollback, c'est un succès.
+        const { data: diag } = await admin
+          .from("utilisateurs")
+          .select("id, auth_id, email, created_at")
+          .eq("email", email);
+
+        const ligneAutoCreee = diag?.find(l => l.auth_id === authUserId);
+        if (ligneAutoCreee) {
+          await userClient.rpc("fn_audit_log", {
+            p_ecole_id: ecole_id ?? null, p_action: "CREATE", p_module: "users",
+            p_ressource_ref: `Utilisateur ${prenom ?? ''} ${nom} (${email}) — succès confirmé malgré erreur réseau transitoire`,
+          });
+          return json({ success: true, auth_id: authUserId, note: "Créé avec succès malgré une erreur réseau transitoire lors de la confirmation." });
+        }
+
+        // Vrai conflit avec un AUTRE compte existant : là, rollback légitime
         if (!createErr) await admin.auth.admin.deleteUser(authUserId);
         return json({ error: `Création du profil : ${profilErr.message}` }, 400);
       }
