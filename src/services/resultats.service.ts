@@ -1,3 +1,9 @@
+// ⚠️ NON UTILISÉ EN PRODUCTION — aucun fichier du projet n'importe ce service (vérifié le 2026-07-05).
+// Le calcul officiel des résultats LMD (moyennes, compensation, crédits) est fait côté serveur
+// via la RPC fn_resultats_semestre, appelée par l'Edge Function supabase/functions/publish-releve.
+// Ce fichier semble être un portage front de cette logique, jamais branché à une page.
+// Conserve pour référence / réutilisation future (ex. aperçu en direct dans /saisie-notes) — voir B13.
+// Ne pas le supposer synchronisé avec la RPC serveur si tu le réactives un jour : à revérifier.
 // @ts-nocheck
 // src/services/resultats.service.ts
 import { supabase } from './supabase';
