@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // EduLink Sup — Phase 2 — Edge Function : publish-releve
 // Version 6 — Multi-modes (publish / resend / lock / unlock) + RBAC explicite
 // =============================================================================
@@ -242,6 +242,9 @@ Deno.serve(async (req: Request) => {
     }
 
     if (mode === "lock" || mode === "unlock") {
+      if (mode === "unlock" && !estSuperadmin) {
+        return Response.json({ error: "Forbidden", detail: "deverrouillage_reserve_superadmin" }, { status: 403, headers: CORS_HEADERS });
+      }
       const releve = await loadReleve();
       if (!releve) {
         return Response.json({ error: "Aucun relevé à verrouiller" }, { status: 404, headers: CORS_HEADERS });

@@ -201,7 +201,7 @@ export async function publierReleve(
         etudiant_id: etudiantId, semestre_id: semId,
         session_id:  (session as { id: string } | null)?.id,
         mode:        'publish',
-        sendEmail:   options.sendEmail ?? true,
+        send_email:  options.sendEmail ?? true,
         republish:   options.republish ?? false,
       }),
     });

@@ -142,6 +142,10 @@ export default function DeliberationsPage() {
 
   async function handleVerrou(ligne: LigneDelib) {
     const mode = ligne.releve_verrouille ? 'unlock' : 'lock';
+    if (mode === 'unlock' && !isSuperAdmin) {
+      showToast('Déverrouillage réservé au superadmin', 'error');
+      return;
+    }
     if (!confirm(mode === 'lock' ? 'Verrouiller ce relevé ? Il deviendra définitif.' : 'Déverrouiller ce relevé ?')) return;
     try {
       await basculerVerrouReleve(ligne.etudiant_id, semId, mode);
@@ -273,8 +277,9 @@ export default function DeliberationsPage() {
             <>
               <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Publié</span>
               <button onClick={() => handleVerrou(l)}
-                title={l.releve_verrouille ? 'Déverrouiller' : 'Verrouiller'}
-                style={{ background: 'none', border: `1px solid ${l.releve_verrouille ? '#b45309' : '#d1d5db'}`, padding: '2px 6px', borderRadius: 5, fontSize: 12, cursor: 'pointer', color: l.releve_verrouille ? '#b45309' : '#9ca3af', fontFamily: 'inherit' }}>
+                disabled={l.releve_verrouille && !isSuperAdmin}
+                title={l.releve_verrouille ? (isSuperAdmin ? 'Déverrouiller' : 'Déverrouillage réservé au superadmin') : 'Verrouiller'}
+                style={{ background: 'none', border: `1px solid ${l.releve_verrouille ? '#b45309' : '#d1d5db'}`, padding: '2px 6px', borderRadius: 5, fontSize: 12, cursor: (l.releve_verrouille && !isSuperAdmin) ? 'not-allowed' : 'pointer', color: l.releve_verrouille ? '#b45309' : '#9ca3af', fontFamily: 'inherit', opacity: (l.releve_verrouille && !isSuperAdmin) ? 0.5 : 1 }}>
                 {l.releve_verrouille ? '🔒' : '🔓'}
               </button>
             </>
