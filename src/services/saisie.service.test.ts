@@ -2,7 +2,7 @@
 // Tests unitaires — calculerLigneGrille (moteur de calcul LMD utilise dans /saisie-notes)
 
 import { describe, it, expect } from 'vitest';
-import { calculerLigneGrille } from './saisie.service';
+import { calculerLigneGrille, parseCSV } from './saisie.service';
 import type { Evaluation, EtudiantSaisie, NoteLMD } from '../types/saisie.types';
 
 // -- Fixtures ----------------------------------------------------------------
@@ -100,5 +100,60 @@ describe('calculerLigneGrille', () => {
     const res = calculerLigneGrille(etudiant, [cc1], [], notesMap, 0.4, 0.6);
     expect(res.moyCC).toBeNull();
     expect(res.finale).toBeNull();
+  });
+});
+
+describe('parseCSV', () => {
+  it('parse un CSV separe par virgules avec en-tetes Matricule/Note', () => {
+    const csv = 'Matricule,Note\nhemec-AUD-0006,15.87\nhemec-AUD-0009,11.11';
+    const rows = parseCSV(csv);
+    expect(rows).toEqual([
+      { matricule: 'hemec-AUD-0006', note: 15.87 },
+      { matricule: 'hemec-AUD-0009', note: 11.11 },
+    ]);
+  });
+
+  it('parse un CSV separe par points-virgules', () => {
+    const csv = 'Matricule;Note\nhemec-AUD-0006;12';
+    const rows = parseCSV(csv);
+    expect(rows).toEqual([{ matricule: 'hemec-AUD-0006', note: 12 }]);
+  });
+
+  it('reconnait les en-tetes alternatifs (mark, valeur) insensibles a la casse', () => {
+    const csv = 'MATRICULE,VALEUR\nhemec-AUD-0006,10';
+    const rows = parseCSV(csv);
+    expect(rows).toEqual([{ matricule: 'hemec-AUD-0006', note: 10 }]);
+  });
+
+  it('rejette une ligne avec une note non numerique', () => {
+    const csv = 'Matricule,Note\nhemec-AUD-0006,abc\nhemec-AUD-0009,12';
+    const rows = parseCSV(csv);
+    expect(rows).toEqual([{ matricule: 'hemec-AUD-0009', note: 12 }]);
+  });
+
+  it('rejette une note negative ou superieure a 20', () => {
+    const csv = 'Matricule,Note\nhemec-AUD-0001,-5\nhemec-AUD-0002,25\nhemec-AUD-0003,20\nhemec-AUD-0004,0';
+    const rows = parseCSV(csv);
+    expect(rows).toEqual([
+      { matricule: 'hemec-AUD-0003', note: 20 },
+      { matricule: 'hemec-AUD-0004', note: 0 },
+    ]);
+  });
+
+  it('rejette une ligne avec un matricule vide', () => {
+    const csv = 'Matricule,Note\n,15\nhemec-AUD-0006,12';
+    const rows = parseCSV(csv);
+    expect(rows).toEqual([{ matricule: 'hemec-AUD-0006', note: 12 }]);
+  });
+
+  it('supprime les espaces autour du matricule', () => {
+    const csv = 'Matricule,Note\n  hemec-AUD-0006  ,15';
+    const rows = parseCSV(csv);
+    expect(rows).toEqual([{ matricule: 'hemec-AUD-0006', note: 15 }]);
+  });
+
+  it('leve une erreur si les colonnes Matricule/Note sont introuvables', () => {
+    const csv = 'Nom,Prenom\nAGBODEKA,Jean';
+    expect(() => parseCSV(csv)).toThrow('Colonnes Matricule/Note introuvables dans le CSV');
   });
 });
