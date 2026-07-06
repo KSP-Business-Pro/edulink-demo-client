@@ -1,5 +1,6 @@
-﻿// src/services/saisie.service.ts
+// src/services/saisie.service.ts
 // B4.1 — Retrait @ts-nocheck, typage explicite
+// B13 — calculerLigneGrille et parseCSV deplaces vers saisie.calc.ts (fonctions pures, sans Supabase)
 
 import { supabase } from './supabase';
 import type {
@@ -7,7 +8,9 @@ import type {
   EtudiantSaisie, MatiereSaisie, UESaisie, ImportRow,
 } from '../types/saisie.types';
 
-// ── Semestres actifs ───────────────────────────────────────────────────────
+export { parseCSV, calculerLigneGrille } from './saisie.calc';
+
+// -- Semestres actifs ---------------------------------------------------------
 export async function fetchSemestresActifsSaisie(ecoleId: string) {
   const { data, error } = await supabase
     .from('semestres')
@@ -19,7 +22,7 @@ export async function fetchSemestresActifsSaisie(ecoleId: string) {
   return data ?? [];
 }
 
-// ── UE du semestre ─────────────────────────────────────────────────────────
+// -- UE du semestre ------------------------------------------------------------
 export async function fetchUEsBySemestre(semestreId: string): Promise<UESaisie[]> {
   const { data, error } = await supabase
     .from('programme_ue')
@@ -31,7 +34,7 @@ export async function fetchUEsBySemestre(semestreId: string): Promise<UESaisie[]
     .filter(Boolean) as UESaisie[];
 }
 
-// ── Matières d'une UE ──────────────────────────────────────────────────────
+// -- Matieres d'une UE ----------------------------------------------------------
 export async function fetchMatieresByUESaisie(ueId: string): Promise<MatiereSaisie[]> {
   const { data, error } = await supabase
     .from('matieres_lmd')
@@ -42,7 +45,7 @@ export async function fetchMatieresByUESaisie(ueId: string): Promise<MatiereSais
   return (data ?? []) as unknown as MatiereSaisie[];
 }
 
-// ── Sessions évaluation ────────────────────────────────────────────────────
+// -- Sessions evaluation ---------------------------------------------------------
 export async function fetchSessions(semestreId: string): Promise<SessionEvaluation[]> {
   const { data, error } = await supabase
     .from('sessions_evaluation')
@@ -70,7 +73,7 @@ export async function creerSessions(semestreId: string, ecoleId: string): Promis
     toCreate.push({ semestre_id: semestreId, ecole_id: ecoleId, type_session: 'normale',   statut: 'ouverte',   date_debut, date_fin });
   if (!types.includes('rattrapage'))
     toCreate.push({ semestre_id: semestreId, ecole_id: ecoleId, type_session: 'rattrapage', statut: 'planifiee', date_debut, date_fin });
-  if (!toCreate.length) throw new Error('Sessions déjà créées');
+  if (!toCreate.length) throw new Error('Sessions deja creees');
   const { error } = await supabase.from('sessions_evaluation').insert(toCreate);
   if (error) throw error;
 }
@@ -83,7 +86,7 @@ export async function changerStatutSession(sessionId: string, statut: string): P
   if (error) throw error;
 }
 
-// ── Évaluations ────────────────────────────────────────────────────────────
+// -- Evaluations ------------------------------------------------------------------
 export async function fetchEvaluations(
   matiereId: string, sessionIds: string[]
 ): Promise<Evaluation[]> {
@@ -117,7 +120,7 @@ export async function ajouterEvaluation(
   if (error) throw error;
 }
 
-// ── Étudiants inscrits ─────────────────────────────────────────────────────
+// -- Etudiants inscrits -----------------------------------------------------------
 export async function fetchEtudiantsInscrits(semestreId: string): Promise<EtudiantSaisie[]> {
   const { data, error } = await supabase
     .from('inscriptions_semestre')
@@ -131,7 +134,7 @@ export async function fetchEtudiantsInscrits(semestreId: string): Promise<Etudia
     .sort((a, b) => a.nom.localeCompare(b.nom));
 }
 
-// ── Notes ──────────────────────────────────────────────────────────────────
+// -- Notes --------------------------------------------------------------------------
 export async function fetchNotes(evaluationIds: string[]): Promise<NoteLMD[]> {
   if (!evaluationIds.length) return [];
   const { data, error } = await supabase
@@ -213,24 +216,7 @@ async function _logNote(
   } catch { /* silencieux si table absente */ }
 }
 
-// ── Import CSV ─────────────────────────────────────────────────────────────
-export function parseCSV(text: string): ImportRow[] {
-  const lines   = text.trim().split('\n');
-  const headers = lines[0].split(/[,;]/).map(h => h.trim().toLowerCase());
-  const matIdx  = headers.findIndex(h => h.includes('matri'));
-  const noteIdx = headers.findIndex(h =>
-    h.includes('note') || h.includes('mark') || h.includes('valeur')
-  );
-  if (matIdx < 0 || noteIdx < 0)
-    throw new Error('Colonnes Matricule/Note introuvables dans le CSV');
-  return lines.slice(1)
-    .map(l => {
-      const c = l.split(/[,;]/);
-      return { matricule: c[matIdx]?.trim() ?? '', note: parseFloat(c[noteIdx]) };
-    })
-    .filter(r => r.matricule && !isNaN(r.note) && r.note >= 0 && r.note <= 20);
-}
-
+// -- Import CSV -----------------------------------------------------------------
 export async function importerNotes(
   rows:         ImportRow[],
   evaluationId: string,
@@ -271,48 +257,4 @@ export async function importerNotes(
     }
   }
   return { ok, skip };
-}
-
-// ── Calcul moyennes ────────────────────────────────────────────────────────
-export function calculerLigneGrille(
-  etudiant: EtudiantSaisie,
-  evalsCC:  Evaluation[],
-  evalsEX:  Evaluation[],
-  notesMap: Record<string, Record<string, NoteLMD>>,
-  poids_cc: number,
-  poids_ex: number,
-) {
-  const rowNotes = notesMap[etudiant.id] ?? {};
-
-  const notesCC = evalsCC.map(e => {
-    const n = rowNotes[e.id];
-    return n?.absent ? 0 : (n?.valeur ?? null);
-  });
-  const absCC = evalsCC.map(e => !!rowNotes[e.id]?.absent);
-
-  const notesEX = evalsEX.map(e => {
-    const n = rowNotes[e.id];
-    return n?.absent ? 0 : (n?.valeur ?? null);
-  });
-  const absEX = evalsEX.map(e => !!rowNotes[e.id]?.absent);
-
-  let moyCC: number | null = null;
-  if (notesCC.every(n => n !== null)) {
-    const tot = evalsCC.reduce((s, e) => s + e.ponderation, 0);
-    moyCC = tot > 0
-      ? Math.round(notesCC.reduce((s, n, i) => s + (n ?? 0) * evalsCC[i].ponderation, 0) / tot * 100) / 100
-      : null;
-  }
-
-  const moyEX = notesEX.length && notesEX.every(n => n !== null) ? notesEX[0] : null;
-
-  let finale: number | null = null;
-  if (moyCC !== null && moyEX !== null)
-    finale = Math.round((moyCC * poids_cc + moyEX * poids_ex) * 100) / 100;
-  else if (moyCC !== null && evalsEX.length === 0)
-    finale = moyCC;
-  else if (moyEX !== null && evalsCC.length === 0)
-    finale = moyEX;
-
-  return { etudiant, notesCC, notesEX, absentsCC: absCC, absentsEX: absEX, moyCC, finale };
 }
