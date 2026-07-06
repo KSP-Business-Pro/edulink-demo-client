@@ -2,7 +2,7 @@
 // Tests unitaires — calculerLigneGrille (moteur de calcul LMD utilise dans /saisie-notes)
 
 import { describe, it, expect } from 'vitest';
-import { calculerLigneGrille, parseCSV } from './saisie.service';
+import { calculerLigneGrille, parseCSV } from './saisie.calc';
 import type { Evaluation, EtudiantSaisie, NoteLMD } from '../types/saisie.types';
 
 // -- Fixtures ----------------------------------------------------------------
