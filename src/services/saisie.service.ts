@@ -8,7 +8,7 @@ import type {
   EtudiantSaisie, MatiereSaisie, UESaisie, ImportRow,
 } from '../types/saisie.types';
 
-export { parseCSV, calculerLigneGrille } from './saisie.calc';
+export { parseCSV, calculerLigneGrille } from './lmd/saisie.calc';
 
 // -- Semestres actifs ---------------------------------------------------------
 export async function fetchSemestresActifsSaisie(ecoleId: string) {
