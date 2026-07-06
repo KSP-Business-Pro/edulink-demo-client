@@ -24,6 +24,9 @@ jobs:
 
       - name: Lancer les tests unitaires
         run: npm test
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Verifier le build
         run: npm run build
