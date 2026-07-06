@@ -5,3 +5,7 @@ dist/
 # Playwright
 playwright-report/
 test-results/
+# Variables d'environnement (secrets locaux)
+.env
+.env.local
+.env.*.local
