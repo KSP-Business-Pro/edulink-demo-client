@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import type { UserRole } from '../types/auth.types';
-import type { Permissions } from '../services/permissions';
+import type { Permissions } from '../services/security/permissions';
 import { mfaRequisPourRole, isMfaVerifie } from '../services/mfa.service';
 import { Mfa2FAScreen } from './Mfa2FAScreen';
 

@@ -3,8 +3,8 @@
 
 import { useMemo } from 'react';
 import { useAuth } from './useAuth';
-import { getPermissions, can, getVisibleModules } from '../services/permissions';
-import type { Permissions } from '../services/permissions';
+import { getPermissions, can, getVisibleModules } from '../services/security/permissions';
+import type { Permissions } from '../services/security/permissions';
 import type { UserRole } from '../types/auth.types';
 
 export function usePermissions() {
