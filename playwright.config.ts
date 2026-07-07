@@ -8,7 +8,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1, // force serie - evite les connexions concurrentes avec le meme compte de test
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:3100',
