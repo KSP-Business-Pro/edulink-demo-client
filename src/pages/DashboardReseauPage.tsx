@@ -1,4 +1,4 @@
-﻿// src/pages/DashboardReseauPage.tsx
+// src/pages/DashboardReseauPage.tsx
 // Dashboard Réseau — Vue multi-établissements — Superadmin uniquement
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
@@ -86,27 +86,20 @@ export function DashboardReseauPage() {
         // Étudiants
         const { count: nbEtudiants } = await supabase
           .from('etudiants')
-          .select('*', { count: 'exact', head: true })
-          .eq('ecole_id', ecole.id)
-          .eq('statut', 'actif');
 
         // Enseignants
         const { count: nbEnseignants } = await supabase
           .from('enseignants')
-          .select('*', { count: 'exact', head: true })
           .eq('ecole_id', ecole.id);
 
         // Promotions
         const { count: nbPromotions } = await supabase
           .from('promotions')
-          .select('*', { count: 'exact', head: true })
           .eq('ecole_id', ecole.id);
 
         // Semestres actifs
         const { count: nbSemestres } = await supabase
           .from('semestres')
-          .select('*', { count: 'exact', head: true })
-          .eq('ecole_id', ecole.id)
           .eq('statut', 'en_cours');
 
         // Factures
@@ -120,17 +113,23 @@ export function DashboardReseauPage() {
         const tauxRecouvrement = totalAttendu > 0 ? Math.round((totalEncaisse / totalAttendu) * 100) : 0;
 
         // Étudiants à risque (absences > 30%)
-        const { count: nbRisque } = await supabase
-          .from('exclusions_ue')
-          .select('*', { count: 'exact', head: true })
-          .eq('ecole_id', ecole.id)
-          .eq('statut', 'actif');
+        const { data: presencesData } = await supabase
+          .from('presences')
+          .select('etudiant_id, statut')
+          .eq('ecole_id', ecole.id);
+        const parEtudiant: Record<string, { total: number; absents: number }> = {};
+        (presencesData ?? []).forEach((p: { etudiant_id: string; statut: string }) => {
+          const e = parEtudiant[p.etudiant_id] ?? { total: 0, absents: 0 };
+          e.total += 1;
+          if (p.statut === 'absent') e.absents += 1;
+          parEtudiant[p.etudiant_id] = e;
+        });
+        const nbRisque = Object.values(parEtudiant).filter(e => e.total > 0 && (e.absents / e.total) > 0.3).length;
 
         // Délibérations en attente (semestres en_cours sans PV)
         const { data: semActifs } = await supabase
           .from('semestres')
           .select('id')
-          .eq('ecole_id', ecole.id)
           .eq('statut', 'en_cours');
 
         let deliberationsPending = 0;
@@ -138,8 +137,7 @@ export function DashboardReseauPage() {
           const semIds = semActifs.map(s => s.id);
           const { count: nbDelibs } = await supabase
             .from('deliberations')
-            .select('*', { count: 'exact', head: true })
-            .in('semestre_id', semIds)
+              .in('semestre_id', semIds)
             .eq('statut', 'validee');
           deliberationsPending = (semActifs.length) - (nbDelibs ?? 0);
         }
