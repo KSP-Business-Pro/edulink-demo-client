@@ -1,4 +1,4 @@
-﻿// src/modules/portail-enseignant/index.tsx
+// src/modules/portail-enseignant/index.tsx
 // B5.3 — Portail Enseignant — vue personnalisée par enseignant connecté
 
 import { useState, useEffect, useCallback } from 'react'
@@ -37,7 +37,7 @@ interface EtudiantNote {
   etudiant_id: string
   nom: string
   prenom: string | null
-  numero_etudiant: string | null
+  matricule: string | null
   note_cc: number | null
   note_examen: number | null
   note_finale: number | null
@@ -57,7 +57,7 @@ interface EtudiantPresence {
   etudiant_id: string
   nom: string
   prenom: string | null
-  numero_etudiant: string | null
+  matricule: string | null
   statut: 'present' | 'absent' | 'justifie'
 }
 
@@ -205,7 +205,7 @@ function TabNotes({
     // Charger étudiants inscrits + notes existantes
     Promise.all([
       supabase.from('inscriptions')
-        .select('etudiants(id, nom, prenom, numero_etudiant)')
+        .select('etudiants(id, nom, prenom, matricule)')
         .eq('ecole_id', ecoleId)
         .eq('statut', 'actif'),
       supabase.from('notes')
@@ -230,7 +230,7 @@ function TabNotes({
           etudiant_id:     id,
           nom:             etu.nom as string,
           prenom:          etu.prenom as string | null,
-          numero_etudiant: etu.numero_etudiant as string | null,
+          matricule: etu.matricule as string | null,
           ...notesMap[id],
           note_cc:      notesMap[id]?.note_cc      ?? null,
           note_examen:  notesMap[id]?.note_examen  ?? null,
@@ -368,7 +368,7 @@ function TabNotes({
                     <span style={{ fontWeight: 500 }}>{e.prenom} {e.nom}</span>
                   </td>
                   <td style={{ ...S.td, fontFamily: 'monospace', fontSize: 11, color: '#64748b' }}>
-                    {e.numero_etudiant ?? '—'}
+                    {e.matricule ?? '—'}
                   </td>
                   <td style={{ ...S.td, textAlign: 'center' as const }}>
                     <input
@@ -445,7 +445,7 @@ function TabPresences({
     // Charger étudiants
     const { data } = await supabase
       .from('inscriptions')
-      .select('etudiants(id, nom, prenom, numero_etudiant)')
+      .select('etudiants(id, nom, prenom, matricule)')
       .eq('ecole_id', ecoleId)
       .eq('statut', 'actif')
     const rows: EtudiantPresence[] = (data ?? []).map((ins: Record<string, unknown>) => {
@@ -453,7 +453,7 @@ function TabPresences({
       return {
         etudiant_id: e.id as string, nom: e.nom as string,
         prenom: e.prenom as string | null,
-        numero_etudiant: e.numero_etudiant as string | null,
+        matricule: e.matricule as string | null,
         statut: 'present' as const,
       }
     }).sort((a: EtudiantPresence, b: EtudiantPresence) => a.nom.localeCompare(b.nom))
