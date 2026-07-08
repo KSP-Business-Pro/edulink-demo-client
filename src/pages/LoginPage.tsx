@@ -137,7 +137,7 @@ export function LoginPage() {
             style={{
               width: '100%', padding: '13px 0', borderRadius: 8,
               border: 'none', cursor: submitting ? 'not-allowed' : 'pointer',
-              background: submitting ? '#92400e' : '#d97706',
+              background: submitting ? '#92400e' : '#b45309',
               color: '#fff', fontSize: 15, fontWeight: 600,
               transition: 'background 0.15s', letterSpacing: '0.02em',
             }}
@@ -149,7 +149,7 @@ export function LoginPage() {
         {/* Footer */}
         <p style={{
           textAlign: 'center', marginTop: 24, fontSize: 12,
-          color: '#94a3b8',
+          color: '#475569',
         }}>
           EduLink Sup · Afryx.io · LMD CAMES Bénin
         </p>
