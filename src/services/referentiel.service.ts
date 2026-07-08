@@ -3,6 +3,7 @@
 //  referentiel.service.ts — Couche données Référentiel académique Sprint 2
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase } from './supabase';
+import { getOrFetch, invalidate } from './cache';
 import type {
   Programme, UniteEnseignement, Semestre, MatiereLMD,
   AnneeAcademique, ProgrammeUE,
@@ -11,11 +12,13 @@ import type {
 // ── Programmes ────────────────────────────────────────────────────────────────
 
 export async function fetchProgrammes(ecoleId: string): Promise<Programme[]> {
-  // RPC SECURITY DEFINER — contourne RLS
-  const { data, error } = await supabase
-    .rpc('fn_get_programmes_lmd', { p_ecole_id: ecoleId });
-  if (error) throw error;
-  return data ?? [];
+  return getOrFetch(`programmes:${ecoleId}`, async () => {
+    // RPC SECURITY DEFINER — contourne RLS
+    const { data, error } = await supabase
+      .rpc('fn_get_programmes_lmd', { p_ecole_id: ecoleId });
+    if (error) throw error;
+    return data ?? [];
+  });
 }
 
 export async function createProgramme(
@@ -23,6 +26,7 @@ export async function createProgramme(
 ): Promise<void> {
   const { error } = await supabase.from('programmes_lmd').insert(payload);
   if (error) throw error;
+  invalidate(`programmes:${payload.ecole_id}`);
 }
 
 export async function updateProgramme(
@@ -34,6 +38,7 @@ export async function updateProgramme(
     .update(payload)
     .eq('id', id);
   if (error) throw error;
+  invalidate('programmes:');
 }
 
 export async function deleteProgramme(id: string): Promise<void> {
@@ -42,15 +47,18 @@ export async function deleteProgramme(id: string): Promise<void> {
     .delete()
     .eq('id', id);
   if (error) throw error;
+  invalidate('programmes:');
 }
 
 // ── Unités d'Enseignement ─────────────────────────────────────────────────────
 
 export async function fetchUEs(ecoleId: string): Promise<UniteEnseignement[]> {
-  // RPC SECURITY DEFINER — contourne RLS
-  const { data, error } = await supabase.rpc('fn_dashboard_ues', { p_ecole_id: ecoleId });
-  if (error) throw error;
-  return data ?? [];
+  return getOrFetch(`ues:${ecoleId}`, async () => {
+    // RPC SECURITY DEFINER — contourne RLS
+    const { data, error } = await supabase.rpc('fn_dashboard_ues', { p_ecole_id: ecoleId });
+    if (error) throw error;
+    return data ?? [];
+  });
 }
 
 export async function fetchUEsByProgramme(programmeId: string): Promise<ProgrammeUE[]> {
@@ -78,6 +86,7 @@ export async function createUE(
       .insert({ programme_id: programmeId, ue_id: newUE.id, ecole_id: payload.ecole_id });
     if (linkErr) console.warn('Lien programme_ue non créé :', linkErr.message);
   }
+  invalidate(`ues:${payload.ecole_id}`);
 }
 
 export async function updateUE(
@@ -89,6 +98,7 @@ export async function updateUE(
     .update(payload)
     .eq('id', id);
   if (error) throw error;
+  invalidate('ues:');
 }
 
 export async function deleteUE(id: string): Promise<void> {
@@ -97,23 +107,24 @@ export async function deleteUE(id: string): Promise<void> {
     .delete()
     .eq('id', id);
   if (error) throw error;
+  invalidate('ues:');
 }
 
 // ── Semestres ─────────────────────────────────────────────────────────────────
 
 export async function fetchSemestres(ecoleId: string): Promise<Semestre[]> {
-  // RPC SECURITY DEFINER — contourne RLS
-  const { data, error } = await supabase
-    .rpc('fn_get_semestres', { p_ecole_id: ecoleId });
-  if (error) throw error;
-  return data ?? [];
+  return getOrFetch(`semestres:${ecoleId}`, async () => {
+    // RPC SECURITY DEFINER — contourne RLS
+    const { data, error } = await supabase
+      .rpc('fn_get_semestres', { p_ecole_id: ecoleId });
+    if (error) throw error;
+    return data ?? [];
+  });
 }
 
 export async function fetchSemestresActifs(ecoleId: string): Promise<Semestre[]> {
-  const { data, error } = await supabase
-    .rpc('fn_get_semestres', { p_ecole_id: ecoleId });
-  if (error) throw error;
-  return (data ?? []).filter((s: any) => ['en_cours', 'planifie'].includes(s.statut));
+  const data = await fetchSemestres(ecoleId);
+  return data.filter((s: any) => ['en_cours', 'planifie'].includes(s.statut));
 }
 
 export async function createSemestre(
@@ -121,6 +132,7 @@ export async function createSemestre(
 ): Promise<void> {
   const { error } = await supabase.from('semestres').insert(payload);
   if (error) throw error;
+  invalidate(`semestres:${payload.ecole_id}`);
 }
 
 export async function updateSemestre(
@@ -132,6 +144,7 @@ export async function updateSemestre(
     .update(payload)
     .eq('id', id);
   if (error) throw error;
+  invalidate('semestres:');
 }
 
 export async function deleteSemestre(id: string): Promise<void> {
@@ -140,6 +153,7 @@ export async function deleteSemestre(id: string): Promise<void> {
     .delete()
     .eq('id', id);
   if (error) throw error;
+  invalidate('semestres:');
 }
 
 // ── Matières ──────────────────────────────────────────────────────────────────
@@ -205,3 +219,5 @@ export function checkCreditsUE(
   const totalCredits = ues.reduce((sum, ue) => sum + (ue.credits_cect ?? 0), 0);
   return { totalCredits, valid: totalCredits === expectedTotal, delta: totalCredits - expectedTotal };
 }
+
+
