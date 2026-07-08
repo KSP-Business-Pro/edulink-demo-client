@@ -157,15 +157,15 @@ function TabVueGenerale({ ecoleId, anneeId }: { ecoleId: string; anneeId: string
       // Stats globales
       supabase.from('etudiants').select('id', { count: 'exact', head: true }).eq('ecole_id', ecoleId).eq('statut', 'actif'),
       supabase.from('inscriptions_semestre').select('id,statut', { count: 'exact' }).eq('ecole_id', ecoleId),
-      supabase.from('resultats_cache').select('moyenne_generale, valide').eq('ecole_id', ecoleId),
-      supabase.from('programmes_lmd').select('id, nom, niveau').eq('ecole_id', ecoleId),
+      supabase.from('resultats_cache').select('moyenne_semestre, semestre_valide').eq('ecole_id', ecoleId),
+      supabase.from('programmes_lmd').select('id, intitule, grade').eq('ecole_id', ecoleId),
     ]).then(async ([etudRes, insRes, resRes, progsRes]) => {
       const nbEtudiants = etudRes.count ?? 0
       const nbInscrits  = insRes.count ?? 0
       const resultats   = resRes.data ?? []
-      const moyennes    = resultats.map(r => r.moyenne_generale).filter((m): m is number => m !== null)
+      const moyennes    = resultats.map(r => r.moyenne_semestre).filter((m): m is number => m !== null)
       const moyGene     = moyennes.length > 0 ? moyennes.reduce((s, m) => s + m, 0) / moyennes.length : 0
-      const nbValides   = resultats.filter(r => r.valide).length
+      const nbValides   = resultats.filter(r => r.semestre_valide).length
       const tauxValid   = resultats.length > 0 ? (nbValides / resultats.length) * 100 : 0
 
       setStats({
@@ -189,8 +189,8 @@ function TabVueGenerale({ ecoleId, anneeId }: { ecoleId: string; anneeId: string
         const valid = rs.filter(r => r.valide).length
         progStatsArr.push({
           programme_id:  prog.id,
-          programme_nom: prog.nom,
-          niveau:        prog.niveau,
+          programme_nom: prog.intitule,
+          niveau:        prog.grade,
           nb_inscrits:   rs.length,
           moyenne:       moy,
           taux_reussite: rs.length > 0 ? (valid / rs.length) * 100 : 0,
@@ -477,8 +477,8 @@ function TabComparatif({ ecoleId }: { ecoleId: string }) {
           const valid= rs.filter(r => r.valide).length
           arr.push({
             programme_id:  prog.id,
-            programme_nom: prog.nom,
-            niveau:        prog.niveau,
+            programme_nom: prog.intitule,
+            niveau:        prog.grade,
             nb_inscrits:   rs.length,
             moyenne:       moy,
             taux_reussite: rs.length > 0 ? (valid / rs.length) * 100 : 0,
