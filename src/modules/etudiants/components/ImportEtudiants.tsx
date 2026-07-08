@@ -61,6 +61,25 @@ function normalizeHeader(h: string): string {
   return h.toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
+function parseExcelDate(val: unknown): string | null {
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    return val.toISOString().slice(0, 10);
+  }
+  if (typeof val === 'number') {
+    const parsed = XLSX.SSF.parse_date_code(val);
+    if (!parsed) return null;
+    const mm = String(parsed.m).padStart(2, '0');
+    const dd = String(parsed.d).padStart(2, '0');
+    return `${parsed.y}-${mm}-${dd}`;
+  }
+  if (typeof val === 'string') {
+    const d = new Date(val.trim());
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    return null;
+  }
+  return null;
+}
+
 function parseRows(sheet: XLSX.WorkSheet): { rows: ImportEtudiantRow[]; warnings: string[] } {
   const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
   if (!raw.length) return { rows: [], warnings: ['Feuille vide'] };
@@ -72,9 +91,19 @@ function parseRows(sheet: XLSX.WorkSheet): { rows: ImportEtudiantRow[]; warnings
     const row: Partial<ImportEtudiantRow> = {};
     Object.entries(rawRow).forEach(([key, val]) => {
       const mapped = HEADER_MAP[normalizeHeader(key)];
-      if (mapped && val !== '' && val !== null && val !== undefined) {
-        (row as Record<string, unknown>)[mapped] = String(val).trim();
+      if (!mapped || val === '' || val === null || val === undefined) return;
+
+      if (mapped === 'date_naissance') {
+        const parsedDate = parseExcelDate(val);
+        if (parsedDate) {
+          row.date_naissance = parsedDate;
+        } else {
+          warnings.push(`Ligne ${idx + 2} : date de naissance illisible ("${val}") — champ ignoré`);
+        }
+        return;
       }
+
+      (row as Record<string, unknown>)[mapped] = String(val).trim();
     });
 
     // Validation minimale
@@ -121,7 +150,7 @@ export function ImportEtudiants({ ecoleId, onClose, onSuccess }: Props) {
     reader.onload = (e) => {
       try {
         const data  = new Uint8Array(e.target!.result as ArrayBuffer);
-        const wb    = XLSX.read(data, { type: 'array' });
+        const wb    = XLSX.read(data, { type: 'array', cellDates: true });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const { rows: parsed, warnings: w } = parseRows(sheet);
         setRows(parsed);
@@ -373,4 +402,6 @@ const S = {
   td: { padding: '7px 10px', fontSize: 12, verticalAlign: 'middle' as const },
   statCard: { background: '#fff', border: '1.5px solid', borderRadius: 10, padding: '16px', textAlign: 'center' as const },
 };
+
+
 

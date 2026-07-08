@@ -2,7 +2,7 @@
 // Module Étudiants — matricule auto-généré par trigger SQL (B3.1)
 // B9 : fetchEtudiants bascule sur recherche + pagination côté serveur (RPC fn_get_etudiants_ecole)
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useErrorHandler } from '../../hooks/useErrorHandler';
 import {
@@ -10,7 +10,9 @@ import {
   type Etudiant, type EtudiantStatut, type EtudiantCreatePayload
 } from './etudiants.service';
 import { FicheEtudiant }   from './components/FicheEtudiant';
-import { ImportEtudiants } from './components/ImportEtudiants';
+const ImportEtudiants = lazy(() =>
+  import('./components/ImportEtudiants').then(m => ({ default: m.ImportEtudiants }))
+);
 import ResponsiveTable, { type RTColumn } from '../../components/ResponsiveTable';
 
 const PAGE_SIZE = 20;
@@ -246,6 +248,14 @@ export default function EtudiantsPage() {
 
       {/* ── Modal import Excel ── */}
       {showImport && ecoleId && (
+        <Suspense fallback={
+          <div style={S.overlay}>
+            <div style={{ background: '#fff', borderRadius: 16, padding: '2rem', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={S.spinner} />
+              <span style={{ fontSize: 13, color: '#64748b' }}>Chargement du module d'import…</span>
+            </div>
+          </div>
+        }>
         <ImportEtudiants
           ecoleId={ecoleId}
           onClose={() => setShowImport(false)}
@@ -257,6 +267,7 @@ export default function EtudiantsPage() {
             );
           }}
         />
+        </Suspense>
       )}
 
       {/* ── Modal création étudiant ── */}
@@ -546,3 +557,5 @@ const S = {
   matriculePreview: { display: 'flex', alignItems: 'center', gap: 10, background: '#f0f9ff', border: '1px dashed #bae6fd', borderRadius: 8, padding: '8px 12px', marginTop: 4 } as React.CSSProperties,
   matriculeCode:    { fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#0369a1', background: '#e0f2fe', padding: '3px 8px', borderRadius: 5 } as React.CSSProperties,
 };
+
+
