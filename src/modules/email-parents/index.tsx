@@ -1,4 +1,4 @@
-﻿// src/modules/email-parents/index.tsx
+// src/modules/email-parents/index.tsx
 // B5.5 — Communication Parents — inline styles
 
 import { useState, useEffect, useCallback } from 'react'
@@ -19,7 +19,7 @@ interface Etudiant {
   prenom: string | null
   email_parent: string | null
   telephone_parent: string | null
-  numero_etudiant: string | null
+  matricule: string | null
   statut: string
   promotions?: { nom: string } | null
 }
@@ -133,14 +133,15 @@ function TabNouveauMessage({ ecoleId }: { ecoleId: string }) {
 
   useEffect(() => {
     Promise.all([
-      supabase.from('etudiants')
-        .select('id, nom, prenom, email_parent, telephone_parent, numero_etudiant, statut, promotions(nom)')
-        .eq('ecole_id', ecoleId).order('nom'),
+      supabase.from('inscriptions_semestre')
+        .select('etudiants!inner(id, nom, prenom, email_parent, telephone_parent, matricule, statut), promotions(nom)')
+        .eq('ecole_id', ecoleId).eq('statut', 'active').order('etudiants(nom)'),
       supabase.from('modeles_communication')
         .select('*').or(`ecole_id.eq.${ecoleId},ecole_id.is.null`).order('categorie'),
       supabase.from('promotions').select('id, nom').eq('ecole_id', ecoleId).order('nom'),
     ]).then(([eRes, mRes, pRes]) => {
-      setEtudiants((eRes.data ?? []) as unknown as Etudiant[])
+      const inscriptionsData = (eRes.data ?? []) as unknown as { etudiants: Omit<Etudiant, 'promotions'>; promotions: { nom: string } | null }[]
+      setEtudiants(inscriptionsData.map(row => ({ ...row.etudiants, promotions: row.promotions })))
       setModeles(mRes.data ?? [])
       setPromotions(pRes.data ?? [])
       setLoading(false)
