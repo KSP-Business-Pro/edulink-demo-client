@@ -182,11 +182,11 @@ function TabVueGenerale({ ecoleId, anneeId }: { ecoleId: string; anneeId: string
       const progStatsArr: ProgStat[] = []
       for (const prog of progs.slice(0, 8)) {
         const { data: res } = await supabase.from('resultats_cache')
-          .select('moyenne_generale, valide').eq('ecole_id', ecoleId).eq('programme_id', prog.id)
+          .select('moyenne_semestre, semestre_valide, semestres!inner(programme_id)').eq('ecole_id', ecoleId).eq('semestres.programme_id', prog.id)
         const rs = res ?? []
-        const moys = rs.map(r => r.moyenne_generale).filter((m): m is number => m !== null)
+        const moys = rs.map(r => (r as any).moyenne_semestre).filter((m): m is number => m !== null)
         const moy  = moys.length > 0 ? moys.reduce((s, m) => s + m, 0) / moys.length : 0
-        const valid = rs.filter(r => r.valide).length
+        const valid = rs.filter(r => (r as any).semestre_valide).length
         progStatsArr.push({
           programme_id:  prog.id,
           programme_nom: prog.intitule,
@@ -317,17 +317,17 @@ function TabRisques({ ecoleId }: { ecoleId: string }) {
     setLoading(true)
 
     supabase.from('resultats_cache')
-      .select('etudiant_id, moyenne_generale, valide, etudiants(nom, prenom)')
+      .select('etudiant_id, moyenne_semestre, semestre_valide, etudiants(nom, prenom)')
       .eq('ecole_id', ecoleId)
       .then(async ({ data: res }) => {
         if (!res) { setLoading(false); return }
 
         const rows: EtudiantRisque[] = res.map((r: Record<string, unknown>) => {
           const etu = r.etudiants as Record<string, unknown> | null
-          const moy = r.moyenne_generale as number | null ?? 0
+          const moy = r.moyenne_semestre as number | null ?? 0
           // Score risque : basé sur moyenne (principale composante)
           const scoreParMoy    = moy < 10 ? ((10 - moy) / 10) * 60 : 0
-          const scoreParValidation = !(r.valide as boolean) ? 30 : 0
+          const scoreParValidation = !(r.semestre_valide as boolean) ? 30 : 0
           const scoreRisque = Math.min(100, Math.round(scoreParMoy + scoreParValidation))
           const niveauRisque: EtudiantRisque['niveau_risque'] =
             scoreRisque >= 75 ? 'critique' :
@@ -470,11 +470,11 @@ function TabComparatif({ ecoleId }: { ecoleId: string }) {
         const arr: ProgStat[] = []
         for (const prog of progs ?? []) {
           const { data: res } = await supabase.from('resultats_cache')
-            .select('moyenne_generale, valide').eq('ecole_id', ecoleId).eq('programme_id', prog.id)
+            .select('moyenne_semestre, semestre_valide, semestres!inner(programme_id)').eq('ecole_id', ecoleId).eq('semestres.programme_id', prog.id)
           const rs   = res ?? []
-          const moys = rs.map(r => r.moyenne_generale).filter((m): m is number => m !== null)
+          const moys = rs.map(r => (r as any).moyenne_semestre).filter((m): m is number => m !== null)
           const moy  = moys.length > 0 ? moys.reduce((s, m) => s + m, 0) / moys.length : 0
-          const valid= rs.filter(r => r.valide).length
+          const valid= rs.filter(r => (r as any).semestre_valide).length
           arr.push({
             programme_id:  prog.id,
             programme_nom: prog.intitule,
