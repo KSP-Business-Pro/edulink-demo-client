@@ -86,20 +86,26 @@ export function DashboardReseauPage() {
         // Étudiants
         const { count: nbEtudiants } = await supabase
           .from('etudiants')
+          .select('*', { count: 'exact', head: true })
+          .eq('ecole_id', ecole.id)
 
         // Enseignants
         const { count: nbEnseignants } = await supabase
           .from('enseignants')
+          .select('*', { count: 'exact', head: true })
           .eq('ecole_id', ecole.id);
 
         // Promotions
         const { count: nbPromotions } = await supabase
           .from('promotions')
+          .select('*', { count: 'exact', head: true })
           .eq('ecole_id', ecole.id);
 
         // Semestres actifs
         const { count: nbSemestres } = await supabase
           .from('semestres')
+          .select('*', { count: 'exact', head: true })
+          .eq('ecole_id', ecole.id)
           .eq('statut', 'en_cours');
 
         // Factures
@@ -130,6 +136,7 @@ export function DashboardReseauPage() {
         const { data: semActifs } = await supabase
           .from('semestres')
           .select('id')
+          .eq('ecole_id', ecole.id)
           .eq('statut', 'en_cours');
 
         let deliberationsPending = 0;
