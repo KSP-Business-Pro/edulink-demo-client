@@ -8,9 +8,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EduLink Sup</title>
     <meta name="description" content="EduLink Sup - Systeme de gestion pedagogique LMD-CAMES pour les etablissements d'enseignement superieur au Benin. Gestion des notes, deliberations, releves et scolarite." />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#1B2A4A" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.warn('Service Worker non enregistré :', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
+
+
