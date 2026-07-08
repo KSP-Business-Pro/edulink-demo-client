@@ -137,6 +137,7 @@ export function DashboardReseauPage() {
           const semIds = semActifs.map(s => s.id);
           const { count: nbDelibs } = await supabase
             .from('deliberations')
+            .select('*', { count: 'exact', head: true })
               .in('semestre_id', semIds)
             .eq('statut', 'validee');
           deliberationsPending = (semActifs.length) - (nbDelibs ?? 0);
