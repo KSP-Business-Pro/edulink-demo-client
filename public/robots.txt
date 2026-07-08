@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /dashboard-reseau
+Disallow: /saisie-notes
+Disallow: /deliberations
+Disallow: /resultats
+Disallow: /utilisateurs
+Disallow: /comptabilite
+Disallow: /audit
+Disallow: /parametres

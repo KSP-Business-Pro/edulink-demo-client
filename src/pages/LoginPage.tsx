@@ -39,7 +39,7 @@ export function LoginPage() {
   const displayError = localError || error;
 
   return (
-    <div style={{
+    <div role="main" style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center',
       justifyContent: 'center', background: '#1a1a2e', padding: 24,
       fontFamily: "'Segoe UI', sans-serif",
