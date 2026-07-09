@@ -30,7 +30,7 @@ function KPICardSkeleton() {
     <div style={{
       background: '#fff', borderRadius: 10, padding: '1.25rem 1.5rem',
       borderTop: '2px solid #C8932E', border: '1px solid #f1f5f9',
-      flex: 1, minWidth: 160,
+      flex: 1, minWidth: 160, minHeight: 130,
       display: 'flex', flexDirection: 'column', gap: 10,
     }}>
       <Skeleton w={32} h={32} radius={8} />
@@ -65,7 +65,7 @@ function KPICard({ ico, val, label, sub }: { ico: string; val: string | number; 
     <div style={{
       background: '#fff', borderRadius: 10, padding: '1.25rem 1.5rem',
       borderTop: '2px solid #C8932E', border: '1px solid #f1f5f9',
-      flex: 1, minWidth: 160,
+      flex: 1, minWidth: 160, minHeight: 130,
     }}>
       <div style={{ fontSize: 26, marginBottom: 6 }}>{ico}</div>
       <div style={{ fontFamily: "'Lora', serif", fontSize: 28, fontWeight: 600, color: '#1B2A4A', lineHeight: 1 }}>{val}</div>
@@ -438,3 +438,4 @@ const styles = {
   refreshBtn:  { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 6px', borderRadius: 6, opacity: 0.6 } as React.CSSProperties,
   retryBtn:    { padding: '9px 20px', background: '#1B2A4A', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' } as React.CSSProperties,
 };
+
