@@ -252,14 +252,18 @@ export function DashboardPage() {
     load(eid);
   }, [ecoleId, user?.ecole_id]);
 
-  const ecoleSelector = isSuperAdmin && ecoles.length > 0 ? (
-    <select
-      value={ecoleId ?? ''}
-      onChange={e => setEcoleId(e.target.value)}
-      style={{ fontSize: 13, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#1B2A4A', cursor: 'pointer' }}
-    >
-      {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
-    </select>
+  const ecoleSelector = isSuperAdmin ? (
+    ecoles.length > 0 ? (
+      <select
+        value={ecoleId ?? ''}
+        onChange={e => setEcoleId(e.target.value)}
+        style={{ fontSize: 13, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#1e293b', cursor: 'pointer', minWidth: 220, maxWidth: 260, height: 32, boxSizing: 'border-box' }}
+      >
+        {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+      </select>
+    ) : (
+      <span style={{ display: 'inline-block', minWidth: 220, height: 32 }} aria-hidden="true" />
+    )
   ) : null;
 
   const keyframes = `
