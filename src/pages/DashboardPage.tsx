@@ -301,7 +301,12 @@ export function DashboardPage() {
           <Skeleton w={200} h={22} radius={6} />
           <Skeleton w={120} h={13} radius={4} />
         </div>
-        <Skeleton w={110} h={32} radius={8} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Skeleton w={220} h={32} radius={8} />
+          <Skeleton w={70} h={13} radius={4} />
+          <Skeleton w={90} h={22} radius={20} />
+          <Skeleton w={28} h={28} radius={6} />
+        </div>
       </div>
       <div style={styles.kpiGrid}>
         {[0,1,2,3].map(i => <KPICardSkeleton key={i} />)}
