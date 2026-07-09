@@ -43,18 +43,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [secondesRestantes, setSecondesRestantes] = useState(0);
   const derniereActivite = useRef<number>(Date.now());
 
-  // Charger la session au montage
+  // Charger la session au montage.
+  // Une seule source de verite : onAuthStateChange emet un evenement
+  // INITIAL_SESSION des l'abonnement (session deja lue depuis le storage
+  // local par le client Supabase). L'appel getCurrentSession() en parallele
+  // etait redondant et creait une race condition sous latence reseau
+  // (l'event INITIAL_SESSION pouvait arriver avant la resolution complete
+  // du profil via getCurrentSession(), provoquant une deconnexion
+  // fantome vers /login -- reproduit systematiquement sous throttling
+  // Lighthouse / connexion lente).
   useEffect(() => {
     let cancelled = false;
 
-    getCurrentSession().then(profil => {
-      if (!cancelled) {
-        setUser(profil);
-        setLoading(false);
-      }
-    });
-
-    // Écouter les changements (logout depuis un autre onglet, expiration JWT…)
     const { data: { subscription } } = onAuthStateChange(profil => {
       if (!cancelled) {
         setUser(profil);
