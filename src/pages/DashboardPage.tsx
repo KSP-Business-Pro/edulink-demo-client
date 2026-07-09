@@ -337,18 +337,16 @@ export function DashboardPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {ecoleSelector}
           <span style={styles.annee}>{kpis.anneeLibelle}</span>
-          {lastSync && (
-            <span style={styles.syncBadge} title="Dernière synchronisation">
-              {loading ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={styles.syncSpinner} />
-                  Sync…
-                </span>
-              ) : (
-                <>🕐 {lastSync.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</>
-              )}
-            </span>
-          )}
+          <span style={{ ...styles.syncBadge, visibility: lastSync ? "visible" : "hidden" }} title="Dernière synchronisation">
+            {loading ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={styles.syncSpinner} />
+                Sync…
+              </span>
+            ) : (
+              <>🕐 {lastSync ? lastSync.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</>
+            )}
+          </span>
           <button
             style={styles.refreshBtn}
             onClick={() => { const eid = ecoleId ?? user?.ecole_id; if (eid) load(eid); }}
