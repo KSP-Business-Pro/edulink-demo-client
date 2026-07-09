@@ -417,7 +417,7 @@ export function DashboardPage() {
 // ── Styles ─────────────────────────────────────────────────────────────────
 const styles = {
   page:        { padding: '1.5rem 2rem', maxWidth: 1100, margin: '0 auto', fontFamily: "'Segoe UI', sans-serif" } as React.CSSProperties,
-  header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap' as const, gap: 10 },
+  header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap' as const, gap: 10, minHeight: 76 },
   h1:          { fontFamily: "'Lora', serif", fontSize: 22, fontWeight: 600, color: '#1B2A4A', margin: 0, display: 'flex', alignItems: 'center' } as React.CSSProperties,
   subtitle:    { fontSize: 13, color: '#64748b', margin: '2px 0 0' } as React.CSSProperties,
   annee:       { fontSize: 13, color: '#94a3b8', fontWeight: 500 } as React.CSSProperties,
@@ -438,4 +438,5 @@ const styles = {
   refreshBtn:  { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 6px', borderRadius: 6, opacity: 0.6 } as React.CSSProperties,
   retryBtn:    { padding: '9px 20px', background: '#1B2A4A', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' } as React.CSSProperties,
 };
+
 
