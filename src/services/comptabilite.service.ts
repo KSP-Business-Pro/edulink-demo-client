@@ -302,3 +302,39 @@ export async function facturationMasse(payload: {
   }
   return { ok, skip };
 }
+
+// ── Données complètes pour affichage/impression d'un reçu ─────────────────────
+export async function fetchDonneesRecu(numeroRecu: string) {
+  const { data: p, error } = await supabase
+    .from('paiements')
+    .select(`
+      numero_recu, montant, mode_paiement, reference, date_paiement, caissier_nom, observation,
+      factures ( libelle, reference, montant_total, montant, montant_paye ),
+      etudiants ( nom, prenom, matricule ),
+      ecoles ( nom )
+    `)
+    .eq('numero_recu', numeroRecu)
+    .single();
+  if (error || !p) throw new Error(error?.message ?? 'Reçu introuvable');
+
+  const f = p.factures as any;
+  const e = p.etudiants as any;
+  const ec = p.ecoles as any;
+  const totalFacture = f?.montant_total ?? f?.montant ?? 0;
+  const montantPayeApres = f?.montant_paye ?? 0;
+
+  return {
+    paiement: {
+      numero_recu: p.numero_recu, montant: p.montant, mode_paiement: p.mode_paiement,
+      reference: p.reference, date_paiement: p.date_paiement,
+      caissier_nom: p.caissier_nom, observation: p.observation,
+    },
+    facture: {
+      libelle: f?.libelle ?? '', reference: f?.reference ?? null,
+      montant_total: totalFacture,
+      montant_paye_avant: Math.max(0, montantPayeApres - p.montant),
+    },
+    etudiant: { nom: e?.nom ?? '', prenom: e?.prenom ?? '', matricule: e?.matricule ?? '' },
+    ecole: { nom: ec?.nom ?? '' },
+  };
+}

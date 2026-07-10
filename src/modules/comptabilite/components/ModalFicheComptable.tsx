@@ -1,8 +1,11 @@
 // src/modules/comptabilite/components/ModalFicheComptable.tsx
 import { useState, useEffect } from 'react';
+import { useAuth } from '../../../hooks/useAuth';
 import type { Facture, ModePaiement } from '../../../services/comptabilite.service';
 import { fetchFacturesEtudiant, enregistrerPaiement, supprimerFacture, fmt, RUBRIQUE_LABELS } from '../../../services/comptabilite.service';
 import { addToast } from '../../../hooks/useErrorHandler';
+import { fetchDonneesRecu } from '../../../services/comptabilite.service';
+import { ReceiptModal } from './ReceiptPDF';
 
 interface Props {
   etudiantId: string;
@@ -20,6 +23,7 @@ const MODES: { value: ModePaiement; label: string }[] = [
 ];
 
 export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefresh }: Props) {
+  const { user } = useAuth();
   const [factures, setFactures] = useState<Facture[]>([]);
   const [loading, setLoading]   = useState(true);
   const [paiementModal, setPaiementModal] = useState<{ factureId: string; restant: number } | null>(null);
@@ -27,6 +31,7 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
   const [paiementMode, setPaiementMode]       = useState<ModePaiement>('especes');
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [receiptData, setReceiptData] = useState<Awaited<ReturnType<typeof fetchDonneesRecu>> | null>(null);
 
   async function reload() {
     setLoading(true);
@@ -45,10 +50,14 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
     if (!paiementModal) return;
     setSaving(true); setError(null);
     try {
-      await enregistrerPaiement(paiementModal.factureId, parseFloat(paiementMontant), paiementMode);
+      const { numeroRecu } = await enregistrerPaiement(paiementModal.factureId, parseFloat(paiementMontant), paiementMode, { authUserId: user!.id, caissierNom: user?.prenom ? `${user.prenom} ${user.nom}` : user!.nom });
       setPaiementModal(null);
       await reload();
       onRefresh();
+      try {
+        const donnees = await fetchDonneesRecu(numeroRecu);
+        setReceiptData(donnees);
+      } catch (e) { addToast("Paiement enregistré, mais le reçu n'a pas pu être chargé.", "error"); }
     } catch (err: any) { setError(err.message); }
     finally { setSaving(false); }
   }
@@ -164,6 +173,11 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal reçu de paiement */}
+      {receiptData && (
+        <ReceiptModal data={receiptData} onClose={() => setReceiptData(null)} />
       )}
     </div>
   );
