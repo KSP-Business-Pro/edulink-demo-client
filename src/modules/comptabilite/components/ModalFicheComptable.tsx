@@ -6,6 +6,7 @@ import { fetchFacturesEtudiant, enregistrerPaiement, supprimerFacture, fmt, RUBR
 import { addToast } from '../../../hooks/useErrorHandler';
 import { fetchDonneesRecu } from '../../../services/comptabilite.service';
 import { ReceiptModal } from './ReceiptPDF';
+import { fetchPaiementsFacture, type Paiement } from '../../../services/comptabilite.service';
 
 interface Props {
   etudiantId: string;
@@ -32,6 +33,9 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState<string | null>(null);
   const [receiptData, setReceiptData] = useState<Awaited<ReturnType<typeof fetchDonneesRecu>> | null>(null);
+  const [expandedFactureId, setExpandedFactureId] = useState<string | null>(null);
+  const [paiementsCache, setPaiementsCache] = useState<Record<string, Paiement[]>>({});
+  const [loadingPaiements, setLoadingPaiements] = useState(false);
 
   async function reload() {
     setLoading(true);
@@ -45,17 +49,37 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
   const totalEncaisse = factures.reduce((s, f) => s + (f.montant_paye || 0), 0);
   const totalRestant  = totalAttendu - totalEncaisse;
 
+  async function togglePaiements(factureId: string) {
+    if (expandedFactureId === factureId) { setExpandedFactureId(null); return; }
+    setExpandedFactureId(factureId);
+    if (!paiementsCache[factureId]) {
+      setLoadingPaiements(true);
+      try {
+        const data = await fetchPaiementsFacture(factureId);
+        setPaiementsCache(prev => ({ ...prev, [factureId]: data }));
+      } catch (e: any) { addToast("Erreur : " + e.message, "error"); }
+      finally { setLoadingPaiements(false); }
+    }
+  }
+
+  async function handleVoirRecu(paiementId: string) {
+    try {
+      const donnees = await fetchDonneesRecu(paiementId);
+      setReceiptData(donnees);
+    } catch (e: any) { addToast("Erreur : " + e.message, "error"); }
+  }
+
   async function handlePaiement(e: React.FormEvent) {
     e.preventDefault();
     if (!paiementModal) return;
     setSaving(true); setError(null);
     try {
-      const { numeroRecu } = await enregistrerPaiement(paiementModal.factureId, parseFloat(paiementMontant), paiementMode, { authUserId: user!.id, caissierNom: user?.prenom ? `${user.prenom} ${user.nom}` : user!.nom });
+      const { numeroRecu, paiementId } = await enregistrerPaiement(paiementModal.factureId, parseFloat(paiementMontant), paiementMode, { authUserId: user!.id, caissierNom: user?.prenom ? `${user.prenom} ${user.nom}` : user!.nom });
       setPaiementModal(null);
       await reload();
       onRefresh();
       try {
-        const donnees = await fetchDonneesRecu(numeroRecu);
+        const donnees = await fetchDonneesRecu(paiementId);
         setReceiptData(donnees);
       } catch (e) { addToast("Paiement enregistré, mais le reçu n'a pas pu être chargé.", "error"); }
     } catch (err: any) { setError(err.message); }
@@ -127,6 +151,9 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
                       <button onClick={() => handleSupprimer(f.id)} style={{ background: 'none', border: '1px solid #fca5a5', color: '#dc2626', padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
                         🗑 Supprimer
                       </button>
+                      <button onClick={() => togglePaiements(f.id)} style={{ background: "none", border: "1px solid #e5e7eb", color: "#374151", padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", fontFamily: "inherit", marginLeft: 6 }}>
+                        {expandedFactureId === f.id ? "Masquer" : "Paiements"}
+                      </button>
                       {restantF > 0 ? (
                         <button onClick={() => { setPaiementModal({ factureId: f.id, restant: restantF }); setPaiementMontant(String(Math.round(restantF))); }}
                           style={{ background: '#1e3a5f', color: '#fff', border: 'none', padding: '5px 14px', borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -136,6 +163,25 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
                         <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Soldée</span>
                       )}
                     </div>
+                    {expandedFactureId === f.id && (
+                      <div style={{ marginTop: ".6rem", paddingTop: ".6rem", borderTop: "1px dashed #e5e7eb" }}>
+                        {loadingPaiements ? (
+                          <div style={{ fontSize: 11, color: "#9ca3af" }}>Chargement…</div>
+                        ) : (paiementsCache[f.id] ?? []).length === 0 ? (
+                          <div style={{ fontSize: 11, color: "#9ca3af" }}>Aucun paiement enregistre</div>
+                        ) : (
+                          (paiementsCache[f.id] ?? []).map(p => (
+                            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: ".4rem 0", borderBottom: "1px solid #f9fafb", fontSize: 11 }}>
+                              <div>
+                                <span style={{ fontFamily: "monospace", color: "#0369a1" }}>{p.numero_recu}</span>
+                                <span style={{ color: "#9ca3af", marginLeft: 8 }}>{new Date(p.date_paiement).toLocaleDateString("fr-FR")} - {fmt(p.montant)}</span>
+                              </div>
+                              <button onClick={() => handleVoirRecu(p.id)} style={{ background: "none", border: "1px solid #ede9fe", color: "#7c3aed", padding: "2px 8px", borderRadius: 5, fontSize: 10.5, cursor: "pointer", fontFamily: "inherit" }}>Recu</button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

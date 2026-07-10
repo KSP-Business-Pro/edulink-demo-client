@@ -182,7 +182,7 @@ export async function enregistrerPaiement(
   montant: number,
   mode: ModePaiement,
   opts: { reference?: string; observation?: string; authUserId: string; caissierNom: string }
-): Promise<{ numeroRecu: string }> {
+): Promise<{ numeroRecu: string; paiementId: string }> {
   const { data: f } = await supabase
     .from('factures').select('ecole_id,etudiant_id,montant_total,montant,montant_paye').eq('id', factureId).single();
   if (!f) throw new Error('Facture introuvable');
@@ -197,7 +197,7 @@ export async function enregistrerPaiement(
 
   const caissierId = await resolveCaissierId(opts.authUserId);
 
-  const { error: errPaiement } = await supabase.from('paiements').insert({
+  const { data: nouveauPaiement, error: errPaiement } = await supabase.from('paiements').insert({
     ecole_id:      f.ecole_id,
     facture_id:    factureId,
     etudiant_id:   f.etudiant_id,
@@ -208,7 +208,7 @@ export async function enregistrerPaiement(
     caissier_nom:  opts.caissierNom,
     numero_recu:   numeroRecu,
     observation:   opts.observation?.trim() || null,
-  });
+  }).select('id').single();
   if (errPaiement) throw new Error(errPaiement.message);
 
   // Met à jour le cumul sur la facture (conservé pour compat avec le reste de l'UI)
@@ -219,7 +219,7 @@ export async function enregistrerPaiement(
     .update({ montant_paye: nouvPaye, statut, mode_paiement: mode }).eq('id', factureId);
   if (errFacture) throw new Error(errFacture.message);
 
-  return { numeroRecu };
+  return { numeroRecu, paiementId: nouveauPaiement.id };
 }
 
 // ── Historique des paiements d'une facture ───────────────────────────────────
@@ -304,7 +304,7 @@ export async function facturationMasse(payload: {
 }
 
 // ── Données complètes pour affichage/impression d'un reçu ─────────────────────
-export async function fetchDonneesRecu(numeroRecu: string) {
+export async function fetchDonneesRecu(paiementId: string) {
   const { data: p, error } = await supabase
     .from('paiements')
     .select(`
@@ -313,7 +313,7 @@ export async function fetchDonneesRecu(numeroRecu: string) {
       etudiants ( nom, prenom, matricule ),
       ecoles ( nom )
     `)
-    .eq('numero_recu', numeroRecu)
+    .eq('id', paiementId)
     .single();
   if (error || !p) throw new Error(error?.message ?? 'Reçu introuvable');
 
