@@ -70,12 +70,149 @@ function substituerVariables(template: string, vars: Record<string, string>): st
   return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
 }
 
-function labelMention(mention: string | null): string {
+const EMAIL_NAVY  = "#1B2A4A";
+const EMAIL_OCRE  = "#C8932E";
+const EMAIL_CREAM = "#F7F4ED";
+const EMAIL_GRAY_BG = "#f8fafc";
+const EMAIL_GRAY_TXT = "#64748b";
+const EMAIL_GREEN = "#059669";
+const EMAIL_GREEN_BG = "#d1fae5";
+const EMAIL_AMBER = "#92400e";
+const EMAIL_AMBER_BG = "#fef3c7";
+
+function labelMentionUE(mention: string | null): string {
   const labels: Record<string, string> = {
     tres_bien: "Très Bien", bien: "Bien",
     assez_bien: "Assez Bien", passable: "Passable",
+    insuffisant: "Insuffisant",
   };
   return mention ? (labels[mention] ?? mention) : "—";
+}
+
+function noteColorEmail(val: number | null): string {
+  if (val === null) return EMAIL_GRAY_TXT;
+  if (val >= 14) return EMAIL_GREEN;
+  if (val >= 10) return "#1d4ed8";
+  return "#dc2626";
+}
+
+function buildReleveEmailHtml(
+  etudiant: { nom: string; prenom: string },
+  ecole: { nom: string; logo_url: string | null },
+  semestre: { libelle: string; niveau: string },
+  snapshot: SnapshotNotes,
+): string {
+  const mentionLabel = labelMentionUE(snapshot.mention);
+  const decisionLabel = snapshot.semestre_valide ? "Admis(e)" : "Ajourné(e)";
+  const decisionBg = snapshot.semestre_valide ? EMAIL_GREEN_BG : EMAIL_AMBER_BG;
+  const decisionColor = snapshot.semestre_valide ? "#065f46" : EMAIL_AMBER;
+  const datePublication = new Date(snapshot.publie_le).toLocaleDateString("fr-FR", {
+    day: "2-digit", month: "long", year: "numeric",
+  });
+
+  const logoOuNom = ecole.logo_url
+    ? `<img src="${ecole.logo_url}" alt="${ecole.nom}" height="36" style="display:block;border:0;outline:none;" />`
+    : `<span style="font-family:Georgia,'Times New Roman',serif;font-size:20px;font-weight:700;color:#ffffff;">${ecole.nom}</span>`;
+
+  const lignesUE = snapshot.resultats_ue.map((ue, i) => {
+    const rowBg = i % 2 === 0 ? "#ffffff" : EMAIL_GRAY_BG;
+    const noteAffichee = ue.est_exclu
+      ? `<span style="color:#dc2626;font-weight:600;font-size:12px;">Exclu(e)</span>`
+      : ue.moyenne_ue !== null
+        ? `<span style="color:${noteColorEmail(ue.moyenne_ue)};font-weight:700;">${Number(ue.moyenne_ue).toFixed(2)}</span>`
+        : `<span style="color:${EMAIL_GRAY_TXT};">—</span>`;
+    return `
+      <tr>
+        <td style="padding:8px 10px;background:${rowBg};border-bottom:1px solid #f1f5f9;font-family:monospace;font-size:11px;color:${EMAIL_GRAY_TXT};">${ue.ue_code}</td>
+        <td style="padding:8px 10px;background:${rowBg};border-bottom:1px solid #f1f5f9;font-size:13px;color:#1e293b;">${ue.ue_intitule}</td>
+        <td align="center" style="padding:8px 10px;background:${rowBg};border-bottom:1px solid #f1f5f9;font-size:12px;color:#374151;">${ue.credits_acquis}/${ue.ue_credits}</td>
+        <td align="center" style="padding:8px 10px;background:${rowBg};border-bottom:1px solid #f1f5f9;font-size:13px;">${noteAffichee}</td>
+        <td align="center" style="padding:8px 10px;background:${rowBg};border-bottom:1px solid #f1f5f9;font-size:11px;color:#374151;">${labelMentionUE(ue.mention_ue)}</td>
+      </tr>`;
+  }).join("");
+
+  const recapCell = (label: string, val: string, color: string) => `
+    <td width="25%" align="center" style="padding:12px 6px;background:${EMAIL_GRAY_BG};border:1px solid #e2e8f0;">
+      <div style="font-size:9px;font-weight:700;color:${EMAIL_GRAY_TXT};text-transform:uppercase;letter-spacing:0.04em;">${label}</div>
+      <div style="font-size:16px;font-weight:800;color:${color};margin-top:4px;">${val}</div>
+    </td>`;
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Relevé de notes — ${etudiant.nom} ${etudiant.prenom}</title>
+</head>
+<body style="margin:0;padding:0;background:#eef2f6;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f6;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;">
+          <tr>
+            <td style="background:${EMAIL_NAVY};padding:22px 28px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>${logoOuNom}</td>
+                  <td align="right">
+                    <span style="font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:${EMAIL_OCRE};text-transform:uppercase;letter-spacing:0.06em;">Relevé de Notes</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px;">
+              <p style="margin:0 0 4px;font-size:14px;color:#1e293b;">Bonjour <strong>${etudiant.prenom} ${etudiant.nom}</strong>,</p>
+              <p style="margin:0 0 20px;font-size:13px;color:${EMAIL_GRAY_TXT};line-height:1.5;">
+                Votre relevé de notes pour <strong>${semestre.libelle}</strong> (${semestre.niveau}) a été publié le ${datePublication}. Voici un résumé de vos résultats.
+              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;border:1px solid #f1f5f9;border-radius:6px;overflow:hidden;">
+                <tr>
+                  <td style="background:${EMAIL_NAVY};padding:8px 10px;font-size:10px;font-weight:700;color:#ffffff;text-transform:uppercase;letter-spacing:0.04em;">Code</td>
+                  <td style="background:${EMAIL_NAVY};padding:8px 10px;font-size:10px;font-weight:700;color:#ffffff;text-transform:uppercase;letter-spacing:0.04em;">Unité d'enseignement</td>
+                  <td align="center" style="background:${EMAIL_NAVY};padding:8px 10px;font-size:10px;font-weight:700;color:#ffffff;text-transform:uppercase;letter-spacing:0.04em;">Crédits</td>
+                  <td align="center" style="background:${EMAIL_NAVY};padding:8px 10px;font-size:10px;font-weight:700;color:#ffffff;text-transform:uppercase;letter-spacing:0.04em;">Moyenne</td>
+                  <td align="center" style="background:${EMAIL_NAVY};padding:8px 10px;font-size:10px;font-weight:700;color:#ffffff;text-transform:uppercase;letter-spacing:0.04em;">Mention</td>
+                </tr>
+                ${lignesUE}
+              </table>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:18px;border-spacing:6px 0;">
+                <tr>
+                  ${recapCell("Moyenne", snapshot.moyenne_semestre !== null ? Number(snapshot.moyenne_semestre).toFixed(2) : "—", noteColorEmail(snapshot.moyenne_semestre))}
+                  ${recapCell("Crédits", `${snapshot.credits_valides}/${snapshot.credits_tentes}`, "#1d4ed8")}
+                  ${recapCell("Mention", mentionLabel, "#7e22ce")}
+                  ${recapCell("Décision", decisionLabel, decisionColor)}
+                </tr>
+              </table>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${decisionBg};border-radius:6px;margin-bottom:22px;">
+                <tr>
+                  <td style="padding:12px 16px;font-size:13px;font-weight:700;color:${decisionColor};">
+                    Décision du jury : ${decisionLabel}
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;font-size:12px;color:${EMAIL_GRAY_TXT};line-height:1.5;">
+                Connectez-vous à votre espace EduLink Sup pour consulter le relevé complet et le télécharger au format PDF.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:${EMAIL_CREAM};padding:16px 28px;border-top:1px solid #ece7db;">
+              <p style="margin:0;font-size:10px;color:#8a8574;">
+                Document généré automatiquement par EduLink Sup pour ${ecole.nom}. Ne pas répondre à cet email.
+              </p>
+              <p style="margin:4px 0 0;font-size:10px;color:#8a8574;">
+                Confidentiel — destiné uniquement à ${etudiant.prenom} ${etudiant.nom}.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
 async function envoyerEmailReleve(
@@ -85,11 +222,7 @@ async function envoyerEmailReleve(
   snapshot: SnapshotNotes,
   sujetEmail?: string
 ): Promise<void> {
-  const mention = labelMention(snapshot.mention);
-  const statutSemestre = snapshot.semestre_valide ? "OK" : "NON";
-  const lignesUE = snapshot.resultats_ue.map((ue) => `<tr><td>${ue.ue_code}</td></tr>`).join("");
-
-  const htmlContent = `<html><body>${lignesUE}${mention}${statutSemestre}</body></html>`;
+  const htmlContent = buildReleveEmailHtml(etudiant, ecole, semestre, snapshot);
 
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -117,6 +250,7 @@ const CORS_HEADERS = {
 };
 
 Deno.serve(async (req: Request) => {
+  let lastEmailError: unknown = null;
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: CORS_HEADERS });
   }
@@ -223,7 +357,7 @@ Deno.serve(async (req: Request) => {
       }
       const { etudiant, semestre, ecole } = await loadContexteEmail();
       if (!etudiant?.email_auth) {
-        return Response.json({ success: true, email_envoye: false, detail: "no_email" }, { headers: CORS_HEADERS });
+        return Response.json({ success: true, email_envoye: false, email_erreur: "no_email", detail: "no_email" }, { headers: CORS_HEADERS });
       }
       const { data: reglesResend } = await supabase.from("regles_ecole")
         .select("notif_releve_sujet").eq("ecole_id", etudiant.ecole_id).maybeSingle();
@@ -237,8 +371,9 @@ Deno.serve(async (req: Request) => {
         emailEnvoye = true;
       } catch (e) {
         console.error("Brevo resend error:", e);
+        lastEmailError = e instanceof Error ? e.message : String(e);
       }
-      return Response.json({ success: true, mode: "resend", email_envoye: emailEnvoye }, { headers: CORS_HEADERS });
+      return Response.json({ success: true, mode: "resend", email_envoye: emailEnvoye, email_erreur: emailEnvoye ? null : lastEmailError }, { headers: CORS_HEADERS });
     }
 
     if (mode === "lock" || mode === "unlock") {
@@ -309,7 +444,7 @@ Deno.serve(async (req: Request) => {
           try {
             await envoyerEmailReleve(etudiant, ecole, semestre, existant.snapshot_notes as SnapshotNotes, sujetResolu);
             emailEnvoye = true;
-          } catch (e) { console.error("Brevo error:", e); }
+          } catch (e) { console.error("Brevo error:", e); lastEmailError = e instanceof Error ? e.message : String(e); }
         }
       }
       return Response.json({
@@ -318,6 +453,7 @@ Deno.serve(async (req: Request) => {
         mention: existant.mention,
         deja_publie: true,
         email_envoye: emailEnvoye,
+        email_erreur: emailEnvoye ? null : lastEmailError,
       }, { headers: CORS_HEADERS });
     }
 
@@ -384,6 +520,7 @@ Deno.serve(async (req: Request) => {
         emailEnvoye = true;
       } catch (e) {
         console.error("Brevo error:", e);
+        lastEmailError = e instanceof Error ? e.message : String(e);
       }
     }
 
@@ -397,6 +534,7 @@ Deno.serve(async (req: Request) => {
       mention,
       republie: !!existant,
       email_envoye: emailEnvoye,
+      email_erreur: emailEnvoye ? null : lastEmailError,
     }, { headers: CORS_HEADERS });
 
   } catch (err) {
