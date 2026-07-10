@@ -4,6 +4,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { initSentry } from './services/sentry.service';
 import './index.css';
 
 // Reset CSS minimal — le reste est géré par les composants
@@ -16,6 +17,8 @@ const globalStyles = `
 const style = document.createElement('style');
 style.textContent = globalStyles;
 document.head.appendChild(style);
+
+initSentry();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

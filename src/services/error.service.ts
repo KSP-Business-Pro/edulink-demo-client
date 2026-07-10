@@ -1,6 +1,8 @@
 // src/services/error.service.ts
 // B2.2 — Gestion d'erreurs centralisée EduLink Sup
 
+import { reportError } from './sentry.service';
+
 export type ErrorSeverity = 'error' | 'warning' | 'info';
 
 export interface AppError {
@@ -171,6 +173,12 @@ export function handleError(err: unknown, options: HandleErrorOptions = {}): App
     `[EduLink Error]${context ? ` [${context}]` : ''}`,
     { message: appError.message, code: appError.code, detail: appError.detail, raw: err }
   );
+
+  // Remonte l'erreur vers Sentry (production uniquement, cf. sentry.service.ts),
+  // sauf erreurs réseau (NETWORK) : attendues côté utilisateur, pas des bugs applicatifs
+  if (appError.code !== 'NETWORK') {
+    reportError(err, context);
+  }
 
   if (!silent) {
     if (toast) {

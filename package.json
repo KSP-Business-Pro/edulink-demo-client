@@ -12,6 +12,7 @@
     "test:legacy": "node edulink_tests.mjs"
   },
   "dependencies": {
+    "@sentry/react": "^10.65.0",
     "@supabase/supabase-js": "^2.39.0",
     "lucide-react": "^1.21.0",
     "react": "^18.2.0",
