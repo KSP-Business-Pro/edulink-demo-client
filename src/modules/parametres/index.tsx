@@ -273,7 +273,7 @@ export default function ParametresPage() {
           <div className="card" style={{ padding: '1.2rem', gridColumn: '1 / -1' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: '#111827' }}>📬 Notifications email</div>
-              <button className="btn-ghost btn-sm" onClick={openNotifsModal}>✏ Modifier</button>
+              <a href="/notifications-config" className="btn-ghost btn-sm" style={{ textDecoration: "none" }}>⚙ Gérer les modèles</a>
             </div>
             {regles ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>

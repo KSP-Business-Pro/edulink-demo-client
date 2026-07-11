@@ -1,4 +1,4 @@
-﻿// src/App.tsx
+// src/App.tsx
 // Router principal avec lazy loading par module
 // Chaque module est chargé à la demande — bundle splitting automatique
 
@@ -28,6 +28,7 @@ const DeliberationsPage= lazy(() => import('./modules/deliberations'));
 const EnseignantsPage  = lazy(() => import('./modules/enseignants'));
 const ComptabilitePage = lazy(() => import('./modules/comptabilite'));
 const ParametresPage      = lazy(() => import('./modules/parametres'));
+const NotificationsConfigPage = lazy(() => import('./modules/notifications-config'));
 const ParametresEcolePage = lazy(() => import('./modules/parametres-ecole'));
 const UtilisateursPage      = lazy(() => import('./modules/utilisateurs'));
 const PortailEnseignantPage = lazy(() => import('./modules/portail-enseignant'));
@@ -102,6 +103,7 @@ export default function App() {
           <Route path="/messages" element={<AppRoute page="messages"><MessagesPage /></AppRoute>} />
           <Route path="/parametres-ecole" element={<AppRoute page="parametres-ecole"><ParametresEcolePage /></AppRoute>} />
           <Route path="/parametres"   element={<AppRoute page="parametres">  <ParametresPage /></AppRoute>} />
+          <Route path="/notifications-config" element={<AppRoute page="notifications-config"><NotificationsConfigPage /></AppRoute>} />
           <Route path="/annees" element={<AppRoute page="annees"><AnneesPage /></AppRoute>} />
           <Route path="/analytics-ia" element={<AppRoute page="analytics-ia"><AnalyticsIAPage /></AppRoute>} />
           <Route path="/portail-public" element={<AppRoute page="portail-public"><PortailPublicMgmt /></AppRoute>} />
