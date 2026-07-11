@@ -5,11 +5,13 @@ import { supabase } from '../../services/supabase';
 import { TYPES_NOTIF, CANAUX_NOTIF, fetchModeles } from './notifications-config.service';
 import type { ModeleNotification, TypeNotif, CanalNotif } from './notifications-config.service';
 import { ModalEditeurModele } from './components/ModalEditeurModele';
+import { JournalEnvois } from './components/JournalEnvois';
 
 export default function NotificationsConfigPage() {
   const { user, isSuperAdmin } = useAuth();
   const [ecoleId, setEcoleId] = useState<string>(user?.ecole_id ?? '');
   const [ecoles, setEcoles]   = useState<{ id: string; nom: string }[]>([]);
+  const [activeTab, setActiveTab] = useState<'modeles' | 'journal'>('modeles');
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -53,7 +55,30 @@ export default function NotificationsConfigPage() {
         </div>
       </div>
 
-      {loading ? <div className="loading">Chargement…</div> : (
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e5e7eb', marginBottom: '1.25rem' }}>
+        <button
+          onClick={() => setActiveTab('modeles')}
+          style={{
+            padding: '9px 16px', border: 'none', borderBottom: activeTab === 'modeles' ? '2px solid #1B2A4A' : '2px solid transparent',
+            background: 'transparent', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+            color: activeTab === 'modeles' ? '#1B2A4A' : '#6b7280', cursor: 'pointer',
+          }}
+        >
+          Modeles
+        </button>
+        <button
+          onClick={() => setActiveTab('journal')}
+          style={{
+            padding: '9px 16px', border: 'none', borderBottom: activeTab === 'journal' ? '2px solid #1B2A4A' : '2px solid transparent',
+            background: 'transparent', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+            color: activeTab === 'journal' ? '#1B2A4A' : '#6b7280', cursor: 'pointer',
+          }}
+        >
+          Journal des envois
+        </button>
+      </div>
+
+      {activeTab === 'modeles' && (loading ? <div className="loading">Chargement…</div> : (
         <div className="table-wrap">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -101,6 +126,10 @@ export default function NotificationsConfigPage() {
             </tbody>
           </table>
         </div>
+      ))}
+
+      {activeTab === 'journal' && (
+        <JournalEnvois ecoleId={ecoleId} />
       )}
 
       {edition && (
