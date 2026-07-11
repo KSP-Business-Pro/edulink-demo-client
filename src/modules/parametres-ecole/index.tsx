@@ -175,7 +175,6 @@ export default function ParametresEcolePage() {
   const TABS = [
     { id: 'regles',        label: 'Règles pédagogiques', ico: '🎓' },
     { id: 'finances',      label: 'Finances & Accès',    ico: '💰' },
-    { id: 'notifications', label: 'Notifications email', ico: '📧' },
   ] as const
 
   if (loading) return <div style={S.centered}><div style={S.spinner} /></div>
@@ -283,65 +282,13 @@ export default function ParametresEcolePage() {
         </div>
       )}
 
-      {/* ── Notifications ── */}
-      {activeTab === 'notifications' && (
-        <div>
-          <div style={S.card}>
-            <div style={S.cardTitle}>📧 Modèles de notifications automatiques</div>
-            <p style={{ fontSize: 13, color: '#64748b', marginBottom: '1rem' }}>
-              Ces notifications sont envoyées automatiquement aux parents et étudiants. Configurez le serveur SMTP dans Paramètres Avancés.
-            </p>
-
-            {[
-              {
-                label: 'Publication de relevé',
-                sub:   'Envoyé automatiquement lors de la publication d\'un relevé officiel',
-                activeKey: 'publication_releve_active' as keyof NotifConfig,
-                objetKey:  'publication_releve_objet'  as keyof NotifConfig,
-              },
-              {
-                label: 'Confirmation de paiement',
-                sub:   'Envoyé après enregistrement d\'un paiement ou génération d\'un reçu',
-                activeKey: 'confirmation_paiement_active' as keyof NotifConfig,
-                objetKey:  'confirmation_paiement_objet'  as keyof NotifConfig,
-              },
-              {
-                label: 'Alerte absences',
-                sub:   'Envoyé quand le taux d\'absence d\'un étudiant dépasse le seuil configuré',
-                activeKey: 'alerte_absence_active' as keyof NotifConfig,
-                objetKey:  'alerte_absence_objet'  as keyof NotifConfig,
-              },
-            ].map(n => (
-              <div key={n.label} style={S.notifCard}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                  <div style={S.toggle(!!(notifs[n.activeKey] as boolean))}
-                    onClick={() => setN(n.activeKey, !(notifs[n.activeKey] as boolean))}>
-                    <div style={S.toggleDot(!!(notifs[n.activeKey] as boolean))} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{n.label}</div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>{n.sub}</div>
-                  </div>
-                  <span style={{ marginLeft: 'auto', ...(notifs[n.activeKey] ? S.badgeOn : S.badgeOff) }}>
-                    {notifs[n.activeKey] ? 'Activée' : 'Désactivée'}
-                  </span>
-                </div>
-                <div style={S.field}>
-                  <label style={S.label}>Objet du message</label>
-                  <input value={notifs[n.objetKey] as string}
-                    onChange={e => setN(n.objetKey, e.target.value)}
-                    style={S.input} placeholder="Objet de la notification..." />
-                  <span style={S.hint}>Variables : {'{semestre}'}, {'{etablissement}'}, {'{ue}'}, {'{etudiant}'}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={S.footer}>
-            <button onClick={() => showOk('Configuration notifications sauvegardée (simulation)')} style={S.btnPrimary}>
-              💾 Enregistrer les notifications
-            </button>
-          </div>
+      {/* Notifications email — configuration reelle disponible dans Parametres avances */}
+      {activeTab === "notifications" && (
+        <div style={S.card}>
+          <p style={{ fontSize: 13, color: "#64748b" }}>
+            La configuration des notifications email se fait desormais depuis <strong>Parametres avances</strong>.
+          </p>
+          <a href="/parametres" style={{ ...S.btnPrimary, textDecoration: "none", display: "inline-block" }}>Ouvrir Parametres avances →</a>
         </div>
       )}
     </div>
