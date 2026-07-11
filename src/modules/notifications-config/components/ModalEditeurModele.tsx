@@ -10,6 +10,7 @@ import { TYPES_NOTIF, CANAUX_NOTIF, defaultSujet, upsertModele } from '../notifi
 
 interface Props {
   ecoleId: string;
+  nomEcole: string;
   type: TypeNotif;
   canal: CanalNotif;
   existant: ModeleNotification | null;
@@ -19,7 +20,7 @@ interface Props {
 
 const T = RELEVE_THEME;
 
-export function ModalEditeurModele({ ecoleId, type, canal, existant, onClose, onSaved }: Props) {
+export function ModalEditeurModele({ ecoleId, nomEcole, type, canal, existant, onClose, onSaved }: Props) {
   const typeInfo = TYPES_NOTIF.find(t => t.id === type)!;
   const canalInfo = CANAUX_NOTIF.find(c => c.id === canal)!;
 
@@ -106,7 +107,7 @@ export function ModalEditeurModele({ ecoleId, type, canal, existant, onClose, on
             {canal === 'email' && (
               <div style={S.previewEmailWrap}>
                 <div style={S.previewEmailHeader}>
-                  <span style={{ color: '#fff', fontWeight: 700, fontSize: 12 }}>École Supérieure de Management</span>
+                  <span style={{ color: '#fff', fontWeight: 700, fontSize: 12 }}>{nomEcole}</span>
                   <span style={{ color: T.ocre, fontWeight: 700, fontSize: 10, textTransform: 'uppercase' as const }}>Notification</span>
                 </div>
                 <div style={{ height: 2, background: T.ocre }} />

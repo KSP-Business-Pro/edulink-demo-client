@@ -106,6 +106,7 @@ export default function NotificationsConfigPage() {
       {edition && (
         <ModalEditeurModele
           ecoleId={ecoleId}
+          nomEcole={ecoles.find(e => e.id === ecoleId)?.nom ?? ''}
           type={edition.type}
           canal={edition.canal}
           existant={trouverModele(edition.type, edition.canal)}
