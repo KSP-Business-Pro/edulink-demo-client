@@ -39,8 +39,8 @@ export function ModalEditeurModele({ ecoleId, nomEcole, type, canal, existant, o
         ecole_id: ecoleId,
         type, canal, actif,
         sujet: canalInfo.champSujet ? sujet.trim() : null,
-        corps_html: canal === 'email' ? corps.trim() : null,
-        corps_texte: canal !== 'email' ? corps.trim() : null,
+        corps_html: null,
+        corps_texte: corps.trim(),
       });
       onSaved();
       onClose();

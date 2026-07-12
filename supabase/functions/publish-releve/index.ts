@@ -1,6 +1,7 @@
 // =============================================================================
 // EduLink Sup — Phase 2 — Edge Function : publish-releve
-// Version 6 — Multi-modes (publish / resend / lock / unlock) + RBAC explicite
+// Version 7 — Multi-modes (publish / resend / lock / unlock) + RBAC explicite
+// + Chantier 5.1 : branchement modeles_notification + journal_notifications (email)
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -70,6 +71,78 @@ function substituerVariables(template: string, vars: Record<string, string>): st
   return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
 }
 
+// ── Chantier 5.1 : résolution du modèle personnalisé + journalisation ──
+
+function escaperHtmlBasique(texte: string): string {
+  return texte
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+interface ModeleResolu {
+  /** null = aucun modèle configuré pour cette école (comportement legacy) */
+  actif: boolean | null;
+  sujet: string | null;
+  introHtml: string | null;
+}
+
+async function resoudreModeleEmail(
+  supabase: ReturnType<typeof createClient>,
+  ecoleId: string,
+  vars: Record<string, string>,
+): Promise<ModeleResolu> {
+  const { data: modele } = await supabase
+    .from("modeles_notification")
+    .select("actif, sujet, corps_texte")
+    .eq("ecole_id", ecoleId).eq("type", "releve").eq("canal", "email")
+    .maybeSingle();
+
+  if (!modele) return { actif: null, sujet: null, introHtml: null };
+
+  const sujet = modele.sujet ? substituerVariables(modele.sujet, vars) : null;
+  const introHtml = modele.corps_texte
+    ? escaperHtmlBasique(substituerVariables(modele.corps_texte, vars)).replace(/\n/g, "<br/>")
+    : null;
+
+  return { actif: modele.actif, sujet, introHtml };
+}
+
+async function journaliserEnvoi(
+  supabase: ReturnType<typeof createClient>,
+  params: {
+    ecole_id: string;
+    canal: "email" | "sms" | "push";
+    type: "releve" | "paiement" | "absence";
+    destinataire_id: string;
+    destinataire_nom: string;
+    destinataire_contact: string | null;
+    sujet: string | null;
+    statut: "envoye" | "echec";
+    erreur: string | null;
+    envoye_par: string | null;
+  },
+): Promise<void> {
+  try {
+    await supabase.from("journal_notifications").insert({
+      ecole_id: params.ecole_id,
+      type: params.type,
+      canal: params.canal,
+      destinataire_id: params.destinataire_id,
+      destinataire_type: "etudiant",
+      destinataire_contact: params.destinataire_contact,
+      destinataire_nom: params.destinataire_nom,
+      sujet: params.sujet,
+      statut: params.statut,
+      erreur: params.erreur,
+      envoye_par: params.envoye_par,
+    });
+  } catch (e) {
+    // Le journal ne doit jamais faire échouer l'envoi lui-même
+    console.error("journal_notifications insert error:", e);
+  }
+}
+
 const EMAIL_NAVY  = "#1B2A4A";
 const EMAIL_OCRE  = "#C8932E";
 const EMAIL_CREAM = "#F7F4ED";
@@ -101,6 +174,7 @@ function buildReleveEmailHtml(
   ecole: { nom: string; logo_url: string | null },
   semestre: { libelle: string; niveau: string },
   snapshot: SnapshotNotes,
+  introHtml?: string,
 ): string {
   const mentionLabel = labelMentionUE(snapshot.mention);
   const decisionLabel = snapshot.semestre_valide ? "Admis(e)" : "Ajourné(e)";
@@ -113,6 +187,8 @@ function buildReleveEmailHtml(
   const logoOuNom = ecole.logo_url
     ? `<img src="${ecole.logo_url}" alt="${ecole.nom}" height="36" style="display:block;border:0;outline:none;" />`
     : `<span style="font-family:Georgia,'Times New Roman',serif;font-size:20px;font-weight:700;color:#ffffff;">${ecole.nom}</span>`;
+
+  const introParDefaut = `Votre relevé de notes pour <strong>${semestre.libelle}</strong> (${semestre.niveau}) a été publié le ${datePublication}. Voici un résumé de vos résultats.`;
 
   const lignesUE = snapshot.resultats_ue.map((ue, i) => {
     const rowBg = i % 2 === 0 ? "#ffffff" : EMAIL_GRAY_BG;
@@ -165,7 +241,7 @@ function buildReleveEmailHtml(
             <td style="padding:28px;">
               <p style="margin:0 0 4px;font-size:14px;color:#1e293b;">Bonjour <strong>${etudiant.prenom} ${etudiant.nom}</strong>,</p>
               <p style="margin:0 0 20px;font-size:13px;color:${EMAIL_GRAY_TXT};line-height:1.5;">
-                Votre relevé de notes pour <strong>${semestre.libelle}</strong> (${semestre.niveau}) a été publié le ${datePublication}. Voici un résumé de vos résultats.
+                ${introHtml ?? introParDefaut}
               </p>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;border:1px solid #f1f5f9;border-radius:6px;overflow:hidden;">
                 <tr>
@@ -220,9 +296,10 @@ async function envoyerEmailReleve(
   ecole: { nom: string; logo_url: string | null },
   semestre: { libelle: string; niveau: string },
   snapshot: SnapshotNotes,
-  sujetEmail?: string
+  sujetEmail?: string,
+  introHtml?: string,
 ): Promise<void> {
-  const htmlContent = buildReleveEmailHtml(etudiant, ecole, semestre, snapshot);
+  const htmlContent = buildReleveEmailHtml(etudiant, ecole, semestre, snapshot, introHtml);
 
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -359,19 +436,32 @@ Deno.serve(async (req: Request) => {
       if (!etudiant?.email_auth) {
         return Response.json({ success: true, email_envoye: false, email_erreur: "no_email", detail: "no_email" }, { headers: CORS_HEADERS });
       }
-      const { data: reglesResend } = await supabase.from("regles_ecole")
-        .select("notif_releve_sujet").eq("ecole_id", etudiant.ecole_id).maybeSingle();
-      const sujetResend = substituerVariables(
-        reglesResend?.notif_releve_sujet ?? "Relevé de notes — {semestre}",
-        { semestre: semestre?.libelle ?? "", etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole?.nom ?? "" }
-      );
+
+      const varsResend = { semestre: semestre?.libelle ?? "", etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole?.nom ?? "" };
+      const modeleResend = await resoudreModeleEmail(supabase, etudiant.ecole_id, varsResend);
+      const doitEnvoyerResend = modeleResend.actif !== null ? modeleResend.actif : true;
+
       let emailEnvoye = false;
-      try {
-        await envoyerEmailReleve(etudiant, ecole, semestre, releve.snapshot_notes as SnapshotNotes, sujetResend);
-        emailEnvoye = true;
-      } catch (e) {
-        console.error("Brevo resend error:", e);
-        lastEmailError = e instanceof Error ? e.message : String(e);
+      if (doitEnvoyerResend) {
+        const { data: reglesResend } = await supabase.from("regles_ecole")
+          .select("notif_releve_sujet").eq("ecole_id", etudiant.ecole_id).maybeSingle();
+        const sujetResend = modeleResend.sujet ?? substituerVariables(
+          reglesResend?.notif_releve_sujet ?? "Relevé de notes — {semestre}", varsResend
+        );
+        try {
+          await envoyerEmailReleve(etudiant, ecole, semestre, releve.snapshot_notes as SnapshotNotes, sujetResend, modeleResend.introHtml ?? undefined);
+          emailEnvoye = true;
+        } catch (e) {
+          console.error("Brevo resend error:", e);
+          lastEmailError = e instanceof Error ? e.message : String(e);
+        }
+        await journaliserEnvoi(supabase, {
+          ecole_id: etudiant.ecole_id, canal: "email", type: "releve",
+          destinataire_id: etudiant_id, destinataire_nom: `${etudiant.prenom} ${etudiant.nom}`,
+          destinataire_contact: etudiant.email_auth, sujet: sujetResend,
+          statut: emailEnvoye ? "envoye" : "echec", erreur: emailEnvoye ? null : String(lastEmailError ?? ""),
+          envoye_par: publie_par ?? null,
+        });
       }
       return Response.json({ success: true, mode: "resend", email_envoye: emailEnvoye, email_erreur: emailEnvoye ? null : lastEmailError }, { headers: CORS_HEADERS });
     }
@@ -437,14 +527,26 @@ Deno.serve(async (req: Request) => {
       if (send_email) {
         const { etudiant, semestre, ecole } = await loadContexteEmail();
         if (etudiant?.email_auth) {
-          const sujetResolu = substituerVariables(
-            regles?.notif_releve_sujet ?? "Relevé de notes — {semestre}",
-            { semestre: semestre?.libelle ?? "", etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole?.nom ?? "" }
-          );
-          try {
-            await envoyerEmailReleve(etudiant, ecole, semestre, existant.snapshot_notes as SnapshotNotes, sujetResolu);
-            emailEnvoye = true;
-          } catch (e) { console.error("Brevo error:", e); lastEmailError = e instanceof Error ? e.message : String(e); }
+          const varsExistant = { semestre: semestre?.libelle ?? "", etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole?.nom ?? "" };
+          const modeleExistant = await resoudreModeleEmail(supabase, etudiant.ecole_id, varsExistant);
+          const doitEnvoyerExistant = modeleExistant.actif !== null ? modeleExistant.actif : (regles?.notif_releve_active ?? true);
+
+          if (doitEnvoyerExistant) {
+            const sujetResolu = modeleExistant.sujet ?? substituerVariables(
+              regles?.notif_releve_sujet ?? "Relevé de notes — {semestre}", varsExistant
+            );
+            try {
+              await envoyerEmailReleve(etudiant, ecole, semestre, existant.snapshot_notes as SnapshotNotes, sujetResolu, modeleExistant.introHtml ?? undefined);
+              emailEnvoye = true;
+            } catch (e) { console.error("Brevo error:", e); lastEmailError = e instanceof Error ? e.message : String(e); }
+            await journaliserEnvoi(supabase, {
+              ecole_id: etudiant.ecole_id, canal: "email", type: "releve",
+              destinataire_id: etudiant_id, destinataire_nom: `${etudiant.prenom} ${etudiant.nom}`,
+              destinataire_contact: etudiant.email_auth, sujet: sujetResolu,
+              statut: emailEnvoye ? "envoye" : "echec", erreur: emailEnvoye ? null : String(lastEmailError ?? ""),
+              envoye_par: publie_par ?? null,
+            });
+          }
         }
       }
       return Response.json({
@@ -511,16 +613,28 @@ Deno.serve(async (req: Request) => {
 
     let emailEnvoye = false;
     if (send_email && etudiant.email_auth) {
-      const sujetResolu = substituerVariables(
-        regles?.notif_releve_sujet ?? "Relevé de notes — {semestre}",
-        { semestre: semestre.libelle, etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole.nom }
-      );
-      try {
-        await envoyerEmailReleve(etudiant, ecole, semestre, snapshot, sujetResolu);
-        emailEnvoye = true;
-      } catch (e) {
-        console.error("Brevo error:", e);
-        lastEmailError = e instanceof Error ? e.message : String(e);
+      const varsPublish = { semestre: semestre.libelle, etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole.nom };
+      const modelePublish = await resoudreModeleEmail(supabase, etudiant.ecole_id, varsPublish);
+      const doitEnvoyerPublish = modelePublish.actif !== null ? modelePublish.actif : (regles?.notif_releve_active ?? true);
+
+      if (doitEnvoyerPublish) {
+        const sujetResolu = modelePublish.sujet ?? substituerVariables(
+          regles?.notif_releve_sujet ?? "Relevé de notes — {semestre}", varsPublish
+        );
+        try {
+          await envoyerEmailReleve(etudiant, ecole, semestre, snapshot, sujetResolu, modelePublish.introHtml ?? undefined);
+          emailEnvoye = true;
+        } catch (e) {
+          console.error("Brevo error:", e);
+          lastEmailError = e instanceof Error ? e.message : String(e);
+        }
+        await journaliserEnvoi(supabase, {
+          ecole_id: etudiant.ecole_id, canal: "email", type: "releve",
+          destinataire_id: etudiant_id, destinataire_nom: `${etudiant.prenom} ${etudiant.nom}`,
+          destinataire_contact: etudiant.email_auth, sujet: sujetResolu,
+          statut: emailEnvoye ? "envoye" : "echec", erreur: emailEnvoye ? null : String(lastEmailError ?? ""),
+          envoye_par: publie_par ?? null,
+        });
       }
     }
 
