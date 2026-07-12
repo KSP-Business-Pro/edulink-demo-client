@@ -1,7 +1,8 @@
 // =============================================================================
 // EduLink Sup — Phase 2 — Edge Function : publish-releve
-// Version 7 — Multi-modes (publish / resend / lock / unlock) + RBAC explicite
+// Version 8 — Multi-modes (publish / resend / lock / unlock) + RBAC explicite
 // + Chantier 5.1 : branchement modeles_notification + journal_notifications (email)
+// + Chantier 5.3 : SMS métier vers telephone_parent (off par défaut, actif=true requis)
 // =============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -71,7 +72,7 @@ function substituerVariables(template: string, vars: Record<string, string>): st
   return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
 }
 
-// ── Chantier 5.1 : résolution du modèle personnalisé + journalisation ──
+// ── Chantier 5.1 : résolution du modèle email personnalisé + journalisation ──
 
 function escaperHtmlBasique(texte: string): string {
   return texte
@@ -108,6 +109,67 @@ async function resoudreModeleEmail(
   return { actif: modele.actif, sujet, introHtml };
 }
 
+// ── Chantier 5.3 : résolution du modèle SMS personnalisé ──
+// SMS = canal sans historique préalable : off par défaut, envoi seulement si actif===true.
+
+interface ModeleSmsResolu {
+  actif: boolean | null;
+  corps: string | null;
+}
+
+async function resoudreModeleSms(
+  supabase: ReturnType<typeof createClient>,
+  ecoleId: string,
+  vars: Record<string, string>,
+): Promise<ModeleSmsResolu> {
+  const { data: modele } = await supabase
+    .from("modeles_notification")
+    .select("actif, corps_texte")
+    .eq("ecole_id", ecoleId).eq("type", "releve").eq("canal", "sms")
+    .maybeSingle();
+
+  if (!modele) return { actif: null, corps: null };
+
+  const corps = modele.corps_texte ? substituerVariables(modele.corps_texte, vars) : null;
+  return { actif: modele.actif, corps };
+}
+
+const SMS_RELEVE_PAR_DEFAUT =
+  "EduLink : le relevé de notes de {etudiant} pour {semestre} a été publié. Connectez-vous à EduLink Sup pour le consulter.";
+
+function formatTelephoneE164(tel: string): string {
+  const nettoye = tel.trim();
+  return nettoye.startsWith("+") ? nettoye : `+${nettoye}`;
+}
+
+async function envoyerSmsReleve(telephoneParent: string, corpsMessage: string): Promise<void> {
+  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+  const fromNumber = Deno.env.get("TWILIO_FROM_NUMBER");
+  if (!accountSid || !authToken || !fromNumber) {
+    throw new Error("Service SMS mal configuré côté serveur (secrets Twilio manquants).");
+  }
+  const body = new URLSearchParams({
+    From: fromNumber,
+    To: formatTelephoneE164(telephoneParent),
+    Body: corpsMessage,
+  }).toString();
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${btoa(`${accountSid}:${authToken}`)}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.message || `Twilio error ${response.status}`);
+  }
+}
+
+// ── Journalisation commune à tous les canaux ──
+
 async function journaliserEnvoi(
   supabase: ReturnType<typeof createClient>,
   params: {
@@ -115,6 +177,7 @@ async function journaliserEnvoi(
     canal: "email" | "sms" | "push";
     type: "releve" | "paiement" | "absence";
     destinataire_id: string;
+    destinataire_type: "etudiant" | "parent";
     destinataire_nom: string;
     destinataire_contact: string | null;
     sujet: string | null;
@@ -129,7 +192,7 @@ async function journaliserEnvoi(
       type: params.type,
       canal: params.canal,
       destinataire_id: params.destinataire_id,
-      destinataire_type: "etudiant",
+      destinataire_type: params.destinataire_type,
       destinataire_contact: params.destinataire_contact,
       destinataire_nom: params.destinataire_nom,
       sujet: params.sujet,
@@ -328,6 +391,7 @@ const CORS_HEADERS = {
 
 Deno.serve(async (req: Request) => {
   let lastEmailError: unknown = null;
+  let lastSmsError: unknown = null;
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: CORS_HEADERS });
   }
@@ -418,12 +482,42 @@ Deno.serve(async (req: Request) => {
 
   async function loadContexteEmail() {
     const { data: etudiant } = await supabase.from("etudiants")
-      .select("nom, prenom, email_auth, ecole_id").eq("id", etudiant_id).single();
+      .select("nom, prenom, email_auth, telephone_parent, ecole_id").eq("id", etudiant_id).single();
     const { data: semestre } = await supabase.from("semestres")
       .select("libelle, niveau, programme_id").eq("id", semestre_id).single();
     const { data: ecole } = await supabase.from("ecoles")
       .select("nom, logo_url").eq("id", etudiant?.ecole_id).single();
     return { etudiant, semestre, ecole };
+  }
+
+  // Tente le SMS métier (canal off par défaut, actif===true requis) et journalise.
+  async function tenterSms(
+    ecoleId: string,
+    etudiantIdCible: string,
+    etudiantNom: string,
+    telephoneParent: string | null | undefined,
+    vars: Record<string, string>,
+  ) {
+    const modeleSms = await resoudreModeleSms(supabase, ecoleId, vars);
+    if (modeleSms.actif !== true) return;
+    if (!telephoneParent) return;
+
+    const corpsSms = modeleSms.corps ?? substituerVariables(SMS_RELEVE_PAR_DEFAUT, vars);
+    let smsEnvoye = false;
+    try {
+      await envoyerSmsReleve(telephoneParent, corpsSms);
+      smsEnvoye = true;
+    } catch (e) {
+      console.error("Twilio SMS error:", e);
+      lastSmsError = e instanceof Error ? e.message : String(e);
+    }
+    await journaliserEnvoi(supabase, {
+      ecole_id: ecoleId, canal: "sms", type: "releve",
+      destinataire_id: etudiantIdCible, destinataire_type: "parent",
+      destinataire_nom: etudiantNom, destinataire_contact: telephoneParent,
+      sujet: null, statut: smsEnvoye ? "envoye" : "echec",
+      erreur: smsEnvoye ? null : String(lastSmsError ?? ""), envoye_par: publie_par ?? null,
+    });
   }
 
   try {
@@ -433,11 +527,17 @@ Deno.serve(async (req: Request) => {
         return Response.json({ error: "Aucun relevé publié à renvoyer" }, { status: 404, headers: CORS_HEADERS });
       }
       const { etudiant, semestre, ecole } = await loadContexteEmail();
+
+      const varsResend = { semestre: semestre?.libelle ?? "", etudiant: etudiant ? `${etudiant.prenom} ${etudiant.nom}` : "", etablissement: ecole?.nom ?? "" };
+
+      if (etudiant) {
+        await tenterSms(etudiant.ecole_id, etudiant_id, `${etudiant.prenom} ${etudiant.nom}`, etudiant.telephone_parent, varsResend);
+      }
+
       if (!etudiant?.email_auth) {
         return Response.json({ success: true, email_envoye: false, email_erreur: "no_email", detail: "no_email" }, { headers: CORS_HEADERS });
       }
 
-      const varsResend = { semestre: semestre?.libelle ?? "", etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole?.nom ?? "" };
       const modeleResend = await resoudreModeleEmail(supabase, etudiant.ecole_id, varsResend);
       const doitEnvoyerResend = modeleResend.actif !== null ? modeleResend.actif : true;
 
@@ -457,7 +557,7 @@ Deno.serve(async (req: Request) => {
         }
         await journaliserEnvoi(supabase, {
           ecole_id: etudiant.ecole_id, canal: "email", type: "releve",
-          destinataire_id: etudiant_id, destinataire_nom: `${etudiant.prenom} ${etudiant.nom}`,
+          destinataire_id: etudiant_id, destinataire_type: "etudiant", destinataire_nom: `${etudiant.prenom} ${etudiant.nom}`,
           destinataire_contact: etudiant.email_auth, sujet: sujetResend,
           statut: emailEnvoye ? "envoye" : "echec", erreur: emailEnvoye ? null : String(lastEmailError ?? ""),
           envoye_par: publie_par ?? null,
@@ -524,29 +624,32 @@ Deno.serve(async (req: Request) => {
 
     if (existant && !republish) {
       let emailEnvoye = false;
-      if (send_email) {
-        const { etudiant, semestre, ecole } = await loadContexteEmail();
-        if (etudiant?.email_auth) {
-          const varsExistant = { semestre: semestre?.libelle ?? "", etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole?.nom ?? "" };
-          const modeleExistant = await resoudreModeleEmail(supabase, etudiant.ecole_id, varsExistant);
-          const doitEnvoyerExistant = modeleExistant.actif !== null ? modeleExistant.actif : (regles?.notif_releve_active ?? true);
+      const { etudiant, semestre, ecole } = await loadContexteEmail();
+      const varsExistant = { semestre: semestre?.libelle ?? "", etudiant: etudiant ? `${etudiant.prenom} ${etudiant.nom}` : "", etablissement: ecole?.nom ?? "" };
 
-          if (doitEnvoyerExistant) {
-            const sujetResolu = modeleExistant.sujet ?? substituerVariables(
-              regles?.notif_releve_sujet ?? "Relevé de notes — {semestre}", varsExistant
-            );
-            try {
-              await envoyerEmailReleve(etudiant, ecole, semestre, existant.snapshot_notes as SnapshotNotes, sujetResolu, modeleExistant.introHtml ?? undefined);
-              emailEnvoye = true;
-            } catch (e) { console.error("Brevo error:", e); lastEmailError = e instanceof Error ? e.message : String(e); }
-            await journaliserEnvoi(supabase, {
-              ecole_id: etudiant.ecole_id, canal: "email", type: "releve",
-              destinataire_id: etudiant_id, destinataire_nom: `${etudiant.prenom} ${etudiant.nom}`,
-              destinataire_contact: etudiant.email_auth, sujet: sujetResolu,
-              statut: emailEnvoye ? "envoye" : "echec", erreur: emailEnvoye ? null : String(lastEmailError ?? ""),
-              envoye_par: publie_par ?? null,
-            });
-          }
+      if (etudiant) {
+        await tenterSms(etudiant.ecole_id, etudiant_id, `${etudiant.prenom} ${etudiant.nom}`, etudiant.telephone_parent, varsExistant);
+      }
+
+      if (send_email && etudiant?.email_auth) {
+        const modeleExistant = await resoudreModeleEmail(supabase, etudiant.ecole_id, varsExistant);
+        const doitEnvoyerExistant = modeleExistant.actif !== null ? modeleExistant.actif : (regles?.notif_releve_active ?? true);
+
+        if (doitEnvoyerExistant) {
+          const sujetResolu = modeleExistant.sujet ?? substituerVariables(
+            regles?.notif_releve_sujet ?? "Relevé de notes — {semestre}", varsExistant
+          );
+          try {
+            await envoyerEmailReleve(etudiant, ecole, semestre, existant.snapshot_notes as SnapshotNotes, sujetResolu, modeleExistant.introHtml ?? undefined);
+            emailEnvoye = true;
+          } catch (e) { console.error("Brevo error:", e); lastEmailError = e instanceof Error ? e.message : String(e); }
+          await journaliserEnvoi(supabase, {
+            ecole_id: etudiant.ecole_id, canal: "email", type: "releve",
+            destinataire_id: etudiant_id, destinataire_type: "etudiant", destinataire_nom: `${etudiant.prenom} ${etudiant.nom}`,
+            destinataire_contact: etudiant.email_auth, sujet: sujetResolu,
+            statut: emailEnvoye ? "envoye" : "echec", erreur: emailEnvoye ? null : String(lastEmailError ?? ""),
+            envoye_par: publie_par ?? null,
+          });
         }
       }
       return Response.json({
@@ -568,7 +671,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const { data: etudiant } = await supabase.from("etudiants")
-      .select("nom, prenom, email_auth, ecole_id").eq("id", etudiant_id).single();
+      .select("nom, prenom, email_auth, telephone_parent, ecole_id").eq("id", etudiant_id).single();
     const { data: semestre } = await supabase.from("semestres")
       .select("libelle, niveau, programme_id").eq("id", semestre_id).single();
     const { data: programme } = await supabase.from("programmes_lmd")
@@ -611,9 +714,12 @@ Deno.serve(async (req: Request) => {
 
     if (errReleve) throw new Error(`releves_notes: ${errReleve.message}`);
 
+    const varsPublish = { semestre: semestre.libelle, etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole.nom };
+
+    await tenterSms(etudiant.ecole_id, etudiant_id, `${etudiant.prenom} ${etudiant.nom}`, etudiant.telephone_parent, varsPublish);
+
     let emailEnvoye = false;
     if (send_email && etudiant.email_auth) {
-      const varsPublish = { semestre: semestre.libelle, etudiant: `${etudiant.prenom} ${etudiant.nom}`, etablissement: ecole.nom };
       const modelePublish = await resoudreModeleEmail(supabase, etudiant.ecole_id, varsPublish);
       const doitEnvoyerPublish = modelePublish.actif !== null ? modelePublish.actif : (regles?.notif_releve_active ?? true);
 
@@ -630,7 +736,7 @@ Deno.serve(async (req: Request) => {
         }
         await journaliserEnvoi(supabase, {
           ecole_id: etudiant.ecole_id, canal: "email", type: "releve",
-          destinataire_id: etudiant_id, destinataire_nom: `${etudiant.prenom} ${etudiant.nom}`,
+          destinataire_id: etudiant_id, destinataire_type: "etudiant", destinataire_nom: `${etudiant.prenom} ${etudiant.nom}`,
           destinataire_contact: etudiant.email_auth, sujet: sujetResolu,
           statut: emailEnvoye ? "envoye" : "echec", erreur: emailEnvoye ? null : String(lastEmailError ?? ""),
           envoye_par: publie_par ?? null,
