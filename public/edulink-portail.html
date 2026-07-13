@@ -937,6 +937,7 @@ let tousMessages = [];
 let tousExamens = [];
 let examFilterActif = 'tous';
 let tousEnseignantsPortail = [];
+let rangEtudiantPortail = '-';
 // tousEnseignantsPortail déclaré plus haut
 
 // ══ UTILS ══
@@ -1060,7 +1061,7 @@ function lancerApp() {
 }
 
 async function chargerTout() {
-  await Promise.all([chargerNotes(), chargerReleves(), chargerAbsences(), chargerFactures(), chargerMessages(), chargerExamensPortail(), chargerEnseignantsPortail(), chargerNotifsPortail(), chargerEmploiPortail(), chargerCertificatsPortailData()]);
+  await Promise.all([chargerNotes(), chargerReleves(), chargerAbsences(), chargerFactures(), chargerMessages(), chargerExamensPortail(), chargerEnseignantsPortail(), chargerNotifsPortail(), chargerEmploiPortail(), chargerCertificatsPortailData(), calculerRangGlobalPortail()]);
   initRealtime(); // Abonner aux mises à jour en temps réel
   afficherAccueil();
 }
@@ -1395,6 +1396,38 @@ async function chargerMessages() {
   if (b2) { b2.style.display = nonLus > 0 ? 'flex' : 'none'; if(nonLus>0) b2.textContent = nonLus; }
 }
 
+async function calculerRangGlobalPortail() {
+  rangEtudiantPortail = '-';
+  if (!currentEtudiant?.filiere || !currentEtudiant?.niveau || !currentEtudiant?.ecole_id) return;
+  try {
+    const { data: classmates } = await db.from('etudiants')
+      .select('id')
+      .eq('ecole_id', currentEtudiant.ecole_id)
+      .eq('filiere', currentEtudiant.filiere)
+      .eq('niveau', currentEtudiant.niveau);
+    if (!classmates?.length) return;
+    const ids = classmates.map(c => c.id);
+    const { data: allNotes } = await db.from('notes_lmd')
+      .select('etudiant_id,valeur')
+      .in('etudiant_id', ids);
+    const moyParEtu = {};
+    (allNotes||[]).forEach(n => {
+      if (!moyParEtu[n.etudiant_id]) moyParEtu[n.etudiant_id] = { pts:0, coef:0 };
+      moyParEtu[n.etudiant_id].pts += (n.valeur||0);
+      moyParEtu[n.etudiant_id].coef += 1;
+    });
+    const classements = Object.entries(moyParEtu)
+      .map(([id,v]) => ({ id, moy: v.coef ? v.pts/v.coef : 0 }))
+      .sort((a,b) => b.moy - a.moy);
+    const idx = classements.findIndex(c => c.id === currentEtudiant.id);
+    const n = ids.length;
+    if (idx === 0) rangEtudiantPortail = '1er/' + n;
+    else if (idx > 0) rangEtudiantPortail = (idx + 1) + 'e/' + n;
+  } catch(e) {
+    console.warn('[Rang Portail]', e.message);
+  }
+}
+
 // ══ NAVIGATION ══
 function showPage(p) {
   document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
@@ -1433,6 +1466,7 @@ function afficherAccueil() {
   const totalPaye = toutesFactures.reduce((s,f) => s+(f.montant_paye||0), 0);
   const restant = totalDu - totalPaye;
   const nonLusMsgs = tousMessages.filter(m => !m.lu).length;
+  const totalCommsNonLues = nonLusMsgs + toutesNotifsPortail.filter(n => !n.lu).length;
 
   page.innerHTML = `
     <div style="padding:1rem 1rem 0">
@@ -1471,6 +1505,20 @@ function afficherAccueil() {
           <div>
             <div class="stat-val" style="color:#0f6e56">${tousReleves.length || '—'}</div>
             <div class="stat-lbl">Relevé(s) officiel(s)</div>
+          </div>
+        </div>
+        <div class="stat-card" onclick="showPage('notes')">
+          <div class="stat-ico blue">🏆</div>
+          <div>
+            <div class="stat-val" style="color:#1d4ed8">${rangEtudiantPortail}</div>
+            <div class="stat-lbl">Rang classe</div>
+          </div>
+        </div>
+        <div class="stat-card" onclick="showPage('notifs')">
+          <div class="stat-ico teal">📨</div>
+          <div>
+            <div class="stat-val" style="color:${totalCommsNonLues>0?'#0f6e56':'#6b7280'}">${totalCommsNonLues||'—'}</div>
+            <div class="stat-lbl">Communications</div>
           </div>
         </div>
       </div>
@@ -2136,7 +2184,11 @@ async function connecterEtudiant(etudiant) {
   currentEtudiant = etudiant;
   currentEcoleId  = etudiant.ecole_id;
   currentProfile  = { role: 'parent', prenom: 'Parent', nom: etudiant.nom };
-  currentUser     = { email: etudiant.email_auth || etudiant.email_parent || etudiant.matricule };
+  // FIX FCM-01 : setSession() a déjà créé une vraie session Supabase — on récupère
+  // le vrai user (.id = auth.uid()) au lieu de fabriquer { email } à la main,
+  // qui cassait la policy RLS push_tokens_own pour tout le parcours SMS OTP.
+  const { data: { user: realUser } } = await db.auth.getUser();
+  currentUser = realUser || { email: etudiant.email_auth || etudiant.email_parent || etudiant.matricule };
 
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-portail').style.display  = 'block';
@@ -2147,6 +2199,10 @@ async function connecterEtudiant(etudiant) {
 
   await resoudreClasseEtudiant();
   chargerTout();
+  // FIX FCM-02 : ce chemin (SMS OTP, onglet par défaut) n'appelait jamais
+  // initFCMPortail() — contrairement à lancerApp() (connexion email).
+  // C'était la cause probable du push_tokens vide malgré le déploiement du 29/06.
+  setTimeout(initFCMPortail, 1500);
   chargerBrandingPortail();
 }
 
@@ -3118,12 +3174,15 @@ async function abonnerFCMPortail() {
     localStorage.setItem('edulink_fcm_token', token);
 
     const role = currentProfile?.role || 'parent';
-    // Colonnes réelles : token, role, actif, plateforme, ecole_id
+    // Colonnes réelles : token, role, actif, plateforme, ecole_id, utilisateur_id
     const payload = {
       token,
       role,
       actif:      true,
       plateforme: /Android/i.test(navigator.userAgent) ? 'android' : /iPhone|iPad/i.test(navigator.userAgent) ? 'ios' : 'web',
+      // FIX FCM-03 : requis par la policy RLS push_tokens_own
+      // (utilisateur_id = auth.uid() OR peut_voir_ecole(ecole_id))
+      utilisateur_id: currentUser?.id || null,
     };
     if (currentEcoleId) payload.ecole_id = currentEcoleId;
 
