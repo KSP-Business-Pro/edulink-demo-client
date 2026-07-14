@@ -1,0 +1,2 @@
+[functions.bright-handler]
+verify_jwt = false
