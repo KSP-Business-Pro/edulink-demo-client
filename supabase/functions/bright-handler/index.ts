@@ -326,7 +326,10 @@ async function signInOuCreerEtudiantV7(
   // On met a jour le password avec le securePassword ephemere de cet exchange
   if (passwordSetEnBase) {
     const { error: updErr } = await supabase.auth.admin.updateUserById(etudiant.auth_id, { password: securePassword });
-    if (updErr) return { error: "Erreur rotation password." };
+    if (updErr) {
+      console.error(`[v7-DEBUG] updateUserById échoué pour auth_id=${etudiant.auth_id}:`, updErr.message, updErr.status, JSON.stringify(updErr));
+      return { error: "Erreur rotation password." };
+    }
     const { data: si, error: siErr } = await supabase.auth.signInWithPassword({ email: emailAuth, password: securePassword });
     if (siErr || !si?.session) return { error: "Echec authentification." };
     return { session: si.session, user: si.user, mode: "secure-v7" };
@@ -611,9 +614,19 @@ serve(async (req) => {
       // On génère un password aléatoire fort côté serveur — jamais exposé côté client.
       // Pour les comptes existants (password = matricule), on effectue une rotation
       // automatique lors du premier exchange réussi.
-      const securePassword = Array.from(
-        crypto.getRandomValues(new Uint8Array(32))
-      ).map(b => b.toString(16).padStart(2, "0")).join("");
+      const securePassword = (() => {
+        const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        const lower = "abcdefghijkmnpqrstuvwxyz";
+        const digits = "23456789";
+        const special = "!@#$%^&*()_+-=";
+        const all = upper + lower + digits + special;
+        const rand = (chars: string) => chars[crypto.getRandomValues(new Uint32Array(1))[0] % chars.length];
+        // Garantit au moins un caractère de chaque catégorie exigée par la policy Supabase
+        let pwd = rand(upper) + rand(lower) + rand(digits) + rand(special);
+        for (let i = 0; i < 28; i++) pwd += rand(all);
+        // Mélange pour ne pas avoir un pattern prévisible en tête
+        return pwd.split("").sort(() => crypto.getRandomValues(new Uint8Array(1))[0] - 128).join("");
+      })();
 
       // ── v5/v7 : sign-in OU création à la volée
       const result = await signInOuCreerEtudiantV7(
