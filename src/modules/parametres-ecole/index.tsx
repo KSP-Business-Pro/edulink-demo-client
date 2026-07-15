@@ -15,10 +15,10 @@ interface ReglesEcole {
   regle_rattrapage: 'max' | 'ecrase'
   seuil_validation_semestre?: number
   credits_requis_semestre?: number
-  blocage_releve_impayes?: boolean
+  blocage_releve_impaye?: boolean
   tolerance_impaye?: number
-  controle_credits_inscription?: boolean
-  seuil_credits_inscription?: number
+  controle_credits_actif?: boolean
+  seuil_credits_avancement?: number
 }
 
 interface NotifConfig {
@@ -107,10 +107,10 @@ export default function ParametresEcolePage() {
         regle_rattrapage: 'max',
         seuil_validation_semestre: 10,
         credits_requis_semestre: 24,
-        blocage_releve_impayes: true,
+        blocage_releve_impaye: true,
         tolerance_impaye: 100000,
-        controle_credits_inscription: true,
-        seuil_credits_inscription: 24,
+        controle_credits_actif: true,
+        seuil_credits_avancement: 24,
       })
     }
     setLoading(false)
@@ -253,11 +253,11 @@ export default function ParametresEcolePage() {
           <div style={S.card}>
             <div style={S.cardTitle}>💰 Contrôle des paiements</div>
             <div>
-              {toggleRow('Blocage relevé si impayés', 'Publication conditionnée au paiement des frais', 'blocage_releve_impayes')}
+              {toggleRow('Blocage relevé si impayés', 'Publication conditionnée au paiement des frais', 'blocage_releve_impaye')}
             </div>
-            {regles.blocage_releve_impayes && (
+            {regles.blocage_releve_impaye && (
               <div style={{ marginTop: 12 }}>
-                {numInput('Tolérance impayé (FCFA)', 'tolerance_impaye', 'Montant en dessous duquel le blocage ne s\'applique pas', 0, 1000000)}
+                {numInput('Tolérance impayé (FCFA)', 'tolerance_impaye_releve', 'Montant en dessous duquel le blocage ne s\'applique pas', 0, 1000000)}
               </div>
             )}
           </div>
@@ -265,11 +265,11 @@ export default function ParametresEcolePage() {
           <div style={S.card}>
             <div style={S.cardTitle}>📋 Contrôle des inscriptions</div>
             <div>
-              {toggleRow('Contrôle crédits inscription', 'Limite les inscriptions selon les crédits validés', 'controle_credits_inscription')}
+              {toggleRow('Contrôle crédits inscription', 'Limite les inscriptions selon les crédits validés', 'controle_credits_actif')}
             </div>
-            {regles.controle_credits_inscription && (
+            {regles.controle_credits_actif && (
               <div style={{ marginTop: 12 }}>
-                {numInput('Seuil crédits inscription', 'seuil_credits_inscription', 'Crédits minimum requis pour s\'inscrire au semestre suivant', 0, 60)}
+                {numInput('Seuil crédits inscription', 'seuil_credits_avancement', 'Crédits minimum requis pour s\'inscrire au semestre suivant', 0, 60)}
               </div>
             )}
           </div>
