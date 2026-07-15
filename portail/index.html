@@ -688,6 +688,43 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
 }
 .cpc-dl:hover { filter:brightness(1.1); }
 
+
+/* ══ AJUSTEMENTS — centrage bande verte, police back-office, mobile strict ══ */
+.portail-header{position:relative}
+.header-top{justify-content:center;position:relative}
+.header-actions{position:absolute;right:0;top:50%;transform:translateY(-50%)}
+.header-greeting{text-align:center}
+#student-pill-wrap{text-align:center}
+
+.nav-item{font-family:'Segoe UI',sans-serif;font-size:15px}
+.nav-item .nav-lbl{font-size:15px}
+.nav-item .nav-ico{font-size:19px}
+
+@media (max-width:768px){
+  #app-portail{max-width:500px;margin:0 auto}
+  .portail-body-row{flex-direction:column}
+  .portail-main{order:1;padding-bottom:80px}
+  .bottom-nav{
+    order:2;width:100%;flex-direction:row;
+    position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+    max-width:500px;height:auto;
+    background:#fff;border-top:1px solid #e5e7eb;
+    box-shadow:0 -4px 20px rgba(0,0,0,.08);
+    padding:0;overflow-x:auto;overflow-y:visible;
+  }
+  .nav-item{
+    flex:1;flex-direction:column;gap:2px;
+    padding:10px 4px 8px;color:#9ca3af;
+    font-family:'Poppins',sans-serif;
+    border-left:none;
+  }
+  .nav-item.active{color:#0f6e56;background:#e1f5ee;border-left:none;font-weight:600}
+  .nav-item:hover:not(.active){background:transparent}
+  .nav-item .nav-ico{font-size:20px;margin-bottom:2px}
+  .nav-item .nav-lbl{font-size:9px}
+  .nav-badge{top:6px;left:50%;transform:translateX(-50%)}
+  .header-logo{max-width:60vw}
+}
 </style>
 </head>
 <body>
