@@ -1,11 +1,11 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!robots\\.txt).*)",
       "has": [{ "type": "host", "value": "portail.edulink.bj" }],
       "destination": "/portail/index.html"
     },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!robots\\.txt).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
@@ -19,3 +19,5 @@
     }
   ]
 }
+
+
