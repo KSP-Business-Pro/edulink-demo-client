@@ -28,8 +28,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3" integrity="sha384-iWpUQPQzWsFiosLgsS8o+e6E8y3Gm+EW2m/vAAo7A2H3fuc4KOKEx+5CAord2H2z" crossorigin="anonymous"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" integrity="sha384-yuGdyIzzYtOBlBG6JOWn+Ey9kpq7HocusNuxEGyyohr1eEyXpeEyehIIXC/hznw4" crossorigin="anonymous"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js" integrity="sha384-MiR5OstmujbPpU5nzD986OTopb4Kveb2WX4EmKuqeCU1hCWlxMYL8gBBY7vDSYLF" crossorigin="anonymous"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js" integrity="sha384-nQIZ6tIcczKARkLebcfqb6P67Pcv2p+KIX3NH6oGaIBc64j2HxDKerK6Efn4aeiY" crossorigin="anonymous"></script>
+<!-- jspdf charge dynamiquement via ensureJsPDF() -->
+<!-- jspdf-autotable charge dynamiquement via ensureJsPDF() -->
 
 <!-- (P3.4) Sentry Error Monitoring -->
 <script defer src="https://js-de.sentry-cdn.com/a77c651fc2868f9668a2d8151d73077e.min.js" crossorigin="anonymous"></script>
@@ -944,6 +944,33 @@ const SUPABASE_KEY = 'sb_publishable_qRSHSH88vHxJ9pfXJMHksQ_iVawwupX';
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ══ CHARGEMENT DYNAMIQUE JSPDF (lazy-load) ══
+// jspdf n'est necessaire que pour le telechargement de releves/certificats.
+// Chargement a la demande pour reduire le JS inutilise au premier affichage.
+let jsPDFLoadPromise = null;
+function chargerScript(src, integrity) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Echec chargement script: ' + src));
+    document.head.appendChild(s);
+  });
+}
+function ensureJsPDF() {
+  if (!jsPDFLoadPromise) {
+    jsPDFLoadPromise = chargerScript(
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+      'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk'
+    ).then(() => chargerScript(
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js',
+      'sha384-nQIZ6tIcczKARkLebcfqb6P67Pcv2p+KIX3NH6oGaIBc64j2HxDKerK6Efn4aeiY'
+    ));
+  }
+  return jsPDFLoadPromise;
+}
+
 // ══ ÉTAT ══
 let currentUser = null;
 let currentProfile = null;
@@ -1196,6 +1223,7 @@ function afficherReleves() {
 }
 
 async function telechargerReleveOfficiel(releveId) {
+  await ensureJsPDF();
   const JsPDF = getJsPDFPortail();
   if (!JsPDF) { showToast('jsPDF non chargé — réessayez', 'error'); return; }
   const releve = tousReleves.find(r => r.id === releveId);
@@ -2555,6 +2583,7 @@ function pdfAppreciationPortail(moy) {
 }
 
 async function telechargerBulletinPDFPortail(periode) {
+  await ensureJsPDF();
   const JsPDF = getJsPDFPortail();
   if (!JsPDF) { showToast('jsPDF non chargé — réessayez', 'error'); return; }
   if (!currentEtudiant) { showToast('Aucun étudiant lié', 'error'); return; }
@@ -3450,6 +3479,7 @@ function afficherCertificatsPortail() {
 }
 
 async function telechargerCertPortailV2(id) {
+  await ensureJsPDF();
   const cert = certPortailList.find(c => c.id === id);
   if (!cert) { showToast('Document introuvable.', 'error'); return; }
   showToast('⏳ Génération du PDF...', 'info');
@@ -3716,6 +3746,9 @@ function showToastPortail(msg, type='info') {
 </script>
 </body>
 </html>
+
+
+
 
 
 
