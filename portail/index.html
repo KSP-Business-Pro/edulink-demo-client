@@ -3632,7 +3632,21 @@ function initOfflineModePortail() {
   const { data: { session } } = await db.auth.getSession();
   if (session) {
     currentUser = session.user;
-    await chargerProfil();
+    // FIX 406/OTP : tenter d'abord de retrouver l'etudiant via auth_id
+    // (comptes OTP, sans ligne profiles). Fallback sur chargerProfil()
+    // pour les comptes staff/email-password existants.
+    try {
+      const { data: etuRows } = await db.rpc('fn_get_etudiant_by_auth_id', { p_auth_id: currentUser.id });
+      const etu = etuRows && etuRows[0] ? etuRows[0] : null;
+      if (etu) {
+        await connecterEtudiant(etu);
+      } else {
+        await chargerProfil();
+      }
+    } catch(e) {
+      console.warn('[Portail Init] fn_get_etudiant_by_auth_id echoue, fallback chargerProfil:', e);
+      await chargerProfil();
+    }
   }
 })();
 // ══ REALTIME — Mises à jour en temps réel ═══════════════════
@@ -3702,5 +3716,6 @@ function showToastPortail(msg, type='info') {
 </script>
 </body>
 </html>
+
 
 
