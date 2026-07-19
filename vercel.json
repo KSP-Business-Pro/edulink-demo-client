@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/((?!edulink-portail\\.html).*)", "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "redirects": [
     { "source": "/index_legacy.html", "destination": "/dashboard", "permanent": true }
@@ -26,4 +26,5 @@
     }
   ]
 }
+
 
