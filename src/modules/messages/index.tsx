@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../services/supabase';
 
 interface EcoleOption { id: string; nom: string }
+interface UtilisateurOption { id: string; nom: string; role: string }
 
 interface Message {
   id: string; ecole_id: string;
@@ -33,11 +34,24 @@ export default function MessagesPage() {
   const [contenu, setContenu]   = useState('');
   const [sending, setSending]   = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [destinataires, setDestinataires] = useState<UtilisateurOption[]>([]);
+  const [destinataireId, setDestinataireId] = useState('');
 
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   }
+
+  useEffect(() => {
+    if (!ecoleId) return;
+    supabase.from('utilisateurs')
+      .select('id,nom,role')
+      .eq('ecole_id', ecoleId)
+      .eq('actif', true)
+      .neq('id', user?.id ?? '')
+      .order('nom')
+      .then(({ data }) => setDestinataires((data ?? []) as UtilisateurOption[]));
+  }, [ecoleId, user?.id]);
 
   const load = useCallback(async () => {
     if (!ecoleId) return;
@@ -58,20 +72,30 @@ export default function MessagesPage() {
 
   async function handleEnvoyer(e: React.FormEvent) {
     e.preventDefault();
-    if (!contenu.trim()) return;
+    if (!contenu.trim() || !destinataireId) return;
     setSending(true);
     try {
-      const { error } = await supabase.from('messages').insert({
-        ecole_id:        ecoleId,
-        expediteur_id:   user?.id,
-        expediteur_nom:  user?.nom ?? null,
-        expediteur_role: user?.role ?? null,
-        sujet:           sujet.trim() || null,
-        objet:           sujet.trim() || null,
-        contenu:         contenu.trim(),
-      });
+      const dest = destinataires.find(d => d.id === destinataireId);
+      const { data: inserted, error } = await supabase.from('messages').insert({
+        ecole_id:          ecoleId,
+        expediteur_id:     user?.id,
+        expediteur_nom:    user?.nom ?? null,
+        expediteur_role:   user?.role ?? null,
+        destinataire_id:   destinataireId,
+        destinataire_nom:  dest?.nom ?? null,
+        destinataire_role: dest?.role ?? null,
+        sujet:             sujet.trim() || null,
+        objet:             sujet.trim() || null,
+        contenu:           contenu.trim(),
+      }).select('id').single();
       if (error) throw error;
-      setModalOpen(false); setSujet(''); setContenu('');
+      const { error: destError } = await supabase.from('message_destinataires').insert({
+        message_id:        inserted.id,
+        destinataire_id:   destinataireId,
+        destinataire_role: dest?.role ?? null,
+      });
+      if (destError) throw destError;
+      setModalOpen(false); setSujet(''); setContenu(''); setDestinataireId('');
       await load(); showToast('Message envoyé ✓');
     } catch (err: any) { showToast(err.message, 'error'); }
     finally { setSending(false); }
@@ -160,6 +184,15 @@ export default function MessagesPage() {
             </div>
             <form onSubmit={handleEnvoyer} autoComplete="off">
               <div style={{ marginBottom: '.85rem' }}>
+                <label htmlFor="msg-destinataire">Destinataire *</label>
+                <select id="msg-destinataire" name="destinataire" value={destinataireId} required
+                  onChange={e => setDestinataireId(e.target.value)}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                  <option value="">Choisir un destinataire…</option>
+                  {destinataires.map(d => <option key={d.id} value={d.id}>{d.nom} ({d.role})</option>)}
+                </select>
+              </div>
+              <div style={{ marginBottom: '.85rem' }}>
                 <label htmlFor="msg-sujet">Sujet <span style={{ color: '#9ca3af', fontWeight: 400, textTransform: 'none' }}>(optionnel)</span></label>
                 <input id="msg-sujet" name="sujet" type="text" value={sujet} onChange={e => setSujet(e.target.value)}
                   style={{ width: '100%', marginTop: 4 }} placeholder="Objet du message…" autoFocus />
@@ -172,7 +205,7 @@ export default function MessagesPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.5rem', paddingTop: '.85rem', borderTop: '1px solid #f3f4f6' }}>
                 <button type="button" className="btn-ghost" onClick={() => setModalOpen(false)}>Annuler</button>
-                <button type="submit" className="btn-blue" disabled={sending}>{sending ? 'Envoi…' : 'Envoyer →'}</button>
+                <button type="submit" className="btn-blue" disabled={sending || !destinataireId}>{sending ? 'Envoi…' : 'Envoyer →'}</button>
               </div>
             </form>
           </div>
