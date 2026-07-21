@@ -84,7 +84,7 @@ function Icon({ name, size = 17 }: { name: IconName; size?: number }) {
 }
 
 export function AppLayout({ children, currentPage }: AppLayoutProps) {
-  const { user, logout, isSuperAdmin } = useAuth();
+  const { user, logout, isSuperAdmin, activeEcoleId, setActiveEcoleId } = useAuth();
   const { visibleModules } = usePermissions();
   const navigate = useNavigate();
 
@@ -103,7 +103,20 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
   const searchInputRef          = useRef<HTMLInputElement>(null);
   const debounceRef             = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const ecoleId = user?.ecole_id ?? '';
+  const ecoleId = activeEcoleId ?? '';
+  const [ecolesList, setEcolesList] = useState<{ id: string; nom: string }[]>([]);
+
+  // Super-admin : charger la liste des ecoles actives pour le selecteur
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let cancelled = false;
+    supabase.from('ecoles').select('id,nom').eq('actif', true).order('nom').then(({ data }) => {
+      if (cancelled || !data) return;
+      setEcolesList(data);
+      if (!activeEcoleId && data.length > 0) setActiveEcoleId(data[0].id);
+    });
+    return () => { cancelled = true; };
+  }, [isSuperAdmin, activeEcoleId, setActiveEcoleId]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -444,10 +457,28 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
         </div>
 
         {/* École */}
-        {user?.ecole_nom && (
+        {isSuperAdmin ? (
+          <div style={{ padding: '0.6rem 1rem', background: 'rgba(255,255,255,0.06)', margin: '0.5rem 0.75rem', borderRadius: 10 }}>
+            <div style={{ fontSize: 10, color: '#C8932E', marginBottom: 4 }}>super-admin</div>
+            <label htmlFor="ecole-active-select" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>École active</label>
+            <select
+              id="ecole-active-select"
+              value={activeEcoleId ?? ''}
+              onChange={e => setActiveEcoleId(e.target.value || null)}
+              style={{
+                width: '100%', minHeight: 32, padding: '4px 6px', borderRadius: 6,
+                background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+                color: '#F7F4ED', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+              }}
+            >
+              {ecolesList.map(e => (
+                <option key={e.id} value={e.id} style={{ color: '#111827' }}>{e.nom}</option>
+              ))}
+            </select>
+          </div>
+        ) : user?.ecole_nom && (
           <div style={{ padding: '0.6rem 1rem', background: 'rgba(255,255,255,0.06)', margin: '0.5rem 0.75rem', borderRadius: 10 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: '#F7F4ED', lineHeight: 1.4 }}>{user.ecole_nom}</div>
-            {isSuperAdmin && <div style={{ fontSize: 10, color: '#C8932E' }}>super-admin</div>}
           </div>
         )}
 

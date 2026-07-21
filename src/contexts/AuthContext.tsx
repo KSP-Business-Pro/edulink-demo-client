@@ -27,6 +27,8 @@ interface AuthContextValue {
   isSuperAdmin: boolean;
   isAdmin:      boolean;
   hasRole:   (roles: string[]) => boolean;
+  activeEcoleId: string | null;
+  setActiveEcoleId: (id: string | null) => void;
 }
 
 // ── Création du contexte ───────────────────────────────────────────────────
@@ -37,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user,    setUser]    = useState<UserProfil | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
+  const [activeEcoleId, setActiveEcoleIdState] = useState<string | null>(null);
 
   // ── État du timeout d'inactivité ──────────────────────────────────────────
   const [showWarning, setShowWarning]           = useState(false);
@@ -66,6 +69,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       subscription.unsubscribe();
     };
+  }, []);
+
+  // Ecole active (super-admins uniquement — comptes lies a une ecole gardent la leur)
+  useEffect(() => {
+    if (!user) { setActiveEcoleIdState(null); return; }
+    if (user.ecole_id) { setActiveEcoleIdState(user.ecole_id); return; }
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem('edulink_active_ecole_id') : null;
+    setActiveEcoleIdState(saved || null);
+  }, [user]);
+
+  const setActiveEcoleId = useCallback((id: string | null) => {
+    setActiveEcoleIdState(id);
+    if (typeof window !== 'undefined') {
+      if (id) window.localStorage.setItem('edulink_active_ecole_id', id);
+      else window.localStorage.removeItem('edulink_active_ecole_id');
+    }
   }, []);
 
   // Login
@@ -147,6 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user, loading, error,
       login, logout,
       isSuperAdmin, isAdmin, hasRole,
+      activeEcoleId, setActiveEcoleId,
     }}>
       {children}
 

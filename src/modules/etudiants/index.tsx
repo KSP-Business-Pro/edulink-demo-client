@@ -104,7 +104,7 @@ const FORM_INIT: EtudiantCreatePayload = {
 };
 
 export default function EtudiantsPage() {
-  const { user } = useAuth();
+  const { user, activeEcoleId } = useAuth();
   const { error, loading, run, runAction } = useErrorHandler();
 
   const [etudiants,    setEtudiants]    = useState<Etudiant[]>([]);
@@ -120,25 +120,7 @@ export default function EtudiantsPage() {
   const [form,         setForm]         = useState<EtudiantCreatePayload>(FORM_INIT);
   const [saving,       setSaving]       = useState(false);
   const [newMatricule, setNewMatricule] = useState<string | null>(null); // matricule généré après création
-  const [ecoleId,      setEcoleId]      = useState<string | null>(user?.ecole_id ?? null);
-
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (user?.ecole_id) { setEcoleId(user.ecole_id); return; }
-    // Fallback réservé aux super-admins sans école assignée.
-    // On attend que l'auth soit résolue (user non-null) pour éviter de choisir
-    // une école par défaut avant que le vrai ecole_id de l'utilisateur soit connu
-    // (sinon la réponse tardive du fallback peut écraser la bonne valeur).
-    if (!user) return;
-    let cancelled = false;
-    import('../../services/supabase').then(({ supabase }) => {
-      supabase.from('ecoles').select('id,nom').eq('actif', true).order('nom').limit(1).maybeSingle().then(({ data }) => {
-        if (!cancelled && data?.id) setEcoleId(data.id);
-      });
-    });
-    return () => { cancelled = true; };
-  }, [user?.ecole_id, user]);
+  const ecoleId = activeEcoleId;
 
   // ── Recherche : debounce 300ms avant d'interroger le serveur ──────────────
   const handleSearchChange = (v: string) => {
