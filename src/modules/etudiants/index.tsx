@@ -31,7 +31,7 @@ const STATUT_TEXT: Record<EtudiantStatut, string> = {
 };
 
 const NIVEAUX   = ['L1','L2','L3','M1','M2','D1','D2','D3'];
-const FILIERES  = ['Informatique','Gestion','Comptabilité','Finance','Droit','Marketing','RH','Autre'];
+const FILIERES  = ['GFC','MC','ACG','CI','CIM','DP','DR','GP'];
 
 // ── Colonnes du tableau (desktop + carte mobile via ResponsiveTable) ──────────
 const etudiantColumns: RTColumn<Etudiant>[] = [
