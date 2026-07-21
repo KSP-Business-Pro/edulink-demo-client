@@ -122,6 +122,8 @@ export default function EtudiantsPage() {
   const [newMatricule, setNewMatricule] = useState<string | null>(null); // matricule généré après création
   const ecoleId = activeEcoleId;
 
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Recherche : debounce 300ms avant d'interroger le serveur ──────────────
   const handleSearchChange = (v: string) => {
     setSearchInput(v);
