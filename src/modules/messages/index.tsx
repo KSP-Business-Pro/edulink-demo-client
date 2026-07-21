@@ -75,26 +75,13 @@ export default function MessagesPage() {
     if (!contenu.trim() || !destinataireId) return;
     setSending(true);
     try {
-      const dest = destinataires.find(d => d.id === destinataireId);
-      const { data: inserted, error } = await supabase.from('messages').insert({
-        ecole_id:          ecoleId,
-        expediteur_id:     user?.id,
-        expediteur_nom:    user?.nom ?? null,
-        expediteur_role:   user?.role ?? null,
-        destinataire_id:   destinataireId,
-        destinataire_nom:  dest?.nom ?? null,
-        destinataire_role: dest?.role ?? null,
-        sujet:             sujet.trim() || null,
-        objet:             sujet.trim() || null,
-        contenu:           contenu.trim(),
-      }).select('id').single();
-      if (error) throw error;
-      const { error: destError } = await supabase.from('message_destinataires').insert({
-        message_id:        inserted.id,
-        destinataire_id:   destinataireId,
-        destinataire_role: dest?.role ?? null,
+      const { error } = await supabase.rpc('fn_envoyer_message', {
+        p_ecole_id:        ecoleId,
+        p_destinataire_id: destinataireId,
+        p_sujet:           sujet.trim() || null,
+        p_contenu:         contenu.trim(),
       });
-      if (destError) throw destError;
+      if (error) throw error;
       setModalOpen(false); setSujet(''); setContenu(''); setDestinataireId('');
       await load(); showToast('Message envoyé ✓');
     } catch (err: any) { showToast(err.message, 'error'); }
