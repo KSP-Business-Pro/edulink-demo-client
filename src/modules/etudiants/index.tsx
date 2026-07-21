@@ -116,6 +116,7 @@ export default function EtudiantsPage() {
   const [ficheId,      setFicheId]      = useState<string | null>(null);
   const [showImport,   setShowImport]   = useState(false);
   const [showModal,    setShowModal]    = useState(false);
+  const [editingId,    setEditingId]    = useState<string | null>(null);
   const [form,         setForm]         = useState<EtudiantCreatePayload>(FORM_INIT);
   const [saving,       setSaving]       = useState(false);
   const [newMatricule, setNewMatricule] = useState<string | null>(null); // matricule généré après création
@@ -180,7 +181,7 @@ export default function EtudiantsPage() {
   };
 
   // ── Création étudiant ─────────────────────────────────────────────────────
-  const handleCreate = async () => {
+  const handleSave = async () => {
     if (!ecoleId) return;
     if (!form.nom.trim() || !form.prenom.trim()) {
       import('../../hooks/useErrorHandler').then(({ addToast }) =>
@@ -190,17 +191,27 @@ export default function EtudiantsPage() {
     }
     setSaving(true);
     try {
-      // matricule NON inclus → le trigger SQL fn_generate_matricule le génère
-      const id = await upsertEtudiant({ ...form, ecole_id: ecoleId });
-      // Récupérer le matricule généré par le trigger pour le bandeau de confirmation
-      const created = await fetchEtudiant(id);
-      if (created?.matricule) setNewMatricule(created.matricule);
-      setForm(FORM_INIT);
-      setShowModal(false);
-      load();
+      if (editingId) {
+        await upsertEtudiant({ ...form, ecole_id: ecoleId, id: editingId });
+        setForm(FORM_INIT);
+        setEditingId(null);
+        setShowModal(false);
+        load();
+        import('../../hooks/useErrorHandler').then(({ addToast }) =>
+          addToast('✅ Étudiant modifié avec succès', 'info')
+        );
+      } else {
+        // matricule NON inclus → le trigger SQL fn_generate_matricule le génère
+        const id = await upsertEtudiant({ ...form, ecole_id: ecoleId });
+        const created = await fetchEtudiant(id);
+        if (created?.matricule) setNewMatricule(created.matricule);
+        setForm(FORM_INIT);
+        setShowModal(false);
+        load();
+      }
     } catch (err) {
       import('../../hooks/useErrorHandler').then(({ addToast }) =>
-        addToast(`Erreur création : ${err instanceof Error ? err.message : 'Inconnue'}`, 'error')
+        addToast(`Erreur ${editingId ? 'modification' : 'création'} : ${err instanceof Error ? err.message : 'Inconnue'}`, 'error')
       );
     } finally {
       setSaving(false);
@@ -212,8 +223,27 @@ export default function EtudiantsPage() {
 
   const openModal = () => {
     setForm(FORM_INIT);
+    setEditingId(null);
     setNewMatricule(null);
     setShowModal(true);
+  };
+
+  const openEditModal = (e: Etudiant) => {
+    setForm({
+      nom: e.nom, prenom: e.prenom, sexe: e.sexe ?? 'M',
+      email_auth: e.email_auth ?? '', filiere: e.filiere ?? '', niveau: e.niveau ?? 'L1',
+      date_naissance: e.date_naissance ?? '', lieu_naissance: e.lieu_naissance ?? '',
+      telephone_parent: e.telephone_parent ?? '', email_parent: e.email_parent ?? '',
+      adresse: e.adresse ?? '', statut: e.statut,
+    });
+    setEditingId(e.id);
+    setNewMatricule(null);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingId(null);
   };
 
   // ── Vue fiche ─────────────────────────────────────────────────────────────
@@ -272,17 +302,17 @@ export default function EtudiantsPage() {
 
       {/* ── Modal création étudiant ── */}
       {showModal && (
-        <div style={S.overlay} onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}>
+        <div style={S.overlay} onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
           <div style={S.modal}>
             {/* En-tête modal */}
             <div style={S.modalHeader}>
               <div>
-                <div style={S.modalTitle}>+ Nouvel étudiant</div>
+                <div style={S.modalTitle}>{editingId ? `✏️ Modifier ${form.nom} ${form.prenom}` : '+ Nouvel étudiant'}</div>
                 <div style={S.modalSub}>
-                  Le matricule sera généré automatiquement à l'enregistrement
+                  {editingId ? "Modifiez les informations de l'étudiant" : "Le matricule sera généré automatiquement à l'enregistrement"}
                 </div>
               </div>
-              <button style={S.closeBtn} onClick={() => setShowModal(false)}>✕</button>
+              <button style={S.closeBtn} onClick={() => closeModal()}>✕</button>
             </div>
 
             {/* Corps modal */}
@@ -371,20 +401,24 @@ export default function EtudiantsPage() {
                     <select style={S.input} id="etu-statut" name="statut" value={form.statut} onChange={e => handleField('statut', e.target.value)}>
                       <option value="actif">Actif</option>
                       <option value="inactif">Inactif</option>
+                      <option value="diplome">Diplômé</option>
+                      <option value="abandonne">Abandon</option>
                     </select>
                   </div>
                 </div>
 
-                {/* Aperçu matricule */}
-                <div style={S.matriculePreview}>
-                  <span style={{ fontSize: 11, color: '#64748b' }}>Matricule généré automatiquement :</span>
-                  <code style={S.matriculeCode}>
-                    {form.filiere
-                      ? `HEMEC / #### / ${form.filiere.replace(/\s+/g,'').slice(0,4).toUpperCase()} / ${new Date().getFullYear()}`
-                      : 'HEMEC / #### / ???? / ' + new Date().getFullYear()
-                    }
-                  </code>
-                </div>
+                {/* Aperçu matricule (creation uniquement — inchange en edition) */}
+                {!editingId && (
+                  <div style={S.matriculePreview}>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>Matricule généré automatiquement :</span>
+                    <code style={S.matriculeCode}>
+                      {form.filiere
+                        ? `HEMEC / #### / ${form.filiere.replace(/\s+/g,'').slice(0,4).toUpperCase()} / ${new Date().getFullYear()}`
+                        : 'HEMEC / #### / ???? / ' + new Date().getFullYear()
+                      }
+                    </code>
+                  </div>
+                )}
               </div>
 
               {/* Bloc contact parent */}
@@ -417,11 +451,11 @@ export default function EtudiantsPage() {
                 🔑 Matricule auto-généré · format ÉCOLE/N°/FILIÈRE/ANNÉE
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button style={S.btnSecondary} onClick={() => setShowModal(false)} disabled={saving}>
+                <button style={S.btnSecondary} onClick={() => closeModal()} disabled={saving}>
                   Annuler
                 </button>
-                <button style={{ ...S.btnPrimary, opacity: saving ? 0.7 : 1 }} onClick={handleCreate} disabled={saving}>
-                  {saving ? '⏳ Enregistrement…' : '✅ Créer l\'étudiant'}
+                <button style={{ ...S.btnPrimary, opacity: saving ? 0.7 : 1 }} onClick={handleSave} disabled={saving}>
+                  {saving ? '⏳ Enregistrement…' : (editingId ? '✅ Enregistrer les modifications' : '✅ Créer l\'étudiant')}
                 </button>
               </div>
             </div>
@@ -489,6 +523,7 @@ export default function EtudiantsPage() {
             actions={e => (
               <>
                 <button style={S.btnGhost} onClick={() => setFicheId(e.id)}>Fiche</button>
+                <button style={S.btnGhost} onClick={() => openEditModal(e)}>✏️ Modifier</button>
                 <button style={{ ...S.btnGhost, color: '#dc2626' }} onClick={() => handleDelete(e.id, `${e.nom} ${e.prenom}`)}>🗑️</button>
               </>
             )}
