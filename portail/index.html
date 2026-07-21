@@ -2077,6 +2077,11 @@ async function envoyerOTP() {
       btn.disabled = false; btn.textContent = '📱 Recevoir le code SMS →';
       return;
     }
+    if (liste.length > 1) {
+      afficherChoixEnfant(liste);
+      btn.disabled = false; btn.textContent = 'Recevoir le code SMS';
+      return;
+    }
     otpEtudiantTrouve = liste[0];
     console.log('[OTP] Étudiant trouvé:', otpEtudiantTrouve.nom, otpEtudiantTrouve.prenom);
   } catch(e) {
@@ -2116,6 +2121,51 @@ async function envoyerOTP() {
   otpExpiresAt = Date.now() + 5 * 60 * 1000; // OTP-TIMER-UI : référence temporelle absolue
   lancerCompteur();
   // Le hint démo 123456 n'est plus pertinent — vrai SMS envoyé
+}
+
+function afficherChoixEnfant(liste) {
+  document.getElementById('otp-step1').style.display = 'none';
+  const wrap = document.getElementById('otp-choix-liste');
+  wrap.innerHTML = '';
+  liste.forEach(etu => {
+    const div = document.createElement('div');
+    div.className = 'phone-flag';
+    div.style.cursor = 'pointer';
+    div.style.justifyContent = 'flex-start';
+    div.textContent = etu.nom + ' ' + etu.prenom + (etu.classe ? ' - ' + etu.classe : '');
+    div.onclick = () => declencherEnvoiSMSChoix(etu);
+    wrap.appendChild(div);
+  });
+  document.getElementById('otp-step-choix').style.display = 'block';
+}
+
+async function declencherEnvoiSMSChoix(etu) {
+  otpEtudiantTrouve = etu;
+  const errEl = document.getElementById('otp-error-choix');
+  errEl.style.display = 'none';
+  try {
+    const resp = await fetch(EDGE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send', telephone: otpTelephone })
+    });
+    const result = await resp.json();
+    if (!resp.ok || !result.success) {
+      errEl.textContent = result.error || 'Erreur envoi SMS. Reessayez.';
+      errEl.style.display = 'block';
+      return;
+    }
+  } catch(e) {
+    errEl.textContent = 'Erreur reseau. Verifiez votre connexion.';
+    errEl.style.display = 'block';
+    return;
+  }
+  document.getElementById('otp-step-choix').style.display = 'none';
+  document.getElementById('otp-step2').style.display = 'block';
+  document.getElementById('otp-phone-display').textContent = otpTelephone;
+  document.getElementById('d0').focus();
+  otpExpiresAt = Date.now() + 5 * 60 * 1000;
+  lancerCompteur();
 }
 
 function otpNext(el, idx) {
