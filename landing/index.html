@@ -378,7 +378,7 @@ nav {
   background:var(--cream); padding:6rem 4rem;
 }
 .features-grid {
-  display:grid; grid-template-columns:repeat(3,1fr); gap:1.5rem;
+  display:grid; grid-template-columns:repeat(4,1fr); gap:1.5rem;
   margin-top:3rem;
 }
 .feature-card {
@@ -403,6 +403,54 @@ nav {
 }
 .feature-title { font-size:1.05rem; font-weight:700; color:var(--navy); margin-bottom:.5rem; }
 .feature-desc { font-size:.9rem; color:var(--gray); line-height:1.6; }
+
+/* ── PORTAIL FAMILLE ── */
+.section-portail {
+  background:#fff; padding:6rem 4rem;
+}
+.portail-layout {
+  display:grid; grid-template-columns:1fr 1fr; gap:5rem; align-items:center;
+  max-width:1200px; margin:0 auto;
+}
+.portail-features-list { list-style:none; display:flex; flex-direction:column; gap:1rem; margin-top:1.5rem; }
+.portail-features-list li {
+  display:flex; align-items:flex-start; gap:.75rem;
+  font-size:.95rem; color:#374151; line-height:1.5;
+}
+.portail-features-list li::before { content:'✓'; color:var(--green); font-weight:700; flex-shrink:0; }
+.phone-mockup {
+  max-width:300px; margin:0 auto;
+  background:var(--navy); border-radius:36px; padding:12px;
+  box-shadow:0 30px 80px rgba(0,0,0,.25);
+}
+.phone-screen { background:#f0f7f4; border-radius:26px; overflow:hidden; }
+.phone-header {
+  background:linear-gradient(135deg,#0f6e56,#1e3a5f);
+  padding:1.2rem 1rem .8rem; color:#fff;
+}
+.phone-header-top { display:flex; justify-content:space-between; align-items:center; font-size:.75rem; opacity:.85; }
+.phone-greeting { margin-top:.5rem; }
+.phone-greeting strong { display:block; font-size:.95rem; font-family:'DM Serif Display',serif; }
+.phone-greeting span { font-size:.7rem; opacity:.75; }
+.phone-stats { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; padding:.75rem; }
+.phone-stat {
+  background:#fff; border-radius:10px; padding:.6rem;
+  display:flex; align-items:center; gap:.5rem;
+}
+.phone-stat-ico { font-size:1rem; }
+.phone-stat-val { font-size:1rem; font-weight:800; font-family:'DM Serif Display',serif; color:var(--navy); line-height:1; }
+.phone-stat-label { font-size:.6rem; color:var(--gray); }
+.phone-notif {
+  margin:0 .75rem .75rem; background:#fff; border-left:3px solid var(--orange);
+  border-radius:8px; padding:.6rem .75rem; font-size:.7rem; color:#374151;
+}
+.phone-notif strong { color:var(--orange); }
+.phone-nav {
+  display:flex; justify-content:space-around; padding:.6rem 0;
+  background:#fff; border-top:1px solid #e5e7eb;
+}
+.phone-nav span { font-size:1rem; opacity:.4; }
+.phone-nav span.active { opacity:1; }
 
 /* ── CAMES SECTION ── */
 .section-cames {
@@ -562,13 +610,13 @@ footer {
 /* ── RESPONSIVE ── */
 @media(max-width:1024px) {
   .hero-visual { display:none; }
-  .demo-layout, .cames-layout, .esm-layout { grid-template-columns:1fr; }
+  .demo-layout, .cames-layout, .esm-layout, .portail-layout { grid-template-columns:1fr; }
   .pain-grid, .features-grid { grid-template-columns:1fr 1fr; }
 }
 @media(max-width:640px) {
   nav { padding:.85rem 1.5rem; }
   .nav-links { display:none; }
-  .hero, .section-pain, .section-demo, .section-features, .section-cames, .section-esm, .section-cta { padding:4rem 1.5rem; }
+  .hero, .section-pain, .section-demo, .section-features, .section-portail, .section-cames, .section-esm, .section-cta { padding:4rem 1.5rem; }
   .pain-grid, .features-grid, .cames-diagram, .esm-kpi-grid { grid-template-columns:1fr; }
   .hero-stats { flex-wrap:wrap; gap:1.5rem; }
   footer { padding:2rem 1.5rem; flex-direction:column; align-items:flex-start; }
@@ -588,6 +636,7 @@ footer {
     <li><a href="#douleur">Pourquoi changer</a></li>
     <li><a href="#demo">Démo</a></li>
     <li><a href="#fonctionnalites">Fonctionnalités</a></li>
+    <li><a href="#portail-famille">Portail famille</a></li>
     <li><a href="#cames">Conformité CAMES</a></li>
   </ul>
   <a href="#contact" class="nav-cta">Demander une démo →</a>
@@ -874,6 +923,86 @@ footer {
         <div class="feature-title">Multi-campus natif</div>
         <div class="feature-desc">Architecture multi-tenant : gérez plusieurs antennes depuis un seul back-office. Vue consolidée réseau ou vue par campus selon le profil.</div>
       </div>
+      <div class="feature-card reveal">
+        <div class="feature-ico">📱</div>
+        <div class="feature-title">Portail famille & mobile</div>
+        <div class="feature-desc">Parents et étudiants suivent notes, absences, emploi du temps et documents officiels en temps réel, avec notifications push — sans rien installer, directement depuis leur téléphone.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PORTAIL FAMILLE -->
+<section class="section-portail" id="portail-famille">
+  <div class="section-inner">
+    <div class="portail-layout">
+      <div>
+        <span class="section-tag">Nouveau</span>
+        <h2 class="section-h2 reveal">Les familles restent<br><em>connectées</em>, en temps réel</h2>
+        <p class="section-sub reveal">Chaque parent et chaque étudiant dispose d'un accès mobile sécurisé à son propre espace — sans application à installer, sans appel à l'administration pour connaître une note ou une absence.</p>
+        <ul class="portail-features-list reveal">
+          <li>Notes et relevés officiels consultables et téléchargeables à tout moment</li>
+          <li>Suivi des présences et des absences, séance par séance</li>
+          <li>Emploi du temps personnel, mis à jour automatiquement</li>
+          <li>Notifications push instantanées — nouvelle note, absence, message de l'administration</li>
+          <li>Messagerie directe avec l'établissement</li>
+          <li>Connexion sécurisée par code SMS, aucun mot de passe à retenir</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="phone-mockup">
+          <div class="phone-screen">
+            <div class="phone-header">
+              <div class="phone-header-top">
+                <span>🎓 EduLink</span>
+                <span>🔔</span>
+              </div>
+              <div class="phone-greeting">
+                <strong>Parent de Kokou</strong>
+                <span>Espace parent</span>
+              </div>
+            </div>
+            <div class="phone-stats">
+              <div class="phone-stat">
+                <span class="phone-stat-ico">📊</span>
+                <div>
+                  <div class="phone-stat-val">13.2</div>
+                  <div class="phone-stat-label">Moyenne</div>
+                </div>
+              </div>
+              <div class="phone-stat">
+                <span class="phone-stat-ico">🚫</span>
+                <div>
+                  <div class="phone-stat-val">1</div>
+                  <div class="phone-stat-label">Absence</div>
+                </div>
+              </div>
+              <div class="phone-stat">
+                <span class="phone-stat-ico">🏆</span>
+                <div>
+                  <div class="phone-stat-val">3e/42</div>
+                  <div class="phone-stat-label">Rang classe</div>
+                </div>
+              </div>
+              <div class="phone-stat">
+                <span class="phone-stat-ico">📋</span>
+                <div>
+                  <div class="phone-stat-val">2</div>
+                  <div class="phone-stat-label">Relevés</div>
+                </div>
+              </div>
+            </div>
+            <div class="phone-notif"><strong>🔔 Nouvelle note</strong> — Fiscalité avancée : 14/20</div>
+            <div class="phone-nav">
+              <span class="active">🏠</span>
+              <span>📊</span>
+              <span>🚫</span>
+              <span>📅</span>
+              <span>📜</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -971,6 +1100,7 @@ footer {
             <li>Conformité CAMES intégrée — impossible de se tromper</li>
             <li>Données sécurisées dans le cloud — zéro risque de perte</li>
             <li>Historique complet — chaque relevé est un snapshot officiel</li>
+            <li>Portail famille en temps réel — parents et étudiants informés à chaque instant, sur mobile</li>
             <li>Multi-campus — gérez toutes vos antennes depuis un seul tableau de bord</li>
           </ul>
         </div>
@@ -1029,6 +1159,7 @@ footer {
   <div class="footer-links">
     <a href="#douleur">Pourquoi changer</a>
     <a href="#demo">Démo</a>
+    <a href="#portail-famille">Portail famille</a>
     <a href="#cames">Conformité CAMES</a>
     <a href="#contact">Contact</a>
   </div>
