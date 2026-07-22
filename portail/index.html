@@ -2001,6 +2001,14 @@ async function marquerMessagesAdminLus() {
   if (inPageBadge) inPageBadge.style.display = 'none';
 }
 
+  async function envoyerOTP() {
+  const phone = document.getElementById('otp-phone').value.trim();
+  if (!phone || phone.length < 8) { showOTPError(1, 'Entrez un numero valide (8 a 10 chiffres)'); return; }
+  let phoneClean = phone.replace(/^(\+?229|00229)/, '').replace(/^0/, '');
+  const tel  = '+229' + phoneClean;
+  otpTelephone = tel;
+  const btn = document.getElementById('btn-envoyer-otp');
+  btn.disabled = true; btn.textContent = 'Recherche en cours...';
   //     toute la table. La RPC ne retourne que la ligne matchante.
   try {
     const { data: liste, error: rpcErr } = await db.rpc('lookup_etudiant_for_otp', { p_telephone: tel });
