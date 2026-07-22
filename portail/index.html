@@ -1,42 +1,4 @@
-async function envoyerMessageV2() {
-  const objet   = document.getElementById('msg-objet')?.value.trim();
-  const contenu = document.getElementById('msg-contenu')?.value.trim();
-  if (!contenu) { showToast('Ecrivez un message.', 'error'); return; }
-  const { error } = await db.rpc('fn_envoyer_message_famille', {
-    p_ecole_id: currentEcoleId,
-    p_sujet: objet || null,
-    p_contenu: contenu
-  });
-  if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
-  showToast('Message envoye !', 'success');
-  const o = document.getElementById('msg-objet');
-  const c = document.getElementById('msg-contenu');
-  if (o) o.value = '';
-  if (c) c.value = '';
-  await chargerMessages();
-  afficherMessages();
-}async function marquerMessagesAdminLus() {
-  const nonLus = tousMessages.filter(m =>
-    (m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant') && !m.lu
-  );
-  if (!nonLus.length) {
-    const b1 = document.getElementById('msg-badge');
-    const b2 = document.getElementById('nav-msg-badge');
-    if (b1) b1.style.display = 'none';
-    if (b2) b2.style.display = 'none';
-    return;
-  }
-  try {
-    if (currentEtudiant) await db.rpc('fn_marquer_messages_lus_famille', { p_etudiant_id: currentEtudiant.id });
-  } catch(_) {}
-  nonLus.forEach(m => { m.lu = true; });
-  const b1 = document.getElementById('msg-badge');
-  const b2 = document.getElementById('nav-msg-badge');
-  if (b1) b1.style.display = 'none';
-  if (b2) b2.style.display = 'none';
-  const inPageBadge = document.querySelector('.msg-unread-badge');
-  if (inPageBadge) inPageBadge.style.display = 'none';
-}<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -3782,7 +3744,6 @@ function showToastPortail(msg, type='info') {
 </script>
 </body>
 </html>
-
 
 
 
