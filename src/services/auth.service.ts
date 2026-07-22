@@ -82,7 +82,8 @@ async function loadProfil(authId: string, email: string): Promise<UserProfil | n
   }
 
   return {
-    id:        authId,
+    id:             authId,
+    utilisateur_id: utilisateur.id,
     email,
     nom:       utilisateur.nom,
     prenom:    utilisateur.prenom ?? undefined,

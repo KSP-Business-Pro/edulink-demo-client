@@ -13,6 +13,7 @@ export type UserRole =
 
 export interface UserProfil {
   id: string;             // UUID auth.users
+  utilisateur_id: string; // utilisateurs.id (table applicative, reference par expediteur_id/destinataire_id)
   email: string;
   nom: string;
   prenom?: string;

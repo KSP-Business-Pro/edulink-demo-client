@@ -13,6 +13,7 @@ interface Message {
   expediteur_role: string | null; sujet: string | null;
   objet: string | null; contenu: string;
   lu: boolean; created_at: string;
+  destinataire_nom: string | null; destinataire_role: string | null;
 }
 
 export default function MessagesPage() {
@@ -37,6 +38,7 @@ export default function MessagesPage() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [destinataires, setDestinataires] = useState<UtilisateurOption[]>([]);
   const [destinataireId, setDestinataireId] = useState('');
+  const [ongletActif, setOngletActif] = useState<'recus' | 'envoyes'>('recus');
   const [modeDestinataire, setModeDestinataire] = useState<'collegue' | 'etudiant'>('collegue');
   const [etudiantSearch, setEtudiantSearch] = useState('');
   const [etudiantResults, setEtudiantResults] = useState<EtudiantOption[]>([]);
@@ -80,7 +82,7 @@ export default function MessagesPage() {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,sujet,objet,contenu,lu,created_at')
+        .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,destinataire_nom,destinataire_role,sujet,objet,contenu,lu,created_at')
         .eq('ecole_id', ecoleId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -145,46 +147,71 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {loading ? <div className="loading">Chargement…</div> :
-        messages.length === 0
-          ? <div className="empty-state"><div className="es-ico">💬</div><h3>Aucun message</h3><p>La messagerie interne apparaîtra ici</p></div>
-          : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem', maxWidth: 780 }}>
-              {messages.map(m => {
-                const isMine   = m.expediteur_id === user?.id;
-                const senderNom = m.expediteur_nom || (isMine ? (user?.nom ?? 'Moi') : 'Système');
-                const initiale  = senderNom.charAt(0).toUpperCase();
-                const sujetMsg  = m.sujet || m.objet || '';
-                return (
-                  <div key={m.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1rem 1.2rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: isMine ? '#1e3a5f' : '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                          {initiale}
+      <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', borderBottom: '1px solid #e5e7eb' }}>
+        <button onClick={() => setOngletActif('recus')}
+          style={{ padding: '8px 16px', border: 'none', borderBottom: ongletActif === 'recus' ? '2px solid #1e3a5f' : '2px solid transparent', background: 'none', fontSize: 13, fontWeight: 600, color: ongletActif === 'recus' ? '#1e3a5f' : '#6b7280', cursor: 'pointer' }}>
+          Recus
+        </button>
+        <button onClick={() => setOngletActif('envoyes')}
+          style={{ padding: '8px 16px', border: 'none', borderBottom: ongletActif === 'envoyes' ? '2px solid #1e3a5f' : '2px solid transparent', background: 'none', fontSize: 13, fontWeight: 600, color: ongletActif === 'envoyes' ? '#1e3a5f' : '#6b7280', cursor: 'pointer' }}>
+          Envoyes
+        </button>
+      </div>
+      {loading ? <div className="loading">Chargement...</div> : (() => {
+        const filtres = messages.filter(m => ongletActif === 'envoyes' ? m.expediteur_id === user?.utilisateur_id : m.expediteur_id !== user?.utilisateur_id);
+        if (filtres.length === 0) {
+          return <div className="empty-state"><h3>Aucun message</h3><p>{ongletActif === 'envoyes' ? 'Vous n\'avez envoye aucun message' : 'Aucun message recu'}</p></div>;
+        }
+        const groupes = new Map<string, Message[]>();
+        filtres.forEach(m => {
+          const cle = ongletActif === 'envoyes' ? (m.destinataire_nom || 'Destinataire inconnu') : (m.expediteur_nom || 'Expediteur inconnu');
+          if (!groupes.has(cle)) groupes.set(cle, []);
+          groupes.get(cle)!.push(m);
+        });
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: 780 }}>
+            {Array.from(groupes.entries()).map(([interlocuteur, msgs]) => (
+              <div key={interlocuteur}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', marginBottom: '.5rem' }}>{interlocuteur}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
+                  {msgs.map(m => {
+                    const isMine   = m.expediteur_id === user?.utilisateur_id;
+                    const senderNom = m.expediteur_nom || (isMine ? (user?.nom ?? 'Moi') : 'Systeme');
+                    const initiale  = senderNom.charAt(0).toUpperCase();
+                    const sujetMsg  = m.sujet || m.objet || '';
+                    return (
+                      <div key={m.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1rem 1.2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: isMine ? '#1e3a5f' : '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                              {initiale}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827' }}>{senderNom}</div>
+                              {m.expediteur_role && <div style={{ fontSize: 10, color: '#9ca3af' }}>{m.expediteur_role}</div>}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                            <div style={{ fontSize: 11, color: '#9ca3af' }}>{formatDate(m.created_at)}</div>
+                            {isMine && (
+                              <button onClick={() => handleSupprimer(m.id)}
+                                style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', padding: '2px 5px', fontSize: 14, lineHeight: 1 }}>
+                                X
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827' }}>{senderNom}</div>
-                          {m.expediteur_role && <div style={{ fontSize: 10, color: '#9ca3af' }}>{m.expediteur_role}</div>}
-                        </div>
+                        {sujetMsg && <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: '.25rem' }}>{sujetMsg}</div>}
+                        <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>{m.contenu}</div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{formatDate(m.created_at)}</div>
-                        {isMine && (
-                          <button onClick={() => handleSupprimer(m.id)}
-                            style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', padding: '2px 5px', fontSize: 14, lineHeight: 1 }}>
-                            🗑
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {sujetMsg && <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: '.25rem' }}>{sujetMsg}</div>}
-                    <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>{m.contenu}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )
-      }
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Modal nouveau message */}
       {modalOpen && (
