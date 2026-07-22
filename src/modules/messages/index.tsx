@@ -5,6 +5,7 @@ import { supabase } from '../../services/supabase';
 
 interface EcoleOption { id: string; nom: string }
 interface UtilisateurOption { id: string; nom: string; role: string }
+interface EtudiantOption { id: string; nom: string; prenom: string; matricule: string }
 
 interface Message {
   id: string; ecole_id: string;
@@ -36,6 +37,10 @@ export default function MessagesPage() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [destinataires, setDestinataires] = useState<UtilisateurOption[]>([]);
   const [destinataireId, setDestinataireId] = useState('');
+  const [modeDestinataire, setModeDestinataire] = useState<'collegue' | 'etudiant'>('collegue');
+  const [etudiantSearch, setEtudiantSearch] = useState('');
+  const [etudiantResults, setEtudiantResults] = useState<EtudiantOption[]>([]);
+  const [etudiantId, setEtudiantId] = useState('');
 
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
     setToast({ msg, type });
@@ -52,6 +57,22 @@ export default function MessagesPage() {
       .order('nom')
       .then(({ data }) => setDestinataires((data ?? []) as UtilisateurOption[]));
   }, [ecoleId, user?.id]);
+
+  useEffect(() => {
+    if (modeDestinataire !== 'etudiant' || !ecoleId || etudiantSearch.trim().length < 2) { setEtudiantResults([]); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const { data } = await supabase.rpc('fn_get_etudiants_ecole', {
+        p_ecole_id: ecoleId,
+        p_search: etudiantSearch.trim(),
+        p_niveau: null,
+        p_limit: 8,
+        p_offset: 0,
+      });
+      if (!cancelled) setEtudiantResults((data ?? []) as EtudiantOption[]);
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [modeDestinataire, ecoleId, etudiantSearch]);
 
   const load = useCallback(async () => {
     if (!ecoleId) return;
@@ -72,17 +93,21 @@ export default function MessagesPage() {
 
   async function handleEnvoyer(e: React.FormEvent) {
     e.preventDefault();
-    if (!contenu.trim() || !destinataireId) return;
+    const destOk = modeDestinataire === 'collegue' ? !!destinataireId : !!etudiantId;
+    if (!contenu.trim() || !destOk) return;
     setSending(true);
     try {
       const { error } = await supabase.rpc('fn_envoyer_message', {
         p_ecole_id:        ecoleId,
-        p_destinataire_id: destinataireId,
+        p_destinataire_id: modeDestinataire === 'collegue' ? destinataireId : null,
         p_sujet:           sujet.trim() || null,
         p_contenu:         contenu.trim(),
+        p_categorie:       null,
+        p_priorite:        'normale',
+        p_etudiant_id:     modeDestinataire === 'etudiant' ? etudiantId : null,
       });
       if (error) throw error;
-      setModalOpen(false); setSujet(''); setContenu(''); setDestinataireId('');
+      setModalOpen(false); setSujet(''); setContenu(''); setDestinataireId(''); setEtudiantId(''); setEtudiantSearch(''); setModeDestinataire('collegue');
       await load(); showToast('Message envoyé ✓');
     } catch (err: any) { showToast(err.message, 'error'); }
     finally { setSending(false); }
@@ -170,14 +195,35 @@ export default function MessagesPage() {
               <button className="btn-ghost btn-sm" onClick={() => setModalOpen(false)}>✕</button>
             </div>
             <form onSubmit={handleEnvoyer} autoComplete="off">
-              <div style={{ marginBottom: '.85rem' }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: '.75rem' }}>
+                <button type="button" onClick={() => setModeDestinataire('collegue')} style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: modeDestinataire === 'collegue' ? '1.5px solid #1e3a5f' : '1px solid #e5e7eb', background: modeDestinataire === 'collegue' ? '#eff6ff' : '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Collegue</button>
+                <button type="button" onClick={() => setModeDestinataire('etudiant')} style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: modeDestinataire === 'etudiant' ? '1.5px solid #1e3a5f' : '1px solid #e5e7eb', background: modeDestinataire === 'etudiant' ? '#eff6ff' : '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Etudiant</button>
+              </div>
+              <div style={{ marginBottom: '.85rem', display: modeDestinataire === 'collegue' ? 'block' : 'none' }}>
                 <label htmlFor="msg-destinataire">Destinataire *</label>
-                <select id="msg-destinataire" name="destinataire" value={destinataireId} required
+                <select id="msg-destinataire" name="destinataire" value={destinataireId}
                   onChange={e => setDestinataireId(e.target.value)}
                   style={{ width: '100%', marginTop: 4, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }}>
                   <option value="">Choisir un destinataire…</option>
                   {destinataires.map(d => <option key={d.id} value={d.id}>{d.nom} ({d.role})</option>)}
                 </select>
+              </div>
+              <div style={{ marginBottom: '.85rem', display: modeDestinataire === 'etudiant' ? 'block' : 'none' }}>
+                <label htmlFor="msg-etudiant-search">Etudiant *</label>
+                <input id="msg-etudiant-search" name="etudiant-search" type="text" value={etudiantSearch}
+                  onChange={e => { setEtudiantSearch(e.target.value); setEtudiantId(''); }}
+                  placeholder="Nom, prenom ou matricule..."
+                  style={{ width: '100%', marginTop: 4, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                {etudiantResults.length > 0 && (
+                  <div style={{ marginTop: 6, border: '1px solid #e5e7eb', borderRadius: 6, maxHeight: 160, overflowY: 'auto' }}>
+                    {etudiantResults.map(et => (
+                      <div key={et.id} onClick={() => { setEtudiantId(et.id); setEtudiantSearch(et.nom + ' ' + et.prenom); setEtudiantResults([]); }}
+                        style={{ padding: '6px 10px', fontSize: 12.5, cursor: 'pointer', background: etudiantId === et.id ? '#eff6ff' : '#fff' }}>
+                        {et.nom} {et.prenom} ({et.matricule})
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div style={{ marginBottom: '.85rem' }}>
                 <label htmlFor="msg-sujet">Sujet <span style={{ color: '#9ca3af', fontWeight: 400, textTransform: 'none' }}>(optionnel)</span></label>
@@ -192,7 +238,7 @@ export default function MessagesPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.5rem', paddingTop: '.85rem', borderTop: '1px solid #f3f4f6' }}>
                 <button type="button" className="btn-ghost" onClick={() => setModalOpen(false)}>Annuler</button>
-                <button type="submit" className="btn-blue" disabled={sending || !destinataireId}>{sending ? 'Envoi…' : 'Envoyer →'}</button>
+                <button type="submit" className="btn-blue" disabled={sending || (modeDestinataire === 'collegue' ? !destinataireId : !etudiantId)}>{sending ? 'Envoi…' : 'Envoyer →'}</button>
               </div>
             </form>
           </div>
