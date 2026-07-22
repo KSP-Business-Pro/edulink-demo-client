@@ -1390,464 +1390,6 @@ async function chargerMessages() {
   if (b2) { b2.style.display = nonLus > 0 ? 'flex' : 'none'; if(nonLus>0) b2.textContent = nonLus; }
 }
 
-async function calculerRangGlobalPortail() {
-  rangEtudiantPortail = '-';
-  if (!currentEtudiant?.filiere || !currentEtudiant?.niveau || !currentEtudiant?.ecole_id) return;
-  try {
-    const { data: classmates } = await db.from('etudiants')
-      .select('id')
-      .eq('ecole_id', currentEtudiant.ecole_id)
-      .eq('filiere', currentEtudiant.filiere)
-      .eq('niveau', currentEtudiant.niveau);
-    if (!classmates?.length) return;
-    const ids = classmates.map(c => c.id);
-    const { data: allNotes } = await db.from('notes_lmd')
-      .select('etudiant_id,valeur')
-      .in('etudiant_id', ids);
-    const moyParEtu = {};
-    (allNotes||[]).forEach(n => {
-      if (!moyParEtu[n.etudiant_id]) moyParEtu[n.etudiant_id] = { pts:0, coef:0 };
-      moyParEtu[n.etudiant_id].pts += (n.valeur||0);
-      moyParEtu[n.etudiant_id].coef += 1;
-    });
-    const classements = Object.entries(moyParEtu)
-      .map(([id,v]) => ({ id, moy: v.coef ? v.pts/v.coef : 0 }))
-      .sort((a,b) => b.moy - a.moy);
-    const idx = classements.findIndex(c => c.id === currentEtudiant.id);
-    const n = ids.length;
-    if (idx === 0) rangEtudiantPortail = '1er/' + n;
-    else if (idx > 0) rangEtudiantPortail = (idx + 1) + 'e/' + n;
-  } catch(e) {
-    console.warn('[Rang Portail]', e.message);
-  }
-}
-
-// ══ NAVIGATION ══
-function showPage(p) {
-  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
-  document.getElementById('page-' + p)?.classList.add('active');
-  document.getElementById('nav-' + p)?.classList.add('active');
-  const renderers = {
-    accueil: afficherAccueil,
-    notes: afficherNotes,
-    releves: afficherReleves,
-    absences: afficherAbsences,
-    paiements: afficherPaiements,
-    messages: afficherMessages,
-    examens: afficherExamensPortail,
-    enseignants: afficherEnseignantsPortail,
-    notifs: afficherNotifsPortail,
-    emploi: afficherEmploiPortail,
-    'certificats-portail': afficherCertificatsPortail,
-  };
-  if (renderers[p]) renderers[p]();
-}
-
-// ══ ACCUEIL ══
-function afficherAccueil() {
-  const page = document.getElementById('page-accueil');
-  // Calcul stats
-  const nbAbsences = toutesAbsences.filter(a => a.statut === 'absent').length;
-  let moy = 0;
-  if (toutesNotes.length) {
-    let pts = 0, coeff = 0;
-    toutesNotes.forEach(n => { pts += n.note*(n.coefficient||1); coeff += (n.coefficient||1); });
-    moy = coeff > 0 ? pts/coeff : 0;
-  }
-  const totalDu = toutesFactures.reduce((s,f) => s+f.montant_total, 0);
-  const totalPaye = toutesFactures.reduce((s,f) => s+(f.montant_paye||0), 0);
-  const restant = totalDu - totalPaye;
-  const nonLusMsgs = tousMessages.filter(m => !m.lu).length;
-  const totalCommsNonLues = nonLusMsgs + toutesNotifsPortail.filter(n => !n.lu).length;
-
-  page.innerHTML = `
-    <div style="padding:1rem 1rem 0">
-      <!-- Stat cards -->
-      <div class="stat-grid">
-        <div class="stat-card" onclick="showPage('notes')">
-          <div class="stat-ico teal">📊</div>
-          <div>
-            <div class="stat-val" style="color:${moy>=10?'#059669':'#dc2626'}">${toutesNotes.length?moy.toFixed(1)+'/20':'—'}</div>
-            <div class="stat-lbl">Moyenne générale</div>
-          </div>
-        </div>
-        <div class="stat-card" onclick="showPage('absences')">
-          <div class="stat-ico red">🚫</div>
-          <div>
-            <div class="stat-val" style="color:#dc2626">${nbAbsences}</div>
-            <div class="stat-lbl">Absences</div>
-          </div>
-        </div>
-        <div class="stat-card" onclick="showPage('paiements')">
-          <div class="stat-ico amber">💳</div>
-          <div>
-            <div class="stat-val" style="color:${restant>0?'#d97706':'#059669'};font-size:16px">${restant>0?'Impayé':'À jour'}</div>
-            <div class="stat-lbl">${restant>0?fmtMontant(restant):'Paiements'}</div>
-          </div>
-        </div>
-        <div class="stat-card" onclick="showPage('examens')">
-          <div class="stat-ico blue">📝</div>
-          <div>
-            <div class="stat-val" style="color:#7c3aed">${(()=>{const t=new Date().toISOString().split('T')[0];return tousExamens.filter(e=>e.date_examen>=t&&e.statut!=='annule').length;})()||0}</div>
-            <div class="stat-lbl">Examens à venir</div>
-          </div>
-        </div>
-        <div class="stat-card" onclick="showPage('releves')">
-          <div class="stat-ico teal">📋</div>
-          <div>
-            <div class="stat-val" style="color:#0f6e56">${tousReleves.length || '—'}</div>
-            <div class="stat-lbl">Relevé(s) officiel(s)</div>
-          </div>
-        </div>
-        <div class="stat-card" onclick="showPage('notes')">
-          <div class="stat-ico blue">🏆</div>
-          <div>
-            <div class="stat-val" style="color:#1d4ed8">${rangEtudiantPortail}</div>
-            <div class="stat-lbl">Rang classe</div>
-          </div>
-        </div>
-        <div class="stat-card" onclick="showPage('notifs')">
-          <div class="stat-ico teal">📨</div>
-          <div>
-            <div class="stat-val" style="color:${totalCommsNonLues>0?'#0f6e56':'#6b7280'}">${totalCommsNonLues||'—'}</div>
-            <div class="stat-lbl">Communications</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Dernières notes -->
-      ${toutesNotes.length ? `
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">📊 Dernières notes</div>
-          <span class="card-link" onclick="showPage('notes')">Tout voir</span>
-        </div>
-        ${toutesNotes.slice(0,3).map(n => {
-          const a = getApp(n.note);
-          return `<div class="list-item">
-            <div class="li-ico" style="background:${n.note>=10?'#e1f5ee':'#fee2e2'}">${n.note>=10?'✅':'⚠️'}</div>
-            <div class="li-body">
-              <div class="li-title">${n.matiere}</div>
-              <div class="li-sub">${n.periode} · Coeff. ${n.coefficient||1}${(()=>{const pr=getProfPourMatiere(n.matiere);return pr?' · 👨‍🏫 '+pr.nom:'';})()}</div>
-            </div>
-            <div class="li-right">
-              <div class="note-big ${getNoteClass(n.note)}" style="font-size:20px">${n.note}/20</div>
-              <div><span class="badge ${a.cls}">${a.label}</span></div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>` : ''}
-
-      <!-- Absences récentes -->
-      ${toutesAbsences.length ? `
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">🚫 Absences récentes</div>
-          <span class="card-link" onclick="showPage('absences')">Tout voir</span>
-        </div>
-        ${toutesAbsences.slice(0,3).map(a => `
-          <div class="list-item">
-            <div class="li-ico" style="background:${a.statut==='absent'?'#fee2e2':a.statut==='retard'?'#fef9c3':'#dbeafe'}">
-              ${a.statut==='absent'?'🔴':a.statut==='retard'?'🟡':'🟢'}
-            </div>
-            <div class="li-body">
-              <div class="li-title">${a.matiere}</div>
-              <div class="li-sub">${fmtDate(a.date_absence)}</div>
-            </div>
-            <span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span>
-          </div>`).join('')}
-      </div>` : ''}
-
-      <!-- Factures en attente -->
-      ${toutesFactures.filter(f=>f.statut!=='paye' && f.statut!=='payée').length ? `
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">💳 Paiements en attente</div>
-          <span class="card-link" onclick="showPage('paiements')">Détails</span>
-        </div>
-        ${toutesFactures.filter(f=>f.statut!=='paye' && f.statut!=='payée').slice(0,2).map(f => `
-          <div class="list-item">
-            <div class="li-ico" style="background:#fef9c3">💰</div>
-            <div class="li-body">
-              <div class="li-title">${f.description||f.type_frais||'Facture'}</div>
-              <div class="li-sub">Échéance : ${fmtDate(f.date_echeance)}</div>
-            </div>
-            <div class="li-right">
-              <div style="font-size:13px;font-weight:700;color:#d97706">${fmtMontant(f.montant_total-(f.montant_paye||0))}</div>
-              <span class="badge amber">À payer</span>
-            </div>
-          </div>`).join('')}
-      </div>` : ''}
-
-      ${(function(){
-        const today = new Date().toISOString().split('T')[0];
-        const prochain = tousExamens.find(function(e){ return e.date_examen >= today && e.statut !== 'annule' && e.statut !== 'termine'; });
-        if (!prochain) return '';
-        const jours = Math.ceil((new Date(prochain.date_examen) - new Date(today)) / 86400000);
-        const typeLabels = { controle:'Contrôle', partiel:'Partiel', final:'Final', rattrapage:'Rattrapage', soutenance:'Soutenance' };
-        return '<div class="card" onclick="showPage(\'examens\')" style="cursor:pointer">' +
-          '<div class="card-header"><div class="card-title">📝 Prochain examen</div><span class="card-link">Voir tout</span></div>' +
-          '<div class="list-item">' +
-          '<div class="li-ico" style="background:#ede9fe">📝</div>' +
-          '<div class="li-body"><div class="li-title">' + prochain.matiere + '</div>' +
-          '<div class="li-sub">' + (prochain.heure_debut||'') + (prochain.salle?' · '+prochain.salle:'') + '</div></div>' +
-          '<div class="li-right">' +
-          '<div style="font-size:14px;font-weight:800;color:#7c3aed">' + (jours===0?'Aujourd\'hui':jours===1?'Demain':'J-'+jours) + '</div>' +
-          '<div style="font-size:10px;color:#9ca3af">' + new Date(prochain.date_examen).toLocaleDateString('fr-FR') + '</div>' +
-          '<span class="badge" style="background:#ede9fe;color:#7c3aed">' + (typeLabels[prochain.type_examen]||prochain.type_examen) + '</span>' +
-          '</div></div></div>';
-      })()}
-
-      ${!currentEtudiant ? `<div class="empty"><div class="e-ico">👤</div><p>Votre compte n'est pas encore lié à un étudiant.<br>Contactez l'administration.</p></div>` : ''}
-    </div>`;
-}
-
-// ══ NOTES ══
-function afficherNotes() {
-  const page = document.getElementById('page-notes');
-  if (!currentEtudiant) { page.innerHTML = '<div class="empty"><div class="e-ico">📊</div><p>Aucun étudiant lié à ce compte.</p></div>'; return; }
-
-  // Toutes les périodes y compris EXAM-xxx
-  const periodes = [...new Set(toutesNotes.map(n => n.periode))].sort();
-  // Trier : S1/S2/T1... en premier, EXAM-xxx à la fin
-  periodes.sort((a,b) => {
-    const aExam = a.startsWith('EXAM-');
-    const bExam = b.startsWith('EXAM-');
-    if (aExam && !bExam) return 1;
-    if (!aExam && bExam) return -1;
-    return a.localeCompare(b);
-  });
-
-  // Libellé lisible pour les périodes
-  function labelPeriode(p) {
-    if (!p) return 'Toutes';
-    if (p === 'S1') return 'Semestre 1';
-    if (p === 'S2') return 'Semestre 2';
-    if (p === 'T1') return 'Trimestre 1';
-    if (p === 'T2') return 'Trimestre 2';
-    if (p === 'T3') return 'Trimestre 3';
-    if (p.startsWith('EXAM-')) return '📝 Examen';
-    return p;
-  }
-
-  // Ajouter "Toutes" si plusieurs périodes
-  const periodesAvecTout = periodes.length > 1 ? ['', ...periodes] : periodes;
-  let periodeActive = periodes[0] || '';
-
-  function renderNotes(periode) {
-    const notes = periode ? toutesNotes.filter(n => n.periode === periode) : toutesNotes;
-    let moy = 0, totalPts = 0, totalCoeff = 0;
-    notes.forEach(n => { totalPts += n.note*(n.coefficient||1); totalCoeff += (n.coefficient||1); });
-    moy = totalCoeff > 0 ? totalPts/totalCoeff : 0;
-    const app = getApp(moy);
-
-    return `
-      ${notes.length ? `
-      <div class="bulletin-card">
-        <div class="bulletin-top">
-          <h3>${currentEtudiant.nom} ${currentEtudiant.prenom}</h3>
-          <p>${currentEtudiant.filiere} · ${currentEtudiant.niveau} · ${labelPeriode(periode)||'Toutes périodes'}</p>
-          <div class="bulletin-moy">${moy.toFixed(2)}/20</div>
-          <span class="badge ${app.cls}">${app.label}</span>
-          <div style="margin-top:8px">
-            <div class="moy-bar"><div class="moy-fill" style="width:${Math.min(100,moy/20*100)}%"></div></div>
-          </div>
-        </div>
-        <table class="bulletin-table">
-          <tr><th>Matière</th><th>Note</th><th>Coeff</th><th>Mention</th></tr>
-          ${notes.map(n => { const a=getApp(n.note); return `
-            <tr>
-              <td>${n.matiere}</td>
-              <td><strong class="${getNoteClass(n.note)==='good'?'':''}"; style="color:${n.note>=10?'#059669':'#dc2626'}">${n.note}/20</strong></td>
-              <td>${n.coefficient||1}</td>
-              <td><span class="badge ${a.cls}">${a.label}</span></td>
-            </tr>`}).join('')}
-          <tr style="background:#f9fafb;font-weight:700">
-            <td>Moyenne générale</td>
-            <td style="color:${moy>=10?'#059669':'#dc2626'};font-weight:800">${moy.toFixed(2)}/20</td>
-            <td>${totalCoeff}</td>
-            <td><span class="badge ${app.cls}">${app.label}</span></td>
-          </tr>
-        </table>
-        <div style="padding:1rem">
-          <div style="display:flex;gap:8px;margin-top:1rem">
-          <button class="print-btn" style="flex:1" onclick="imprimerBulletin('${periode}')">🖨️ Imprimer</button>
-          <button class="print-btn" style="flex:1;background:linear-gradient(135deg,#059669,#047857)" onclick="telechargerBulletinPDFPortail('${periode}')">⬇️ Télécharger PDF</button>
-        </div>
-        </div>
-      </div>` : '<div class="empty"><div class="e-ico">📭</div><p>Aucune note pour cette période.</p></div>'}`;
-  }
-
-  page.innerHTML = `<div class="page-pad">
-    <div class="section-title">📊 Notes & Bulletins</div>
-    ${periodesAvecTout.length > 1 ? `<div class="periode-sel" id="periode-sel">
-      ${periodesAvecTout.map(p => `<button class="periode-btn ${p===periodeActive?'active':''}" onclick="changerPeriode('${p}')">${labelPeriode(p)||'Toutes'}</button>`).join('')}
-    </div>` : ''}
-    <div id="notes-container">${renderNotes(periodeActive)}</div>
-  </div>`;
-
-  window.changerPeriode = function(p) {
-    periodeActive = p;
-    document.querySelectorAll('.periode-btn').forEach(b => b.classList.toggle('active', b.textContent===(labelPeriode(p)||'Toutes')));
-    document.getElementById('notes-container').innerHTML = renderNotes(p);
-  };
-}
-
-function labelPeriodeImpression(p) {
-  if (!p) return 'Toutes périodes';
-  if (p === 'S1') return 'Semestre 1';
-  if (p === 'S2') return 'Semestre 2';
-  if (p === 'T1') return 'Trimestre 1';
-  if (p === 'T2') return 'Trimestre 2';
-  if (p === 'T3') return 'Trimestre 3';
-  if (p.startsWith('EXAM-')) return 'Examen';
-  return p;
-}
-
-function imprimerBulletin(periode) {
-  const notes = periode ? toutesNotes.filter(n => n.periode === periode) : toutesNotes;
-  if (!notes.length) { showToast('Aucune note à imprimer.', 'error'); return; }
-  let totalPts = 0, totalCoeff = 0;
-  notes.forEach(n => { totalPts += n.note*(n.coefficient||1); totalCoeff += (n.coefficient||1); });
-  const moy = totalCoeff > 0 ? totalPts/totalCoeff : 0;
-  const app = moy>=16?'Très bien':moy>=14?'Bien':moy>=12?'Assez bien':moy>=10?'Passable':'Insuffisant';
-  const periodeLabel = labelPeriodeImpression(periode);
-  const w = window.open('','_blank');
-  w.document.write(`<html><head><title>Bulletin — ${currentEtudiant.nom}</title>
-  <style>
-    *{font-family:Arial,sans-serif;margin:0;box-sizing:border-box}
-    body{padding:2rem;background:#f9fafb}
-    .header{background:linear-gradient(135deg,#0f6e56,#1e3a5f);color:#fff;padding:1.5rem;border-radius:10px;margin-bottom:1.5rem}
-    .header h1{font-size:18px;font-weight:800;margin-bottom:4px}
-    .header p{font-size:12px;opacity:.8;margin-bottom:.5rem}
-    .moy{font-size:36px;font-weight:900;margin:.4rem 0}
-    .mention{display:inline-block;background:rgba(255,255,255,.2);padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700}
-    table{width:100%;border-collapse:collapse;margin-top:1rem;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-    th{background:#1e3a5f;color:#fff;padding:9px 12px;font-size:11px;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-    td{padding:9px 12px;font-size:12px;border-bottom:1px solid #f3f4f6;color:#374151}
-    tr:last-child td{border-bottom:none;background:#f0fdf4;font-weight:700}
-    .good{color:#059669;font-weight:700}.bad{color:#dc2626;font-weight:700}
-    .footer{margin-top:2.5rem;display:flex;justify-content:space-between}
-    .sig{text-align:center;width:30%}
-    .sig-line{border-top:1px solid #9ca3af;padding-top:6px;font-size:11px;color:#6b7280;margin-top:2rem}
-  </style></head><body>
-  <div class="header">
-    <h1>Bulletin de Notes — ${currentEtudiant.nom} ${currentEtudiant.prenom}</h1>
-    <p>${currentEtudiant.filiere} · Niveau ${currentEtudiant.niveau} · ${periodeLabel}</p>
-    <div class="moy">${moy.toFixed(2)}/20</div>
-    <span class="mention">${app}</span>
-  </div>
-  <table>
-    <tr><th>Matière</th><th>Note /20</th><th>Coefficient</th><th>Points</th></tr>
-    ${notes.map(n=>`<tr><td>${n.matiere}</td><td class="${n.note>=10?'good':'bad'}">${n.note}/20</td><td>${n.coefficient||1}</td><td>${(n.note*(n.coefficient||1)).toFixed(2)}</td></tr>`).join('')}
-    <tr><td>MOYENNE GÉNÉRALE</td><td class="${moy>=10?'good':'bad'}">${moy.toFixed(2)}/20</td><td>${totalCoeff}</td><td>${totalPts.toFixed(2)}</td></tr>
-  </table>
-  <div class="footer">
-    <div class="sig"><div class="sig-line">Directeur(trice)</div></div>
-    <div class="sig"><div class="sig-line">Enseignant(e) référent(e)</div></div>
-    <div class="sig"><div class="sig-line">Parent / Tuteur</div></div>
-  </div>
-  <p style="text-align:center;margin-top:2rem;font-size:10px;color:#9ca3af">Document généré par EduLink — ${new Date().toLocaleDateString('fr-FR')}</p>
-  </body></html>`);
-  w.document.close(); w.print();
-}
-
-// ══ ABSENCES ══
-function afficherAbsences() {
-  const page = document.getElementById('page-absences');
-  if (!currentEtudiant || !toutesAbsences.length) {
-    page.innerHTML = '<div class="empty"><div class="e-ico">✅</div><p>Aucune absence enregistrée. Excellent !</p></div>'; return;
-  }
-  const nbAbs = toutesAbsences.filter(a=>a.statut==='absent').length;
-  const nbRet = toutesAbsences.filter(a=>a.statut==='retard').length;
-  const nbExc = toutesAbsences.filter(a=>a.statut==='excuse').length;
-
-  page.innerHTML = `<div class="page-pad">
-    <div class="section-title">🚫 Présences & Absences</div>
-    <div class="stat-grid" style="margin-bottom:1rem">
-      <div class="stat-card"><div class="stat-ico red">🔴</div><div><div class="stat-val" style="color:#dc2626">${nbAbs}</div><div class="stat-lbl">Absences</div></div></div>
-      <div class="stat-card"><div class="stat-ico amber">🟡</div><div><div class="stat-val" style="color:#d97706">${nbRet}</div><div class="stat-lbl">Retards</div></div></div>
-    </div>
-    <div class="card">
-      ${toutesAbsences.map(a => `
-        <div class="list-item">
-          <div class="li-ico" style="background:${a.statut==='absent'?'#fee2e2':a.statut==='retard'?'#fef9c3':'#dbeafe'}">
-            ${a.statut==='absent'?'🔴':a.statut==='retard'?'🟡':'🟢'}
-          </div>
-          <div class="li-body">
-            <div class="li-title">${a.matiere}</div>
-            <div class="li-sub">${fmtDate(a.date_absence)}${a.justification?' · '+a.justification:''}</div>
-          </div>
-          <div class="li-right">
-            <span class="badge ${a.statut==='absent'?'red':a.statut==='retard'?'amber':'blue'}">${a.statut}</span>
-            <div style="font-size:10px;color:#9ca3af;margin-top:3px">${a.parent_notifie?'✓ Notifié':''}</div>
-          </div>
-        </div>`).join('')}
-    </div>
-  </div>`;
-}
-
-// ══ PAIEMENTS ══
-function afficherPaiements() {
-  const page = document.getElementById('page-paiements');
-  if (!currentEtudiant || !toutesFactures.length) {
-    page.innerHTML = '<div class="empty"><div class="e-ico">💳</div><p>Aucune facture enregistrée.</p></div>'; return;
-  }
-  const totalDu = toutesFactures.reduce((s,f) => s+f.montant_total, 0);
-  const totalPaye = toutesFactures.reduce((s,f) => s+(f.montant_paye||0), 0);
-  const restant = totalDu - totalPaye;
-  const pct = totalDu > 0 ? Math.round(totalPaye/totalDu*100) : 100;
-
-  page.innerHTML = `<div class="page-pad">
-    <div class="section-title">💳 Mes Paiements</div>
-    <div class="card">
-      <div class="card-body">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
-          <div>
-            <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase">Total facturé</div>
-            <div style="font-size:20px;font-weight:800;font-family:'Nunito',sans-serif;color:#1e3a5f">${fmtMontant(totalDu)}</div>
-          </div>
-          <div style="font-size:26px;font-weight:800;font-family:'Nunito',sans-serif;color:${restant>0?'#dc2626':'#059669'}">${pct}%</div>
-        </div>
-        <div class="pay-bar"><div class="pay-fill" style="width:${pct}%"></div></div>
-        <div class="pay-amounts">
-          <span>Payé : ${fmtMontant(totalPaye)}</span>
-          <span>Restant : <strong style="color:${restant>0?'#dc2626':'#059669'}">${fmtMontant(restant)}</strong></span>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      ${toutesFactures.map(f => {
-        const pct2 = f.montant_total > 0 ? Math.round((f.montant_paye||0)/f.montant_total*100) : 0;
-        // Statut BD côté back-office : 'paye' / 'partiel' / 'retard' / 'en_attente'
-        // (tolérance pour les anciens imports avec 'payée')
-        const estPaye = f.statut === 'paye' || f.statut === 'payée';
-        const sClass = estPaye ? 'green' : f.statut==='retard' ? 'red' : 'amber';
-        return `<div class="list-item">
-          <div class="li-ico" style="background:${estPaye?'#dcfce7':'#fef9c3'}">
-            ${estPaye?'✅':'💰'}
-          </div>
-          <div class="li-body">
-            <div class="li-title">${f.description||f.type_frais||'Facture'}</div>
-            <div class="li-sub">Réf: ${f.reference||'—'} · Échéance: ${fmtDate(f.date_echeance)}</div>
-            <div class="pay-bar" style="margin-top:6px;height:6px"><div class="pay-fill" style="width:${pct2}%"></div></div>
-            <div class="pay-amounts"><span>${fmtMontant(f.montant_paye||0)} payé</span><span>${pct2}%</span></div>
-          </div>
-          <div class="li-right" style="margin-left:.5rem">
-            <span class="badge ${sClass}">${f.statut}</span>
-            <div style="font-size:12px;font-weight:700;margin-top:4px;color:#1e3a5f">${fmtMontant(f.montant_total)}</div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
-    <div style="background:#e1f5ee;border-radius:12px;padding:1rem;font-size:12.5px;color:#0f6e56;margin-bottom:1rem">
-      💡 Pour tout paiement, rapprochez-vous de l'administration de l'établissement.
-    </div>
-  </div>`;
-}
-
-// ══ MESSAGES  ★ JOUR 19 (amélioré) ══
 function afficherMessages() {
   const page = document.getElementById('page-messages');
   const nonLus = tousMessages.filter(function(m) {
@@ -1903,60 +1445,6 @@ function afficherMessages() {
 async function envoyerMessageV2() {
   const objet   = document.getElementById('msg-objet')?.value.trim();
   const contenu = document.getElementById('msg-contenu')?.value.trim();
-  if (!contenu) { showToast('Écrivez un message.', 'error'); return; }
-  const nom = currentProfile ? (currentProfile.prenom||'') + ' ' + (currentProfile.nom||'') : currentUser?.email || 'Parent';
-  const { error } = await db.from('messages').insert([{
-    ecole_id: currentEcoleId,
-    expediteur_nom: nom.trim(),
-    expediteur_role: currentProfile?.role || 'parent',
-    destinataire_nom: 'Administration',
-    destinataire_role: 'admin',
-    objet: objet || 'Message depuis le portail famille',
-    contenu, lu: false
-  }]);
-  if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
-  showToast('✅ Message envoyé !', 'success');
-  const o = document.getElementById('msg-objet');
-  const c = document.getElementById('msg-contenu');
-  if (o) o.value = '';
-  if (c) c.value = '';
-  await chargerMessages();
-  afficherMessages();
-}
-
-async function marquerMessagesAdminLus() {
-  const nonLus = tousMessages.filter(m =>
-    (m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant') && !m.lu
-  );
-  if (!nonLus.length) {
-    // Force hide badges anyway
-    const b1 = document.getElementById('msg-badge');
-    const b2 = document.getElementById('nav-msg-badge');
-    if (b1) b1.style.display = 'none';
-    if (b2) b2.style.display = 'none';
-    return;
-  }
-  const ids = nonLus.map(m => m.id);
-  try {
-    await db.from('messages').update({ lu: true }).in('id', ids);
-  } catch(_) {}
-  nonLus.forEach(m => { m.lu = true; });
-  const b1 = document.getElementById('msg-badge');
-  const b2 = document.getElementById('nav-msg-badge');
-  if (b1) b1.style.display = 'none';
-  if (b2) b2.style.display = 'none';
-  // Masquer le badge dans le titre de la page messages
-  const inPageBadge = document.querySelector('.msg-unread-badge');
-  if (inPageBadge) inPageBadge.style.display = 'none';
-}
-
-async function envoyerMessage() {
-  const objet   = document.getElementById('msg-objet')?.value.trim();
-  const contenu = document.getElementById('msg-contenu')?.value.trim();
-  if (!contenu) { showToast('Écrivez un message.', 'error'); return; }
-async function envoyerMessageV2() {
-  const objet   = document.getElementById('msg-objet')?.value.trim();
-  const contenu = document.getElementById('msg-contenu')?.value.trim();
   if (!contenu) { showToast('Ecrivez un message.', 'error'); return; }
   const { error } = await db.rpc('fn_envoyer_message_famille', {
     p_ecole_id: currentEcoleId,
@@ -1972,12 +1460,6 @@ async function envoyerMessageV2() {
   await chargerMessages();
   afficherMessages();
 }
-
-let otpEtudiantTrouve = null; // P2.9 : stocke l'étudiant trouvé à l'étape 1
-
-function switchLoginTab(tab) {
-  document.getElementById('tab-sms').style.display   = tab === 'sms'   ? 'block' : 'none';
-  document.getElementById('tab-email').style.display = tab === 'email' ? 'block' : 'none';
 async function marquerMessagesAdminLus() {
   const nonLus = tousMessages.filter(m =>
     (m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant') && !m.lu
@@ -2001,14 +1483,65 @@ async function marquerMessagesAdminLus() {
   if (inPageBadge) inPageBadge.style.display = 'none';
 }
 
-  async function envoyerOTP() {
+async function envoyerMessage() {
+  const objet   = document.getElementById('msg-objet')?.value.trim();
+  const contenu = document.getElementById('msg-contenu')?.value.trim();
+  if (!contenu) { showToast('Écrivez un message.', 'error'); return; }
+  const nom = currentProfile ? ((currentProfile.prenom || '') + ' ' + (currentProfile.nom || '')).trim() || currentUser.email : currentUser.email;
+  const { error } = await db.from('messages').insert([{
+    ecole_id: currentEcoleId,
+    expediteur_nom: nom,
+    expediteur_role: currentProfile?.role || 'parent',
+    destinataire_nom: 'Administration',
+    destinataire_role: 'admin',
+    objet: objet || 'Message depuis le portail famille',
+    contenu, lu: false
+  }]);
+  if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
+  showToast('Message envoyé !', 'success');
+  document.getElementById('msg-objet').value = '';
+  document.getElementById('msg-contenu').value = '';
+  await chargerMessages();
+  afficherMessages();
+}
+
+// ══ JOUR 9 — OTP SMS ══════════════════════════
+const EDGE_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/bright-handler';
+const SUPABASE_ANON = 'sb_publishable_qRSHSH88vHxJ9pfXJMHksQ_iVawwupX';
+let otpTimer = null;
+let otpExpiresAt = 0; // OTP-TIMER-UI (2026-05-18) : timestamp absolu d'expiration (ms)
+let otpTelephone = '';
+let otpEtudiantTrouve = null; // P2.9 : stocke l'étudiant trouvé à l'étape 1
+
+function switchLoginTab(tab) {
+  document.getElementById('tab-sms').style.display   = tab === 'sms'   ? 'block' : 'none';
+  document.getElementById('tab-email').style.display = tab === 'email' ? 'block' : 'none';
+  document.getElementById('tab-sms-btn').classList.toggle('active',   tab === 'sms');
+  document.getElementById('tab-email-btn').classList.toggle('active', tab === 'email');
+}
+
+function showOTPError(step, msg) {
+  const el = document.getElementById('otp-error' + step);
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+async function envoyerOTP() {
+  // ─── P2.9 (2026-05-11) : Recherche de l'étudiant par téléphone ───
   const phone = document.getElementById('otp-phone').value.trim();
-  if (!phone || phone.length < 8) { showOTPError(1, 'Entrez un numero valide (8 a 10 chiffres)'); return; }
+  if (!phone || phone.length < 8) { showOTPError(1, 'Entrez un numéro valide (8 à 10 chiffres)'); return; }
+  // Normalisation : supprimer le préfixe 229 ou le zéro initial si l'utilisateur
+  // saisit son numéro en format local béninois (ex: 063237272 ou 22963237272)
   let phoneClean = phone.replace(/^(\+?229|00229)/, '').replace(/^0/, '');
   const tel  = '+229' + phoneClean;
+  const tel8 = phoneClean;
   otpTelephone = tel;
   const btn = document.getElementById('btn-envoyer-otp');
   btn.disabled = true; btn.textContent = 'Recherche en cours...';
+
+  // Rechercher l'étudiant par téléphone parent
+  // ─── RLS-01 (2026-05-18) : utilise RPC SECURITY DEFINER au lieu de SELECT direct ───
+  //     L'ancienne policy etudiants_anon_phone_lookup permettait à anon de scanner
   //     toute la table. La RPC ne retourne que la ligne matchante.
   try {
     const { data: liste, error: rpcErr } = await db.rpc('lookup_etudiant_for_otp', { p_telephone: tel });
