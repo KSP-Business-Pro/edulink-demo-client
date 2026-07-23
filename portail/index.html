@@ -594,6 +594,10 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;colo
 .mb2-objet { font-size:12px; font-weight:700; margin-bottom:2px; }
 .mb2-text  { font-size:13px; line-height:1.5; }
 .mb2-date  { font-size:10px; color:#9ca3af; margin-top:4px; text-align:right; }
+.msg-tabs-v2 { display:flex; gap:.4rem; padding:0 1rem .5rem; }
+.msg-tabs-v2 button { flex:1; padding:7px 10px; border:1.5px solid #e5e7eb; background:#fff; border-radius:8px; font-size:12px; font-weight:600; font-family:'Poppins',sans-serif; cursor:pointer; color:#6b7280; transition:all .15s; }
+.msg-tabs-v2 button.active { background:var(--teal,#0f6e56); border-color:var(--teal,#0f6e56); color:#fff; }
+.msg-group-title { font-size:10.5px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.03em; margin:.3rem 0 -.2rem; padding-left:2px; }
 .msg-compose-v2 {
   border-top:1px solid #f3f4f6;
   padding:.85rem 1rem;
@@ -983,6 +987,7 @@ let tousReleves = [];   // S5 portail : relevés officiels LMD
 let toutesAbsences = [];
 let toutesFactures = [];
 let tousMessages = [];
+let ongletMessagesActif = 'recus';
 let tousExamens = [];
 let examFilterActif = 'tous';
 let tousEnseignantsPortail = [];
@@ -1850,34 +1855,65 @@ function afficherPaiements() {
 // ══ MESSAGES  ★ JOUR 19 (amélioré) ══
 function afficherMessages() {
   const page = document.getElementById('page-messages');
-  const nonLus = tousMessages.filter(function(m) {
+
+  // Deduplique par id (contournement doublons backfill famille)
+  var vus = {};
+  var msgsUniques = [];
+  for (var k = 0; k < tousMessages.length; k++) {
+    var mu = tousMessages[k];
+    if (!vus[mu.id]) { vus[mu.id] = true; msgsUniques.push(mu); }
+  }
+
+  const nonLus = msgsUniques.filter(function(m) {
     return (m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant') && !m.lu;
   }).length;
 
-  // Build thread HTML separately to avoid nested template literals
+  function bulleHTML(m) {
+    var estAdmin = m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant';
+    var cls = estAdmin ? 'recu' : 'envoye';
+    var roleLabel = m.expediteur_role === 'admin' ? '?? Admin' :
+                    m.expediteur_role === 'enseignant' ? '????? Prof' : '?? Vous';
+    var html = '<div class="msg-bubble-v2 ' + cls + '">';
+    html += '<div class="mb2-from">' + roleLabel + ' - ' + (m.expediteur_nom||'') + '</div>';
+    if (m.objet) html += '<div class="mb2-objet">' + m.objet + '</div>';
+    html += '<div class="mb2-text">' + (m.contenu||'') + '</div>';
+    html += '<div class="mb2-date">' + fmtDateTime(m.created_at) + '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  var recus = msgsUniques.filter(function(m) { return m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant'; });
+  var envoyes = msgsUniques.filter(function(m) { return !(m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant'); });
+  var actifs = (ongletMessagesActif === 'envoyes' ? envoyes : recus).slice().reverse();
+
   var threadHTML = '';
-  if (tousMessages.length) {
-    var msgs = tousMessages.slice().reverse();
-    for (var i = 0; i < msgs.length; i++) {
-      var m = msgs[i];
-      var estAdmin = m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant';
-      var cls = estAdmin ? 'recu' : 'envoye';
-      var roleLabel = m.expediteur_role === 'admin' ? '🏫 Admin' :
-                      m.expediteur_role === 'enseignant' ? '👨‍🏫 Prof' : '👤 Vous';
-      threadHTML += '<div class="msg-bubble-v2 ' + cls + '">';
-      threadHTML += '<div class="mb2-from">' + roleLabel + ' · ' + (m.expediteur_nom||'') + '</div>';
-      if (m.objet) threadHTML += '<div class="mb2-objet">' + m.objet + '</div>';
-      threadHTML += '<div class="mb2-text">' + (m.contenu||'') + '</div>';
-      threadHTML += '<div class="mb2-date">' + fmtDateTime(m.created_at) + '</div>';
-      threadHTML += '</div>';
-    }
+  if (actifs.length === 0) {
+    threadHTML = "<div class=\"empty\" style=\"margin:1.5rem 0\"><div class=\"e-ico\">??</div><p>" + (ongletMessagesActif === 'envoyes' ? "Vous n'avez envoye aucun message." : "Aucun message recu.") + "</p></div>";
+  } else if (ongletMessagesActif === 'envoyes') {
+    for (var i = 0; i < actifs.length; i++) { threadHTML += bulleHTML(actifs[i]); }
   } else {
-    threadHTML = "<div class=\"empty\" style=\"margin:1.5rem 0\"><div class=\"e-ico\">📭</div><p>Aucun message disponible.</p></div>";
+    var groupes = {};
+    var ordreGroupes = [];
+    for (var j = 0; j < actifs.length; j++) {
+      var mg = actifs[j];
+      var cle = mg.expediteur_nom || 'Administration';
+      if (!groupes[cle]) { groupes[cle] = []; ordreGroupes.push(cle); }
+      groupes[cle].push(mg);
+    }
+    for (var g = 0; g < ordreGroupes.length; g++) {
+      threadHTML += '<div class="msg-group-title">' + ordreGroupes[g] + '</div>';
+      var msgsGroupe = groupes[ordreGroupes[g]];
+      for (var h = 0; h < msgsGroupe.length; h++) { threadHTML += bulleHTML(msgsGroupe[h]); }
+    }
   }
 
   var unreadBadge = nonLus > 0 ? '<span class="msg-unread-badge">' + nonLus + ' non lu' + (nonLus>1?'s':'') + '</span>' : '';
 
-  // Build HTML safely without apostrophe issues
+  var tabsHTML = '<div class="msg-tabs-v2">' +
+    '<button class="' + (ongletMessagesActif !== 'envoyes' ? 'active' : '') + '" onclick="changerOngletMessages(\'recus\')">Recus</button>' +
+    '<button class="' + (ongletMessagesActif === 'envoyes' ? 'active' : '') + '" onclick="changerOngletMessages(\'envoyes\')">Envoyes</button>' +
+    '</div>';
+
   var composeHTML = '<div class="msg-compose-v2">' +
     '<input type="text" id="msg-objet" placeholder="Objet (optionnel)">' +
     '<textarea id="msg-contenu" rows="3" placeholder="Votre message..."></textarea>' +
@@ -1887,33 +1923,33 @@ function afficherMessages() {
   page.innerHTML = '<div style="padding:.75rem 1rem 0">' +
     '<div class="section-title">&#9993;&#65039; Messagerie ' + unreadBadge + '</div>' +
     '</div>' +
+    tabsHTML +
     '<div class="card" style="margin:0 1rem 1rem;overflow:hidden">' +
     '<div class="msg-thread" id="msg-thread">' + threadHTML + '</div>' +
     composeHTML +
     '</div>';
 
-  // Scroll to bottom of thread
   var thread = document.getElementById('msg-thread');
   if (thread) thread.scrollTop = thread.scrollHeight;
 
-  // Marquer les messages admin comme lus
   marquerMessagesAdminLus();
 }
+
+function changerOngletMessages(onglet) {
+  ongletMessagesActif = onglet;
+  afficherMessages();
+}
+
 
 async function envoyerMessageV2() {
   const objet   = document.getElementById('msg-objet')?.value.trim();
   const contenu = document.getElementById('msg-contenu')?.value.trim();
   if (!contenu) { showToast('Écrivez un message.', 'error'); return; }
-  const nom = currentProfile ? (currentProfile.prenom||'') + ' ' + (currentProfile.nom||'') : currentUser?.email || 'Parent';
-  const { error } = await db.from('messages').insert([{
-    ecole_id: currentEcoleId,
-    expediteur_nom: nom.trim(),
-    expediteur_role: currentProfile?.role || 'parent',
-    destinataire_nom: 'Administration',
-    destinataire_role: 'admin',
-    objet: objet || 'Message depuis le portail famille',
-    contenu, lu: false
-  }]);
+  const { error } = await db.rpc('fn_envoyer_message_famille', {
+    p_ecole_id: currentEcoleId,
+    p_sujet: objet || 'Message depuis le portail famille',
+    p_contenu: contenu
+  });
   if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
   showToast('✅ Message envoyé !', 'success');
   const o = document.getElementById('msg-objet');
