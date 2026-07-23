@@ -14,6 +14,7 @@ interface Message {
   objet: string | null; contenu: string;
   lu: boolean; created_at: string;
   destinataire_nom: string | null; destinataire_role: string | null;
+  categorie: string | null; priorite: string | null; statut: string | null;
 }
 
 export default function MessagesPage() {
@@ -34,6 +35,8 @@ export default function MessagesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [sujet, setSujet]       = useState('');
   const [contenu, setContenu]   = useState('');
+  const [categorieMsg, setCategorieMsg] = useState('');
+  const [prioriteMsg, setPrioriteMsg]   = useState('normale');
   const [sending, setSending]   = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [destinataires, setDestinataires] = useState<UtilisateurOption[]>([]);
@@ -82,8 +85,9 @@ export default function MessagesPage() {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,destinataire_nom,destinataire_role,sujet,objet,contenu,lu,created_at')
+        .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,destinataire_nom,destinataire_role,sujet,objet,contenu,lu,created_at,categorie,priorite,statut')
         .eq('ecole_id', ecoleId)
+        .neq('statut', 'archive')
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -104,23 +108,24 @@ export default function MessagesPage() {
         p_destinataire_id: modeDestinataire === 'collegue' ? destinataireId : null,
         p_sujet:           sujet.trim() || null,
         p_contenu:         contenu.trim(),
-        p_categorie:       null,
-        p_priorite:        'normale',
+        p_categorie:       categorieMsg || null,
+        p_priorite:        prioriteMsg,
         p_etudiant_id:     modeDestinataire === 'etudiant' ? etudiantId : null,
       });
       if (error) throw error;
-      setModalOpen(false); setSujet(''); setContenu(''); setDestinataireId(''); setEtudiantId(''); setEtudiantSearch(''); setModeDestinataire('collegue');
+      setModalOpen(false); setSujet(''); setContenu(''); setDestinataireId(''); setEtudiantId(''); setEtudiantSearch(''); setModeDestinataire('collegue'); setCategorieMsg(''); setPrioriteMsg('normale');
       await load(); showToast('Message envoyé ✓');
     } catch (err: any) { showToast(err.message, 'error'); }
     finally { setSending(false); }
   }
 
-  async function handleSupprimer(id: string) {
-    if (!confirm('Supprimer ce message ?')) return;
-    const { error } = await supabase.from('messages').delete().eq('id', id);
+async function handleSupprimer(id: string) {
+    if (!confirm('Archiver ce message ?')) return;
+    const { error } = await supabase.rpc('fn_supprimer_message', { p_message_id: id });
     if (error) { showToast(error.message, 'error'); return; }
-    await load(); showToast('Message supprimé');
+    await load(); showToast('Message archive');
   }
+
 
   function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -201,6 +206,13 @@ export default function MessagesPage() {
                             )}
                           </div>
                         </div>
+                        {(m.categorie || (m.priorite && m.priorite !== 'normale')) && (
+                          <div style={{ display: 'flex', gap: 6, marginBottom: '.35rem' }}>
+                            {m.categorie && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#eef2ff', color: '#4338ca', letterSpacing: '.03em' }}>{m.categorie}</span>}
+                            {m.priorite === 'urgente' && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#fee2e2', color: '#dc2626' }}>URGENT</span>}
+                            {m.priorite === 'haute' && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#fef3c7', color: '#b45309' }}>HAUTE</span>}
+                          </div>
+                        )}
                         {sujetMsg && <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: '.25rem' }}>{sujetMsg}</div>}
                         <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>{m.contenu}</div>
                       </div>
@@ -253,6 +265,33 @@ export default function MessagesPage() {
                 )}
               </div>
               <div style={{ marginBottom: '.85rem' }}>
+                <div style={{ marginBottom: '.85rem', display: 'flex', gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <label htmlFor="msg-categorie">Categorie</label>
+                    <select id="msg-categorie" name="categorie" value={categorieMsg} onChange={e => setCategorieMsg(e.target.value)}
+                      style={{ width: '100%', marginTop: 4, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}>
+                      <option value="">Non categorise</option>
+                      <option value="ADM">ADM - Administration</option>
+                      <option value="PED">PED - Pedagogie</option>
+                      <option value="NOT">NOT - Notes et resultats</option>
+                      <option value="ABS">ABS - Absences</option>
+                      <option value="FIN">FIN - Comptabilite</option>
+                      <option value="EXA">EXA - Examens</option>
+                      <option value="REL">REL - Releves</option>
+                      <option value="SUP">SUP - Support</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label htmlFor="msg-priorite">Priorite</label>
+                    <select id="msg-priorite" name="priorite" value={prioriteMsg} onChange={e => setPrioriteMsg(e.target.value)}
+                      style={{ width: '100%', marginTop: 4, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}>
+                      <option value="basse">Basse</option>
+                      <option value="normale">Normale</option>
+                      <option value="haute">Haute</option>
+                      <option value="urgente">Urgente</option>
+                    </select>
+                  </div>
+                </div>
                 <label htmlFor="msg-sujet">Sujet <span style={{ color: '#9ca3af', fontWeight: 400, textTransform: 'none' }}>(optionnel)</span></label>
                 <input id="msg-sujet" name="sujet" type="text" value={sujet} onChange={e => setSujet(e.target.value)}
                   style={{ width: '100%', marginTop: 4 }} placeholder="Objet du message…" autoFocus />
