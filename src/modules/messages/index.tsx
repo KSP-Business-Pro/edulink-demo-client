@@ -45,7 +45,12 @@ export default function MessagesPage() {
   const [filterQuick, setFilterQuick] = useState<'tous' | 'non_lus' | 'urgents' | 'archives'>('tous');
   const [searchQuery, setSearchQuery] = useState('');
   const [periodeFiltre, setPeriodeFiltre] = useState<'tous' | 'jour' | 'semaine' | 'mois'>('tous');
-  const [modeDestinataire, setModeDestinataire] = useState<'collegue' | 'etudiant'>('collegue');
+  const [modeDestinataire, setModeDestinataire] = useState<'collegue' | 'etudiant' | 'groupe'>('collegue');
+  const [groupeType, setGroupeType] = useState<'niveau' | 'filiere' | 'role'>('niveau');
+  const [groupeValeur, setGroupeValeur] = useState('');
+  const [groupePreviewCount, setGroupePreviewCount] = useState<number | null>(null);
+  const [niveauxOptions, setNiveauxOptions] = useState<string[]>([]);
+  const [filieresOptions, setFilieresOptions] = useState<string[]>([]);
   const [etudiantSearch, setEtudiantSearch] = useState('');
   const [etudiantResults, setEtudiantResults] = useState<EtudiantOption[]>([]);
   const [etudiantId, setEtudiantId] = useState('');
@@ -61,10 +66,37 @@ export default function MessagesPage() {
       .select('id,nom,role')
       .eq('ecole_id', ecoleId)
       .eq('actif', true)
-      .neq('id', user?.id ?? '')
+      .neq('id', user?.utilisateur_id ?? '')
       .order('nom')
       .then(({ data }) => setDestinataires((data ?? []) as UtilisateurOption[]));
-  }, [ecoleId, user?.id]);
+  }, [ecoleId, user?.utilisateur_id]);
+
+  useEffect(() => {
+    if (!ecoleId) return;
+    supabase.from('etudiants').select('niveau,filiere').eq('ecole_id', ecoleId).then(({ data }) => {
+      const niveaux = Array.from(new Set((data ?? []).map((d: any) => d.niveau).filter(Boolean))) as string[];
+      const filieres = Array.from(new Set((data ?? []).map((d: any) => d.filiere).filter(Boolean))) as string[];
+      setNiveauxOptions(niveaux.sort());
+      setFilieresOptions(filieres.sort());
+    });
+  }, [ecoleId]);
+
+  useEffect(() => {
+    if (modeDestinataire !== 'groupe' || !groupeValeur || !ecoleId) { setGroupePreviewCount(null); return; }
+    let cancelled = false;
+    (async () => {
+      let count = 0;
+      if (groupeType === 'role') {
+        const { count: c } = await supabase.from('utilisateurs').select('id', { count: 'exact', head: true }).eq('ecole_id', ecoleId).eq('actif', true).eq('role', groupeValeur);
+        count = c ?? 0;
+      } else {
+        const { count: c } = await supabase.from('etudiants').select('id', { count: 'exact', head: true }).eq('ecole_id', ecoleId).eq(groupeType, groupeValeur);
+        count = c ?? 0;
+      }
+      if (!cancelled) setGroupePreviewCount(count);
+    })();
+    return () => { cancelled = true; };
+  }, [modeDestinataire, groupeType, groupeValeur, ecoleId]);
 
   useEffect(() => {
     if (modeDestinataire !== 'etudiant' || !ecoleId || etudiantSearch.trim().length < 2) { setEtudiantResults([]); return; }
@@ -99,27 +131,46 @@ export default function MessagesPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleEnvoyer(e: React.FormEvent) {
+async function handleEnvoyer(e: React.FormEvent) {
     e.preventDefault();
-    const destOk = modeDestinataire === 'collegue' ? !!destinataireId : !!etudiantId;
+    const destOk = modeDestinataire === 'collegue' ? !!destinataireId : modeDestinataire === 'etudiant' ? !!etudiantId : !!groupeValeur;
     if (!contenu.trim() || !destOk) return;
+    if (modeDestinataire === 'groupe') {
+      const n = groupePreviewCount ?? 0;
+      if (n === 0) { showToast('Aucun destinataire pour ce groupe', 'error'); return; }
+      if (!confirm('Confirmer l\'envoi a ' + n + ' destinataire(s) ?')) return;
+    }
     setSending(true);
     try {
-      const { error } = await supabase.rpc('fn_envoyer_message', {
-        p_ecole_id:        ecoleId,
-        p_destinataire_id: modeDestinataire === 'collegue' ? destinataireId : null,
-        p_sujet:           sujet.trim() || null,
-        p_contenu:         contenu.trim(),
-        p_categorie:       categorieMsg || null,
-        p_priorite:        prioriteMsg,
-        p_etudiant_id:     modeDestinataire === 'etudiant' ? etudiantId : null,
-      });
-      if (error) throw error;
-      setModalOpen(false); setSujet(''); setContenu(''); setDestinataireId(''); setEtudiantId(''); setEtudiantSearch(''); setModeDestinataire('collegue'); setCategorieMsg(''); setPrioriteMsg('normale');
-      await load(); showToast('Message envoyé ✓');
+      if (modeDestinataire === 'groupe') {
+        const { error } = await supabase.rpc('fn_envoyer_message_groupe', {
+          p_ecole_id:      ecoleId,
+          p_type_groupe:   groupeType,
+          p_valeur_groupe: groupeValeur,
+          p_sujet:         sujet.trim() || null,
+          p_contenu:       contenu.trim(),
+          p_categorie:     categorieMsg || null,
+          p_priorite:      prioriteMsg,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.rpc('fn_envoyer_message', {
+          p_ecole_id:        ecoleId,
+          p_destinataire_id: modeDestinataire === 'collegue' ? destinataireId : null,
+          p_sujet:           sujet.trim() || null,
+          p_contenu:         contenu.trim(),
+          p_categorie:       categorieMsg || null,
+          p_priorite:        prioriteMsg,
+          p_etudiant_id:     modeDestinataire === 'etudiant' ? etudiantId : null,
+        });
+        if (error) throw error;
+      }
+      setModalOpen(false); setSujet(''); setContenu(''); setDestinataireId(''); setEtudiantId(''); setEtudiantSearch(''); setModeDestinataire('collegue'); setCategorieMsg(''); setPrioriteMsg('normale'); setGroupeValeur(''); setGroupePreviewCount(null);
+      await load(); showToast('Message envoye');
     } catch (err: any) { showToast(err.message, 'error'); }
     finally { setSending(false); }
   }
+
 
 async function handleSupprimer(id: string) {
     if (!confirm('Archiver ce message ?')) return;
@@ -291,6 +342,7 @@ async function handleSupprimer(id: string) {
               <div style={{ display: 'flex', gap: 8, marginBottom: '.75rem' }}>
                 <button type="button" onClick={() => setModeDestinataire('collegue')} style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: modeDestinataire === 'collegue' ? '1.5px solid #1e3a5f' : '1px solid #e5e7eb', background: modeDestinataire === 'collegue' ? '#eff6ff' : '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Collegue</button>
                 <button type="button" onClick={() => setModeDestinataire('etudiant')} style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: modeDestinataire === 'etudiant' ? '1.5px solid #1e3a5f' : '1px solid #e5e7eb', background: modeDestinataire === 'etudiant' ? '#eff6ff' : '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Etudiant</button>
+                <button type="button" onClick={() => setModeDestinataire('groupe')} style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: modeDestinataire === 'groupe' ? '1.5px solid #1e3a5f' : '1px solid #e5e7eb', background: modeDestinataire === 'groupe' ? '#eff6ff' : '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Groupe</button>
               </div>
               <div style={{ marginBottom: '.85rem', display: modeDestinataire === 'collegue' ? 'block' : 'none' }}>
                 <label htmlFor="msg-destinataire">Destinataire *</label>
@@ -319,7 +371,30 @@ async function handleSupprimer(id: string) {
                 )}
               </div>
               <div style={{ marginBottom: '.85rem' }}>
-                <div style={{ marginBottom: '.85rem', display: 'flex', gap: 8 }}>
+                <div style={{ marginBottom: '.85rem', display: modeDestinataire === 'groupe' ? 'block' : 'none' }}>
+                <label htmlFor="msg-groupe-type">Cibler par</label>
+                <select id="msg-groupe-type" name="groupe-type" value={groupeType}
+                  onChange={e => { setGroupeType(e.target.value as any); setGroupeValeur(''); }}
+                  style={{ width: '100%', marginTop: 4, marginBottom: 8, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                  <option value="niveau">Niveau</option>
+                  <option value="filiere">Filiere</option>
+                  <option value="role">Role (collegues)</option>
+                </select>
+                <select id="msg-groupe-valeur" name="groupe-valeur" value={groupeValeur}
+                  onChange={e => setGroupeValeur(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                  <option value="">Choisir...</option>
+                  {groupeType === 'niveau' && niveauxOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                  {groupeType === 'filiere' && filieresOptions.map(f => <option key={f} value={f}>{f}</option>)}
+                  {groupeType === 'role' && ['admin', 'direction', 'enseignant'].map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+                {groupeValeur && (
+                  <div style={{ marginTop: 6, fontSize: 12, color: groupePreviewCount === 0 ? '#dc2626' : '#6b7280' }}>
+                    {groupePreviewCount === null ? 'Calcul...' : groupePreviewCount + ' destinataire(s)'}
+                  </div>
+                )}
+              </div>
+              <div style={{ marginBottom: '.85rem', display: 'flex', gap: 8 }}>
                   <div style={{ flex: 1 }}>
                     <label htmlFor="msg-categorie">Categorie</label>
                     <select id="msg-categorie" name="categorie" value={categorieMsg} onChange={e => setCategorieMsg(e.target.value)}
