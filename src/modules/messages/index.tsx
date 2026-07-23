@@ -42,6 +42,9 @@ export default function MessagesPage() {
   const [destinataires, setDestinataires] = useState<UtilisateurOption[]>([]);
   const [destinataireId, setDestinataireId] = useState('');
   const [ongletActif, setOngletActif] = useState<'recus' | 'envoyes'>('recus');
+  const [filterQuick, setFilterQuick] = useState<'tous' | 'non_lus' | 'urgents' | 'archives'>('tous');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [periodeFiltre, setPeriodeFiltre] = useState<'tous' | 'jour' | 'semaine' | 'mois'>('tous');
   const [modeDestinataire, setModeDestinataire] = useState<'collegue' | 'etudiant'>('collegue');
   const [etudiantSearch, setEtudiantSearch] = useState('');
   const [etudiantResults, setEtudiantResults] = useState<EtudiantOption[]>([]);
@@ -87,7 +90,6 @@ export default function MessagesPage() {
         .from('messages')
         .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,destinataire_nom,destinataire_role,sujet,objet,contenu,lu,created_at,categorie,priorite,statut')
         .eq('ecole_id', ecoleId)
-        .neq('statut', 'archive')
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -162,10 +164,62 @@ async function handleSupprimer(id: string) {
           Envoyes
         </button>
       </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', margin: '0 0 1rem' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setFilterQuick('tous')}
+            style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'tous' ? '#1e3a5f' : '#fff', color: filterQuick === 'tous' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            Tous
+          </button>
+          <button onClick={() => setFilterQuick('non_lus')}
+            style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'non_lus' ? '#1e3a5f' : '#fff', color: filterQuick === 'non_lus' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            Non lus
+          </button>
+          <button onClick={() => setFilterQuick('urgents')}
+            style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'urgents' ? '#dc2626' : '#fff', color: filterQuick === 'urgents' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            Urgents
+          </button>
+          <button onClick={() => setFilterQuick('archives')}
+            style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'archives' ? '#6b7280' : '#fff', color: filterQuick === 'archives' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            Archives
+          </button>
+        </div>
+        <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Rechercher nom, objet, categorie..."
+          style={{ flex: 1, minWidth: 180, padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12.5, fontFamily: 'inherit' }} />
+        <select value={periodeFiltre} onChange={e => setPeriodeFiltre(e.target.value as any)}
+          style={{ padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12.5, fontFamily: 'inherit' }}>
+          <option value="tous">Toute periode</option>
+          <option value="jour">Aujourd'hui</option>
+          <option value="semaine">Cette semaine</option>
+          <option value="mois">Ce mois</option>
+        </select>
+      </div>
       {loading ? <div className="loading">Chargement...</div> : (() => {
-        const filtres = messages.filter(m => ongletActif === 'envoyes' ? m.expediteur_id === user?.utilisateur_id : m.expediteur_id !== user?.utilisateur_id);
+        const base = messages.filter(m => ongletActif === 'envoyes' ? m.expediteur_id === user?.utilisateur_id : m.expediteur_id !== user?.utilisateur_id);
+        const debutJour = new Date(); debutJour.setHours(0, 0, 0, 0);
+        const debutSemaine = new Date(debutJour); debutSemaine.setDate(debutSemaine.getDate() - debutSemaine.getDay());
+        const debutMois = new Date(debutJour.getFullYear(), debutJour.getMonth(), 1);
+        const filtres = base.filter(m => {
+          if (filterQuick === 'archives') { if (m.statut !== 'archive') return false; }
+          else { if (m.statut === 'archive') return false; }
+          if (filterQuick === 'non_lus' && m.lu) return false;
+          if (filterQuick === 'urgents' && m.priorite !== 'urgente') return false;
+          if (searchQuery.trim()) {
+            const q = searchQuery.trim().toLowerCase();
+            const hay = [m.expediteur_nom, m.destinataire_nom, m.sujet, m.objet, m.categorie].filter(Boolean).join(' ').toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          if (periodeFiltre !== 'tous') {
+            const createdAt = new Date(m.created_at);
+            if (periodeFiltre === 'jour' && createdAt < debutJour) return false;
+            if (periodeFiltre === 'semaine' && createdAt < debutSemaine) return false;
+            if (periodeFiltre === 'mois' && createdAt < debutMois) return false;
+          }
+          return true;
+        });
         if (filtres.length === 0) {
-          return <div className="empty-state"><h3>Aucun message</h3><p>{ongletActif === 'envoyes' ? 'Vous n\'avez envoye aucun message' : 'Aucun message recu'}</p></div>;
+          const filtresActifs = filterQuick !== 'tous' || searchQuery.trim().length > 0 || periodeFiltre !== 'tous';
+          return <div className="empty-state"><h3>Aucun message</h3><p>{filtresActifs ? 'Aucun message ne correspond aux filtres' : (ongletActif === 'envoyes' ? 'Vous n\'avez envoye aucun message' : 'Aucun message recu')}</p></div>;
         }
         const groupes = new Map<string, Message[]>();
         filtres.forEach(m => {
