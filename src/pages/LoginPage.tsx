@@ -151,7 +151,7 @@ export function LoginPage() {
           textAlign: 'center', marginTop: 24, fontSize: 12,
           color: '#475569',
         }}>
-          EduLink Sup · Afryx.io · LMD CAMES Bénin
+          EduLink Sup · LMD CAMES Bénin
         </p>
       </div>
     </div>

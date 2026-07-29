@@ -371,7 +371,7 @@ async function envoyerEmailReleve(
       "api-key": Deno.env.get("BREVO_API_KEY")!,
     },
     body: JSON.stringify({
-      sender: { name: ecole.nom, email: "contact@afryx.io" },
+      sender: { name: ecole.nom, email: "edulink@kinnou.com" },
       to: [{ email: etudiant.email_auth, name: `${etudiant.prenom} ${etudiant.nom}` }],
       subject: sujetEmail ?? `Relevé de notes — ${semestre.libelle}`,
       htmlContent,
