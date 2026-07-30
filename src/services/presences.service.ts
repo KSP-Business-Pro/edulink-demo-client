@@ -116,6 +116,23 @@ export async function marquerPresence(
   if (error) throw error;
 }
 
+// Chantier D : notification interne (message famille) sur marquage d'une absence.
+// N'echoue jamais bruyamment : un echec de notification ne doit pas remonter a l'appelant.
+export async function notifierAbsence(
+  ecoleId: string, etudiantId: string, ueNom: string
+): Promise<void> {
+  try {
+    await supabase.rpc('fn_notifier_evenement', {
+      p_ecole_id: ecoleId,
+      p_etudiant_id: etudiantId,
+      p_type: 'absence',
+      p_vars: { ue: ueNom },
+    });
+  } catch {
+    // silencieux par design
+  }
+}
+
 export async function toutMarquerPresent(
   seanceId: string, etudiantIds: string[], ecoleId: string
 ): Promise<void> {

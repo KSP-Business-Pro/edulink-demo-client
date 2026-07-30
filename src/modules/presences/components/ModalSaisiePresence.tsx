@@ -1,7 +1,7 @@
 // src/modules/presences/components/ModalSaisiePresence.tsx
 import { useState, useEffect, useCallback } from 'react';
 import type { EtudiantPresence, Presence, StatutPresence } from '../../../services/presences.service';
-import { fetchPresences, marquerPresence, toutMarquerPresent } from '../../../services/presences.service';
+import { fetchPresences, marquerPresence, notifierAbsence, toutMarquerPresent } from '../../../services/presences.service';
 
 interface Props {
   seanceId: string;
@@ -38,6 +38,9 @@ export default function ModalSaisiePresence({ seanceId, matiereNom, etudiants, e
     setPresMap(m => ({ ...m, [etudiantId]: statut }));
     try {
       await marquerPresence(seanceId, etudiantId, statut, ecoleId);
+      if (statut === 'absent') {
+        void notifierAbsence(ecoleId, etudiantId, matiereNom);
+      }
     } catch {
       // rollback
       setPresMap(m => { const n = { ...m }; delete n[etudiantId]; return n; });
