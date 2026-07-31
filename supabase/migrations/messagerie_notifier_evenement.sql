@@ -1,14 +1,3 @@
--- Migration : fn_notifier_evenement
--- Chantier D (messagerie) — modèles automatiques / notifications d'événements métier.
--- Résout un modèle actif dans modeles_notification (type + canal='email'),
--- substitue les variables {var} de p_vars, et crée un message interne catégorisé.
--- SECURITY DEFINER ; erreurs avalées (RAISE WARNING) pour ne jamais bloquer
--- l'action métier appelante.
---
--- MAJ 30/07/2026 : résolution du modèle en fallback global — l'école-spécifique
--- prime, sinon on prend le modèle global (ecole_id IS NULL). Évite le no-op
--- silencieux pour toute école non provisionnée.
-
 CREATE OR REPLACE FUNCTION public.fn_notifier_evenement(
   p_ecole_id    uuid,
   p_etudiant_id uuid,
@@ -57,7 +46,11 @@ BEGIN
 
   v_sujet := coalesce(v_modele.sujet, '');
   v_corps := coalesce(v_modele.corps_texte, '');
-  FOR v_key, v_val IN SELECT key, value FROM jsonb_each_text(p_vars) LOOP
+  FOR v_key, v_val IN
+    SELECT key, value FROM jsonb_each_text(
+      jsonb_build_object('etudiant', v_etudiant.prenom || ' ' || v_etudiant.nom) || p_vars
+    )
+  LOOP
     v_sujet := replace(v_sujet, '{' || v_key || '}', v_val);
     v_corps := replace(v_corps, '{' || v_key || '}', v_val);
   END LOOP;
