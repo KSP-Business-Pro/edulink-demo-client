@@ -1,4 +1,5 @@
 // src/services/comptabilite.service.ts
+// Chantier D — notifierPaiement() : notification famille à chaque paiement valide
 import { supabase } from './supabase';
 
 export type StatutFacture = 'en_attente' | 'partiel' | 'paye' | 'annule';
@@ -184,7 +185,9 @@ export async function enregistrerPaiement(
   opts: { reference?: string; observation?: string; authUserId: string; caissierNom: string }
 ): Promise<{ numeroRecu: string; paiementId: string }> {
   const { data: f } = await supabase
-    .from('factures').select('ecole_id,etudiant_id,montant_total,montant,montant_paye').eq('id', factureId).single();
+    .from('factures')
+    .select('ecole_id,etudiant_id,montant_total,montant,montant_paye,ecoles(nom)')
+    .eq('id', factureId).single();
   if (!f) throw new Error('Facture introuvable');
 
   if ((mode === 'virement' || mode === 'mobile_money') && !opts.reference?.trim()) {
@@ -219,7 +222,32 @@ export async function enregistrerPaiement(
     .update({ montant_paye: nouvPaye, statut, mode_paiement: mode }).eq('id', factureId);
   if (errFacture) throw new Error(errFacture.message);
 
+  // Chantier D — notif famille à chaque paiement valide (chaque versement est
+  // un événement réel, pas une correction : pas de garde "premier seulement").
+  const etablissement = (f as any).ecoles?.nom ?? '';
+  await notifierPaiement(f.ecole_id, f.etudiant_id, montant, numeroRecu, etablissement);
+
   return { numeroRecu, paiementId: nouveauPaiement.id };
+}
+
+// ── Notification famille (Chantier D) ──────────────────────────────────────
+async function notifierPaiement(
+  ecoleId:       string,
+  etudiantId:    string,
+  montant:       number,
+  numeroRecu:    string,
+  etablissement: string,
+): Promise<void> {
+  try {
+    await supabase.rpc('fn_notifier_evenement', {
+      p_ecole_id: ecoleId,
+      p_etudiant_id: etudiantId,
+      p_type: 'paiement',
+      p_vars: { montant: String(montant), numero_recu: numeroRecu, etablissement },
+    });
+  } catch {
+    // silencieux — ne doit jamais bloquer l'encaissement
+  }
 }
 
 // ── Historique des paiements d'une facture ───────────────────────────────────
