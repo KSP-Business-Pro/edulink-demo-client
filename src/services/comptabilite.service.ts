@@ -1,7 +1,7 @@
 // src/services/comptabilite.service.ts
 // Chantier D — notifierPaiement() : notification famille à chaque paiement valide
 import { supabase } from './supabase';
-import { notifierEmailExterne } from './notifications-externes.service';
+import { notifierCanauxExternes } from './notifications-externes.service';
 
 export type StatutFacture = 'en_attente' | 'partiel' | 'paye' | 'annule';
 export type TypeFrais = 'scolarite' | 'inscription' | 'examen' | 'bibliotheque' | 'autre';
@@ -248,7 +248,7 @@ async function notifierPaiement(
       p_vars: vars,
     });
     // Email externe seulement si un message a bien été créé (modèle actif)
-    if (messageId) await notifierEmailExterne(ecoleId, etudiantId, 'paiement', vars);
+    if (messageId) await notifierCanauxExternes(ecoleId, etudiantId, 'paiement', vars);
   } catch {
     // silencieux — ne doit jamais bloquer l'encaissement
   }

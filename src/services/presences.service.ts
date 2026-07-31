@@ -1,7 +1,7 @@
 // @ts-nocheck
 // src/services/presences.service.ts
 import { supabase } from './supabase';
-import { notifierEmailExterne } from './notifications-externes.service';
+import { notifierCanauxExternes } from './notifications-externes.service';
 
 export type StatutPresence = 'present' | 'absent' | 'retard' | 'justifie';
 export type TypeSeance = 'CM' | 'TD' | 'TP' | 'examen' | 'autre';
@@ -131,7 +131,7 @@ export async function notifierAbsence(
       p_type: 'absence',
       p_vars: vars,
     });
-    if (messageId) await notifierEmailExterne(ecoleId, etudiantId, 'absence', vars);
+    if (messageId) await notifierCanauxExternes(ecoleId, etudiantId, 'absence', vars);
   } catch {
     // silencieux par design
   }
