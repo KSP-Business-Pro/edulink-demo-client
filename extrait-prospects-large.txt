@@ -1,0 +1,53 @@
+AppLayout_charte_B6.tsx:159:      { id: 'prospects',  label: 'Prospects',  ico: '­ƒÄ»', href: '/prospects' },
+AppLayout_FIX.tsx:151:      { id: 'prospects',  label: 'Prospects',  ico: '­ƒÄ»', href: '/prospects' },
+AppLayout_RESTORED.tsx:152:      { id: 'prospects',  label: 'Prospects',  ico: '­ƒÄ»', href: '/prospects' },
+monitoring_index.tsx:12:  nbProspects: number;
+monitoring_index.tsx:30:  totalProspects: number;
+monitoring_index.tsx:77:          supabase.from('prospects_diagnostic').select('id', { count: 'exact', head: true }),
+monitoring_index.tsx:103:          nbProspects:      nbProsp ?? 0,
+monitoring_index.tsx:131:        totalProspects:       metriques.reduce((s, m) => s + m.nbProspects, 0),
+monitoring_index.tsx:315:                  <span style={{ fontSize: 12, color: '#059669' }}>Prospects formulaire</span>
+monitoring_index.tsx:316:                  <span style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>{stats.totalProspects}</span>
+permissions_ref.ts:26:  voir_prospects:       boolean;
+permissions_ref.ts:57:    voir_messages: true, voir_parametres: true, voir_prospects: true, voir_monitoring: true, voir_utilisateurs: true, voir_portail_enseignant: true, voir_rh_personnel: true, voir_email_parents: true, voir_portail_public: true, voir_analytics_ia: true, voir_parametres_ecole: true,
+permissions_ref.ts:70:    voir_messages: true, voir_parametres: false, voir_prospects: true, voir_monitoring: false, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+permissions_ref.ts:83:    voir_messages: true, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+permissions_ref.ts:96:    voir_messages: true, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_utilisateurs: false, voir_portail_enseignant: true, voir_rh_personnel: true, voir_email_parents: true, voir_portail_public: true, voir_analytics_ia: true, voir_parametres_ecole: false,
+permissions_ref.ts:109:    voir_messages: true, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+permissions_ref.ts:122:    voir_messages: false, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+permissions_ref.ts:135:    voir_messages: false, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+permissions_ref.ts:148:    voir_messages: false, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+permissions_ref.ts:186:  if (p.voir_prospects)    modules.push('prospects');
+src\App.tsx:18:const ProspectsPage    = lazy(() => import('./modules/prospects'));
+src\App.tsx:101:          <Route path="/prospects" element={<AppRoute page="prospects"><ProspectsPage /></AppRoute>} />
+src\components\AppLayout.tsx:267:      { id: 'prospects',  label: 'Prospects',  ico: 'target', href: '/prospects' },
+src\modules\monitoring\index.tsx:12:  nbProspects: number;
+src\modules\monitoring\index.tsx:30:  totalProspects: number;
+src\modules\monitoring\index.tsx:77:          supabase.from('prospects_diagnostic').select('id', { count: 'exact', head: true }),
+src\modules\monitoring\index.tsx:103:          nbProspects:      nbProsp ?? 0,
+src\modules\monitoring\index.tsx:131:        totalProspects:       metriques.reduce((s, m) => s + m.nbProspects, 0),
+src\modules\monitoring\index.tsx:315:                  <span style={{ fontSize: 12, color: '#059669' }}>Prospects formulaire</span>
+src\modules\monitoring\index.tsx:316:                  <span style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>{stats.totalProspects}</span>
+src\modules\prospects\index.tsx:1:// src/modules/prospects/index.tsx
+src\modules\prospects\index.tsx:2:// CRM Prospects ÔÇö Dashboard commercial EduLink Sup
+src\modules\prospects\index.tsx:58:export default function ProspectsPage() {
+src\modules\prospects\index.tsx:61:  const [prospects, setProspects] = useState<Prospect[]>([]);
+src\modules\prospects\index.tsx:78:        .from('prospects_diagnostic')
+src\modules\prospects\index.tsx:81:      setProspects((data ?? []) as Prospect[]);
+src\modules\prospects\index.tsx:89:    const total = prospects.length;
+src\modules\prospects\index.tsx:91:      acc[k] = prospects.filter(p => (p.statut ?? 'nouveau') === k).length;
+src\modules\prospects\index.tsx:95:  }, [prospects]);
+src\modules\prospects\index.tsx:99:    let l = prospects;
+src\modules\prospects\index.tsx:108:  }, [prospects, filterStatut, search]);
+src\modules\prospects\index.tsx:119:      const { error } = await supabase.from('prospects_diagnostic').update({
+src\modules\prospects\index.tsx:145:          <h2>Prospects</h2>
+src\services\security\permissions.ts:26:  voir_prospects:       boolean;
+src\services\security\permissions.ts:58:    voir_messages: true, voir_parametres: true, voir_prospects: true, voir_monitoring: true, voir_audit: true, voir_utilisateurs: true, voir_portail_enseignant: true, voir_rh_personnel: true, voir_email_parents: true, voir_portail_public: true, voir_analytics_ia: true, voir_parametres_ecole: true,
+src\services\security\permissions.ts:71:    voir_messages: true, voir_parametres: false, voir_prospects: true, voir_monitoring: false, voir_audit: true, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+src\services\security\permissions.ts:84:    voir_messages: true, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_audit: false, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+src\services\security\permissions.ts:97:    voir_messages: true, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_audit: false, voir_utilisateurs: false, voir_portail_enseignant: true, voir_rh_personnel: true, voir_email_parents: true, voir_portail_public: true, voir_analytics_ia: true, voir_parametres_ecole: false,
+src\services\security\permissions.ts:110:    voir_messages: true, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_audit: false, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+src\services\security\permissions.ts:123:    voir_messages: false, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_audit: false, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+src\services\security\permissions.ts:136:    voir_messages: false, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_audit: false, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+src\services\security\permissions.ts:149:    voir_messages: false, voir_parametres: false, voir_prospects: false, voir_monitoring: false, voir_audit: false, voir_utilisateurs: false, voir_portail_enseignant: false, voir_rh_personnel: false, voir_email_parents: false, voir_portail_public: false, voir_analytics_ia: false, voir_parametres_ecole: false,
+src\services\security\permissions.ts:187:  if (p.voir_prospects)    modules.push('prospects');

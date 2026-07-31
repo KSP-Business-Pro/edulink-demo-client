@@ -14,7 +14,7 @@ interface Enseignant {
   id: string;
   ecole_id: string;
   nom: string;
-  prenom: string | null;
+  prenom: string | null;  
   grade: string | null;
   specialite: string | null;
   email: string | null;

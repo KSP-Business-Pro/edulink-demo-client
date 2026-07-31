@@ -1,0 +1,2 @@
+src\modules\notifications-config\notifications-config.service.ts:37:    .from('modeles_notification')
+src\modules\notifications-config\notifications-config.service.ts:45:    .from('modeles_notification')

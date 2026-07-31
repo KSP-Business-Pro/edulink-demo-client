@@ -9,3 +9,6 @@ test-results/
 .env
 .env.local
 .env.*.localsupabase/.temp/
+
+supabase/.temp/
+.env.test.local

@@ -1,0 +1,4 @@
+OK Patch D1 (notifierAbsence dans presences.service.ts)
+OK Patch D2 (import notifierAbsence)
+OK Patch D3 (appel notifierAbsence dans handleMarquer)
+TOUS LES PATCHS CHANTIER D (ABSENCES) APPLIQUES AVEC SUCCES.

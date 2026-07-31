@@ -1,0 +1,61 @@
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[plugin:vite:esbuild] [plugin vite:esbuild] src/pages/DashboardPage.tsx: Duplicate key "background" in object literal
+414|  // ÔöÇÔöÇ Styles ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+415|  const styles = {
+416|    page:        { padding: '1.5rem 2rem', maxWidth: 1100, margin: '0 auto', fontFamily: "'Segoe UI', sans-serif", background: '#FBFAF6', background: '#FBFAF6' } as React.CSSProperties,
+   |                                                                                                                                          ^
+417|    header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap' as const, gap: 10 },
+418|    h1:          { fontSize: 22, fontWeight: 700, color: '#1e293b', margin: 0 } as React.CSSProperties,
+
+[32mÔ£ô[39m 525 modules transformed.
+rendering chunks...
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) C:/Dev/edulink-demo-client/src/services/supabase.ts is dynamically imported by C:/Dev/edulink-demo-client/src/pages/DashboardPage.tsx but also statically imported by C:/Dev/edulink-demo-client/src/components/AppLayout.tsx, C:/Dev/edulink-demo-client/src/modules/analytics-ia/index.tsx, C:/Dev/edulink-demo-client/src/modules/analytics/analytics.service.ts, C:/Dev/edulink-demo-client/src/modules/annees/index.tsx, C:/Dev/edulink-demo-client/src/modules/audit/index.tsx, C:/Dev/edulink-demo-client/src/modules/comptabilite/components/ModalFacture.tsx, C:/Dev/edulink-demo-client/src/modules/comptabilite/components/ModalFactureGrille.tsx, C:/Dev/edulink-demo-client/src/modules/comptabilite/components/Recouvrement.tsx, C:/Dev/edulink-demo-client/src/modules/comptabilite/index.tsx, C:/Dev/edulink-demo-client/src/modules/deliberations/index.tsx, C:/Dev/edulink-demo-client/src/modules/email-parents/index.tsx, C:/Dev/edulink-demo-client/src/modules/emploi-du-temps/emploi-du-temps.service.ts, C:/Dev/edulink-demo-client/src/modules/enseignants/index.tsx, C:/Dev/edulink-demo-client/src/modules/etudiants/etudiants.service.ts, C:/Dev/edulink-demo-client/src/modules/inscriptions/inscriptions.service.ts, C:/Dev/edulink-demo-client/src/modules/messages/index.tsx, C:/Dev/edulink-demo-client/src/modules/monitoring/index.tsx, C:/Dev/edulink-demo-client/src/modules/notifications-config/index.tsx, C:/Dev/edulink-demo-client/src/modules/notifications-config/notifications-config.service.ts, C:/Dev/edulink-demo-client/src/modules/parametres-ecole/index.tsx, C:/Dev/edulink-demo-client/src/modules/parametres/index.tsx, C:/Dev/edulink-demo-client/src/modules/portail-enseignant/index.tsx, C:/Dev/edulink-demo-client/src/modules/portail-public/index.tsx, C:/Dev/edulink-demo-client/src/modules/presences/index.tsx, C:/Dev/edulink-demo-client/src/modules/programmes/ProgrammesPage.tsx, C:/Dev/edulink-demo-client/src/modules/promotions/index.tsx, C:/Dev/edulink-demo-client/src/modules/prospects/index.tsx, C:/Dev/edulink-demo-client/src/modules/releves/index.tsx, C:/Dev/edulink-demo-client/src/modules/resultats/index.tsx, C:/Dev/edulink-demo-client/src/modules/rh-personnel/index.tsx, C:/Dev/edulink-demo-client/src/modules/saisie-notes/index.tsx, C:/Dev/edulink-demo-client/src/modules/semestres/components/ModalAnnee.tsx, C:/Dev/edulink-demo-client/src/modules/semestres/index.tsx, C:/Dev/edulink-demo-client/src/modules/utilisateurs/index.tsx, C:/Dev/edulink-demo-client/src/pages/DashboardReseauPage.tsx, C:/Dev/edulink-demo-client/src/pages/PortailPublicPage.tsx, C:/Dev/edulink-demo-client/src/services/auth.service.ts, C:/Dev/edulink-demo-client/src/services/caisse.service.ts, C:/Dev/edulink-demo-client/src/services/comptabilite.service.ts, C:/Dev/edulink-demo-client/src/services/dashboard.service.ts, C:/Dev/edulink-demo-client/src/services/deliberations.service.ts, C:/Dev/edulink-demo-client/src/services/import-matieres.service.ts, C:/Dev/edulink-demo-client/src/services/mfa.service.ts, C:/Dev/edulink-demo-client/src/services/parametrage-financier.service.ts, C:/Dev/edulink-demo-client/src/services/pilotage.service.ts, C:/Dev/edulink-demo-client/src/services/presences.service.ts, C:/Dev/edulink-demo-client/src/services/recouvrement.service.ts, C:/Dev/edulink-demo-client/src/services/referentiel.service.ts, C:/Dev/edulink-demo-client/src/services/resultats.service.ts, C:/Dev/edulink-demo-client/src/services/saisie.service.ts, dynamic import will not move module into another chunk.
+
+computing gzip size...
+[2mdist/[22m[32mindex.html                                [39m[1m[2m  1.67 kB[22m[1m[22m[2m Ôöé gzip:   0.77 kB[22m
+[2mdist/[22m[35massets/index-BGVqlMfx.css                 [39m[1m[2m  5.17 kB[22m[1m[22m[2m Ôöé gzip:   1.57 kB[22m
+[2mdist/[22m[36massets/referentiel.types-DG3jYm-n.js      [39m[1m[2m  0.36 kB[22m[1m[22m[2m Ôöé gzip:   0.24 kB[22m
+[2mdist/[22m[36massets/releveTheme-2_m1sAEL.js            [39m[1m[2m  0.77 kB[22m[1m[22m[2m Ôöé gzip:   0.47 kB[22m
+[2mdist/[22m[36massets/referentiel.service-DfCVyEtQ.js    [39m[1m[2m  2.92 kB[22m[1m[22m[2m Ôöé gzip:   0.91 kB[22m
+[2mdist/[22m[36massets/ResponsiveTable-DghCFDQa.js        [39m[1m[2m  3.17 kB[22m[1m[22m[2m Ôöé gzip:   1.27 kB[22m
+[2mdist/[22m[36massets/ModalSemestre-zZx9sI53.js          [39m[1m[2m  5.35 kB[22m[1m[22m[2m Ôöé gzip:   1.85 kB[22m
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[2mdist/[22m[36massets/deliberations.service-DW61JIte.js  [39m[1m[2m  5.96 kB[22m[1m[22m[2m Ôöé gzip:   2.31 kB[22m
+[2mdist/[22m[36massets/index-BNP28mrw.js                  [39m[1m[2m  6.69 kB[22m[1m[22m[2m Ôöé gzip:   2.29 kB[22m
+[2mdist/[22m[36massets/index-Qw7DN09h.js                  [39m[1m[2m  9.77 kB[22m[1m[22m[2m Ôöé gzip:   3.24 kB[22m
+[2mdist/[22m[36massets/index-BJ5P1HAY.js                  [39m[1m[2m  9.93 kB[22m[1m[22m[2m Ôöé gzip:   3.58 kB[22m
+[2mdist/[22m[36massets/index-Cl8aOjDk.js                  [39m[1m[2m 10.20 kB[22m[1m[22m[2m Ôöé gzip:   3.25 kB[22m
+[2mdist/[22m[36massets/index-Dq5xXzRZ.js                  [39m[1m[2m 10.31 kB[22m[1m[22m[2m Ôöé gzip:   3.39 kB[22m
+[2mdist/[22m[36massets/index-Buj-Z5m7.js                  [39m[1m[2m 10.58 kB[22m[1m[22m[2m Ôöé gzip:   3.58 kB[22m
+[2mdist/[22m[36massets/index--SCAoBwc.js                  [39m[1m[2m 11.94 kB[22m[1m[22m[2m Ôöé gzip:   3.68 kB[22m
+[2mdist/[22m[36massets/ImportEtudiants-SvrbyJNk.js        [39m[1m[2m 12.50 kB[22m[1m[22m[2m Ôöé gzip:   4.30 kB[22m
+[2mdist/[22m[36massets/index-DuLhk5ZN.js                  [39m[1m[2m 14.00 kB[22m[1m[22m[2m Ôöé gzip:   3.99 kB[22m
+[2mdist/[22m[36massets/index-D9d94_ah.js                  [39m[1m[2m 14.31 kB[22m[1m[22m[2m Ôöé gzip:   4.50 kB[22m
+[2mdist/[22m[36massets/index-DZyTkT0O.js                  [39m[1m[2m 15.38 kB[22m[1m[22m[2m Ôöé gzip:   4.93 kB[22m
+[2mdist/[22m[36massets/index-BqghJR3l.js                  [39m[1m[2m 17.18 kB[22m[1m[22m[2m Ôöé gzip:   5.32 kB[22m
+[2mdist/[22m[36massets/index-CeR7zCyl.js                  [39m[1m[2m 17.69 kB[22m[1m[22m[2m Ôöé gzip:   4.84 kB[22m
+[2mdist/[22m[36massets/index-C7EsFnuV.js                  [39m[1m[2m 18.22 kB[22m[1m[22m[2m Ôöé gzip:   5.68 kB[22m
+[2mdist/[22m[36massets/index-DyYCQEkx.js                  [39m[1m[2m 19.07 kB[22m[1m[22m[2m Ôöé gzip:   6.13 kB[22m
+[2mdist/[22m[36massets/index-CwCHh74H.js                  [39m[1m[2m 19.80 kB[22m[1m[22m[2m Ôöé gzip:   4.52 kB[22m
+[2mdist/[22m[36massets/index-g-42IbYD.js                  [39m[1m[2m 20.85 kB[22m[1m[22m[2m Ôöé gzip:   6.06 kB[22m
+[2mdist/[22m[36massets/index-DZvHToe8.js                  [39m[1m[2m 21.02 kB[22m[1m[22m[2m Ôöé gzip:   5.95 kB[22m
+[2mdist/[22m[36massets/index-CXTf48RB.js                  [39m[1m[2m 21.49 kB[22m[1m[22m[2m Ôöé gzip:   6.34 kB[22m
+[2mdist/[22m[36massets/index-C8nDBEAm.js                  [39m[1m[2m 21.81 kB[22m[1m[22m[2m Ôöé gzip:   6.46 kB[22m
+[2mdist/[22m[36massets/index-BbUSWCmm.js                  [39m[1m[2m 25.36 kB[22m[1m[22m[2m Ôöé gzip:   7.43 kB[22m
+[2mdist/[22m[36massets/index-idXaeFZJ.js                  [39m[1m[2m 25.61 kB[22m[1m[22m[2m Ôöé gzip:   7.36 kB[22m
+[2mdist/[22m[36massets/index-BfvFhcmZ.js                  [39m[1m[2m 25.63 kB[22m[1m[22m[2m Ôöé gzip:   6.96 kB[22m
+[2mdist/[22m[36massets/index-5D5wxG-5.js                  [39m[1m[2m 26.83 kB[22m[1m[22m[2m Ôöé gzip:   7.25 kB[22m
+[2mdist/[22m[36massets/index-BBulPY4P.js                  [39m[1m[2m 26.84 kB[22m[1m[22m[2m Ôöé gzip:   6.77 kB[22m
+[2mdist/[22m[36massets/index-BDQeK314.js                  [39m[1m[2m 29.24 kB[22m[1m[22m[2m Ôöé gzip:   8.51 kB[22m
+[2mdist/[22m[36massets/ProgrammesPage-BBriHy1c.js         [39m[1m[2m 32.30 kB[22m[1m[22m[2m Ôöé gzip:   8.53 kB[22m
+[2mdist/[22m[36massets/index-qPhIIM8i.js                  [39m[1m[2m 35.58 kB[22m[1m[22m[2m Ôöé gzip:  10.20 kB[22m
+[2mdist/[22m[36massets/index-D_mssLF-.js                  [39m[1m[2m109.62 kB[22m[1m[22m[2m Ôöé gzip:  23.62 kB[22m
+[2mdist/[22m[36massets/xlsx-D_0l8YDs.js                   [39m[1m[2m429.03 kB[22m[1m[22m[2m Ôöé gzip: 143.08 kB[22m
+[2mdist/[22m[36massets/index-BhvmCZd2.js                  [39m[1m[33m628.50 kB[39m[22m[2m Ôöé gzip: 186.30 kB[22m
+[32mÔ£ô built in 2.49s[39m

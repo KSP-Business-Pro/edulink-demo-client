@@ -1,0 +1,1 @@
+374:      sender: { name: ecole.nom, email: "contact@afryx.io" },
