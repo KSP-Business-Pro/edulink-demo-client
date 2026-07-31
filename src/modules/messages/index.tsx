@@ -17,6 +17,17 @@ interface Message {
   categorie: string | null; priorite: string | null; statut: string | null;
 }
 
+interface DashboardStats {
+  totalEnvoyes:     number;
+  tauxLecture:      number; // pourcentage arrondi
+  urgentsNonLus:    number;
+  echecs:           { email: number; sms: number; push: number; total: number };
+  relancesPaiement: number;
+  alertesAbsence:   number;
+}
+
+type Onglet = 'recus' | 'envoyes' | 'dashboard';
+
 export default function MessagesPage() {
   const { user, isSuperAdmin } = useAuth();
   const [ecoleId, setEcoleId] = useState<string>(user?.ecole_id ?? '');
@@ -41,7 +52,7 @@ export default function MessagesPage() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [destinataires, setDestinataires] = useState<UtilisateurOption[]>([]);
   const [destinataireId, setDestinataireId] = useState('');
-  const [ongletActif, setOngletActif] = useState<'recus' | 'envoyes'>('recus');
+  const [ongletActif, setOngletActif] = useState<Onglet>('recus');
   const [filterQuick, setFilterQuick] = useState<'tous' | 'non_lus' | 'urgents' | 'archives'>('tous');
   const [searchQuery, setSearchQuery] = useState('');
   const [periodeFiltre, setPeriodeFiltre] = useState<'tous' | 'jour' | 'semaine' | 'mois'>('tous');
@@ -54,6 +65,10 @@ export default function MessagesPage() {
   const [etudiantSearch, setEtudiantSearch] = useState('');
   const [etudiantResults, setEtudiantResults] = useState<EtudiantOption[]>([]);
   const [etudiantId, setEtudiantId] = useState('');
+
+  // ── Tableau de bord (§12 doc spec) ────────────────────────────────────────
+  const [dashStats, setDashStats]     = useState<DashboardStats | null>(null);
+  const [dashLoading, setDashLoading] = useState(false);
 
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
     setToast({ msg, type });
@@ -131,7 +146,51 @@ export default function MessagesPage() {
 
   useEffect(() => { load(); }, [load]);
 
-async function handleEnvoyer(e: React.FormEvent) {
+  // ── Chargement des indicateurs du tableau de bord (§12) ──────────────────
+  const loadDashboard = useCallback(async () => {
+    if (!ecoleId) return;
+    setDashLoading(true);
+    try {
+      const [
+        { count: totalEnvoyes },
+        { count: totalLus },
+        { count: urgentsNonLus },
+        { data: echecsData },
+        { count: relancesPaiement },
+        { count: alertesAbsence },
+      ] = await Promise.all([
+        supabase.from('messages').select('id', { count: 'exact', head: true }).eq('ecole_id', ecoleId),
+        supabase.from('messages').select('id', { count: 'exact', head: true }).eq('ecole_id', ecoleId).eq('lu', true),
+        supabase.from('messages').select('id', { count: 'exact', head: true }).eq('ecole_id', ecoleId).eq('priorite', 'urgente').eq('lu', false).neq('statut', 'archive'),
+        supabase.from('journal_notifications').select('canal').eq('ecole_id', ecoleId).eq('statut', 'echec'),
+        supabase.from('relances_paiement').select('id', { count: 'exact', head: true }).eq('ecole_id', ecoleId),
+        supabase.from('messages').select('id', { count: 'exact', head: true }).eq('ecole_id', ecoleId).eq('categorie', 'ABS'),
+      ]);
+
+      const echecs = { email: 0, sms: 0, push: 0, total: 0 };
+      (echecsData ?? []).forEach((r: any) => {
+        if (r.canal === 'email') echecs.email++;
+        else if (r.canal === 'sms') echecs.sms++;
+        else if (r.canal === 'push') echecs.push++;
+        echecs.total++;
+      });
+
+      setDashStats({
+        totalEnvoyes: totalEnvoyes ?? 0,
+        tauxLecture: totalEnvoyes ? Math.round(((totalLus ?? 0) / totalEnvoyes) * 100) : 0,
+        urgentsNonLus: urgentsNonLus ?? 0,
+        echecs,
+        relancesPaiement: relancesPaiement ?? 0,
+        alertesAbsence: alertesAbsence ?? 0,
+      });
+    } finally { setDashLoading(false); }
+  }, [ecoleId]);
+
+  useEffect(() => {
+    if (ongletActif === 'dashboard') loadDashboard();
+  }, [ongletActif, loadDashboard]);
+
+  async function handleEnvoyer(e: React.FormEvent) {
     e.preventDefault();
     const destOk = modeDestinataire === 'collegue' ? !!destinataireId : modeDestinataire === 'etudiant' ? !!etudiantId : !!groupeValeur;
     if (!contenu.trim() || !destOk) return;
@@ -171,17 +230,36 @@ async function handleEnvoyer(e: React.FormEvent) {
     finally { setSending(false); }
   }
 
-
-async function handleSupprimer(id: string) {
+  async function handleSupprimer(id: string) {
     if (!confirm('Archiver ce message ?')) return;
     const { error } = await supabase.rpc('fn_supprimer_message', { p_message_id: id });
     if (error) { showToast(error.message, 'error'); return; }
     await load(); showToast('Message archive');
   }
 
-
   function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ── Carte KPI réutilisable pour le tableau de bord ────────────────────────
+  function KpiCard({ label, value, color, bg, note }: { label: string; value: string; color: string; bg: string; note?: string }) {
+    return (
+      <div style={{ background: bg, border: '1px solid #f1f5f9', borderRadius: 12, padding: '1.1rem' }}>
+        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{label}</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color }}>{value}</div>
+        {note && <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4 }}>{note}</div>}
+      </div>
+    );
+  }
+
+  function KpiIndisponible({ label, raison }: { label: string; raison: string }) {
+    return (
+      <div style={{ background: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: 12, padding: '1.1rem' }}>
+        <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>{label}</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#9ca3af' }}>Non disponible</div>
+        <div style={{ fontSize: 10, color: '#b0b7c3', marginTop: 4 }}>{raison}</div>
+      </div>
+    );
   }
 
   return (
@@ -214,121 +292,150 @@ async function handleSupprimer(id: string) {
           style={{ padding: '8px 16px', border: 'none', borderBottom: ongletActif === 'envoyes' ? '2px solid #1e3a5f' : '2px solid transparent', background: 'none', fontSize: 13, fontWeight: 600, color: ongletActif === 'envoyes' ? '#1e3a5f' : '#6b7280', cursor: 'pointer' }}>
           Envoyes
         </button>
+        <button onClick={() => setOngletActif('dashboard')}
+          style={{ padding: '8px 16px', border: 'none', borderBottom: ongletActif === 'dashboard' ? '2px solid #1e3a5f' : '2px solid transparent', background: 'none', fontSize: 13, fontWeight: 600, color: ongletActif === 'dashboard' ? '#1e3a5f' : '#6b7280', cursor: 'pointer' }}>
+          📊 Tableau de bord
+        </button>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', margin: '0 0 1rem' }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => setFilterQuick('tous')}
-            style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'tous' ? '#1e3a5f' : '#fff', color: filterQuick === 'tous' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            Tous
-          </button>
-          <button onClick={() => setFilterQuick('non_lus')}
-            style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'non_lus' ? '#1e3a5f' : '#fff', color: filterQuick === 'non_lus' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            Non lus
-          </button>
-          <button onClick={() => setFilterQuick('urgents')}
-            style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'urgents' ? '#dc2626' : '#fff', color: filterQuick === 'urgents' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            Urgents
-          </button>
-          <button onClick={() => setFilterQuick('archives')}
-            style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'archives' ? '#6b7280' : '#fff', color: filterQuick === 'archives' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            Archives
-          </button>
-        </div>
-        <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Rechercher nom, objet, categorie..."
-          style={{ flex: 1, minWidth: 180, padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12.5, fontFamily: 'inherit' }} />
-        <select value={periodeFiltre} onChange={e => setPeriodeFiltre(e.target.value as any)}
-          style={{ padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12.5, fontFamily: 'inherit' }}>
-          <option value="tous">Toute periode</option>
-          <option value="jour">Aujourd'hui</option>
-          <option value="semaine">Cette semaine</option>
-          <option value="mois">Ce mois</option>
-        </select>
-      </div>
-      {loading ? <div className="loading">Chargement...</div> : (() => {
-        const base = messages.filter(m => ongletActif === 'envoyes' ? m.expediteur_id === user?.utilisateur_id : m.expediteur_id !== user?.utilisateur_id);
-        const debutJour = new Date(); debutJour.setHours(0, 0, 0, 0);
-        const debutSemaine = new Date(debutJour); debutSemaine.setDate(debutSemaine.getDate() - debutSemaine.getDay());
-        const debutMois = new Date(debutJour.getFullYear(), debutJour.getMonth(), 1);
-        const filtres = base.filter(m => {
-          if (filterQuick === 'archives') { if (m.statut !== 'archive') return false; }
-          else { if (m.statut === 'archive') return false; }
-          if (filterQuick === 'non_lus' && m.lu) return false;
-          if (filterQuick === 'urgents' && m.priorite !== 'urgente') return false;
-          if (searchQuery.trim()) {
-            const q = searchQuery.trim().toLowerCase();
-            const hay = [m.expediteur_nom, m.destinataire_nom, m.sujet, m.objet, m.categorie].filter(Boolean).join(' ').toLowerCase();
-            if (!hay.includes(q)) return false;
-          }
-          if (periodeFiltre !== 'tous') {
-            const createdAt = new Date(m.created_at);
-            if (periodeFiltre === 'jour' && createdAt < debutJour) return false;
-            if (periodeFiltre === 'semaine' && createdAt < debutSemaine) return false;
-            if (periodeFiltre === 'mois' && createdAt < debutMois) return false;
-          }
-          return true;
-        });
-        if (filtres.length === 0) {
-          const filtresActifs = filterQuick !== 'tous' || searchQuery.trim().length > 0 || periodeFiltre !== 'tous';
-          return <div className="empty-state"><h3>Aucun message</h3><p>{filtresActifs ? 'Aucun message ne correspond aux filtres' : (ongletActif === 'envoyes' ? 'Vous n\'avez envoye aucun message' : 'Aucun message recu')}</p></div>;
-        }
-        const groupes = new Map<string, Message[]>();
-        filtres.forEach(m => {
-          const cle = ongletActif === 'envoyes' ? (m.destinataire_nom || 'Destinataire inconnu') : (m.expediteur_nom || 'Expediteur inconnu');
-          if (!groupes.has(cle)) groupes.set(cle, []);
-          groupes.get(cle)!.push(m);
-        });
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: 780 }}>
-            {Array.from(groupes.entries()).map(([interlocuteur, msgs]) => (
-              <div key={interlocuteur}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', marginBottom: '.5rem' }}>{interlocuteur}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
-                  {msgs.map(m => {
-                    const isMine   = m.expediteur_id === user?.utilisateur_id;
-                    const senderNom = m.expediteur_nom || (isMine ? (user?.nom ?? 'Moi') : 'Systeme');
-                    const initiale  = senderNom.charAt(0).toUpperCase();
-                    const sujetMsg  = m.sujet || m.objet || '';
-                    return (
-                      <div key={m.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1rem 1.2rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '.5rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: isMine ? '#1e3a5f' : '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                              {initiale}
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827' }}>{senderNom}</div>
-                              {m.expediteur_role && <div style={{ fontSize: 10, color: '#9ca3af' }}>{m.expediteur_role}</div>}
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-                            <div style={{ fontSize: 11, color: '#9ca3af' }}>{formatDate(m.created_at)}</div>
-                            {isMine && (
-                              <button onClick={() => handleSupprimer(m.id)}
-                                style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', padding: '2px 5px', fontSize: 14, lineHeight: 1 }}>
-                                X
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        {(m.categorie || (m.priorite && m.priorite !== 'normale')) && (
-                          <div style={{ display: 'flex', gap: 6, marginBottom: '.35rem' }}>
-                            {m.categorie && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#eef2ff', color: '#4338ca', letterSpacing: '.03em' }}>{m.categorie}</span>}
-                            {m.priorite === 'urgente' && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#fee2e2', color: '#dc2626' }}>URGENT</span>}
-                            {m.priorite === 'haute' && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#fef3c7', color: '#b45309' }}>HAUTE</span>}
-                          </div>
-                        )}
-                        {sujetMsg && <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: '.25rem' }}>{sujetMsg}</div>}
-                        <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>{m.contenu}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+
+      {ongletActif === 'dashboard' ? (
+        dashLoading || !dashStats ? <div className="loading">Chargement…</div> : (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: '1.5rem' }}>
+              <KpiCard label="Messages envoyés" value={String(dashStats.totalEnvoyes)} color="#1e3a5f" bg="#f8fafc" />
+              <KpiCard label="Taux de lecture" value={dashStats.tauxLecture + '%'} color="#059669" bg="#f0fdf4" />
+              <KpiCard label="Urgents non lus" value={String(dashStats.urgentsNonLus)} color={dashStats.urgentsNonLus > 0 ? '#dc2626' : '#059669'} bg={dashStats.urgentsNonLus > 0 ? '#fef2f2' : '#f0fdf4'} />
+              <KpiCard label="Messages échoués" value={String(dashStats.echecs.total)}
+                color={dashStats.echecs.total > 0 ? '#dc2626' : '#059669'} bg={dashStats.echecs.total > 0 ? '#fef2f2' : '#f0fdf4'}
+                note={dashStats.echecs.total > 0 ? `email ${dashStats.echecs.email} · sms ${dashStats.echecs.sms} · push ${dashStats.echecs.push}` : undefined} />
+              <KpiCard label="Relances paiement envoyées" value={String(dashStats.relancesPaiement)} color="#7c3aed" bg="#faf5ff" note="Relances manuelles (module Recouvrement)" />
+              <KpiCard label="Alertes absence envoyées" value={String(dashStats.alertesAbsence)} color="#d97706" bg="#fffbeb" />
+              <KpiIndisponible label="Temps moyen de réponse" raison="Aucun système de suivi de conversation/support" />
+              <KpiIndisponible label="Tickets support ouverts" raison="Fonctionnalité de ticketing non implémentée" />
+            </div>
+            <div style={{ fontSize: 11, color: '#9ca3af' }}>
+              Indicateurs calculés sur l'ensemble des messages de l'établissement (pas seulement les 50 derniers affichés dans Reçus/Envoyés).
+            </div>
           </div>
-        );
-      })()}
+        )
+      ) : (
+        <>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', margin: '0 0 1rem' }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setFilterQuick('tous')}
+                style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'tous' ? '#1e3a5f' : '#fff', color: filterQuick === 'tous' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                Tous
+              </button>
+              <button onClick={() => setFilterQuick('non_lus')}
+                style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'non_lus' ? '#1e3a5f' : '#fff', color: filterQuick === 'non_lus' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                Non lus
+              </button>
+              <button onClick={() => setFilterQuick('urgents')}
+                style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'urgents' ? '#dc2626' : '#fff', color: filterQuick === 'urgents' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                Urgents
+              </button>
+              <button onClick={() => setFilterQuick('archives')}
+                style={{ padding: '6px 12px', borderRadius: 20, border: '1px solid #e5e7eb', background: filterQuick === 'archives' ? '#6b7280' : '#fff', color: filterQuick === 'archives' ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                Archives
+              </button>
+            </div>
+            <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Rechercher nom, objet, categorie..."
+              style={{ flex: 1, minWidth: 180, padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12.5, fontFamily: 'inherit' }} />
+            <select value={periodeFiltre} onChange={e => setPeriodeFiltre(e.target.value as any)}
+              style={{ padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12.5, fontFamily: 'inherit' }}>
+              <option value="tous">Toute periode</option>
+              <option value="jour">Aujourd'hui</option>
+              <option value="semaine">Cette semaine</option>
+              <option value="mois">Ce mois</option>
+            </select>
+          </div>
+          {loading ? <div className="loading">Chargement...</div> : (() => {
+            const base = messages.filter(m => ongletActif === 'envoyes' ? m.expediteur_id === user?.utilisateur_id : m.expediteur_id !== user?.utilisateur_id);
+            const debutJour = new Date(); debutJour.setHours(0, 0, 0, 0);
+            const debutSemaine = new Date(debutJour); debutSemaine.setDate(debutSemaine.getDate() - debutSemaine.getDay());
+            const debutMois = new Date(debutJour.getFullYear(), debutJour.getMonth(), 1);
+            const filtres = base.filter(m => {
+              if (filterQuick === 'archives') { if (m.statut !== 'archive') return false; }
+              else { if (m.statut === 'archive') return false; }
+              if (filterQuick === 'non_lus' && m.lu) return false;
+              if (filterQuick === 'urgents' && m.priorite !== 'urgente') return false;
+              if (searchQuery.trim()) {
+                const q = searchQuery.trim().toLowerCase();
+                const hay = [m.expediteur_nom, m.destinataire_nom, m.sujet, m.objet, m.categorie].filter(Boolean).join(' ').toLowerCase();
+                if (!hay.includes(q)) return false;
+              }
+              if (periodeFiltre !== 'tous') {
+                const createdAt = new Date(m.created_at);
+                if (periodeFiltre === 'jour' && createdAt < debutJour) return false;
+                if (periodeFiltre === 'semaine' && createdAt < debutSemaine) return false;
+                if (periodeFiltre === 'mois' && createdAt < debutMois) return false;
+              }
+              return true;
+            });
+            if (filtres.length === 0) {
+              const filtresActifs = filterQuick !== 'tous' || searchQuery.trim().length > 0 || periodeFiltre !== 'tous';
+              return <div className="empty-state"><h3>Aucun message</h3><p>{filtresActifs ? 'Aucun message ne correspond aux filtres' : (ongletActif === 'envoyes' ? 'Vous n\'avez envoye aucun message' : 'Aucun message recu')}</p></div>;
+            }
+            const groupes = new Map<string, Message[]>();
+            filtres.forEach(m => {
+              const cle = ongletActif === 'envoyes' ? (m.destinataire_nom || 'Destinataire inconnu') : (m.expediteur_nom || 'Expediteur inconnu');
+              if (!groupes.has(cle)) groupes.set(cle, []);
+              groupes.get(cle)!.push(m);
+            });
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: 780 }}>
+                {Array.from(groupes.entries()).map(([interlocuteur, msgs]) => (
+                  <div key={interlocuteur}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', marginBottom: '.5rem' }}>{interlocuteur}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
+                      {msgs.map(m => {
+                        const isMine   = m.expediteur_id === user?.utilisateur_id;
+                        const senderNom = m.expediteur_nom || (isMine ? (user?.nom ?? 'Moi') : 'Systeme');
+                        const initiale  = senderNom.charAt(0).toUpperCase();
+                        const sujetMsg  = m.sujet || m.objet || '';
+                        return (
+                          <div key={m.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1rem 1.2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '.5rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', background: isMine ? '#1e3a5f' : '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                                  {initiale}
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827' }}>{senderNom}</div>
+                                  {m.expediteur_role && <div style={{ fontSize: 10, color: '#9ca3af' }}>{m.expediteur_role}</div>}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                                <div style={{ fontSize: 11, color: '#9ca3af' }}>{formatDate(m.created_at)}</div>
+                                {isMine && (
+                                  <button onClick={() => handleSupprimer(m.id)}
+                                    style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', padding: '2px 5px', fontSize: 14, lineHeight: 1 }}>
+                                    X
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            {(m.categorie || (m.priorite && m.priorite !== 'normale')) && (
+                              <div style={{ display: 'flex', gap: 6, marginBottom: '.35rem' }}>
+                                {m.categorie && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#eef2ff', color: '#4338ca', letterSpacing: '.03em' }}>{m.categorie}</span>}
+                                {m.priorite === 'urgente' && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#fee2e2', color: '#dc2626' }}>URGENT</span>}
+                                {m.priorite === 'haute' && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#fef3c7', color: '#b45309' }}>HAUTE</span>}
+                              </div>
+                            )}
+                            {sujetMsg && <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: '.25rem' }}>{sujetMsg}</div>}
+                            <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>{m.contenu}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </>
+      )}
 
       {/* Modal nouveau message */}
       {modalOpen && (
