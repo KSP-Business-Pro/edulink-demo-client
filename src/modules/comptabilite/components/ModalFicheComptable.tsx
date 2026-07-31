@@ -22,6 +22,7 @@ const MODES: { value: ModePaiement; label: string }[] = [
   { value: 'mobile_money', label: 'Mobile Money' },
   { value: 'cheque', label: 'Chèque' },
 ];
+const MODES_AVEC_REFERENCE: ModePaiement[] = ['virement', 'mobile_money'];
 
 export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefresh }: Props) {
   const { user } = useAuth();
@@ -30,6 +31,7 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
   const [paiementModal, setPaiementModal] = useState<{ factureId: string; restant: number } | null>(null);
   const [paiementMontant, setPaiementMontant] = useState('');
   const [paiementMode, setPaiementMode]       = useState<ModePaiement>('especes');
+  const [paiementReference, setPaiementReference] = useState('');
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState<string | null>(null);
   const [receiptData, setReceiptData] = useState<Awaited<ReturnType<typeof fetchDonneesRecu>> | null>(null);
@@ -74,7 +76,7 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
     if (!paiementModal) return;
     setSaving(true); setError(null);
     try {
-      const { numeroRecu, paiementId } = await enregistrerPaiement(paiementModal.factureId, parseFloat(paiementMontant), paiementMode, { authUserId: user!.id, caissierNom: user?.prenom ? `${user.prenom} ${user.nom}` : user!.nom });
+      const { numeroRecu, paiementId } = await enregistrerPaiement(paiementModal.factureId, parseFloat(paiementMontant), paiementMode, { authUserId: user!.id, caissierNom: user?.prenom ? `${user.prenom} ${user.nom}` : user!.nom, reference: paiementReference.trim() || undefined });
       setPaiementModal(null);
       await reload();
       onRefresh();
@@ -155,7 +157,7 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
                         {expandedFactureId === f.id ? "Masquer" : "Paiements"}
                       </button>
                       {restantF > 0 ? (
-                        <button onClick={() => { setPaiementModal({ factureId: f.id, restant: restantF }); setPaiementMontant(String(Math.round(restantF))); }}
+                        <button onClick={() => { setPaiementModal({ factureId: f.id, restant: restantF }); setPaiementMontant(String(Math.round(restantF))); setPaiementMode('especes'); setPaiementReference(''); }}
                           style={{ background: '#1e3a5f', color: '#fff', border: 'none', padding: '5px 14px', borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                           + Enregistrer un paiement
                         </button>
@@ -204,13 +206,22 @@ export default function ModalFicheComptable({ etudiantId, nom, onClose, onRefres
                 <input type="number" id="paie-montant" name="montant" value={paiementMontant} onChange={e => setPaiementMontant(e.target.value)}
                   style={{ width: '100%', marginTop: 4 }} min={1} step="any" required autoFocus aria-describedby={error ? 'paie-error' : undefined} />
               </div>
-              <div style={{ marginBottom: '1.2rem' }}>
+              <div style={{ marginBottom: '.85rem' }}>
                 <label htmlFor="paie-mode">Mode de paiement *</label>
-                <select id="paie-mode" name="mode" value={paiementMode} onChange={e => setPaiementMode(e.target.value as ModePaiement)}
+                <select id="paie-mode" name="mode" value={paiementMode} onChange={e => { setPaiementMode(e.target.value as ModePaiement); setPaiementReference(''); }}
                   style={{ width: '100%', marginTop: 4 }} required>
                   {MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
               </div>
+              {MODES_AVEC_REFERENCE.includes(paiementMode) && (
+                <div style={{ marginBottom: '1.2rem' }}>
+                  <label htmlFor="paie-reference">Référence de transaction *</label>
+                  <input type="text" id="paie-reference" name="reference" value={paiementReference} onChange={e => setPaiementReference(e.target.value)}
+                    style={{ width: '100%', marginTop: 4 }} placeholder={paiementMode === 'virement' ? 'ex : numéro de virement bancaire' : 'ex : ID de transaction Mobile Money'}
+                    required autoFocus aria-describedby={error ? 'paie-error' : undefined} />
+                </div>
+              )}
+              {!MODES_AVEC_REFERENCE.includes(paiementMode) && <div style={{ marginBottom: '1.2rem' }} />}
               {error && <div id="paie-error" role="alert" style={{ background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: '1rem' }}>{error}</div>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.5rem', paddingTop: '.85rem', borderTop: '1px solid #f3f4f6' }}>
                 <button type="button" className="btn-ghost" onClick={() => setPaiementModal(null)}>Annuler</button>
