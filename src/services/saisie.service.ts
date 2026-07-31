@@ -1,6 +1,7 @@
 // src/services/saisie.service.ts
 // B4.1 — Retrait @ts-nocheck, typage explicite
 // B13 — calculerLigneGrille et parseCSV deplaces vers saisie.calc.ts (fonctions pures, sans Supabase)
+// Chantier D — notifierNote() : notification famille au premier enregistrement d'une note
 
 import { supabase } from './supabase';
 import type {
@@ -152,7 +153,9 @@ export async function sauvegarderNote(
   ecoleId:      string,
 ): Promise<void> {
   const { data: ev } = await supabase
-    .from('evaluations').select('session_id').eq('id', evaluationId).single();
+    .from('evaluations')
+    .select('session_id, categorie, intitule, matieres_lmd(nom)')
+    .eq('id', evaluationId).single();
   const sessionId = (ev as { session_id: string } | null)?.session_id;
 
   const { data: existing } = await supabase
@@ -168,6 +171,34 @@ export async function sauvegarderNote(
 
   const ancienne = (existing as { valeur: number | null } | null)?.valeur ?? null;
   await _logNote(etudiantId, evaluationId, ecoleId, ancienne, valeur);
+
+  // Chantier D — notif famille au premier enregistrement seulement,
+  // pas sur une correction ultérieure de la même note.
+  if (ancienne === null) {
+    const matiere    = (ev as { matieres_lmd?: { nom: string } } | null)?.matieres_lmd?.nom ?? '';
+    const evaluation = (ev as { intitule?: string } | null)?.intitule ?? '';
+    await notifierNote(ecoleId, etudiantId, matiere, evaluation, valeur);
+  }
+}
+
+// -- Notification famille (Chantier D) ---------------------------------------
+async function notifierNote(
+  ecoleId:    string,
+  etudiantId: string,
+  matiere:    string,
+  evaluation: string,
+  note:       number,
+): Promise<void> {
+  try {
+    await supabase.rpc('fn_notifier_evenement', {
+      p_ecole_id: ecoleId,
+      p_etudiant_id: etudiantId,
+      p_type: 'note',
+      p_vars: { matiere, evaluation, note: String(note) },
+    });
+  } catch {
+    // silencieux — ne doit jamais bloquer la saisie de notes
+  }
 }
 
 export async function toggleAbsent(

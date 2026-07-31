@@ -1,5 +1,6 @@
 // src/services/deliberations.service.ts
 // B4.2 — decision_jury, PV délibération, recalcul, stats avancées, export Excel
+// Chantier D — notifierReleve() : notification famille au premier publish d'un relevé
 
 import { supabase } from './supabase';
 import type {
@@ -185,12 +186,19 @@ export async function publierReleve(
   etudiantId: string, semId: string,
   options: { republish?: boolean; sendEmail?: boolean } = {},
 ): Promise<{ success: boolean; blocked?: boolean; error?: string }> {
-  const { data: session } = await supabase
-    .from('sessions_evaluation')
-    .select('id')
-    .eq('semestre_id', semId)
-    .eq('type_session', 'normale')
-    .single();
+  const [{ data: session }, { data: semestre }] = await Promise.all([
+    supabase
+      .from('sessions_evaluation')
+      .select('id')
+      .eq('semestre_id', semId)
+      .eq('type_session', 'normale')
+      .single(),
+    supabase
+      .from('semestres')
+      .select('ecole_id, libelle')
+      .eq('id', semId)
+      .single(),
+  ]);
 
   try {
     const token = await getReleveToken();
@@ -206,11 +214,38 @@ export async function publierReleve(
       }),
     });
     const data = await res.json();
-    return data.success
-      ? { success: true }
-      : { success: false, blocked: data.blocked, error: data.error };
+
+    if (data.success) {
+      const ecoleId = (semestre as { ecole_id: string } | null)?.ecole_id;
+      const libelle = (semestre as { libelle: string } | null)?.libelle ?? '';
+      // Chantier D — notif famille au premier publish seulement,
+      // pas sur une republication de ce même relevé.
+      if (ecoleId && !options.republish) {
+        await notifierReleve(ecoleId, etudiantId, libelle);
+      }
+      return { success: true };
+    }
+    return { success: false, blocked: data.blocked, error: data.error };
   } catch (e: unknown) {
     return { success: false, error: e instanceof Error ? e.message : 'Erreur réseau' };
+  }
+}
+
+// ── Notification famille (Chantier D) ──────────────────────────────────────
+async function notifierReleve(
+  ecoleId:    string,
+  etudiantId: string,
+  semestre:   string,
+): Promise<void> {
+  try {
+    await supabase.rpc('fn_notifier_evenement', {
+      p_ecole_id: ecoleId,
+      p_etudiant_id: etudiantId,
+      p_type: 'releve',
+      p_vars: { semestre },
+    });
+  } catch {
+    // silencieux — ne doit jamais bloquer la publication du relevé
   }
 }
 
