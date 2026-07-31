@@ -1,6 +1,7 @@
 // @ts-nocheck
 // src/services/presences.service.ts
 import { supabase } from './supabase';
+import { notifierEmailExterne } from './notifications-externes.service';
 
 export type StatutPresence = 'present' | 'absent' | 'retard' | 'justifie';
 export type TypeSeance = 'CM' | 'TD' | 'TP' | 'examen' | 'autre';
@@ -117,17 +118,20 @@ export async function marquerPresence(
 }
 
 // Chantier D : notification interne (message famille) sur marquage d'une absence.
+// Chantier E : + email externe si un message a bien été créé (modèle actif).
 // N'echoue jamais bruyamment : un echec de notification ne doit pas remonter a l'appelant.
 export async function notifierAbsence(
   ecoleId: string, etudiantId: string, ueNom: string
 ): Promise<void> {
+  const vars = { ue: ueNom };
   try {
-    await supabase.rpc('fn_notifier_evenement', {
+    const { data: messageId } = await supabase.rpc('fn_notifier_evenement', {
       p_ecole_id: ecoleId,
       p_etudiant_id: etudiantId,
       p_type: 'absence',
-      p_vars: { ue: ueNom },
+      p_vars: vars,
     });
+    if (messageId) await notifierEmailExterne(ecoleId, etudiantId, 'absence', vars);
   } catch {
     // silencieux par design
   }
@@ -221,4 +225,3 @@ export async function fetchSeuilAbsence(ecoleId: string): Promise<number> {
     .maybeSingle();
   return data?.seuil_absence_pct ?? 30;
 }
-
