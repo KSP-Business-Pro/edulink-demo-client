@@ -17,6 +17,14 @@ interface Message {
   categorie: string | null; priorite: string | null; statut: string | null;
 }
 
+interface PieceJointe {
+  id: string; message_id: string; nom_fichier: string;
+  chemin_storage: string; taille_octets: number; mime_type: string;
+}
+
+const PJ_MAX_OCTETS = 10 * 1024 * 1024; // 10 Mo, aligné sur le bucket
+const PJ_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx';
+
 interface DashboardStats {
   totalEnvoyes:     number;
   tauxLecture:      number; // pourcentage arrondi
@@ -69,6 +77,10 @@ export default function MessagesPage() {
   // ── Tableau de bord (§12 doc spec) ────────────────────────────────────────
   const [dashStats, setDashStats]     = useState<DashboardStats | null>(null);
   const [dashLoading, setDashLoading] = useState(false);
+
+  // ── Pièces jointes (Chantier F) ───────────────────────────────────────────
+  const [fichiersJoints, setFichiersJoints] = useState<File[]>([]);
+  const [piecesJointes, setPiecesJointes]   = useState<Record<string, PieceJointe[]>>({});
 
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
     setToast({ msg, type });
@@ -140,7 +152,23 @@ export default function MessagesPage() {
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
-      setMessages((data ?? []) as Message[]);
+      const msgs = (data ?? []) as Message[];
+      setMessages(msgs);
+      // Chantier F — charger les PJ des messages affichés
+      if (msgs.length > 0) {
+        const { data: pjs } = await supabase
+          .from('message_pieces_jointes')
+          .select('id,message_id,nom_fichier,chemin_storage,taille_octets,mime_type')
+          .in('message_id', msgs.map(m => m.id));
+        const map: Record<string, PieceJointe[]> = {};
+        ((pjs ?? []) as PieceJointe[]).forEach(pj => {
+          if (!map[pj.message_id]) map[pj.message_id] = [];
+          map[pj.message_id].push(pj);
+        });
+        setPiecesJointes(map);
+      } else {
+        setPiecesJointes({});
+      }
     } finally { setLoading(false); }
   }, [ecoleId]);
 
@@ -213,7 +241,7 @@ export default function MessagesPage() {
         });
         if (error) throw error;
       } else {
-        const { error } = await supabase.rpc('fn_envoyer_message', {
+        const { data: messageId, error } = await supabase.rpc('fn_envoyer_message', {
           p_ecole_id:        ecoleId,
           p_destinataire_id: modeDestinataire === 'collegue' ? destinataireId : null,
           p_sujet:           sujet.trim() || null,
@@ -223,8 +251,29 @@ export default function MessagesPage() {
           p_etudiant_id:     modeDestinataire === 'etudiant' ? etudiantId : null,
         });
         if (error) throw error;
+        // Chantier F — upload des pièces jointes une fois le message créé
+        if (messageId && fichiersJoints.length > 0) {
+          let pjEchecs = 0;
+          for (const f of fichiersJoints) {
+            try {
+              const chemin = `${ecoleId}/${messageId}/${Date.now()}_${f.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+              const { error: upErr } = await supabase.storage
+                .from('messages-pieces-jointes')
+                .upload(chemin, f, { contentType: f.type });
+              if (upErr) throw upErr;
+              const { error: insErr } = await supabase.from('message_pieces_jointes').insert({
+                message_id: messageId, ecole_id: ecoleId,
+                nom_fichier: f.name, chemin_storage: chemin,
+                taille_octets: f.size, mime_type: f.type,
+                uploade_par: user?.id ?? null,
+              });
+              if (insErr) throw insErr;
+            } catch { pjEchecs++; }
+          }
+          if (pjEchecs > 0) showToast(`Message envoye mais ${pjEchecs} piece(s) jointe(s) en echec`, 'error');
+        }
       }
-      setModalOpen(false); setSujet(''); setContenu(''); setDestinataireId(''); setEtudiantId(''); setEtudiantSearch(''); setModeDestinataire('collegue'); setCategorieMsg(''); setPrioriteMsg('normale'); setGroupeValeur(''); setGroupePreviewCount(null);
+      setModalOpen(false); setSujet(''); setContenu(''); setDestinataireId(''); setEtudiantId(''); setEtudiantSearch(''); setModeDestinataire('collegue'); setCategorieMsg(''); setPrioriteMsg('normale'); setGroupeValeur(''); setGroupePreviewCount(null); setFichiersJoints([]);
       await load(); showToast('Message envoye');
     } catch (err: any) { showToast(err.message, 'error'); }
     finally { setSending(false); }
@@ -239,6 +288,32 @@ export default function MessagesPage() {
 
   function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ── Pièces jointes : helpers (Chantier F) ────────────────────────────────
+  function formatTaille(octets: number): string {
+    if (octets < 1024) return octets + ' o';
+    if (octets < 1048576) return (octets / 1024).toFixed(0) + ' Ko';
+    return (octets / 1048576).toFixed(1) + ' Mo';
+  }
+
+  function handleFichiersChoisis(e: React.ChangeEvent<HTMLInputElement>) {
+    const nouveaux = Array.from(e.target.files ?? []);
+    const valides: File[] = [];
+    for (const f of nouveaux) {
+      if (f.size > PJ_MAX_OCTETS) { showToast(`${f.name} depasse 10 Mo`, 'error'); continue; }
+      valides.push(f);
+    }
+    setFichiersJoints(prev => [...prev, ...valides]);
+    e.target.value = ''; // permet de re-sélectionner le même fichier
+  }
+
+  async function telechargerPj(pj: PieceJointe) {
+    const { data, error } = await supabase.storage
+      .from('messages-pieces-jointes')
+      .createSignedUrl(pj.chemin_storage, 3600);
+    if (error || !data?.signedUrl) { showToast('Telechargement impossible', 'error'); return; }
+    window.open(data.signedUrl, '_blank');
   }
 
   // ── Carte KPI réutilisable pour le tableau de bord ────────────────────────
@@ -425,6 +500,16 @@ export default function MessagesPage() {
                             )}
                             {sujetMsg && <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: '.25rem' }}>{sujetMsg}</div>}
                             <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>{m.contenu}</div>
+                            {(piecesJointes[m.id] ?? []).length > 0 && (
+                              <div style={{ marginTop: '.6rem', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                {(piecesJointes[m.id] ?? []).map(pj => (
+                                  <button key={pj.id} type="button" onClick={() => telechargerPj(pj)}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '4px 10px', fontSize: 11.5, color: '#1d4ed8', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                    📎 {pj.nom_fichier} <span style={{ color: '#93b5f5' }}>({formatTaille(pj.taille_octets)})</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -532,6 +617,25 @@ export default function MessagesPage() {
                 <input id="msg-sujet" name="sujet" type="text" value={sujet} onChange={e => setSujet(e.target.value)}
                   style={{ width: '100%', marginTop: 4 }} placeholder="Objet du message…" autoFocus />
               </div>
+              {modeDestinataire !== 'groupe' && (
+                <div style={{ marginBottom: '.85rem' }}>
+                  <label htmlFor="msg-pj">Pieces jointes <span style={{ color: '#9ca3af', fontWeight: 400, textTransform: 'none' }}>(PDF, images, Word/Excel — 10 Mo max)</span></label>
+                  <input id="msg-pj" name="pieces-jointes" type="file" multiple accept={PJ_ACCEPT}
+                    onChange={handleFichiersChoisis}
+                    style={{ width: '100%', marginTop: 4, fontSize: 12.5 }} />
+                  {fichiersJoints.length > 0 && (
+                    <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {fichiersJoints.map((f, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px' }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📎 {f.name} <span style={{ color: '#9ca3af' }}>({formatTaille(f.size)})</span></span>
+                          <button type="button" onClick={() => setFichiersJoints(prev => prev.filter((_, j) => j !== i))}
+                            style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 13, padding: '0 4px' }}>✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div style={{ marginBottom: '1.2rem' }}>
                 <label htmlFor="msg-contenu">Message *</label>
                 <textarea id="msg-contenu" name="contenu" value={contenu} onChange={e => setContenu(e.target.value)} rows={5} required
