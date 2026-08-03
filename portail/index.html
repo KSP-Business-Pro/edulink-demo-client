@@ -2033,8 +2033,12 @@ async function marquerMessagesAdminLus() {
     return;
   }
   const ids = nonLus.map(m => m.id);
+  const idsOfficiels = nonLus.filter(m => m.est_officiel).map(m => m.id);
   try {
     await db.from('messages').update({ lu: true }).in('id', ids);
+    if (idsOfficiels.length) {
+      await db.from('messages').update({ date_lecture: new Date().toISOString() }).in('id', idsOfficiels);
+    }
   } catch(_) {}
   nonLus.forEach(m => { m.lu = true; });
   const b1 = document.getElementById('msg-badge');
