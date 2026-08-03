@@ -15,6 +15,7 @@ interface Message {
   lu: boolean; created_at: string;
   destinataire_nom: string | null; destinataire_role: string | null;
   categorie: string | null; priorite: string | null; statut: string | null;
+  est_officiel?: boolean; date_lecture?: string | null;
 }
 
 interface PieceJointe {
@@ -34,7 +35,7 @@ interface DashboardStats {
   alertesAbsence:   number;
 }
 
-type Onglet = 'recus' | 'envoyes' | 'dashboard';
+type Onglet = 'recus' | 'envoyes' | 'dashboard' | 'validation';
 
 export default function MessagesPage() {
   const { user, isSuperAdmin } = useAuth();
@@ -81,6 +82,12 @@ export default function MessagesPage() {
   // ── Pièces jointes (Chantier F) ───────────────────────────────────────────
   const [fichiersJoints, setFichiersJoints] = useState<File[]>([]);
   const [piecesJointes, setPiecesJointes]   = useState<Record<string, PieceJointe[]>>({});
+
+  // ── Message officiel + validation direction (Chantier F point 2) ─────────
+  const [estOfficiel, setEstOfficiel]           = useState(false);
+  const [messagesAValider, setMessagesAValider] = useState<Message[]>([]);
+  const [loadingValidation, setLoadingValidation] = useState(false);
+  const peutValider = user?.role === 'direction' || user?.role === 'admin';
 
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
     setToast({ msg, type });
@@ -147,7 +154,7 @@ export default function MessagesPage() {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,destinataire_nom,destinataire_role,sujet,objet,contenu,lu,created_at,categorie,priorite,statut')
+        .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,destinataire_nom,destinataire_role,sujet,objet,contenu,lu,created_at,categorie,priorite,statut,est_officiel,date_lecture')
         .eq('ecole_id', ecoleId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -218,6 +225,61 @@ export default function MessagesPage() {
     if (ongletActif === 'dashboard') loadDashboard();
   }, [ongletActif, loadDashboard]);
 
+  // ── Marquage automatique de lecture (Chantier F : accusé pour officiels) ─
+  useEffect(() => {
+    if (ongletActif !== 'recus' || !messages.length) return;
+    const nonLus = messages.filter(m => m.expediteur_id !== user?.utilisateur_id && !m.lu && m.statut !== 'archive');
+    if (!nonLus.length) return;
+    (async () => {
+      for (const m of nonLus) {
+        const patch: Record<string, any> = { lu: true, lu_at: new Date().toISOString() };
+        if (m.est_officiel) patch.date_lecture = new Date().toISOString();
+        await supabase.from('messages').update(patch).eq('id', m.id);
+      }
+      await load();
+    })();
+  }, [ongletActif, messages]); // eslint-disable-line
+
+  // ── File d'attente de validation (direction/admin uniquement) ────────────
+  const loadAValider = useCallback(async () => {
+    if (!ecoleId) return;
+    setLoadingValidation(true);
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,destinataire_nom,destinataire_role,sujet,objet,contenu,lu,created_at,categorie,priorite,statut,est_officiel,date_lecture')
+        .eq('ecole_id', ecoleId).eq('statut', 'brouillon').eq('est_officiel', true)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setMessagesAValider((data ?? []) as Message[]);
+    } finally { setLoadingValidation(false); }
+  }, [ecoleId]);
+
+  useEffect(() => {
+    if (ongletActif === 'validation') loadAValider();
+  }, [ongletActif, loadAValider]);
+
+  async function handleValider(id: string) {
+    if (!confirm('Valider et envoyer ce message officiel aux destinataires ?')) return;
+    try {
+      const { data: nb, error } = await supabase.rpc('fn_valider_message_officiel', { p_message_id: id });
+      if (error) throw error;
+      showToast(`Message validé et envoyé à ${nb} destinataire(s)`);
+      await loadAValider();
+    } catch (err: any) { showToast(err.message, 'error'); }
+  }
+
+  async function handleRejeter(id: string) {
+    const motif = window.prompt('Motif du rejet (optionnel) :');
+    if (motif === null) return;
+    try {
+      const { error } = await supabase.rpc('fn_rejeter_message_officiel', { p_message_id: id, p_motif: motif || null });
+      if (error) throw error;
+      showToast('Message rejeté');
+      await loadAValider();
+    } catch (err: any) { showToast(err.message, 'error'); }
+  }
+
   async function handleEnvoyer(e: React.FormEvent) {
     e.preventDefault();
     const destOk = modeDestinataire === 'collegue' ? !!destinataireId : modeDestinataire === 'etudiant' ? !!etudiantId : !!groupeValeur;
@@ -229,6 +291,43 @@ export default function MessagesPage() {
     }
     setSending(true);
     try {
+      if (estOfficiel) {
+        const { data: messageId, error } = await supabase.rpc('fn_creer_message_officiel_brouillon', {
+          p_ecole_id:       ecoleId,
+          p_mode:           modeDestinataire,
+          p_destinataire_id: modeDestinataire === 'collegue' ? destinataireId : null,
+          p_etudiant_id:    modeDestinataire === 'etudiant' ? etudiantId : null,
+          p_type_groupe:    modeDestinataire === 'groupe' ? groupeType : null,
+          p_valeur_groupe:  modeDestinataire === 'groupe' ? groupeValeur : null,
+          p_sujet:          sujet.trim() || null,
+          p_contenu:        contenu.trim(),
+          p_categorie:      categorieMsg || null,
+          p_priorite:       prioriteMsg,
+        });
+        if (error) throw error;
+        if (messageId && fichiersJoints.length > 0) {
+          let pjEchecs = 0;
+          for (const f of fichiersJoints) {
+            try {
+              const chemin = `${ecoleId}/${messageId}/${Date.now()}_${f.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+              const { error: upErr } = await supabase.storage.from('messages-pieces-jointes').upload(chemin, f, { contentType: f.type });
+              if (upErr) throw upErr;
+              const { error: insErr } = await supabase.from('message_pieces_jointes').insert({
+                message_id: messageId, ecole_id: ecoleId,
+                nom_fichier: f.name, chemin_storage: chemin,
+                taille_octets: f.size, mime_type: f.type,
+                uploade_par: user?.id ?? null,
+              });
+              if (insErr) throw insErr;
+            } catch { pjEchecs++; }
+          }
+          if (pjEchecs > 0) showToast(`Brouillon cree mais ${pjEchecs} piece(s) jointe(s) en echec`, 'error');
+        }
+        setModalOpen(false); setSujet(''); setContenu(''); setDestinataireId(''); setEtudiantId(''); setEtudiantSearch(''); setModeDestinataire('collegue'); setCategorieMsg(''); setPrioriteMsg('normale'); setGroupeValeur(''); setGroupePreviewCount(null); setFichiersJoints([]); setEstOfficiel(false);
+        showToast('Brouillon envoyé pour validation par la direction');
+        setSending(false);
+        return;
+      }
       if (modeDestinataire === 'groupe') {
         const { error } = await supabase.rpc('fn_envoyer_message_groupe', {
           p_ecole_id:      ecoleId,
@@ -371,9 +470,42 @@ export default function MessagesPage() {
           style={{ padding: '8px 16px', border: 'none', borderBottom: ongletActif === 'dashboard' ? '2px solid #1e3a5f' : '2px solid transparent', background: 'none', fontSize: 13, fontWeight: 600, color: ongletActif === 'dashboard' ? '#1e3a5f' : '#6b7280', cursor: 'pointer' }}>
           📊 Tableau de bord
         </button>
+        {peutValider && (
+          <button onClick={() => setOngletActif('validation')}
+            style={{ padding: '8px 16px', border: 'none', borderBottom: ongletActif === 'validation' ? '2px solid #7c3aed' : '2px solid transparent', background: 'none', fontSize: 13, fontWeight: 600, color: ongletActif === 'validation' ? '#7c3aed' : '#6b7280', cursor: 'pointer' }}>
+            🛡️ À valider{messagesAValider.length > 0 ? ` (${messagesAValider.length})` : ''}
+          </button>
+        )}
       </div>
 
-      {ongletActif === 'dashboard' ? (
+      {ongletActif === 'validation' ? (
+        loadingValidation ? <div className="loading">Chargement…</div> : (
+          messagesAValider.length === 0 ? (
+            <div className="empty-state"><h3>Aucun message en attente</h3><p>Tous les messages officiels ont été traités.</p></div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem', maxWidth: 780 }}>
+              {messagesAValider.map(m => (
+                <div key={m.id} style={{ background: '#fff', border: '1.5px solid #ddd6fe', borderRadius: 12, padding: '1rem 1.2rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '.5rem' }}>
+                    <div>
+                      <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#ede9fe', color: '#7c3aed', marginRight: 6 }}>🛡️ OFFICIEL</span>
+                      {m.categorie && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#eef2ff', color: '#4338ca' }}>{m.categorie}</span>}
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827', marginTop: 4 }}>De {m.expediteur_nom} ({m.expediteur_role}) → {m.destinataire_nom}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#9ca3af' }}>{formatDate(m.created_at)}</div>
+                  </div>
+                  {(m.sujet || m.objet) && <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: '.25rem' }}>{m.sujet || m.objet}</div>}
+                  <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5, marginBottom: '.75rem' }}>{m.contenu}</div>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: '.6rem', borderTop: '1px solid #f3f4f6' }}>
+                    <button onClick={() => handleRejeter(m.id)} style={{ background: '#fff', border: '1px solid #fca5a5', color: '#dc2626', padding: '6px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✕ Rejeter</button>
+                    <button onClick={() => handleValider(m.id)} style={{ background: '#7c3aed', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Valider et envoyer</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        )
+      ) : ongletActif === 'dashboard' ? (
         dashLoading || !dashStats ? <div className="loading">Chargement…</div> : (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: '1.5rem' }}>
@@ -491,8 +623,9 @@ export default function MessagesPage() {
                                 )}
                               </div>
                             </div>
-                            {(m.categorie || (m.priorite && m.priorite !== 'normale')) && (
+                            {(m.categorie || (m.priorite && m.priorite !== 'normale') || m.est_officiel) && (
                               <div style={{ display: 'flex', gap: 6, marginBottom: '.35rem' }}>
+                                {m.est_officiel && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#ede9fe', color: '#7c3aed' }}>🛡️ OFFICIEL</span>}
                                 {m.categorie && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#eef2ff', color: '#4338ca', letterSpacing: '.03em' }}>{m.categorie}</span>}
                                 {m.priorite === 'urgente' && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#fee2e2', color: '#dc2626' }}>URGENT</span>}
                                 {m.priorite === 'haute' && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#fef3c7', color: '#b45309' }}>HAUTE</span>}
@@ -508,6 +641,11 @@ export default function MessagesPage() {
                                     📎 {pj.nom_fichier} <span style={{ color: '#93b5f5' }}>({formatTaille(pj.taille_octets)})</span>
                                   </button>
                                 ))}
+                              </div>
+                            )}
+                            {m.est_officiel && (
+                              <div style={{ marginTop: '.5rem', fontSize: 10.5, color: m.date_lecture ? '#059669' : '#9ca3af', fontWeight: 600 }}>
+                                {m.date_lecture ? `✓ Accusé de lecture le ${formatDate(m.date_lecture)}` : '○ En attente d\'accusé de lecture'}
                               </div>
                             )}
                           </div>
@@ -536,6 +674,10 @@ export default function MessagesPage() {
                 <button type="button" onClick={() => setModeDestinataire('etudiant')} style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: modeDestinataire === 'etudiant' ? '1.5px solid #1e3a5f' : '1px solid #e5e7eb', background: modeDestinataire === 'etudiant' ? '#eff6ff' : '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Etudiant</button>
                 <button type="button" onClick={() => setModeDestinataire('groupe')} style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: modeDestinataire === 'groupe' ? '1.5px solid #1e3a5f' : '1px solid #e5e7eb', background: modeDestinataire === 'groupe' ? '#eff6ff' : '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Groupe</button>
               </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, marginBottom: '.85rem', cursor: 'pointer', color: '#7c3aed', fontWeight: 600 }}>
+                <input type="checkbox" checked={estOfficiel} onChange={e => setEstOfficiel(e.target.checked)} />
+                🛡️ Message officiel (nécessite validation de la direction avant envoi)
+              </label>
               <div style={{ marginBottom: '.85rem', display: modeDestinataire === 'collegue' ? 'block' : 'none' }}>
                 <label htmlFor="msg-destinataire">Destinataire *</label>
                 <select id="msg-destinataire" name="destinataire" value={destinataireId}
