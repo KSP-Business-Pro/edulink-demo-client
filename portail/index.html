@@ -987,6 +987,7 @@ let tousReleves = [];   // S5 portail : relevés officiels LMD
 let toutesAbsences = [];
 let toutesFactures = [];
 let tousMessages = [];
+let piecesJointesPortail = {};
 let ongletMessagesActif = 'recus';
 let tousExamens = [];
 let examFilterActif = 'tous';
@@ -1382,10 +1383,24 @@ async function chargerFactures() {
   toutesFactures = data || [];
 }
 async function chargerMessages() {
-  if (!currentEtudiant) { tousMessages = []; return; }
+  if (!currentEtudiant) { tousMessages = []; piecesJointesPortail = {}; return; }
   const { data, error } = await db.rpc('fn_get_messages_famille', { p_etudiant_id: currentEtudiant.id });
   if (error) { console.warn('[chargerMessages] RPC:', error.message); tousMessages = []; return; }
   tousMessages = data || [];
+  // Chantier F — charger les pieces jointes des messages
+  if (tousMessages.length) {
+    const ids = tousMessages.map(m => m.id);
+    const { data: pjs } = await db.from('message_pieces_jointes')
+      .select('id,message_id,nom_fichier,chemin_storage,taille_octets')
+      .in('message_id', ids);
+    piecesJointesPortail = {};
+    (pjs || []).forEach(pj => {
+      if (!piecesJointesPortail[pj.message_id]) piecesJointesPortail[pj.message_id] = [];
+      piecesJointesPortail[pj.message_id].push(pj);
+    });
+  } else {
+    piecesJointesPortail = {};
+  }
   const nonLus = tousMessages.filter(m =>
     (m.expediteur_role === 'admin' || m.expediteur_role === 'enseignant') && !m.lu
   ).length;
@@ -1877,6 +1892,15 @@ function afficherMessages() {
     html += '<div class="mb2-from">' + roleLabel + ' - ' + (m.expediteur_nom||'') + '</div>';
     if (m.objet) html += '<div class="mb2-objet">' + m.objet + '</div>';
     html += '<div class="mb2-text">' + (m.contenu||'') + '</div>';
+    var pjs = piecesJointesPortail[m.id] || [];
+    if (pjs.length) {
+      html += '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px">';
+      for (var pjIdx = 0; pjIdx < pjs.length; pjIdx++) {
+        var pj = pjs[pjIdx];
+        html += '<span onclick="telechargerPjPortail(\'' + pj.id + '\')" style="cursor:pointer;background:rgba(255,255,255,.9);color:#0f6e56;border-radius:6px;padding:3px 8px;font-size:10.5px;font-weight:600;display:inline-flex;align-items:center;gap:3px">&#128206; ' + pj.nom_fichier + '</span>';
+      }
+      html += '</div>';
+    }
     html += '<div class="mb2-date">' + fmtDateTime(m.created_at) + '</div>';
     html += '</div>';
     return html;
@@ -1917,6 +1941,7 @@ function afficherMessages() {
   var composeHTML = '<div class="msg-compose-v2">' +
     '<input type="text" id="msg-objet" placeholder="Objet (optionnel)">' +
     '<textarea id="msg-contenu" rows="3" placeholder="Votre message..."></textarea>' +
+    '<input type="file" id="msg-pj" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx" style="margin:6px 0;font-size:12px;width:100%;">' +
     '<button class="msg-send-v2" onclick="envoyerMessageV2()">&#128228; Envoyer</button>' +
     '</div>';
 
@@ -1945,19 +1970,54 @@ async function envoyerMessageV2() {
   const objet   = document.getElementById('msg-objet')?.value.trim();
   const contenu = document.getElementById('msg-contenu')?.value.trim();
   if (!contenu) { showToast('Écrivez un message.', 'error'); return; }
-  const { error } = await db.rpc('fn_envoyer_message_famille', {
+  const { data: messageId, error } = await db.rpc('fn_envoyer_message_famille', {
     p_ecole_id: currentEcoleId,
     p_sujet: objet || 'Message depuis le portail famille',
     p_contenu: contenu
   });
   if (error) { showToast('Erreur : ' + error.message, 'error'); return; }
+
+  // Chantier F — upload des pieces jointes une fois le message cree
+  const pjInput = document.getElementById('msg-pj');
+  const fichiers = pjInput && pjInput.files ? Array.from(pjInput.files) : [];
+  if (messageId && fichiers.length) {
+    let pjEchecs = 0;
+    for (const f of fichiers) {
+      if (f.size > 10485760) { pjEchecs++; continue; }
+      try {
+        const chemin = currentEcoleId + '/' + messageId + '/' + Date.now() + '_' + f.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const { error: upErr } = await db.storage.from('messages-pieces-jointes').upload(chemin, f, { contentType: f.type });
+        if (upErr) throw upErr;
+        const { error: insErr } = await db.from('message_pieces_jointes').insert([{
+          message_id: messageId, ecole_id: currentEcoleId,
+          nom_fichier: f.name, chemin_storage: chemin,
+          taille_octets: f.size, mime_type: f.type,
+          uploade_par: currentUser ? currentUser.id : null
+        }]);
+        if (insErr) throw insErr;
+      } catch(_) { pjEchecs++; }
+    }
+    if (pjEchecs > 0) showToast('Message envoyé, mais ' + pjEchecs + ' piece(s) jointe(s) en echec', 'error');
+  }
+
   showToast('✅ Message envoyé !', 'success');
   const o = document.getElementById('msg-objet');
   const c = document.getElementById('msg-contenu');
   if (o) o.value = '';
   if (c) c.value = '';
+  if (pjInput) pjInput.value = '';
   await chargerMessages();
   afficherMessages();
+}
+
+async function telechargerPjPortail(id) {
+  var toutesPj = [];
+  for (var k in piecesJointesPortail) { toutesPj = toutesPj.concat(piecesJointesPortail[k]); }
+  var pj = toutesPj.find(function(p) { return p.id === id; });
+  if (!pj) return;
+  const { data, error } = await db.storage.from('messages-pieces-jointes').createSignedUrl(pj.chemin_storage, 3600);
+  if (error || !data || !data.signedUrl) { showToast('Telechargement impossible', 'error'); return; }
+  window.open(data.signedUrl, '_blank');
 }
 
 async function marquerMessagesAdminLus() {
