@@ -2032,13 +2032,8 @@ async function marquerMessagesAdminLus() {
     if (b2) b2.style.display = 'none';
     return;
   }
-  const ids = nonLus.map(m => m.id);
-  const idsOfficiels = nonLus.filter(m => m.est_officiel).map(m => m.id);
   try {
-    await db.from('messages').update({ lu: true }).in('id', ids);
-    if (idsOfficiels.length) {
-      await db.from('messages').update({ date_lecture: new Date().toISOString() }).in('id', idsOfficiels);
-    }
+    await db.rpc('fn_marquer_messages_lus_famille', { p_etudiant_id: currentEtudiant.id });
   } catch(_) {}
   nonLus.forEach(m => { m.lu = true; });
   const b1 = document.getElementById('msg-badge');
