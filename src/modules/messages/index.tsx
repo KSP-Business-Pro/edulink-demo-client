@@ -16,6 +16,7 @@ interface Message {
   destinataire_nom: string | null; destinataire_role: string | null;
   categorie: string | null; priorite: string | null; statut: string | null;
   est_officiel?: boolean; date_lecture?: string | null;
+  gel_legal?: boolean;
 }
 
 interface PieceJointe {
@@ -35,7 +36,25 @@ interface DashboardStats {
   alertesAbsence:   number;
 }
 
-type Onglet = 'recus' | 'envoyes' | 'dashboard' | 'validation';
+// ── Conservation (Chantier F point 3) ───────────────────────────────────────
+interface PolitiqueConservation { id: string; ecole_id: string | null; cible: string; duree_mois: number }
+interface JournalPurge {
+  id: string; execute_le: string;
+  nb_messages: number; nb_pieces_jointes: number; nb_journal_notifications: number;
+}
+interface PreviewPurge {
+  nb_messages: number; nb_pieces_jointes: number; nb_journal_notifications: number;
+  par_cible: { cible: string; nb: number }[];
+}
+
+const CIBLES_ORDRE = ['ADM', 'PED', 'NOT', 'ABS', 'FIN', 'EXA', 'REL', 'SUP', 'OFFICIEL', 'JOURNAL'];
+const CIBLE_LABELS: Record<string, string> = {
+  ADM: 'Administration', PED: 'Pédagogie', NOT: 'Notes et résultats', ABS: 'Absences',
+  FIN: 'Comptabilité (10 ans OHADA par défaut)', EXA: 'Examens', REL: 'Relevés', SUP: 'Support',
+  OFFICIEL: 'Messages officiels (valeur probatoire)', JOURNAL: 'Journal des notifications',
+};
+
+type Onglet = 'recus' | 'envoyes' | 'dashboard' | 'validation' | 'conservation';
 
 export default function MessagesPage() {
   const { user, isSuperAdmin } = useAuth();
@@ -88,6 +107,16 @@ export default function MessagesPage() {
   const [messagesAValider, setMessagesAValider] = useState<Message[]>([]);
   const [loadingValidation, setLoadingValidation] = useState(false);
   const peutValider = user?.role === 'direction' || user?.role === 'admin';
+
+  // ── Conservation / purge (Chantier F point 3) ────────────────────────────
+  const [politiques, setPolitiques]           = useState<PolitiqueConservation[]>([]);
+  const [politiquesLoading, setPolitiquesLoading] = useState(false);
+  const [dureesEdit, setDureesEdit]           = useState<Record<string, string>>({});
+  const [previewPurge, setPreviewPurge]       = useState<PreviewPurge | null>(null);
+  const [previewLoading, setPreviewLoading]   = useState(false);
+  const [purgeEnCours, setPurgeEnCours]       = useState(false);
+  const [confirmPurgeOpen, setConfirmPurgeOpen] = useState(false);
+  const [journalPurges, setJournalPurges]     = useState<JournalPurge[]>([]);
 
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
     setToast({ msg, type });
@@ -154,7 +183,7 @@ export default function MessagesPage() {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,destinataire_nom,destinataire_role,sujet,objet,contenu,lu,created_at,categorie,priorite,statut,est_officiel,date_lecture')
+        .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,destinataire_nom,destinataire_role,sujet,objet,contenu,lu,created_at,categorie,priorite,statut,est_officiel,date_lecture,gel_legal')
         .eq('ecole_id', ecoleId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -247,7 +276,7 @@ export default function MessagesPage() {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,destinataire_nom,destinataire_role,sujet,objet,contenu,lu,created_at,categorie,priorite,statut,est_officiel,date_lecture')
+        .select('id,ecole_id,expediteur_id,expediteur_nom,expediteur_role,destinataire_nom,destinataire_role,sujet,objet,contenu,lu,created_at,categorie,priorite,statut,est_officiel,date_lecture,gel_legal')
         .eq('ecole_id', ecoleId).eq('statut', 'brouillon').eq('est_officiel', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -258,6 +287,43 @@ export default function MessagesPage() {
   useEffect(() => {
     if (ongletActif === 'validation') loadAValider();
   }, [ongletActif, loadAValider]);
+
+  // ── Conservation : politiques + journal des purges (Chantier F point 3) ──
+  const loadConservation = useCallback(async () => {
+    if (!ecoleId) return;
+    setPolitiquesLoading(true);
+    try {
+      const [{ data: pols, error: errPols }, { data: purges, error: errPurges }] = await Promise.all([
+        supabase.from('politiques_conservation')
+          .select('id,ecole_id,cible,duree_mois')
+          .or(`ecole_id.eq.${ecoleId},ecole_id.is.null`),
+        supabase.from('journal_purges')
+          .select('id,execute_le,nb_messages,nb_pieces_jointes,nb_journal_notifications')
+          .eq('ecole_id', ecoleId)
+          .order('execute_le', { ascending: false })
+          .limit(20),
+      ]);
+      if (errPols) throw errPols;
+      if (errPurges) throw errPurges;
+      const lignes = (pols ?? []) as PolitiqueConservation[];
+      setPolitiques(lignes);
+      setJournalPurges((purges ?? []) as JournalPurge[]);
+      const edit: Record<string, string> = {};
+      CIBLES_ORDRE.forEach(c => {
+        const ecole   = lignes.find(p => p.cible === c && p.ecole_id === ecoleId);
+        const globale = lignes.find(p => p.cible === c && p.ecole_id === null);
+        edit[c] = String(ecole?.duree_mois ?? globale?.duree_mois ?? 24);
+      });
+      setDureesEdit(edit);
+      setPreviewPurge(null); // toute entrée dans l'onglet invalide l'ancienne prévisualisation
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally { setPolitiquesLoading(false); }
+  }, [ecoleId]);
+
+  useEffect(() => {
+    if (ongletActif === 'conservation') loadConservation();
+  }, [ongletActif, loadConservation]);
 
   async function handleValider(id: string) {
     if (!confirm('Valider et envoyer ce message officiel aux destinataires ?')) return;
@@ -277,6 +343,88 @@ export default function MessagesPage() {
       if (error) throw error;
       showToast('Message rejeté');
       await loadAValider();
+    } catch (err: any) { showToast(err.message, 'error'); }
+  }
+
+  // ── Conservation : enregistrer une durée (surcharge école) ───────────────
+  async function handleEnregistrerDuree(cible: string) {
+    const val = parseInt(dureesEdit[cible] ?? '', 10);
+    if (!Number.isFinite(val) || val < 1 || val > 1200) { showToast('Durée invalide (1 à 1200 mois)', 'error'); return; }
+    const existante = politiques.find(p => p.cible === cible && p.ecole_id === ecoleId);
+    const globale   = politiques.find(p => p.cible === cible && p.ecole_id === null);
+    try {
+      if (globale && val === globale.duree_mois) {
+        if (existante) {
+          // Revient à la valeur globale -> on retire la surcharge école
+          const { error } = await supabase.from('politiques_conservation').delete().eq('id', existante.id);
+          if (error) throw error;
+          showToast('Surcharge retirée — valeur globale rétablie');
+        } else {
+          showToast('Déjà la valeur globale, rien à enregistrer');
+          return;
+        }
+      } else if (existante) {
+        const { error } = await supabase.from('politiques_conservation')
+          .update({ duree_mois: val, updated_at: new Date().toISOString() })
+          .eq('id', existante.id);
+        if (error) throw error;
+        showToast(`${CIBLE_LABELS[cible] ?? cible} : ${val} mois (surcharge école)`);
+      } else {
+        const { error } = await supabase.from('politiques_conservation')
+          .insert({ ecole_id: ecoleId, cible, duree_mois: val });
+        if (error) throw error;
+        showToast(`${CIBLE_LABELS[cible] ?? cible} : ${val} mois (surcharge école)`);
+      }
+      await loadConservation();
+    } catch (err: any) { showToast(err.message, 'error'); }
+  }
+
+  // ── Conservation : prévisualisation OBLIGATOIRE avant purge ──────────────
+  async function handlePrevisualiser() {
+    setPreviewLoading(true);
+    setPreviewPurge(null);
+    try {
+      const { data, error } = await supabase.rpc('fn_previsualiser_purge', { p_ecole_id: ecoleId });
+      if (error) throw error;
+      setPreviewPurge(data as PreviewPurge);
+    } catch (err: any) { showToast(err.message, 'error'); }
+    finally { setPreviewLoading(false); }
+  }
+
+  // ── Conservation : purge réelle via l'Edge Function purge-messages ───────
+  async function handlePurger() {
+    setConfirmPurgeOpen(false);
+    setPurgeEnCours(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('purge-messages', {
+        body: { ecole_id: ecoleId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const nbEchecs = (data?.echecs_storage ?? []).length;
+      showToast(
+        `Purge effectuée : ${data?.nb_messages ?? 0} message(s), ${data?.fichiers_storage_supprimes ?? 0} fichier(s), ${data?.nb_journal_notifications ?? 0} ligne(s) de journal`
+        + (nbEchecs > 0 ? ` — ⚠ ${nbEchecs} fichier(s) storage en échec` : ''),
+        nbEchecs > 0 ? 'error' : 'success',
+      );
+      await loadConservation();
+      await load();
+    } catch (err: any) { showToast(err.message, 'error'); }
+    finally { setPurgeEnCours(false); }
+  }
+
+  // ── Conservation : gel légal (direction/admin, messages archivés) ────────
+  async function handleGelLegal(m: Message) {
+    const nouveau = !m.gel_legal;
+    const question = nouveau
+      ? 'Poser un gel légal sur ce message ? Il sera exclu de toute purge tant que le gel est actif.'
+      : 'Lever le gel légal de ce message ? Il redeviendra purgeable à expiration de son délai.';
+    if (!confirm(question)) return;
+    try {
+      const { error } = await supabase.rpc('fn_definir_gel_legal', { p_message_id: m.id, p_gel: nouveau });
+      if (error) throw error;
+      showToast(nouveau ? '🔒 Gel légal posé' : '🔓 Gel légal levé');
+      await load();
     } catch (err: any) { showToast(err.message, 'error'); }
   }
 
@@ -436,6 +584,10 @@ export default function MessagesPage() {
     );
   }
 
+  const totalPreview = previewPurge
+    ? previewPurge.nb_messages + previewPurge.nb_pieces_jointes + previewPurge.nb_journal_notifications
+    : 0;
+
   return (
     <div style={{ padding: '1.5rem', paddingBottom: '2rem' }}>
       {toast && (
@@ -457,7 +609,7 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', borderBottom: '1px solid #e5e7eb' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap' }}>
         <button onClick={() => setOngletActif('recus')}
           style={{ padding: '8px 16px', border: 'none', borderBottom: ongletActif === 'recus' ? '2px solid #1e3a5f' : '2px solid transparent', background: 'none', fontSize: 13, fontWeight: 600, color: ongletActif === 'recus' ? '#1e3a5f' : '#6b7280', cursor: 'pointer' }}>
           Recus
@@ -476,9 +628,116 @@ export default function MessagesPage() {
             🛡️ À valider{messagesAValider.length > 0 ? ` (${messagesAValider.length})` : ''}
           </button>
         )}
+        {peutValider && (
+          <button onClick={() => setOngletActif('conservation')}
+            style={{ padding: '8px 16px', border: 'none', borderBottom: ongletActif === 'conservation' ? '2px solid #0f766e' : '2px solid transparent', background: 'none', fontSize: 13, fontWeight: 600, color: ongletActif === 'conservation' ? '#0f766e' : '#6b7280', cursor: 'pointer' }}>
+            🗄️ Conservation
+          </button>
+        )}
       </div>
 
-      {ongletActif === 'validation' ? (
+      {ongletActif === 'conservation' ? (
+        politiquesLoading ? <div className="loading">Chargement…</div> : (
+          <div style={{ maxWidth: 780, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+            {/* ── Bloc 1 : politique de conservation ── */}
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.2rem' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#0f766e', marginBottom: 4 }}>Politique de conservation</div>
+              <div style={{ fontSize: 11.5, color: '#6b7280', marginBottom: '.9rem', lineHeight: 1.5 }}>
+                Durée (en mois) pendant laquelle un message <b>archivé</b> est conservé avant d'être purgeable.
+                Les valeurs par défaut sont globales ; toute modification crée une surcharge propre à l'établissement.
+                Les messages sous <b>gel légal</b> ne sont jamais purgés, quelle que soit la durée.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {CIBLES_ORDRE.map(cible => {
+                  const surchargeEcole = politiques.find(p => p.cible === cible && p.ecole_id === ecoleId);
+                  const globale        = politiques.find(p => p.cible === cible && p.ecole_id === null);
+                  return (
+                    <div key={cible} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#f8fafc', borderRadius: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#e0f2f1', color: '#0f766e', marginRight: 6 }}>{cible}</span>
+                        <span style={{ fontSize: 12, color: '#374151' }}>{CIBLE_LABELS[cible] ?? cible}</span>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: surchargeEcole ? '#b45309' : '#9ca3af', flexShrink: 0 }}>
+                        {surchargeEcole ? 'école' : `globale${globale ? ` (${globale.duree_mois})` : ''}`}
+                      </span>
+                      <input type="number" min={1} max={1200} value={dureesEdit[cible] ?? ''}
+                        onChange={e => setDureesEdit(prev => ({ ...prev, [cible]: e.target.value }))}
+                        style={{ width: 70, padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12.5, fontFamily: 'inherit', textAlign: 'right' }} />
+                      <span style={{ fontSize: 11, color: '#9ca3af', width: 30 }}>mois</span>
+                      <button type="button" onClick={() => handleEnregistrerDuree(cible)}
+                        style={{ background: '#fff', border: '1px solid #99f6e4', color: '#0f766e', padding: '5px 10px', borderRadius: 6, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                        Enregistrer
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── Bloc 2 : purge en deux temps (prévisualisation obligatoire) ── */}
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.2rem' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#0f766e', marginBottom: 4 }}>Purge des messages expirés</div>
+              <div style={{ fontSize: 11.5, color: '#6b7280', marginBottom: '.9rem', lineHeight: 1.5 }}>
+                Étape 1 : analyser ce qui est arrivé à expiration. Étape 2 : purger — <b>suppression définitive</b> des messages,
+                de leurs pièces jointes (base + fichiers) et des lignes de journal expirées. Chaque purge est tracée ci-dessous.
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button type="button" onClick={handlePrevisualiser} disabled={previewLoading || purgeEnCours}
+                  style={{ background: '#0f766e', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: previewLoading || purgeEnCours ? .6 : 1 }}>
+                  {previewLoading ? 'Analyse…' : '1. Analyser les expirations'}
+                </button>
+                <button type="button" onClick={() => setConfirmPurgeOpen(true)}
+                  disabled={!previewPurge || totalPreview === 0 || purgeEnCours}
+                  style={{ background: previewPurge && totalPreview > 0 ? '#dc2626' : '#f3f4f6', color: previewPurge && totalPreview > 0 ? '#fff' : '#9ca3af', border: 'none', padding: '7px 16px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: previewPurge && totalPreview > 0 ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+                  {purgeEnCours ? 'Purge en cours…' : '2. Purger maintenant'}
+                </button>
+              </div>
+              {previewPurge && (
+                <div style={{ marginTop: '.9rem', background: totalPreview > 0 ? '#fef2f2' : '#f0fdf4', border: `1px solid ${totalPreview > 0 ? '#fecaca' : '#bbf7d0'}`, borderRadius: 8, padding: '.8rem 1rem' }}>
+                  {totalPreview === 0 ? (
+                    <div style={{ fontSize: 12.5, color: '#059669', fontWeight: 600 }}>✓ Rien à purger — aucun élément arrivé à expiration.</div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#991b1b', marginBottom: 6 }}>
+                        Seront supprimés définitivement : {previewPurge.nb_messages} message(s), {previewPurge.nb_pieces_jointes} pièce(s) jointe(s), {previewPurge.nb_journal_notifications} ligne(s) de journal
+                      </div>
+                      {previewPurge.par_cible.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {previewPurge.par_cible.map(pc => (
+                            <span key={pc.cible} style={{ fontSize: 10.5, fontWeight: 600, background: '#fff', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 4, padding: '2px 6px' }}>
+                              {pc.cible} : {pc.nb}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Bloc 3 : historique des purges ── */}
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '1.2rem' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#0f766e', marginBottom: '.75rem' }}>Historique des purges</div>
+              {journalPurges.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#9ca3af' }}>Aucune purge exécutée pour le moment.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {journalPurges.map(jp => (
+                    <div key={jp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, background: '#f8fafc', borderRadius: 8, padding: '6px 10px' }}>
+                      <span style={{ color: '#374151', fontWeight: 600 }}>{formatDate(jp.execute_le)}</span>
+                      <span style={{ color: '#6b7280' }}>
+                        {jp.nb_messages} msg · {jp.nb_pieces_jointes} PJ · {jp.nb_journal_notifications} journal
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      ) : ongletActif === 'validation' ? (
         loadingValidation ? <div className="loading">Chargement…</div> : (
           messagesAValider.length === 0 ? (
             <div className="empty-state"><h3>Aucun message en attente</h3><p>Tous les messages officiels ont été traités.</p></div>
@@ -615,7 +874,14 @@ export default function MessagesPage() {
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
                                 <div style={{ fontSize: 11, color: '#9ca3af' }}>{formatDate(m.created_at)}</div>
-                                {isMine && (
+                                {filterQuick === 'archives' && peutValider && (
+                                  <button onClick={() => handleGelLegal(m)}
+                                    title={m.gel_legal ? 'Lever le gel légal' : 'Poser un gel légal (exclut de toute purge)'}
+                                    style={{ background: m.gel_legal ? '#fef3c7' : 'none', border: m.gel_legal ? '1px solid #fcd34d' : '1px solid #e5e7eb', color: m.gel_legal ? '#b45309' : '#6b7280', cursor: 'pointer', padding: '2px 8px', fontSize: 11, fontWeight: 600, borderRadius: 6, fontFamily: 'inherit' }}>
+                                    {m.gel_legal ? '🔒 Gelé' : '🔓 Geler'}
+                                  </button>
+                                )}
+                                {isMine && filterQuick !== 'archives' && (
                                   <button onClick={() => handleSupprimer(m.id)}
                                     style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', padding: '2px 5px', fontSize: 14, lineHeight: 1 }}>
                                     X
@@ -623,9 +889,10 @@ export default function MessagesPage() {
                                 )}
                               </div>
                             </div>
-                            {(m.categorie || (m.priorite && m.priorite !== 'normale') || m.est_officiel) && (
+                            {(m.categorie || (m.priorite && m.priorite !== 'normale') || m.est_officiel || m.gel_legal) && (
                               <div style={{ display: 'flex', gap: 6, marginBottom: '.35rem' }}>
                                 {m.est_officiel && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#ede9fe', color: '#7c3aed' }}>🛡️ OFFICIEL</span>}
+                                {m.gel_legal && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#fef3c7', color: '#b45309' }}>🔒 GEL LÉGAL</span>}
                                 {m.categorie && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#eef2ff', color: '#4338ca', letterSpacing: '.03em' }}>{m.categorie}</span>}
                                 {m.priorite === 'urgente' && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#fee2e2', color: '#dc2626' }}>URGENT</span>}
                                 {m.priorite === 'haute' && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#fef3c7', color: '#b45309' }}>HAUTE</span>}
@@ -658,6 +925,33 @@ export default function MessagesPage() {
             );
           })()}
         </>
+      )}
+
+      {/* Modal de confirmation de purge (Chantier F point 3) */}
+      {confirmPurgeOpen && previewPurge && (
+        <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && setConfirmPurgeOpen(false)}>
+          <div className="modal" style={{ width: 440, padding: '1.5rem' }}>
+            <h3 style={{ margin: '0 0 .75rem', fontSize: 15, fontWeight: 700, color: '#dc2626' }}>⚠ Confirmer la purge définitive</h3>
+            <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, marginBottom: '.75rem' }}>
+              Cette action est <b>irréversible</b>. Seront supprimés définitivement :
+            </div>
+            <ul style={{ fontSize: 13, color: '#374151', lineHeight: 1.7, margin: '0 0 .75rem', paddingLeft: '1.2rem' }}>
+              <li><b>{previewPurge.nb_messages}</b> message(s) archivé(s) expiré(s)</li>
+              <li><b>{previewPurge.nb_pieces_jointes}</b> pièce(s) jointe(s) (base + fichiers du bucket)</li>
+              <li><b>{previewPurge.nb_journal_notifications}</b> ligne(s) du journal des notifications</li>
+            </ul>
+            <div style={{ fontSize: 11.5, color: '#6b7280', marginBottom: '1.2rem' }}>
+              Les messages sous gel légal sont exclus. Une trace agrégée sera conservée dans l'historique des purges.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.5rem', paddingTop: '.85rem', borderTop: '1px solid #f3f4f6' }}>
+              <button type="button" className="btn-ghost" onClick={() => setConfirmPurgeOpen(false)}>Annuler</button>
+              <button type="button" onClick={handlePurger}
+                style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Purger définitivement
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal nouveau message */}
@@ -786,7 +1080,7 @@ export default function MessagesPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.5rem', paddingTop: '.85rem', borderTop: '1px solid #f3f4f6' }}>
                 <button type="button" className="btn-ghost" onClick={() => setModalOpen(false)}>Annuler</button>
-                <button type="submit" className="btn-blue" disabled={sending || (modeDestinataire === 'collegue' ? !destinataireId : !etudiantId)}>{sending ? 'Envoi…' : 'Envoyer →'}</button>
+                <button type="submit" className="btn-blue" disabled={sending || (modeDestinataire === 'collegue' ? !destinataireId : modeDestinataire === 'etudiant' ? !etudiantId : !groupeValeur)}>{sending ? 'Envoi…' : 'Envoyer →'}</button>
               </div>
             </form>
           </div>
