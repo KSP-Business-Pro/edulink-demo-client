@@ -213,12 +213,17 @@ function CreditsCAMES({ kpis }: { kpis: DashboardData['kpis'] }) {
 // ── Page principale ────────────────────────────────────────────────────────
 
 export function DashboardPage() {
-  const { user, isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, activeEcoleId } = useAuth();
   const { error, loading, run } = useErrorHandler();
 
   const [data,    setData]    = useState<DashboardData | null>(null);
   const [ecoles,  setEcoles]  = useState<{ id: string; nom: string }[]>([]);
   const [ecoleId, setEcoleId] = useState<string | null>(user?.ecole_id ?? null);
+
+  // École pilotée par la sidebar (super-admin) : tout changement y réaligne la page.
+  useEffect(() => {
+    if (activeEcoleId) setEcoleId(activeEcoleId);
+  }, [activeEcoleId]);
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
   // Super-admin : liste des écoles
@@ -228,7 +233,7 @@ export function DashboardPage() {
       supabase.from('ecoles').select('id,nom').order('nom').then(({ data: ec }) => {
         if (ec?.length) {
           setEcoles(ec);
-          if (!ecoleId) setEcoleId(ec[0].id);
+          if (!ecoleId && !activeEcoleId) setEcoleId(ec[0].id);
         }
       });
     });
