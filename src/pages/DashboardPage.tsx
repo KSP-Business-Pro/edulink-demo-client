@@ -230,7 +230,7 @@ export function DashboardPage() {
   useEffect(() => {
     if (!isSuperAdmin) return;
     import('../services/supabase').then(({ supabase }) => {
-      supabase.from('ecoles').select('id,nom').order('nom').then(({ data: ec }) => {
+      supabase.from('ecoles').select('id,nom').eq('actif', true).order('nom').then(({ data: ec }) => {
         if (ec?.length) {
           setEcoles(ec);
           if (!ecoleId && !activeEcoleId) setEcoleId(ec[0].id);

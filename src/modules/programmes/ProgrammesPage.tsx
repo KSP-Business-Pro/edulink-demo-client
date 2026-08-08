@@ -40,7 +40,7 @@ export default function ProgrammesPage() {
 
   useEffect(() => {
     if (!isSuperAdmin) return;
-    supabase.from('ecoles').select('id,nom').order('nom')
+    supabase.from('ecoles').select('id,nom').eq('actif', true).order('nom')
       .then(({ data }) => {
         setEcoles(data ?? []);
         if (!ecoleId && !activeEcoleId && data?.[0]) setEcoleId(data[0].id);
