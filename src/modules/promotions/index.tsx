@@ -25,15 +25,21 @@ const GRADE_COLORS: Record<string, { bg: string; fg: string }> = {
 const EMPTY_FORM = { programme_id: '', annee_academique_id: '', niveau: '', nom: '', effectif_max: '', responsable: '' };
 
 export default function PromotionsPage() {
-  const { user, isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, activeEcoleId } = useAuth();
   const [ecoleId, setEcoleId] = useState<string>(user?.ecole_id ?? '');
+
+  // École pilotée par la sidebar (super-admin) : tout changement y réaligne le module.
+  // Le sélecteur local du module reste utilisable pour un override ponctuel.
+  useEffect(() => {
+    if (activeEcoleId) setEcoleId(activeEcoleId);
+  }, [activeEcoleId]);
   const [ecoles, setEcoles]   = useState<EcoleOption[]>([]);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
     supabase.from('ecoles').select('id,nom').eq('actif', true).order('nom').then(({ data }) => {
       setEcoles(data ?? []);
-      if (!ecoleId && data?.[0]) setEcoleId(data[0].id);
+      if (!ecoleId && !activeEcoleId && data?.[0]) setEcoleId(data[0].id);
     });
   }, [isSuperAdmin]); // eslint-disable-line
 

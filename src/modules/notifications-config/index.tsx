@@ -8,8 +8,14 @@ import { ModalEditeurModele } from './components/ModalEditeurModele';
 import { JournalEnvois } from './components/JournalEnvois';
 
 export default function NotificationsConfigPage() {
-  const { user, isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, activeEcoleId } = useAuth();
   const [ecoleId, setEcoleId] = useState<string>(user?.ecole_id ?? '');
+
+  // École pilotée par la sidebar (super-admin) : tout changement y réaligne le module.
+  // Le sélecteur local du module reste utilisable pour un override ponctuel.
+  useEffect(() => {
+    if (activeEcoleId) setEcoleId(activeEcoleId);
+  }, [activeEcoleId]);
   const [ecoles, setEcoles]   = useState<{ id: string; nom: string }[]>([]);
   const [activeTab, setActiveTab] = useState<'modeles' | 'journal'>('modeles');
 
@@ -17,7 +23,7 @@ export default function NotificationsConfigPage() {
     if (!isSuperAdmin) return;
     supabase.from('ecoles').select('id,nom').eq('actif', true).order('nom').then(({ data }) => {
       setEcoles(data ?? []);
-      if (!ecoleId && data?.[0]) setEcoleId(data[0].id);
+      if (!ecoleId && !activeEcoleId && data?.[0]) setEcoleId(data[0].id);
     });
   }, [isSuperAdmin]); // eslint-disable-line
 

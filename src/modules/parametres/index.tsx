@@ -47,15 +47,21 @@ const DEFAULT_REGLES: Partial<ReglesEcole> = {
 
 export default function ParametresPage() {
   const { user } = useAuth();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, activeEcoleId } = useAuth();
   const [ecoleId, setEcoleId] = useState<string>(user?.ecole_id ?? '');
+
+  // École pilotée par la sidebar (super-admin) : tout changement y réaligne le module.
+  // Le sélecteur local du module reste utilisable pour un override ponctuel.
+  useEffect(() => {
+    if (activeEcoleId) setEcoleId(activeEcoleId);
+  }, [activeEcoleId]);
   const [ecoles, setEcoles] = useState<{id:string;nom:string}[]>([]);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
     supabase.from('ecoles').select('id,nom').eq('actif', true).order('nom').then(({ data }) => {
       setEcoles(data ?? []);
-      if (!ecoleId && data?.[0]) setEcoleId(data[0].id);
+      if (!ecoleId && !activeEcoleId && data?.[0]) setEcoleId(data[0].id);
     });
   }, [isSuperAdmin]); // eslint-disable-line
 

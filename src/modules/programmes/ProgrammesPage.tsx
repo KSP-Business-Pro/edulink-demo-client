@@ -28,8 +28,14 @@ interface Enseignant { id: string; nom: string; prenom: string }
 interface EcoleOption { id: string; nom: string }
 
 export default function ProgrammesPage() {
-  const { user, isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, activeEcoleId } = useAuth();
   const [ecoleId, setEcoleId] = useState<string>(user?.ecole_id ?? '');
+
+  // École pilotée par la sidebar (super-admin) : tout changement y réaligne le module.
+  // Le sélecteur local du module reste utilisable pour un override ponctuel.
+  useEffect(() => {
+    if (activeEcoleId) setEcoleId(activeEcoleId);
+  }, [activeEcoleId]);
   const [ecoles, setEcoles]   = useState<EcoleOption[]>([]);
 
   useEffect(() => {
@@ -37,7 +43,7 @@ export default function ProgrammesPage() {
     supabase.from('ecoles').select('id,nom').order('nom')
       .then(({ data }) => {
         setEcoles(data ?? []);
-        if (!ecoleId && data?.[0]) setEcoleId(data[0].id);
+        if (!ecoleId && !activeEcoleId && data?.[0]) setEcoleId(data[0].id);
       });
   }, [isSuperAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
