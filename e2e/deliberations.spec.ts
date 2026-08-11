@@ -3,7 +3,7 @@
 // Utilise l'ecole de test isolee et l'etudiant DUPONT Jean (donnees creees en base)
 
 import { test, expect } from '@playwright/test';
-import { loginAsScolarite } from './helpers';
+import { loginAsScolarite, resetReleveDupont } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await loginAsScolarite(page);
@@ -26,11 +26,24 @@ test.describe('Deliberations - affichage', () => {
 });
 
 test.describe('Deliberations - publication du releve', () => {
-  test('publie le releve de l\'etudiant de test', async ({ page }) => {
-    const ligneEtudiant = page.locator('tr', { hasText: 'DUPONT Jean' });
-    await ligneEtudiant.getByRole('button', { name: /publier/i }).click();
+  test.beforeEach(async () => {
+    // Idempotence : garantit l'etat "non publie" avant chaque run,
+    // quel que soit l'etat laisse par les runs precedents.
+    await resetReleveDupont();
+  });
 
-    // Un toast de confirmation ou le badge "Publie" doit apparaitre
-    await expect(page.getByText(/publi/i).first()).toBeVisible({ timeout: 15000 });
+  test("publie le releve de l'etudiant de test", async ({ page }) => {
+    // Le beforeEach global a charge la page AVANT le reset → recharger pour voir l'etat propre
+    await page.reload();
+    await page.locator('select').first().selectOption({ label: 'Semestre 1 - Test E2E' });
+    const ligneEtudiant = page.locator('tr', { hasText: 'DUPONT Jean' });
+    await expect(ligneEtudiant).toBeVisible({ timeout: 15000 });
+
+    // Pas d'envoi email reel pendant les tests
+    const emailCheckbox = page.locator('#delib-send-email');
+    if (await emailCheckbox.isChecked()) await emailCheckbox.uncheck();
+
+    await ligneEtudiant.getByRole('button', { name: 'Publier' }).click();
+    await expect(ligneEtudiant.getByText('✓ Publié')).toBeVisible({ timeout: 15000 });
   });
 });
