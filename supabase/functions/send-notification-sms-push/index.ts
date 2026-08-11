@@ -6,36 +6,35 @@
 //
 // Réutilise les mêmes secrets que publish-releve (TWILIO_*) et
 // send-push-notification (FIREBASE_*), déjà configurés côté projet.
+//
+// B15 action 3 : filtre de préférence par destinataire
+// (preferences_notification_famille) — un canal désactivé par la famille est
+// court-circuité et journalisé avec le motif "opt_out", au même titre que
+// "no_phone" ou "no_token". La messagerie interne et le centre d'alertes du
+// portail (gérés par fn_notifier_evenement) ne sont JAMAIS filtrés.
 // =============================================================================
-
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-
 type TypeEvenement = "absence" | "note" | "paiement";
-
 interface Payload {
   ecole_id: string;
   etudiant_id: string;
   type: TypeEvenement;
   vars?: Record<string, string>;
 }
-
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
 function substituerVariables(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
 }
-
 // ── SMS (Twilio) — repris de publish-releve ──────────────────────────────
 function formatTelephoneE164(tel: string): string {
   const nettoye = tel.trim();
   return nettoye.startsWith("+") ? nettoye : `+${nettoye}`;
 }
-
 async function envoyerSms(telephone: string, corps: string): Promise<void> {
   const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
   const authToken  = Deno.env.get("TWILIO_AUTH_TOKEN");
@@ -59,10 +58,8 @@ async function envoyerSms(telephone: string, corps: string): Promise<void> {
   const data = await response.json();
   if (!response.ok) throw new Error(data?.message || `Twilio error ${response.status}`);
 }
-
 // ── Push (FCM V1 via OAuth2) — repris de send-push-notification ─────────
 const FIREBASE_PROJECT_ID = "edulink-demo-client";
-
 function getServiceAccount() {
   const client_email    = Deno.env.get("FIREBASE_CLIENT_EMAIL");
   const private_key_id  = Deno.env.get("FIREBASE_PRIVATE_KEY_ID");
@@ -72,7 +69,6 @@ function getServiceAccount() {
   }
   return { client_email, private_key_id, private_key };
 }
-
 async function getFcmAccessToken(): Promise<string> {
   const SERVICE_ACCOUNT = getServiceAccount();
   const now = Math.floor(Date.now() / 1000);
@@ -89,7 +85,6 @@ async function getFcmAccessToken(): Promise<string> {
   const header64  = encode(header);
   const payload64 = encode(payload);
   const sigInput  = `${header64}.${payload64}`;
-
   const pemKey = SERVICE_ACCOUNT.private_key
     .replace("-----BEGIN PRIVATE KEY-----", "")
     .replace("-----END PRIVATE KEY-----", "")
@@ -104,7 +99,6 @@ async function getFcmAccessToken(): Promise<string> {
   const sig64 = btoa(String.fromCharCode(...new Uint8Array(sigBuffer)))
     .replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
   const jwt = `${sigInput}.${sig64}`;
-
   const resp = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -114,7 +108,6 @@ async function getFcmAccessToken(): Promise<string> {
   if (!data.access_token) throw new Error("Token OAuth2 non obtenu: " + JSON.stringify(data));
   return data.access_token;
 }
-
 async function sendFCM(token: string, titre: string, body: string, accessToken: string) {
   const resp = await fetch(
     `https://fcm.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/messages:send`,
@@ -139,7 +132,6 @@ async function sendFCM(token: string, titre: string, body: string, accessToken: 
   );
   return resp.json();
 }
-
 // ── Journalisation ────────────────────────────────────────────────────────
 async function journaliserEnvoi(
   supabase: ReturnType<typeof createClient>,
@@ -160,7 +152,6 @@ async function journaliserEnvoi(
     console.error("journal_notifications insert error:", e);
   }
 }
-
 async function resoudreModele(
   supabase: ReturnType<typeof createClient>,
   ecoleId: string, type: TypeEvenement, canal: "sms" | "push",
@@ -174,20 +165,17 @@ async function resoudreModele(
   if (!modele || modele.actif !== true) return null;
   return { actif: true, sujet: modele.sujet, corps: modele.corps_texte };
 }
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
   if (req.method !== "POST") {
     return Response.json({ error: "Method not allowed" }, { status: 405, headers: CORS_HEADERS });
   }
-
   let payload: Payload;
   try {
     payload = await req.json();
   } catch {
     return Response.json({ error: "Invalid JSON" }, { status: 400, headers: CORS_HEADERS });
   }
-
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return Response.json({ error: "Unauthorized", detail: "missing_token" }, { status: 401, headers: CORS_HEADERS });
@@ -198,7 +186,6 @@ Deno.serve(async (req: Request) => {
   if (authError || !user) {
     return Response.json({ error: "Unauthorized", detail: "invalid_token" }, { status: 401, headers: CORS_HEADERS });
   }
-
   const { ecole_id, etudiant_id, type, vars = {} } = payload;
   if (!ecole_id || !etudiant_id || !type) {
     return Response.json({ error: "Champs requis manquants" }, { status: 400, headers: CORS_HEADERS });
@@ -206,9 +193,7 @@ Deno.serve(async (req: Request) => {
   if (!["absence", "note", "paiement"].includes(type)) {
     return Response.json({ error: "Type non supporté (releve exclu volontairement)" }, { status: 400, headers: CORS_HEADERS });
   }
-
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
   const { data: profilAppelant } = await supabase
     .from("utilisateurs").select("role, ecole_id, actif").eq("auth_id", user.id).eq("actif", true).maybeSingle();
   if (!profilAppelant) {
@@ -218,7 +203,6 @@ Deno.serve(async (req: Request) => {
   if (!estSuperadmin && profilAppelant.ecole_id !== ecole_id) {
     return Response.json({ error: "Forbidden", detail: "ecole_differente" }, { status: 403, headers: CORS_HEADERS });
   }
-
   const { data: etudiant } = await supabase
     .from("etudiants").select("nom, prenom, telephone_parent, auth_id").eq("id", etudiant_id).eq("ecole_id", ecole_id).single();
   if (!etudiant) {
@@ -226,20 +210,31 @@ Deno.serve(async (req: Request) => {
   }
   const varsCompletes = { etudiant: `${etudiant.prenom} ${etudiant.nom}`, ...vars };
 
+  // ── B15 action 3 : lecture des préférences de la famille (une seule requête) ──
+  const { data: prefs } = await supabase
+    .from("preferences_notification_famille")
+    .select("sms_actif, push_actif").eq("etudiant_id", etudiant_id).maybeSingle();
+  const smsActif  = prefs?.sms_actif !== false;   // absence de ligne = actif par défaut
+  const pushActif = prefs?.push_actif !== false;
+
   // ── SMS ──────────────────────────────────────────────────────────────
   let smsEnvoye = false, smsErreur: string | null = null;
-  const modeleSms = await resoudreModele(supabase, ecole_id, type, "sms");
-  if (!modeleSms) {
-    smsErreur = "aucun_modele_actif";
-  } else if (!etudiant.telephone_parent) {
-    smsErreur = "no_phone";
+  if (!smsActif) {
+    smsErreur = "opt_out";
   } else {
-    const corpsSms = substituerVariables(modeleSms.corps ?? "", varsCompletes);
-    try {
-      await envoyerSms(etudiant.telephone_parent, corpsSms);
-      smsEnvoye = true;
-    } catch (e) {
-      smsErreur = e instanceof Error ? e.message : String(e);
+    const modeleSms = await resoudreModele(supabase, ecole_id, type, "sms");
+    if (!modeleSms) {
+      smsErreur = "aucun_modele_actif";
+    } else if (!etudiant.telephone_parent) {
+      smsErreur = "no_phone";
+    } else {
+      const corpsSms = substituerVariables(modeleSms.corps ?? "", varsCompletes);
+      try {
+        await envoyerSms(etudiant.telephone_parent, corpsSms);
+        smsEnvoye = true;
+      } catch (e) {
+        smsErreur = e instanceof Error ? e.message : String(e);
+      }
     }
   }
   await journaliserEnvoi(supabase, {
@@ -247,40 +242,44 @@ Deno.serve(async (req: Request) => {
     destinataire_nom: varsCompletes.etudiant, destinataire_contact: etudiant.telephone_parent ?? null,
     sujet: null, statut: smsEnvoye ? "envoye" : "echec", erreur: smsEnvoye ? null : smsErreur,
   });
-
   // ── Push ─────────────────────────────────────────────────────────────
   let pushEnvoye = false, pushErreur: string | null = null;
-  const modelePush = await resoudreModele(supabase, ecole_id, type, "push");
-  if (!modelePush) {
-    pushErreur = "aucun_modele_actif";
-  } else if (!etudiant.auth_id) {
-    pushErreur = "no_auth_id";
+  let modelePushRetenu: { sujet: string | null } | null = null;
+  if (!pushActif) {
+    pushErreur = "opt_out";
   } else {
-    const { data: tokens } = await supabase
-      .from("push_tokens").select("token").eq("utilisateur_id", etudiant.auth_id).eq("actif", true);
-    if (!tokens?.length) {
-      pushErreur = "no_token";
+    const modelePush = await resoudreModele(supabase, ecole_id, type, "push");
+    modelePushRetenu = modelePush;
+    if (!modelePush) {
+      pushErreur = "aucun_modele_actif";
+    } else if (!etudiant.auth_id) {
+      pushErreur = "no_auth_id";
     } else {
-      const titre = substituerVariables(modelePush.sujet ?? "EduLink Sup", varsCompletes);
-      const corps = substituerVariables(modelePush.corps ?? "", varsCompletes);
-      try {
-        const accessToken = await getFcmAccessToken();
-        const resultats = await Promise.allSettled(
-          tokens.map(t => sendFCM(t.token, titre, corps, accessToken))
-        );
-        pushEnvoye = resultats.some(r => r.status === "fulfilled" && (r.value as any)?.name);
-        if (!pushEnvoye) pushErreur = "fcm_echec_tous_tokens";
-      } catch (e) {
-        pushErreur = e instanceof Error ? e.message : String(e);
+      const { data: tokens } = await supabase
+        .from("push_tokens").select("token").eq("utilisateur_id", etudiant.auth_id).eq("actif", true);
+      if (!tokens?.length) {
+        pushErreur = "no_token";
+      } else {
+        const titre = substituerVariables(modelePush.sujet ?? "EduLink Sup", varsCompletes);
+        const corps = substituerVariables(modelePush.corps ?? "", varsCompletes);
+        try {
+          const accessToken = await getFcmAccessToken();
+          const resultats = await Promise.allSettled(
+            tokens.map(t => sendFCM(t.token, titre, corps, accessToken))
+          );
+          pushEnvoye = resultats.some(r => r.status === "fulfilled" && (r.value as any)?.name);
+          if (!pushEnvoye) pushErreur = "fcm_echec_tous_tokens";
+        } catch (e) {
+          pushErreur = e instanceof Error ? e.message : String(e);
+        }
       }
     }
   }
   await journaliserEnvoi(supabase, {
     ecole_id, canal: "push", type, destinataire_id: etudiant_id,
     destinataire_nom: varsCompletes.etudiant, destinataire_contact: null,
-    sujet: modelePush?.sujet ? substituerVariables(modelePush.sujet, varsCompletes) : null,
+    sujet: modelePushRetenu?.sujet ? substituerVariables(modelePushRetenu.sujet, varsCompletes) : null,
     statut: pushEnvoye ? "envoye" : "echec", erreur: pushEnvoye ? null : pushErreur,
   });
-
   return Response.json({ success: true, sms_envoye: smsEnvoye, sms_erreur: smsErreur, push_envoye: pushEnvoye, push_erreur: pushErreur }, { headers: CORS_HEADERS });
 });

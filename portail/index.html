@@ -993,6 +993,7 @@ let tousExamens = [];
 let examFilterActif = 'tous';
 let tousEnseignantsPortail = [];
 let rangEtudiantPortail = '-';
+let prefsNotifPortail = { email_actif: true, sms_actif: true, push_actif: true }; // B15 action 3
 // tousEnseignantsPortail déclaré plus haut
 
 // ══ UTILS ══
@@ -1116,7 +1117,7 @@ function lancerApp() {
 }
 
 async function chargerTout() {
-  await Promise.all([chargerNotes(), chargerReleves(), chargerAbsences(), chargerFactures(), chargerMessages(), chargerExamensPortail(), chargerEnseignantsPortail(), chargerNotifsPortail(), chargerEmploiPortail(), chargerCertificatsPortailData(), calculerRangGlobalPortail()]);
+  await Promise.all([chargerNotes(), chargerReleves(), chargerAbsences(), chargerFactures(), chargerMessages(), chargerExamensPortail(), chargerEnseignantsPortail(), chargerNotifsPortail(), chargerEmploiPortail(), chargerCertificatsPortailData(), calculerRangGlobalPortail(), chargerPreferencesNotifPortail()]);
   initRealtime(); // Abonner aux mises à jour en temps réel
   afficherAccueil();
 }
@@ -2961,6 +2962,23 @@ function afficherNotifsPortail() {
   page.innerHTML = `
     <div class="card" style="margin:1rem 1rem 0">
       <div class="pn-header-bar">
+        <div class="ph-title">⚙️ Préférences de notification</div>
+      </div>
+      <div style="padding:.85rem 1rem;display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:11.5px;color:#6b7280;margin-bottom:2px">Choisissez comment être averti(e) des absences, notes et paiements. La messagerie et les alertes ci-dessous restent toujours actives.</div>
+        ${['email','sms','push'].map(canal => {
+          const actif = prefsNotifPortail[canal + '_actif'];
+          const labels = { email: ['✉️','Email'], sms: ['📱','SMS'], push: ['🔔','Notification push'] };
+          const [ico, lbl] = labels[canal];
+          return `<label style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer">
+            <span style="font-size:13px;color:#111827">${ico} ${lbl}</span>
+            <input type="checkbox" ${actif ? 'checked' : ''} onchange="togglePreferenceNotif('${canal}')" style="width:18px;height:18px;accent-color:var(--teal,#0f6e56);cursor:pointer">
+          </label>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="card" style="margin:1rem 1rem 0">
+      <div class="pn-header-bar">
         <div class="ph-title">🔔 Mes alertes <span style="font-size:11px;color:#9ca3af;font-weight:400">(${toutesNotifsPortail.length})</span></div>
         ${nonLues > 0 ? `<button class="pn-tout-lire" onclick="marquerToutesLues()">Tout marquer lu</button>` : ''}
       </div>
@@ -3110,6 +3128,30 @@ function fmtDateRelative(d) {
   if (j === 1) return 'Hier';
   if (j < 7)   return `Il y a ${j} jours`;
   return new Date(d).toLocaleDateString('fr-FR', {day:'2-digit',month:'short'});
+}
+// ── B15 action 3 : préférences de notification par destinataire ──────
+async function chargerPreferencesNotifPortail() {
+  try {
+    const { data, error } = await db.rpc('fn_get_preferences_notification_famille');
+    if (error) { console.warn('[Preferences]', error.message); return; }
+    if (data && data[0]) prefsNotifPortail = data[0];
+  } catch(e) { console.warn('[Preferences]', e.message); }
+}
+
+async function togglePreferenceNotif(canal) {
+  const nouveau = !prefsNotifPortail[canal + '_actif'];
+  prefsNotifPortail[canal + '_actif'] = nouveau;
+  if (document.getElementById('page-notifs')?.classList.contains('active')) afficherNotifsPortail();
+  try {
+    const { error } = await db.rpc('fn_definir_preference_notification_famille', { p_canal: canal, p_actif: nouveau });
+    if (error) throw error;
+    const labels = { email: 'Email', sms: 'SMS', push: 'Notifications push' };
+    showToast((nouveau ? '🔔 ' : '🔕 ') + labels[canal] + (nouveau ? ' activé' : ' désactivé'), 'success');
+  } catch(e) {
+    prefsNotifPortail[canal + '_actif'] = !nouveau;
+    if (document.getElementById('page-notifs')?.classList.contains('active')) afficherNotifsPortail();
+    showToast('Erreur : ' + e.message, 'error');
+  }
 }
 
 // ── Créer une notification locale (appelée par les triggers auto) ────

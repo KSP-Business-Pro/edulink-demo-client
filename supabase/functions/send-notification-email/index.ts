@@ -9,8 +9,12 @@
 // fn_notifier_evenement (ecole-spécifique prime, sinon ecole_id IS NULL).
 // Journalise dans journal_notifications (table déjà existante, réutilisée).
 //
-// B15 action 2 : gabarit email mutualisé dans _shared/email-charte.ts
-// (badge de catégorie + filet ocre — l'ocre de la charte est désormais utilisé).
+// B15 action 2 : gabarit email mutualisé dans _shared/email-charte.ts.
+// B15 action 3 : filtre de préférence par destinataire (preferences_notification_famille) —
+// si la famille a désactivé le canal email, l'envoi est court-circuité et
+// journalisé avec le motif "opt_out". La messagerie interne et le centre
+// d'alertes du portail (gérés par fn_notifier_evenement) ne sont JAMAIS
+// filtrés — seuls les canaux externes le sont.
 // =============================================================================
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -135,6 +139,20 @@ Deno.serve(async (req: Request) => {
     if (!etudiant) {
       return Response.json({ success: true, email_envoye: false, email_erreur: "etudiant_introuvable" }, { headers: CORS_HEADERS });
     }
+
+    // ── B15 action 3 : filtre de préférence — canal email désactivé par la famille ──
+    const { data: prefs } = await supabase
+      .from("preferences_notification_famille")
+      .select("email_actif").eq("etudiant_id", etudiant_id).maybeSingle();
+    if (prefs?.email_actif === false) {
+      await journaliserEnvoi(supabase, {
+        ecole_id, type, destinataire_id: etudiant_id,
+        destinataire_nom: `${etudiant.prenom} ${etudiant.nom}`, destinataire_contact: etudiant.email_auth ?? null,
+        sujet: null, statut: "echec", erreur: "opt_out",
+      });
+      return Response.json({ success: true, email_envoye: false, email_erreur: "opt_out" }, { headers: CORS_HEADERS });
+    }
+
     const { data: ecole } = await supabase.from("ecoles").select("nom, logo_url").eq("id", ecole_id).single();
     // Résolution du modèle — même fallback global que fn_notifier_evenement :
     // école-spécifique prime, sinon ecole_id IS NULL.
