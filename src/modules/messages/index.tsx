@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../services/supabase';
+import MonitoringEnvois from './MonitoringEnvois';
 
 interface EcoleOption { id: string; nom: string }
 interface UtilisateurOption { id: string; nom: string; role: string }
@@ -788,6 +789,8 @@ export default function MessagesPage() {
             <div style={{ fontSize: 11, color: '#9ca3af' }}>
               Indicateurs calculés sur l'ensemble des messages de l'établissement (pas seulement les 50 derniers affichés dans Reçus/Envoyés).
             </div>
+            {/* ── Sprint B17 : monitoring des envois (journal_notifications) ── */}
+            <MonitoringEnvois ecoleId={ecoleId} />
           </div>
         )
       ) : (
