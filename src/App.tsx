@@ -11,6 +11,7 @@ import { LoginPage } from './pages/LoginPage';
 import { default as PortailPublicPage } from './pages/PortailPublicPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DashboardReseauPage } from './pages/DashboardReseauPage';
+import { SecuriteCompte } from './components/SecuriteCompte';
 
 // ── Lazy loading par module ────────────────────────────────────────────────
 const EtudiantsPage    = lazy(() => import('./modules/etudiants'));
@@ -98,6 +99,7 @@ export default function App() {
           <Route path="/comptabilite" element={<AppRoute page="comptabilite"><ComptabilitePage /></AppRoute>} />
           <Route path="/monitoring" element={<AppRoute page="monitoring"><MonitoringPage /></AppRoute>} />
           <Route path="/audit" element={<AppRoute page="audit" allowedRoles={['admin', 'direction']}><AuditPage /></AppRoute>} />
+          <Route path="/securite" element={<AppRoute page="securite" allowedRoles={['admin']}><SecuriteCompte /></AppRoute>} />
           <Route path="/prospects" element={<AppRoute page="prospects"><ProspectsPage /></AppRoute>} />
           <Route path="/promotions" element={<AppRoute page="promotions"><PromotionsPage /></AppRoute>} />
           <Route path="/messages" element={<AppRoute page="messages"><MessagesPage /></AppRoute>} />

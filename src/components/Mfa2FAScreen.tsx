@@ -2,10 +2,17 @@
 // B12.1 — Écran de second facteur, affiché entre le login et le tableau
 // de bord pour les rôles concernés (admin, direction, scolarite,
 // enseignant, comptable), une fois par session.
+// 13/08/2026 — TOTP : si l'utilisateur a un facteur TOTP vérifié
+// (application d'authentification), le code TOTP REMPLACE l'OTP email/SMS.
+// Fallback téléphone perdu : code de secours (Edge Function auth-mfa-recovery,
+// qui désactive le TOTP → l'utilisateur termine sa connexion par email).
 
 import { useState, useRef, useEffect } from 'react';
 import type { UserProfil } from '../types/auth.types';
-import { envoyerCodeOtp, verifierCodeOtp, setMfaVerifie } from '../services/mfa.service';
+import {
+  envoyerCodeOtp, verifierCodeOtp, setMfaVerifie,
+  getStatutTotp, verifierCodeTotp, utiliserCodeSecours,
+} from '../services/mfa.service';
 
 interface Props {
   user: UserProfil;
@@ -13,20 +20,41 @@ interface Props {
   onLogout: () => void;
 }
 
-type Etape = 'choix' | 'code';
+type Etape = 'chargement' | 'choix' | 'code' | 'totp' | 'secours';
 
 export function Mfa2FAScreen({ user, onVerified, onLogout }: Props) {
-  const [etape, setEtape] = useState<Etape>('choix');
+  const [etape, setEtape] = useState<Etape>('chargement');
+  const [factorId, setFactorId] = useState<string | null>(null);
   const [channel, setChannel] = useState<'email' | 'sms' | null>(null);
   const [destination, setDestination] = useState('');
   const [code, setCode] = useState('');
+  const [codeSecours, setCodeSecours] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const secoursRef = useRef<HTMLInputElement>(null);
+
+  // Au montage : facteur TOTP vérifié ? → saisie TOTP, sinon parcours email/SMS
+  useEffect(() => {
+    let annule = false;
+    (async () => {
+      const statut = await getStatutTotp();
+      if (annule) return;
+      if (statut.actif && statut.factorId) {
+        setFactorId(statut.factorId);
+        setEtape('totp');
+      } else {
+        setEtape('choix');
+      }
+    })();
+    return () => { annule = true; };
+  }, []);
 
   useEffect(() => {
-    if (etape === 'code') inputRef.current?.focus();
+    if (etape === 'code' || etape === 'totp') inputRef.current?.focus();
+    if (etape === 'secours') secoursRef.current?.focus();
   }, [etape]);
 
   useEffect(() => {
@@ -67,6 +95,51 @@ export function Mfa2FAScreen({ user, onVerified, onLogout }: Props) {
     onVerified();
   }
 
+  async function handleVerifierTotp(e: React.FormEvent) {
+    e.preventDefault();
+    if (code.length !== 6 || !factorId) return;
+    setLoading(true);
+    setError(null);
+    const result = await verifierCodeTotp(factorId, code);
+    setLoading(false);
+    if (!result.success) {
+      setError(result.error ?? 'Code incorrect');
+      setCode('');
+      inputRef.current?.focus();
+      return;
+    }
+    setMfaVerifie(user.id);
+    onVerified();
+  }
+
+  async function handleSecours(e: React.FormEvent) {
+    e.preventDefault();
+    if (codeSecours.replace(/[^A-Za-z0-9]/g, '').length !== 8) return;
+    setLoading(true);
+    setError(null);
+    const result = await utiliserCodeSecours(codeSecours);
+    setLoading(false);
+    if (!result.success) {
+      const complement =
+        result.essaisRestants !== undefined ? ` (${result.essaisRestants} essai${result.essaisRestants > 1 ? 's' : ''} restant${result.essaisRestants > 1 ? 's' : ''})` : '';
+      setError((result.error ?? 'Code de secours invalide.') + complement);
+      setCodeSecours('');
+      secoursRef.current?.focus();
+      return;
+    }
+    // TOTP désactivé côté serveur : terminer la connexion par le parcours email
+    setCodeSecours('');
+    setCode('');
+    setFactorId(null);
+    setError(null);
+    setInfo(
+      'Code de secours accepté : l\'application d\'authentification a été retirée de votre compte. '
+      + 'Terminez votre connexion avec un code envoyé par email, puis réactivez le TOTP depuis votre profil '
+      + 'avec votre nouveau téléphone.'
+    );
+    setEtape('choix');
+  }
+
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -83,8 +156,17 @@ export function Mfa2FAScreen({ user, onVerified, onLogout }: Props) {
           <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Vérification en deux étapes</div>
         </div>
 
+        {etape === 'chargement' && (
+          <p style={{ fontSize: 13, color: '#6b7280', textAlign: 'center' }}>Chargement…</p>
+        )}
+
         {etape === 'choix' && (
           <>
+            {info && (
+              <div role="status" style={{ marginBottom: 12, background: '#ecfdf5', color: '#047857', padding: '10px 12px', borderRadius: 8, fontSize: 12, lineHeight: 1.5 }}>
+                {info}
+              </div>
+            )}
             <p style={{ fontSize: 13, color: '#374151', textAlign: 'center', marginBottom: '1.25rem' }}>
               Bonjour {user.prenom || user.nom}, pour protéger votre compte, confirmez votre identité avec un code à usage unique.
             </p>
@@ -181,6 +263,118 @@ export function Mfa2FAScreen({ user, onVerified, onLogout }: Props) {
                 style={{ background: 'none', border: 'none', color: cooldown > 0 ? '#cbd5e1' : '#C8932E', cursor: cooldown > 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', padding: 0, fontWeight: 600 }}
               >
                 {cooldown > 0 ? `Renvoyer (${cooldown}s)` : 'Renvoyer le code'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {etape === 'totp' && (
+          <form onSubmit={handleVerifierTotp}>
+            <p style={{ fontSize: 13, color: '#374151', textAlign: 'center', marginBottom: '1rem' }}>
+              Saisissez le code à 6 chiffres affiché par votre <strong>application d'authentification</strong> (Google Authenticator, Microsoft Authenticator…).
+            </p>
+            <label htmlFor="mfa-totp" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
+              Code de l'application d'authentification à 6 chiffres
+            </label>
+            <input
+              ref={inputRef}
+              id="mfa-totp"
+              name="totp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={code}
+              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              aria-invalid={!!error}
+              aria-describedby={error ? 'mfa-totp-error' : undefined}
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '12px', fontSize: 24, fontWeight: 700,
+                textAlign: 'center', letterSpacing: 8, border: `2px solid ${error ? '#dc2626' : '#e2e8f0'}`,
+                borderRadius: 10, marginBottom: 12, fontFamily: 'inherit', outline: 'none',
+              }}
+              placeholder="······"
+            />
+            {error && (
+              <div id="mfa-totp-error" role="alert" style={{ marginBottom: 12, background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12 }}>
+                {error}
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={loading || code.length !== 6}
+              style={{
+                width: '100%', minHeight: 44, padding: '10px', background: '#1B2A4A', color: '#fff',
+                border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'inherit', opacity: (loading || code.length !== 6) ? 0.6 : 1, marginBottom: 10,
+              }}
+            >
+              {loading ? 'Vérification…' : 'Vérifier'}
+            </button>
+            <div style={{ textAlign: 'center', fontSize: 12 }}>
+              <button
+                type="button"
+                onClick={() => { setEtape('secours'); setCode(''); setError(null); }}
+                style={{ background: 'none', border: 'none', color: '#C8932E', cursor: 'pointer', fontFamily: 'inherit', padding: 0, fontWeight: 600 }}
+              >
+                J'ai perdu l'accès à mon application
+              </button>
+            </div>
+          </form>
+        )}
+
+        {etape === 'secours' && (
+          <form onSubmit={handleSecours}>
+            <p style={{ fontSize: 13, color: '#374151', textAlign: 'center', marginBottom: '0.75rem' }}>
+              Saisissez l'un de vos <strong>codes de secours</strong> (format XXXX-XXXX), notés lors de l'activation.
+            </p>
+            <div style={{ marginBottom: 12, background: '#fffbeb', color: '#92400e', padding: '8px 12px', borderRadius: 8, fontSize: 12, lineHeight: 1.5 }}>
+              ⚠️ Le code sera consommé et l'application d'authentification sera <strong>retirée de votre compte</strong>. Vous pourrez la réactiver ensuite depuis votre profil.
+            </div>
+            <label htmlFor="mfa-secours" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>
+              Code de secours
+            </label>
+            <input
+              ref={secoursRef}
+              id="mfa-secours"
+              name="secours"
+              type="text"
+              autoComplete="off"
+              maxLength={9}
+              value={codeSecours}
+              onChange={e => setCodeSecours(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 9))}
+              aria-invalid={!!error}
+              aria-describedby={error ? 'mfa-secours-error' : undefined}
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '12px', fontSize: 20, fontWeight: 700,
+                textAlign: 'center', letterSpacing: 4, border: `2px solid ${error ? '#dc2626' : '#e2e8f0'}`,
+                borderRadius: 10, marginBottom: 12, fontFamily: 'inherit', outline: 'none',
+              }}
+              placeholder="XXXX-XXXX"
+            />
+            {error && (
+              <div id="mfa-secours-error" role="alert" style={{ marginBottom: 12, background: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12 }}>
+                {error}
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={loading || codeSecours.replace(/[^A-Z0-9]/g, '').length !== 8}
+              style={{
+                width: '100%', minHeight: 44, padding: '10px', background: '#1B2A4A', color: '#fff',
+                border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'inherit', opacity: (loading || codeSecours.replace(/[^A-Z0-9]/g, '').length !== 8) ? 0.6 : 1, marginBottom: 10,
+              }}
+            >
+              {loading ? 'Vérification…' : 'Utiliser ce code de secours'}
+            </button>
+            <div style={{ textAlign: 'center', fontSize: 12 }}>
+              <button
+                type="button"
+                onClick={() => { setEtape('totp'); setCodeSecours(''); setError(null); }}
+                style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+              >
+                ← Retour au code d'application
               </button>
             </div>
           </form>

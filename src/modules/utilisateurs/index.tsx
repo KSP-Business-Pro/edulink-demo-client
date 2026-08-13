@@ -1,5 +1,6 @@
 // src/modules/utilisateurs/index.tsx
 // B5.2 — Gestion Utilisateurs — inline styles (pattern projet)
+// 13/08/2026 — bouton 🛡️ « Réinitialiser la 2FA » (Edge Function admin-reset-mfa)
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../hooks/useAuth'
@@ -9,6 +10,7 @@ import type { UserRole, UtilisateurRow } from '../../types/auth.types'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 const MANAGE_USER_URL = 'https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/manage-user';
+const RESET_MFA_URL   = 'https://kcfpvnrgutkhakogbjip.supabase.co/functions/v1/admin-reset-mfa';
 
 async function appelerManageUser(body: Record<string, unknown>): Promise<{ success: boolean; error?: string; auth_id?: string }> {
   const { data } = await supabase.auth.getSession();
@@ -400,6 +402,69 @@ function ModalResetPwd({ user, onClose }: { user: UtilisateurComplet; onClose: (
   )
 }
 
+// ─── Modal réinitialisation 2FA (TOTP) ───────────────────────────────────────
+
+function ModalResetMfa({
+  user, onClose, onDone,
+}: { user: UtilisateurComplet; onClose: () => void; onDone: (msg: string) => void }) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleReset() {
+    setLoading(true); setError(null)
+    try {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token ?? ''
+      const res = await fetch(RESET_MFA_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ auth_id: user.auth_id }),
+      })
+      const result = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(result?.error === 'acces_refuse' ? 'Accès refusé' : (result?.error || 'Erreur serveur'))
+      // Audit (même pattern que les autres actions : appel front en authenticated)
+      await supabase.rpc('fn_audit_log', {
+        p_ecole_id: user.ecole_id, p_action: 'UPDATE', p_module: 'auth_2fa',
+        p_ressource_id: user.id,
+        p_ressource_ref: `Réinitialisation 2FA — ${user.prenom ?? ''} ${user.nom}`.trim(),
+      })
+      onDone(result?.facteurs_supprimes > 0
+        ? `Application d'authentification retirée du compte de ${user.prenom ?? ''} ${user.nom}`.trim()
+        : `Aucune application d'authentification n'était active sur ce compte (codes de secours purgés)`)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={S.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ ...S.modal, maxWidth: 420 }}>
+        <div style={S.modalHeader}>
+          <div style={S.modalTitle}>🛡️ Réinitialiser la 2FA</div>
+          <button onClick={onClose} style={S.closeBtn}>✕</button>
+        </div>
+        <div style={{ ...S.modalBody, gap: '0.75rem' }}>
+          {error && <div role="alert" style={{ background: '#fef2f2', color: '#991b1b', padding: '10px', borderRadius: 8, fontSize: 13 }}>⚠️ {error}</div>}
+          <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: '#92400e' }}>
+            ⚠️ L'application d'authentification (TOTP) sera retirée du compte et les codes de secours seront invalidés. À sa prochaine connexion, <strong>{user.prenom} {user.nom}</strong> utilisera le code par email et pourra réactiver le TOTP depuis son profil.
+          </div>
+          <div style={{ fontSize: 13, color: '#374151' }}>
+            À utiliser si l'utilisateur a perdu son téléphone <em>et</em> ses codes de secours.
+          </div>
+        </div>
+        <div style={S.modalFooter}>
+          <button onClick={onClose} style={S.btnSecondary}>Annuler</button>
+          <button onClick={handleReset} disabled={loading} style={{ ...S.btnPrimary, background: '#b45309' }}>
+            {loading ? '⏳...' : '🛡️ Réinitialiser la 2FA'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function UtilisateursPage() {
@@ -424,6 +489,7 @@ export default function UtilisateursPage() {
   const [modalEdit,   setModalEdit]     = useState<UtilisateurComplet | null>(null)
   const [modalDelete, setModalDelete]   = useState<UtilisateurComplet | null>(null)
   const [modalReset,  setModalReset]    = useState<UtilisateurComplet | null>(null)
+  const [modalResetMfa, setModalResetMfa] = useState<UtilisateurComplet | null>(null)
 
   // ── Chargement ──────────────────────────────────────────────────────────────
 
@@ -634,6 +700,7 @@ export default function UtilisateursPage() {
                     <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                       <button onClick={() => setModalEdit(u)} style={S.btnGhost} title="Modifier">✏️</button>
                       <button onClick={() => setModalReset(u)} style={S.btnGhost} title="Réinitialiser MDP">🔑</button>
+                      <button onClick={() => setModalResetMfa(u)} style={S.btnGhost} title="Réinitialiser la 2FA">🛡️</button>
                       <button onClick={() => toggleActif(u)}
                         style={{ ...S.btnGhost, color: u.actif ? '#dc2626' : '#16a34a' }}
                         title={u.actif ? 'Désactiver' : 'Activer'}>
@@ -678,6 +745,13 @@ export default function UtilisateursPage() {
       )}
       {modalReset && (
         <ModalResetPwd user={modalReset} onClose={() => setModalReset(null)} />
+      )}
+      {modalResetMfa && (
+        <ModalResetMfa
+          user={modalResetMfa}
+          onClose={() => setModalResetMfa(null)}
+          onDone={msg => { setModalResetMfa(null); showSuccess(msg) }}
+        />
       )}
     </div>
   )

@@ -4,6 +4,7 @@
 // B10 — Drawer mobile (hamburger + overlay + fermeture auto)
 // B11.A — Accessibilité WCAG 2.1 AA : icônes SVG + texte, aria-current, role=navigation,
 //         focus visible, cibles tactiles 44px, skip link, raccourci Ctrl+K / ⌘K
+// 13/08/2026 — Entrée « Sécurité (2FA) » réservée aux administrateurs (adminOnly)
 
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -228,7 +229,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     navigate(r.href);
   }
 
-  const navItems: { group: string; items: { id: string; label: string; ico: IconName; href: string }[] }[] = [
+  const navItems: { group: string; items: { id: string; label: string; ico: IconName; href: string; adminOnly?: boolean }[] }[] = [
     { group: 'TABLEAU DE BORD', items: [
       { id: 'dashboard', label: 'Dashboard', ico: 'home', href: '/dashboard' },
       ...(isSuperAdmin ? [{ id: 'dashboard-reseau', label: 'Dashboard Réseau', ico: 'globe' as IconName, href: '/dashboard-reseau' }] : []),
@@ -264,6 +265,7 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
     { group: 'SYSTÈME', items: [
       { id: 'monitoring', label: 'Monitoring', ico: 'radio', href: '/monitoring' },
       { id: 'audit', label: "Journal d'audit", ico: 'shield', href: '/audit' },
+      { id: 'securite', label: 'Sécurité (2FA)', ico: 'shield', href: '/securite', adminOnly: true },
       { id: 'prospects',  label: 'Prospects',  ico: 'target', href: '/prospects' },
       { id: 'parametres-ecole', label: 'Paramètres', ico: 'settings', href: '/parametres-ecole' },
       { id: 'parametres', label: 'Param. avancés', ico: 'settings', href: '/parametres' },
@@ -316,7 +318,13 @@ export function AppLayout({ children, currentPage }: AppLayoutProps) {
             {isExpanded && (
               <div id={groupId}>
                 {group.items.map(item => {
-                  if (!visibleModules.includes(item.id)) return null;
+                  // Entrées adminOnly : gate direct sur le rôle (hors visibleModules) ;
+                  // les autres suivent les permissions usePermissions comme avant.
+                  if (item.adminOnly) {
+                    if (user?.role !== 'admin') return null;
+                  } else if (!visibleModules.includes(item.id)) {
+                    return null;
+                  }
                   const isActive = currentPage === item.id;
                   return (
                     <Link
