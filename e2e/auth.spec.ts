@@ -2,6 +2,12 @@
 // Tests E2E - authentification et protection des routes (sans compte reel)
 
 import { test, expect } from '@playwright/test';
+import { resetRateLimit } from './helpers';
+
+// Rate limiting : le test "identifiants invalides" cree un vrai echec comptabilise
+// par l'Edge Function auth-login → on encadre le fichier par un reset des compteurs.
+test.beforeAll(resetRateLimit); // part d'un compteur vierge
+test.afterAll(resetRateLimit);  // ne laisse pas un compteur residuel pour le run suivant
 
 test.describe('Page de connexion', () => {
   test('affiche le formulaire de connexion avec le branding EduLink Sup', async ({ page }) => {

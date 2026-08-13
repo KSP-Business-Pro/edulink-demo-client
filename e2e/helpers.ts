@@ -18,6 +18,10 @@ export async function loginAsScolarite(page: Page): Promise<void> {
     throw new Error('E2E_TEST_EMAIL / E2E_TEST_PASSWORD manquants.');
   }
 
+  // Repart d'un compteur de rate limiting vierge : les logins UI passent
+  // desormais par l'Edge Function auth-login, donc chaque echec compte.
+  await resetRateLimit();
+
   await page.goto('/login');
 
   // Marque la MFA comme deja verifiee pour cette session de navigateur
@@ -31,6 +35,21 @@ export async function loginAsScolarite(page: Page): Promise<void> {
   await page.locator('input[type="password"]').fill(PASSWORD);
   await page.getByRole('button', { name: /se connecter/i }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
+}
+
+// ── Rate limiting : reinitialisation des compteurs ─────────────────────────
+// Sans ce reset, les echecs volontaires d'auth.spec.ts (mauvais mot de passe)
+// et les runs repetes finissent par declencher le blocage 15 min
+// (5 echecs/compte, 20 comptes distincts/IP).
+export async function resetRateLimit(): Promise<void> {
+  const admin = adminClient(); // service role → bypasse la RLS de tentatives_connexion
+  const { error } = await admin
+    .from('tentatives_connexion')
+    .delete()
+    .not('cle', 'is', null); // cle = PK NOT NULL → supprime toutes les lignes
+  if (error) {
+    throw new Error(`resetRateLimit: ${error.message}`);
+  }
 }
 
 // ── Client admin (service role) — reserve au setup/teardown des tests ──────

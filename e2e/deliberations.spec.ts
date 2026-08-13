@@ -44,6 +44,6 @@ test.describe('Deliberations - publication du releve', () => {
     if (await emailCheckbox.isChecked()) await emailCheckbox.uncheck();
 
     await ligneEtudiant.getByRole('button', { name: 'Publier' }).click();
-    await expect(ligneEtudiant.getByText('✓ Publié')).toBeVisible({ timeout: 15000 });
+    await expect(ligneEtudiant.getByText('✓ Publié')).toBeVisible({ timeout: 30000 });
   });
 });

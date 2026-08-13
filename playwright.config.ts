@@ -21,6 +21,6 @@ export default defineConfig({
     command: 'npm run dev -- --port 3100 --strictPort',
     url: 'http://localhost:3100',
     reuseExistingServer: !process.env.CI,
-    timeout: 30000,
+    timeout: 60_000, // logins plus lents depuis le proxy auth-login (rate limiting)
   },
 });

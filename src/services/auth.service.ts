@@ -4,24 +4,62 @@
 
 import { supabase } from './supabase';
 import type { UserProfil, UtilisateurRow, EcoleRow } from '../types/auth.types';
+// ── Rate limiting (Sprint B9) ───────────────────────────────────────────────
+// La connexion passe par l'Edge Function `auth-login` au lieu d'appeler
+// signInWithPassword depuis le navigateur : le comptage des tentatives et le
+// blocage (5 essais → 15 min) sont ainsi appliqués côté serveur, avant tout
+// appel à Supabase Auth, et ne peuvent pas être contournés depuis le client.
+const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const AUTH_LOGIN_URL    = `${SUPABASE_URL}/functions/v1/auth-login`;
 
 // ── Login ──────────────────────────────────────────────────────────────────
 export async function login(
   email: string,
   password: string
 ): Promise<{ profil: UserProfil; error: null } | { profil: null; error: string }> {
-  // 1. Authentification Supabase Auth
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (authError || !authData.user) {
-    return { profil: null, error: authError?.message ?? 'Identifiants invalides' };
+  // 1. Authentification via le proxy de connexion (rate limiting côté serveur)
+  let reponse: Response;
+  try {
+    reponse = await fetch(AUTH_LOGIN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    return { profil: null, error: 'Service de connexion injoignable. Vérifiez votre connexion internet et réessayez.' };
   }
 
-  // 2. Charger le profil depuis la table utilisateurs
-  const profilResult = await loadProfil(authData.user.id, email);
+  const payload = await reponse.json().catch(() => null);
+
+  if (!reponse.ok) {
+    // 429 = blocage rate limiting, 401 = identifiants invalides
+    return {
+      profil: null,
+      error: payload?.message ?? 'Identifiants invalides',
+    };
+  }
+
+  if (!payload?.access_token || !payload?.refresh_token) {
+    return { profil: null, error: 'Réponse de connexion invalide. Contactez l\'administrateur.' };
+  }
+
+  // 2. Réinjection de la session dans le client Supabase du navigateur
+  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+    access_token:  payload.access_token,
+    refresh_token: payload.refresh_token,
+  });
+
+  if (sessionError || !sessionData.user) {
+    return { profil: null, error: sessionError?.message ?? 'Impossible d\'établir la session.' };
+  }
+
+  // 3. Charger le profil depuis la table utilisateurs
+  const profilResult = await loadProfil(sessionData.user.id, email);
   if (!profilResult) {
     await supabase.auth.signOut();
     return {
