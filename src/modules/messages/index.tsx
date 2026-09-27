@@ -1,5 +1,5 @@
 // src/modules/messages/index.tsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../services/supabase';
 import MonitoringEnvois from './MonitoringEnvois';
@@ -124,6 +124,9 @@ export default function MessagesPage() {
   const [purgeEnCours, setPurgeEnCours]       = useState(false);
   const [confirmPurgeOpen, setConfirmPurgeOpen] = useState(false);
   const [journalPurges, setJournalPurges]     = useState<JournalPurge[]>([]);
+
+  // ── Anti-boucle du marquage automatique de lecture ────────────────────────
+  const lecturesEnCoursRef = useRef<Set<string>>(new Set());
 
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
     setToast({ msg, type });
@@ -262,19 +265,37 @@ export default function MessagesPage() {
   }, [ongletActif, loadDashboard]);
 
   // ── Marquage automatique de lecture (Chantier F : accusé pour officiels) ─
+  // Correctif (27/09) : boucle infinie possible si l'UPDATE ci-dessous est
+  // silencieusement bloqué côté RLS — le message rechargé restait "non lu",
+  // ce qui redéclenchait cet effet indéfiniment (clignotement Chargement...).
+  // On retient désormais les ids déjà traités pour ne plus jamais les
+  // retenter, et on met à jour l'affichage localement sans recharger toute
+  // la liste (plus de dépendance circulaire sur `messages`).
   useEffect(() => {
     if (ongletActif !== 'recus' || !messages.length) return;
-    const nonLus = messages.filter(m => m.expediteur_id !== user?.utilisateur_id && !m.lu && m.statut !== 'archive');
+    const nonLus = messages.filter(m =>
+      m.expediteur_id !== user?.utilisateur_id &&
+      !m.lu &&
+      m.statut !== 'archive' &&
+      !lecturesEnCoursRef.current.has(m.id)
+    );
     if (!nonLus.length) return;
+    nonLus.forEach(m => lecturesEnCoursRef.current.add(m.id));
     (async () => {
+      const maintenant = new Date().toISOString();
       for (const m of nonLus) {
-        const patch: Record<string, any> = { lu: true, lu_at: new Date().toISOString() };
-        if (m.est_officiel) patch.date_lecture = new Date().toISOString();
-        await supabase.from('messages').update(patch).eq('id', m.id);
+        const patch: Record<string, any> = { lu: true, lu_at: maintenant };
+        if (m.est_officiel) patch.date_lecture = maintenant;
+        const { error } = await supabase.from('messages').update(patch).eq('id', m.id);
+        if (error) console.error('Marquage lu echoue pour', m.id, error.message);
       }
-      await load();
+      setMessages(prev => prev.map(m =>
+        nonLus.some(n => n.id === m.id)
+          ? { ...m, lu: true, lu_at: maintenant, date_lecture: m.est_officiel ? maintenant : m.date_lecture }
+          : m
+      ));
     })();
-  }, [ongletActif, messages]); // eslint-disable-line
+  }, [ongletActif, messages, user?.utilisateur_id]);
 
   // ── File d'attente de validation (direction/admin uniquement) ────────────
   const loadAValider = useCallback(async () => {
