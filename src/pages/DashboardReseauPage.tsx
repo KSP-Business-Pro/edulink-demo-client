@@ -20,6 +20,20 @@ interface EcoleStats {
   deliberations_pending: number;
 }
 
+interface EcoleStatsRow {
+  ecole_id: string;
+  nom: string;
+  code_ecole: string | null;
+  etudiants: number;
+  enseignants: number;
+  promotions: number;
+  semestres_actifs: number;
+  factures_total: number | string;
+  factures_encaissees: number | string;
+  etudiants_risque: number;
+  deliberations_pending: number;
+}
+
 interface AlerteReseau {
   type: 'warning' | 'error' | 'info';
   ecole: string;
@@ -61,6 +75,7 @@ export function DashboardReseauPage() {
   const [alertes, setAlertes] = useState<AlerteReseau[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [dureeMs, setDureeMs] = useState<number | null>(null);
 
   const [showNvEcole, setShowNvEcole] = useState(false)
   const [nvForm, setNvForm] = useState({ nom: '', code_ecole: '', type_etablissement: 'universite', ville: '', pays: 'Benin' })
@@ -69,100 +84,38 @@ export function DashboardReseauPage() {
 
   const loadStats = useCallback(async () => {
     setLoading(true);
+    const t0 = performance.now();
     try {
-      // 1. Charger les écoles
-      const { data: ecolesData } = await supabase
-        .from('ecoles')
-        .select('id, nom, code_ecole')
-        .eq('actif', true)
-        .order('nom');
+      const { data: rows, error } = await supabase.rpc('fn_dashboard_reseau_stats');
 
-      if (!ecolesData) return;
+      if (error) {
+        console.error('fn_dashboard_reseau_stats:', error.message);
+        return;
+      }
 
       const stats: EcoleStats[] = [];
       const newAlertes: AlerteReseau[] = [];
 
-      for (const ecole of ecolesData) {
-        // Étudiants
-        const { count: nbEtudiants } = await supabase
-          .from('etudiants')
-          .select('*', { count: 'exact', head: true })
-          .eq('ecole_id', ecole.id)
-
-        // Enseignants
-        const { count: nbEnseignants } = await supabase
-          .from('enseignants')
-          .select('*', { count: 'exact', head: true })
-          .eq('ecole_id', ecole.id);
-
-        // Promotions
-        const { count: nbPromotions } = await supabase
-          .from('promotions')
-          .select('*', { count: 'exact', head: true })
-          .eq('ecole_id', ecole.id);
-
-        // Semestres actifs
-        const { count: nbSemestres } = await supabase
-          .from('semestres')
-          .select('*', { count: 'exact', head: true })
-          .eq('ecole_id', ecole.id)
-          .eq('statut', 'en_cours');
-
-        // Factures
-        const { data: factures } = await supabase
-          .from('factures')
-          .select('montant_total, montant_paye')
-          .eq('ecole_id', ecole.id);
-
-        const totalAttendu = (factures ?? []).reduce((s, f) => s + (f.montant_total ?? 0), 0);
-        const totalEncaisse = (factures ?? []).reduce((s, f) => s + (f.montant_paye ?? 0), 0);
+      for (const r of (rows ?? []) as EcoleStatsRow[]) {
+        // numeric Postgres → string côté PostgREST : on force le typage
+        const totalAttendu = Number(r.factures_total) || 0;
+        const totalEncaisse = Number(r.factures_encaissees) || 0;
         const tauxRecouvrement = totalAttendu > 0 ? Math.round((totalEncaisse / totalAttendu) * 100) : 0;
+        const nbRisque = r.etudiants_risque ?? 0;
+        const deliberationsPending = r.deliberations_pending ?? 0;
 
-        // Étudiants à risque (absences > 30%)
-        const { data: presencesData } = await supabase
-          .from('presences')
-          .select('etudiant_id, statut')
-          .eq('ecole_id', ecole.id);
-        const parEtudiant: Record<string, { total: number; absents: number }> = {};
-        (presencesData ?? []).forEach((p: { etudiant_id: string; statut: string }) => {
-          const e = parEtudiant[p.etudiant_id] ?? { total: 0, absents: 0 };
-          e.total += 1;
-          if (p.statut === 'absent') e.absents += 1;
-          parEtudiant[p.etudiant_id] = e;
-        });
-        const nbRisque = Object.values(parEtudiant).filter(e => e.total > 0 && (e.absents / e.total) > 0.3).length;
-
-        // Délibérations en attente (semestres en_cours sans PV)
-        const { data: semActifs } = await supabase
-          .from('semestres')
-          .select('id')
-          .eq('ecole_id', ecole.id)
-          .eq('statut', 'en_cours');
-
-        let deliberationsPending = 0;
-        if (semActifs && semActifs.length > 0) {
-          const semIds = semActifs.map(s => s.id);
-          const { count: nbDelibs } = await supabase
-            .from('deliberations')
-            .select('*', { count: 'exact', head: true })
-              .in('semestre_id', semIds)
-            .eq('statut', 'validee');
-          deliberationsPending = (semActifs.length) - (nbDelibs ?? 0);
-        }
-
-        // Générer alertes
         if (tauxRecouvrement < 70 && totalAttendu > 0) {
           newAlertes.push({
             type: 'warning',
-            ecole: ecole.nom,
+            ecole: r.nom,
             message: `Taux de recouvrement faible : ${tauxRecouvrement}%`,
             href: '/comptabilite',
           });
         }
-        if ((nbRisque ?? 0) > 0) {
+        if (nbRisque > 0) {
           newAlertes.push({
             type: 'warning',
-            ecole: ecole.nom,
+            ecole: r.nom,
             message: `${nbRisque} étudiant(s) à risque d'exclusion`,
             href: '/presences',
           });
@@ -170,24 +123,24 @@ export function DashboardReseauPage() {
         if (deliberationsPending > 0) {
           newAlertes.push({
             type: 'info',
-            ecole: ecole.nom,
+            ecole: r.nom,
             message: `${deliberationsPending} semestre(s) sans délibération validée`,
             href: '/deliberations',
           });
         }
 
         stats.push({
-          id: ecole.id,
-          nom: ecole.nom,
-          code_ecole: ecole.code_ecole ?? '—',
-          etudiants: nbEtudiants ?? 0,
-          enseignants: nbEnseignants ?? 0,
-          promotions: nbPromotions ?? 0,
+          id: r.ecole_id,
+          nom: r.nom,
+          code_ecole: r.code_ecole ?? '—',
+          etudiants: r.etudiants ?? 0,
+          enseignants: r.enseignants ?? 0,
+          promotions: r.promotions ?? 0,
           factures_total: totalAttendu,
           factures_encaissees: totalEncaisse,
           taux_recouvrement: tauxRecouvrement,
-          etudiants_risque: nbRisque ?? 0,
-          semestres_actifs: nbSemestres ?? 0,
+          etudiants_risque: nbRisque,
+          semestres_actifs: r.semestres_actifs ?? 0,
           deliberations_pending: deliberationsPending,
         });
       }
@@ -195,6 +148,7 @@ export function DashboardReseauPage() {
       setEcoles(stats);
       setAlertes(newAlertes);
       setLastSync(new Date());
+      setDureeMs(Math.round(performance.now() - t0));
     } finally {
       setLoading(false);
     }
@@ -240,6 +194,7 @@ export function DashboardReseauPage() {
           <p style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 0' }}>
             Vue consolidée · {ecoles.length} établissement(s) actif(s)
             {lastSync && <span style={{ marginLeft: 8, color: '#9ca3af' }}>x Sync {lastSync.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>}
+            {dureeMs !== null && <span style={{ marginLeft: 8, color: '#dc2626', fontWeight: 700 }}>⏱ {dureeMs} ms</span>}
           </p>
         </div>
         <button onClick={() => setShowNvEcole(true)} style={{ padding: '9px 18px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>+ Nouvel etablissement</button>
