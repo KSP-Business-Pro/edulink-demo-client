@@ -1,5 +1,6 @@
-﻿// src/modules/enseignants/index.tsx
+// src/modules/enseignants/index.tsx
 // Fix TS : statut 'actif'|'inactif' aligné DB, MatiereLien corrigé, xlsx typé
+// B9 : pagination généralisée (pattern Étudiants) — PAGE_SIZE à confirmer (voir note ci-dessous)
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../services/supabase';
@@ -10,11 +11,15 @@ const SR_ONLY: React.CSSProperties = {
   clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap',
 };
 
+// B9 : taille de page — alignée sur la valeur réellement utilisée par le module Étudiants (20).
+// Si tu veux 50 partout, change juste cette constante (et la même dans resultats/index.tsx).
+const PAGE_SIZE = 20;
+
 interface Enseignant {
   id: string;
   ecole_id: string;
   nom: string;
-  prenom: string | null;  
+  prenom: string | null;
   grade: string | null;
   specialite: string | null;
   email: string | null;
@@ -112,6 +117,10 @@ export default function EnseignantsPage() {
   const [enseignants, setEnseignants] = useState<Enseignant[]>([]);
   const [loading, setLoading]         = useState(false);
   const [search, setSearch]           = useState('');
+  const [page, setPage]               = useState(0); // B9 : pagination
+
+  // Revenir à la page 1 à chaque nouvelle recherche
+  useEffect(() => { setPage(0); }, [search]);
 
   // ── CRUD modal ────────────────────────────────────────────────────────────
   const [modalOpen, setModalOpen] = useState(false);
@@ -342,6 +351,12 @@ export default function EnseignantsPage() {
     return `${e.nom} ${e.prenom ?? ''} ${e.specialite ?? ''}`.toLowerCase().includes(s);
   });
 
+  // B9 : pagination côté client (liste déjà chargée intégralement — volume typique
+  // d'un corps enseignant, pas besoin de pagination serveur comme pour Étudiants)
+  const totalFiltered = liste.length;
+  const totalPages     = Math.ceil(totalFiltered / PAGE_SIZE) || 1;
+  const pageItems       = liste.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   const toastBg = { success: '#059669', error: '#dc2626', info: '#1e3a5f' };
 
   return (
@@ -404,20 +419,36 @@ export default function EnseignantsPage() {
             {!search && <button style={{ marginTop: '.75rem' }} onClick={openCreate}>+ Créer un enseignant</button>}
           </div>
         ) : (
-          <div className="table-wrap">
-            <ResponsiveTable<Enseignant>
-              columns={enseignantColumns}
-              data={liste}
-              keyExtractor={e => e.id}
-              actions={e => (
-                <>
-                  <button className="btn-ghost btn-sm" onClick={() => openMatieres(e)}>Matières</button>
-                  <button className="btn-ghost btn-sm" onClick={() => openEdit(e)} aria-label={`Modifier ${e.nom}`}>✏</button>
-                  <button className="btn-ghost btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDelete(e)} aria-label={`Supprimer ${e.nom}`}>🗑</button>
-                </>
-              )}
-            />
-          </div>
+          <>
+            <div className="table-wrap">
+              <ResponsiveTable<Enseignant>
+                columns={enseignantColumns}
+                data={pageItems}
+                keyExtractor={e => e.id}
+                actions={e => (
+                  <>
+                    <button className="btn-ghost btn-sm" onClick={() => openMatieres(e)}>Matières</button>
+                    <button className="btn-ghost btn-sm" onClick={() => openEdit(e)} aria-label={`Modifier ${e.nom}`}>✏</button>
+                    <button className="btn-ghost btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDelete(e)} aria-label={`Supprimer ${e.nom}`}>🗑</button>
+                  </>
+                )}
+              />
+            </div>
+
+            {/* B9 : pagination */}
+            {totalFiltered > PAGE_SIZE && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, padding: '8px 0' }}>
+                <span style={{ fontSize: 12, color: '#6b7280' }}>
+                  {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalFiltered)} sur {totalFiltered} enseignant{totalFiltered > 1 ? 's' : ''}
+                </span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn-ghost btn-sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>← Préc.</button>
+                  <span style={{ fontSize: 12, padding: '4px 10px', background: '#f3f4f6', borderRadius: 6 }}>Page {page + 1} / {totalPages}</span>
+                  <button className="btn-ghost btn-sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Suiv. →</button>
+                </div>
+              </div>
+            )}
+          </>
         )
       )}
 
